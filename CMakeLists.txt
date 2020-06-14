@@ -15,6 +15,11 @@ set(CMAKE_CXX_STANDARD           20)
 set(CMAKE_CXX_STANDARD_REQUIRED  ON)
 set(CMAKE_CXX_EXTENSIONS         OFF)
 
+# Set config specific defines
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    add_compile_definitions(DEBUG_BUILD)
+endif()
+
 # Include sub-projects.
 add_subdirectory("Dependencies/RfgToolsPlusPlus")
 #add_subdirectory("Dependencies/RfgToolsPlusPlus/Common") # TODO: Move into own git submodule
