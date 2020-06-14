@@ -4,7 +4,6 @@
 
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d11.lib")
-
 #include <dxgi.h>
 #include <d3dcommon.h>
 #include <d3d11.h>
@@ -28,32 +27,34 @@ DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth
 DX11Renderer::~DX11Renderer()
 {
     //Release DX11 resources
+    ReleaseCOM(depthBuffer_);
+    ReleaseCOM(depthBufferView_);
     ReleaseCOM(SwapChain_);
     ReleaseCOM(d3d11Device_);
     ReleaseCOM(d3d11Context_);
     ReleaseCOM(dxgiFactory_);
 }
 
-void DX11Renderer::DoFrame()
+void DX11Renderer::DoFrame(f32 deltaTime)
 {
-    //Update the colors of our scene as simple render test
-    red += colormodr * 0.00005f;
-    green += colormodg * 0.00002f;
-    blue += colormodb * 0.00001f;
-
-    if (red >= 1.0f || red <= 0.0f)
-        colormodr *= -1;
-    if (green >= 1.0f || green <= 0.0f)
-        colormodg *= -1;
-    if (blue >= 1.0f || blue <= 0.0f)
-        colormodb *= -1;
-
-    //Set new backbuffer color
-    Color color{ red, green, blue, 1.0f };
-    d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&color));
+    //Set backbuffer color
+    d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
 
     //Present the backbuffer to the screen
     SwapChain_->Present(0, 0);
+}
+
+void DX11Renderer::HandleResize()
+{
+    UpdateWindowDimensions();
+
+    //Cleanup swapchain resources
+    ReleaseCOM(depthBuffer_);
+    ReleaseCOM(depthBufferView_);
+    ReleaseCOM(SwapChain_);
+
+    //Recreate swapchain and it's resources
+    InitSwapchainAndResources();
 }
 
 bool DX11Renderer::InitWindow(WNDPROC wndProc)
@@ -113,7 +114,27 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
 
 bool DX11Renderer::InitDx11()
 {
-    return CreateDevice() && CreateSwapchain() && CreateRenderTargetView();
+    return CreateDevice() && InitSwapchainAndResources();
+}
+
+bool DX11Renderer::InitSwapchainAndResources()
+{
+    bool result = CreateSwapchain() && CreateRenderTargetView() && CreateDepthBuffer();
+    if (!result)
+        return false;
+
+    D3D11_VIEWPORT viewport;
+    viewport.TopLeftX = 0.0f;
+    viewport.TopLeftY = 0.0f;
+    viewport.Width = windowWidth_;
+    viewport.Height = windowHeight_;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+
+    d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
+    d3d11Context_->RSSetViewports(1, &viewport);
+
+    return true;
 }
 
 bool DX11Renderer::InitScene()
@@ -163,26 +184,26 @@ bool DX11Renderer::CreateDevice()
 bool DX11Renderer::CreateSwapchain()
 {
     //Fill out swapchain config before creation
-    DXGI_SWAP_CHAIN_DESC sd;
-    sd.BufferDesc.Width = windowWidth_;
-    sd.BufferDesc.Height = windowHeight_;
-    sd.BufferDesc.RefreshRate.Numerator = 60; //Todo: Make configurable
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-    sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.BufferCount = 1;
-    sd.OutputWindow = hwnd_;
-    sd.Windowed = true; //Todo: Make configurable
-    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-    sd.Flags = 0;
+    DXGI_SWAP_CHAIN_DESC swapchainDesc;
+    swapchainDesc.BufferDesc.Width = windowWidth_;
+    swapchainDesc.BufferDesc.Height = windowHeight_;
+    swapchainDesc.BufferDesc.RefreshRate.Numerator = 60; //Todo: Make configurable
+    swapchainDesc.BufferDesc.RefreshRate.Denominator = 1;
+    swapchainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapchainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    swapchainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+    swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapchainDesc.BufferCount = 1;
+    swapchainDesc.OutputWindow = hwnd_;
+    swapchainDesc.Windowed = true; //Todo: Make configurable
+    swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    swapchainDesc.Flags = 0;
     //Don't use MSAA
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
+    swapchainDesc.SampleDesc.Count = 1;
+    swapchainDesc.SampleDesc.Quality = 0;
 
     //Create swapchain
-    if (FAILED(dxgiFactory_->CreateSwapChain(d3d11Device_, &sd, &SwapChain_)))
+    if (FAILED(dxgiFactory_->CreateSwapChain(d3d11Device_, &swapchainDesc, &SwapChain_)))
     {
         MessageBox(0, "Failed to create swapchain!", 0, 0);
         return false;
@@ -200,10 +221,36 @@ bool DX11Renderer::CreateRenderTargetView()
     //Create render target and get view of it
     d3d11Device_->CreateRenderTargetView(backBuffer, NULL, &renderTargetView_);
 
-    //Set render target
-    d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, NULL);
-
     ReleaseCOM(backBuffer);
+    return true;
+}
+
+bool DX11Renderer::CreateDepthBuffer()
+{
+    D3D11_TEXTURE2D_DESC depthBufferDesc;
+    depthBufferDesc.Width = windowWidth_;
+    depthBufferDesc.Height = windowHeight_;
+    depthBufferDesc.MipLevels = 1;
+    depthBufferDesc.ArraySize = 1;
+    depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depthBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    depthBufferDesc.CPUAccessFlags = 0;
+    depthBufferDesc.MiscFlags = 0;
+    depthBufferDesc.SampleDesc.Count = 1;
+    depthBufferDesc.SampleDesc.Quality = 0;
+
+    if (FAILED(d3d11Device_->CreateTexture2D(&depthBufferDesc, 0, &depthBuffer_)))
+    {
+        MessageBox(0, "Failed to create depth buffer texture", 0, 0);
+        return false;
+    }
+    if (FAILED(d3d11Device_->CreateDepthStencilView(depthBuffer_, 0, &depthBufferView_)))
+    {
+        MessageBox(0, "Failed to create depth buffer view", 0, 0);
+        return false;
+    }
+
     return true;
 }
 
@@ -234,4 +281,14 @@ bool DX11Renderer::AcquireDxgiFactoryInstance()
     ReleaseCOM(dxgiAdapter);
 
     return true;
+}
+
+void DX11Renderer::UpdateWindowDimensions()
+{
+    RECT rect;
+    if (GetWindowRect(hwnd_, &rect))
+    {
+        windowWidth_ = rect.right - rect.left;
+        windowHeight_ = rect.bottom - rect.top;
+    }
 }

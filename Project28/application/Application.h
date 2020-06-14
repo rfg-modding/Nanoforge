@@ -1,4 +1,8 @@
 #pragma once
+#include "common/Typedefs.h"
+#include "common/timing/Timer.h"
+#include <ext/WindowsWrapper.h>
+#include <chrono>
 
 struct HINSTANCE__;
 typedef HINSTANCE__* HINSTANCE;
@@ -12,6 +16,10 @@ public:
     ~Application();
 
     void Run();
+    void HandleResize();
+
+    bool Paused = false;
+    Timer frameTimer_;
 
 private:
     void InitRenderer();
@@ -21,4 +29,11 @@ private:
 
     int windowWidth_ = 800;
     int windowHeight_ = 800;
+
+    MSG msg; //Windows message struct
+
+    //Frame timing variables
+    f32 deltaTime_ = 0.01f;
+    const u32 maxFrameRate = 60;
+    const f32 maxFrameRateDelta = 1.0f / static_cast<f32>(maxFrameRate);
 };
