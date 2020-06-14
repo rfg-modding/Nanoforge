@@ -1,0 +1,2 @@
+# RF Viewer
+Experiments with RFG packfiles and DX11. Goal not clear yet. Possibly will visualize RFG map via DX11 starting with object bounding boxes from zone and mission files. Hope to visualize terrain as well once the terrain mesh format is understood.
