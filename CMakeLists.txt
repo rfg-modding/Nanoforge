@@ -1,9 +1,21 @@
-﻿# CMakeList.txt : Top-level CMake project file, do global configuration
-# and include sub-projects here.
-#
+﻿
+# Top level project. Treating this like a VS solution
 cmake_minimum_required (VERSION 3.8)
-
 project ("Project28")
 
+# Update git submodules
+include("GitSubmodule.cmake")
+
+# Error if submodules not loaded. Just check one of them for now
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/dependencies/RfgToolsPlusPlus/CMakeLists.txt")
+    message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
+endif()
+
+set(CMAKE_CXX_STANDARD           20)
+set(CMAKE_CXX_STANDARD_REQUIRED  ON)
+set(CMAKE_CXX_EXTENSIONS         OFF)
+
 # Include sub-projects.
-add_subdirectory ("Project28")
+add_subdirectory("Dependencies/RfgToolsPlusPlus")
+#add_subdirectory("Dependencies/RfgToolsPlusPlus/Common") # TODO: Move into own git submodule
+add_subdirectory("Project28")
