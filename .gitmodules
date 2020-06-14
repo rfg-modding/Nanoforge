@@ -1,0 +1,3 @@
+[submodule "Dependencies/RfgToolsPlusPlus"]
+	path = Dependencies/RfgToolsPlusPlus
+	url = https://github.com/Moneyl/RfgToolsPlusPlus.git
