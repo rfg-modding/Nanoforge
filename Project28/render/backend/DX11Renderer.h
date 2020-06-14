@@ -18,6 +18,19 @@ struct Color
     float alpha = 0.0f;
 };
 
+struct Vector3
+{
+    float x;
+    float y;
+    float z;
+};
+
+struct Vertex
+{
+    Vector3 pos;
+    Color color;
+};
+
 class DX11Renderer
 {
 public:
@@ -29,16 +42,19 @@ public:
 
 private:
     [[nodiscard]] bool InitWindow(WNDPROC wndProc);
-    bool InitDx11();
+    [[nodiscard]] bool InitDx11();
     //Initialize swapchain and resources it uses. Run each time the window is resized
-    bool InitSwapchainAndResources();
-    bool InitScene();
+    [[nodiscard]] bool InitSwapchainAndResources();
+    [[nodiscard]] bool InitScene();
+    [[nodiscard]] bool InitModels();
+    [[nodiscard]] bool InitShaders();
 
-    bool CreateDevice();
-    bool CreateSwapchain();
-    bool CreateRenderTargetView();
-    bool CreateDepthBuffer();
-    bool AcquireDxgiFactoryInstance();
+
+    [[nodiscard]] bool CreateDevice();
+    [[nodiscard]] bool CreateSwapchain();
+    [[nodiscard]] bool CreateRenderTargetView();
+    [[nodiscard]] bool CreateDepthBuffer();
+    [[nodiscard]] bool AcquireDxgiFactoryInstance();
 
     void UpdateWindowDimensions();
 
