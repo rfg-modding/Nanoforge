@@ -43,7 +43,7 @@ void Application::Run()
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        else if (Paused)
+        if (Paused)
         {
             Sleep(100);
         }
@@ -53,8 +53,8 @@ void Application::Run()
             renderer_->DoFrame(deltaTime_);
         }
 
-        //while (frameTimer_.ElapsedSecondsPrecise() < maxFrameRateDelta)
-        //    deltaTime_ = frameTimer_.ElapsedSecondsPrecise();
+        while (frameTimer_.ElapsedSecondsPrecise() < maxFrameRateDelta)
+            deltaTime_ = frameTimer_.ElapsedSecondsPrecise();
     }
 }
 
