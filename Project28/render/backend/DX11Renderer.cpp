@@ -85,23 +85,6 @@ void DX11Renderer::HandleResize()
 
     UpdateWindowDimensions();
 
-    //ReleaseCOM(renderTargetView_);
-    //renderTargetView_ = nullptr;
-    //SwapChain_->ResizeBuffers(0, windowWidth_, windowHeight_, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-    //CreateRenderTargetView();
-
-    ////D3D11_VIEWPORT viewport;
-    ////viewport.TopLeftX = 0.0f;
-    ////viewport.TopLeftY = 0.0f;
-    ////viewport.Width = windowWidth_;
-    ////viewport.Height = windowHeight_;
-    ////viewport.MinDepth = 0.0f;
-    ////viewport.MaxDepth = 1.0f;
-
-    ////d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
-    ////d3d11Context_->RSSetViewports(1, &viewport);
-
-
     //Cleanup swapchain resources
     ReleaseCOM(depthBuffer_);
     ReleaseCOM(depthBufferView_);
@@ -115,14 +98,6 @@ void DX11Renderer::ImGuiDoFrame()
 {
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-    ImGuiIO& io = ImGui::GetIO();
-
-    // Update and Render additional Platform Windows
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-    }
 }
 
 bool DX11Renderer::InitWindow(WNDPROC wndProc)
@@ -294,40 +269,16 @@ bool DX11Renderer::InitShaders()
 
 bool DX11Renderer::InitImGui()
 {
-    ImGui_ImplWin32_EnableDpiAwareness();
-
-    // Setup Dear ImGui context
+    //Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); 
     io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
-    //io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    //Todo: Re-enable
-    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
-    //io.ConfigViewportsNoAutoMerge = true;
-    //io.ConfigViewportsNoTaskBarIcon = true;
-    //io.ConfigViewportsNoDefaultParent = true;
-    //io.ConfigDockingAlwaysTabBar = true;
-    //io.ConfigDockingTransparentPayload = true;
-//#if 1
-//    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
-//    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
-//#endif
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
-
-    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-    ImGuiStyle& style = ImGui::GetStyle();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
 
     // Setup Platform/Renderer bindings
     ImGui_ImplWin32_Init(hwnd_);
