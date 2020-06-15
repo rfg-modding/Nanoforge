@@ -48,6 +48,7 @@ public:
     void HandleResize();
 
 private:
+    void ImGuiDoFrame();
     [[nodiscard]] bool InitWindow(WNDPROC wndProc);
     [[nodiscard]] bool InitDx11();
     //Initialize swapchain and resources it uses. Run each time the window is resized
@@ -55,6 +56,7 @@ private:
     [[nodiscard]] bool InitScene();
     [[nodiscard]] bool InitModels();
     [[nodiscard]] bool InitShaders();
+    [[nodiscard]] bool InitImGui();
 
 
     [[nodiscard]] bool CreateDevice();
@@ -71,6 +73,8 @@ private:
     HWND hwnd_ = nullptr;
     int windowWidth_ = 800;
     int windowHeight_ = 800;
+    int windowWidthUsable_ = 800;
+    int windowHeightUsable_ = 800;
 
     IDXGIFactory* dxgiFactory_ = nullptr;
     ID3D11Device* d3d11Device_ = nullptr;

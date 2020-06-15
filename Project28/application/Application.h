@@ -23,6 +23,7 @@ public:
 
 private:
     void InitRenderer();
+    void UpdateGui();
 
     HINSTANCE hInstance_ = nullptr;
     DX11Renderer* renderer_ = nullptr;

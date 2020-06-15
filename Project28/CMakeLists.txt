@@ -11,11 +11,18 @@ file(GLOB_RECURSE SOURCES
     "${CMAKE_SOURCE_DIR}/Project28/*.h"
     # TODO: Hook this up as a static lib once it's got a CMakeLists.txt. For now this works
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.h
-    #${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.cpp
+    #${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.cpp)
 )
 
 # Add source to this project's executable.
-add_executable (Project28 ${SOURCES})
+add_executable (Project28 ${SOURCES}
+    #Need to manually add the dear imgui files)
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_demo.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_draw.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_win32.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_dx11.cpp)
 
 # Add include directories
 target_include_directories(Project28 SYSTEM PRIVATE
@@ -25,6 +32,8 @@ target_include_directories(Project28 SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/RfgTools++/
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/
+    ${CMAKE_SOURCE_DIR}/dependencies/
 )
 
 # Copy assets directory to binary dir after builds

@@ -11,6 +11,10 @@
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <directxcolors.h>
+#include <imgui/imgui.h>
+#include <imgui/imconfig.h>
+#include <imgui/examples/imgui_impl_win32.h>
+#include <imgui/examples/imgui_impl_dx11.h>
 
 #define ReleaseCOM(x) if(x) x->Release();
 
@@ -22,6 +26,8 @@ DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth
 
     if (!InitWindow(wndProc))
         throw std::exception("Failed to init window! Exiting.");
+
+    UpdateWindowDimensions();
     if (!InitDx11())
         throw std::exception("Failed to init DX11! Exiting.");
     if (!InitScene())
@@ -30,10 +36,17 @@ DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth
         throw std::exception("Failed to init models! Exiting.");
     if (!InitShaders())
         throw std::exception("Failed to init shaders! Exiting.");
+    if (!InitImGui())
+        throw std::exception("Failed to dear imgui! Exiting.");
 }
 
 DX11Renderer::~DX11Renderer()
 {
+    //Shutdown dear imgui
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+
     //Release DX11 resources
     ReleaseCOM(depthBuffer_);
     ReleaseCOM(depthBufferView_);
@@ -49,7 +62,8 @@ DX11Renderer::~DX11Renderer()
 
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
-    //Set backbuffer color
+    //Set render target and clear it
+    d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
@@ -58,13 +72,35 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     d3d11Context_->PSSetShader(pixelShader_, nullptr, 0);
     d3d11Context_->Draw(3, 0);
 
+    ImGuiDoFrame();
+
     //Present the backbuffer to the screen
     SwapChain_->Present(0, 0);
 }
 
 void DX11Renderer::HandleResize()
 {
+    if (!SwapChain_ || !renderTargetView_)
+        return;
+
     UpdateWindowDimensions();
+
+    //ReleaseCOM(renderTargetView_);
+    //renderTargetView_ = nullptr;
+    //SwapChain_->ResizeBuffers(0, windowWidth_, windowHeight_, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+    //CreateRenderTargetView();
+
+    ////D3D11_VIEWPORT viewport;
+    ////viewport.TopLeftX = 0.0f;
+    ////viewport.TopLeftY = 0.0f;
+    ////viewport.Width = windowWidth_;
+    ////viewport.Height = windowHeight_;
+    ////viewport.MinDepth = 0.0f;
+    ////viewport.MaxDepth = 1.0f;
+
+    ////d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
+    ////d3d11Context_->RSSetViewports(1, &viewport);
+
 
     //Cleanup swapchain resources
     ReleaseCOM(depthBuffer_);
@@ -73,6 +109,20 @@ void DX11Renderer::HandleResize()
 
     //Recreate swapchain and it's resources
     InitSwapchainAndResources();
+}
+
+void DX11Renderer::ImGuiDoFrame()
+{
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Update and Render additional Platform Windows
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
 }
 
 bool DX11Renderer::InitWindow(WNDPROC wndProc)
@@ -239,6 +289,65 @@ bool DX11Renderer::InitShaders()
     pVSBlob->Release();
     pPSBlob->Release();
     
+    return true;
+}
+
+bool DX11Renderer::InitImGui()
+{
+    ImGui_ImplWin32_EnableDpiAwareness();
+
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); 
+    io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
+    //io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    //Todo: Re-enable
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    //io.ConfigViewportsNoAutoMerge = true;
+    //io.ConfigViewportsNoTaskBarIcon = true;
+    //io.ConfigViewportsNoDefaultParent = true;
+    //io.ConfigDockingAlwaysTabBar = true;
+    //io.ConfigDockingTransparentPayload = true;
+//#if 1
+//    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
+//    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI
+//#endif
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
+
+    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+
+    // Setup Platform/Renderer bindings
+    ImGui_ImplWin32_Init(hwnd_);
+    ImGui_ImplDX11_Init(d3d11Device_, d3d11Context_);
+
+    // Load Fonts
+    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
+    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
+    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
+    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
+    // - Read 'docs/FONTS.txt' for more instructions and details.
+    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
+    //io.Fonts->AddFontDefault();
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
+    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+    //IM_ASSERT(font != NULL);
+
     return true;
 }
 
@@ -418,9 +527,16 @@ HRESULT DX11Renderer::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEn
 void DX11Renderer::UpdateWindowDimensions()
 {
     RECT rect;
-    if (GetWindowRect(hwnd_, &rect))
+    RECT usableRect;
+
+    //if (GetWindowRect(hwnd_, &rect))
+    //{
+    //    windowWidth_ = rect.right - rect.left;
+    //    windowHeight_ = rect.bottom - rect.top;
+    //}
+    if (GetClientRect(hwnd_, &usableRect))
     {
-        windowWidth_ = rect.right - rect.left;
-        windowHeight_ = rect.bottom - rect.top;
+        windowWidth_ = usableRect.right - usableRect.left;
+        windowHeight_ = usableRect.bottom - usableRect.top;
     }
 }
