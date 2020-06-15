@@ -4,9 +4,13 @@
 
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "d3dcompiler.lib")
 #include <dxgi.h>
 #include <d3dcommon.h>
 #include <d3d11.h>
+#include <d3dcompiler.h>
+#include <DirectXMath.h>
+#include <directxcolors.h>
 
 #define ReleaseCOM(x) if(x) x->Release();
 
@@ -22,6 +26,10 @@ DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth
         throw std::exception("Failed to init DX11! Exiting.");
     if (!InitScene())
         throw std::exception("Failed to init render scene! Exiting.");
+    if (!InitModels())
+        throw std::exception("Failed to init models! Exiting.");
+    if (!InitShaders())
+        throw std::exception("Failed to init shaders! Exiting.");
 }
 
 DX11Renderer::~DX11Renderer()
@@ -33,12 +41,22 @@ DX11Renderer::~DX11Renderer()
     ReleaseCOM(d3d11Device_);
     ReleaseCOM(d3d11Context_);
     ReleaseCOM(dxgiFactory_);
+    ReleaseCOM(vertexShader_);
+    ReleaseCOM(pixelShader_);
+    ReleaseCOM(vertexLayout_);
+    ReleaseCOM(vertexBuffer_);
 }
 
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
     //Set backbuffer color
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
+    d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+    //Render a triangle
+    d3d11Context_->VSSetShader(vertexShader_, nullptr, 0);
+    d3d11Context_->PSSetShader(pixelShader_, nullptr, 0);
+    d3d11Context_->Draw(3, 0);
 
     //Present the backbuffer to the screen
     SwapChain_->Present(0, 0);
@@ -140,6 +158,87 @@ bool DX11Renderer::InitSwapchainAndResources()
 bool DX11Renderer::InitScene()
 {
 
+
+    return true;
+}
+
+bool DX11Renderer::InitModels()
+{
+    // Create vertex buffer
+    Vector3 vertices[] =
+    {
+        Vector3(0.0f, 0.5f, 0.5f),
+        Vector3(0.5f, -0.5f, 0.5f),
+        Vector3(-0.5f, -0.5f, 0.5f),
+    };
+
+    D3D11_BUFFER_DESC bd = {};
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = sizeof(Vector3) * 3;
+    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bd.CPUAccessFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA InitData = {};
+    InitData.pSysMem = vertices;
+    HRESULT hr = d3d11Device_->CreateBuffer(&bd, &InitData, &vertexBuffer_);
+    if (FAILED(hr))
+        return false;
+
+    // Set vertex buffer
+    UINT stride = sizeof(Vector3);
+    UINT offset = 0;
+    d3d11Context_->IASetVertexBuffers(0, 1, &vertexBuffer_, &stride, &offset);
+
+    // Set primitive topology
+    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    return true;
+}
+
+bool DX11Renderer::InitShaders()
+{
+    //Vertex and pixel shader binaries
+    ID3DBlob* pVSBlob = nullptr;
+    ID3DBlob* pPSBlob = nullptr;
+
+    //Compile the vertex shader
+    if (FAILED(CompileShaderFromFile(L"assets/shaders/Triangle.fx", "VS", "vs_4_0", &pVSBlob)))
+    {
+        MessageBox(nullptr, "The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", "Error", MB_OK);
+        return false;
+    }
+    if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &vertexShader_)))
+    {
+        pVSBlob->Release();
+        return false;
+    }
+    //Compile the pixel shader
+    if (FAILED(CompileShaderFromFile(L"assets/shaders/Triangle.fx", "PS", "ps_4_0", &pPSBlob)))
+    {
+        MessageBox(nullptr, "The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", "Error", MB_OK);
+        return false;
+    }
+    if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &pixelShader_)))
+    {
+        pPSBlob->Release();
+        return false;
+    }
+
+
+    //Define the input layout
+    D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    //Create the input layout
+    if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &vertexLayout_)))
+        return false;
+
+    //Set the input layout
+    d3d11Context_->IASetInputLayout(vertexLayout_);
+    pVSBlob->Release();
+    pPSBlob->Release();
+    
     return true;
 }
 
@@ -281,6 +380,39 @@ bool DX11Renderer::AcquireDxgiFactoryInstance()
     ReleaseCOM(dxgiAdapter);
 
     return true;
+}
+
+HRESULT DX11Renderer::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut)
+{
+    HRESULT hr = S_OK;
+
+    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+#ifdef DEBUG_BUILD
+    // Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
+    // Setting this flag improves the shader debugging experience, but still allows 
+    // the shaders to be optimized and to run exactly the way they will run in 
+    // the release configuration of this program.
+    dwShaderFlags |= D3DCOMPILE_DEBUG;
+
+    // Disable optimizations to further improve shader debugging
+    dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
+    ID3DBlob* pErrorBlob = nullptr;
+    hr = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel, dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
+    if (FAILED(hr))
+    {
+        if (pErrorBlob)
+        {
+            OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
+            pErrorBlob->Release();
+        }
+        return hr;
+    }
+    if (pErrorBlob)
+        pErrorBlob->Release();
+
+    return S_OK;
 }
 
 void DX11Renderer::UpdateWindowDimensions()

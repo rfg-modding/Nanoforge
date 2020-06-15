@@ -1,3 +1,6 @@
 [submodule "Dependencies/RfgToolsPlusPlus"]
 	path = Dependencies/RfgToolsPlusPlus
 	url = https://github.com/Moneyl/RfgToolsPlusPlus.git
+[submodule "Dependencies/DirectXTK"]
+	path = Dependencies/DirectXTK
+	url = https://github.com/microsoft/DirectXTK.git

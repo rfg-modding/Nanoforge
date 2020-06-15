@@ -27,6 +27,12 @@ target_include_directories(Project28 SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/RfgTools++/
 )
 
+# Copy assets directory to binary dir after builds
+add_custom_command(TARGET Project28 POST_BUILD 
+                   COMMAND ${CMAKE_COMMAND} -E copy_directory
+                   ${CMAKE_SOURCE_DIR}/assets/
+                   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets/)
+
 # Add statically linked libs
 target_link_libraries(Project28 PRIVATE Common)
 target_link_libraries(Project28 PRIVATE RfgTools++)

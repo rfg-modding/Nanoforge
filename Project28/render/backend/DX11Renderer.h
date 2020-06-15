@@ -9,6 +9,11 @@ struct ID3D11DeviceContext;
 struct ID3D11Texture2D;
 struct ID3D11DepthStencilView;
 struct ID3D11RenderTargetView;
+struct ID3D11VertexShader;
+struct ID3D11PixelShader;
+struct ID3D11InputLayout;
+struct ID3D11Buffer;
+struct ID3D10Blob;
 
 struct Color
 {
@@ -20,6 +25,8 @@ struct Color
 
 struct Vector3
 {
+    Vector3(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
+
     float x;
     float y;
     float z;
@@ -56,6 +63,8 @@ private:
     [[nodiscard]] bool CreateDepthBuffer();
     [[nodiscard]] bool AcquireDxgiFactoryInstance();
 
+    HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut);
+
     void UpdateWindowDimensions();
 
     HINSTANCE hInstance_ = nullptr;
@@ -70,6 +79,11 @@ private:
     ID3D11RenderTargetView* renderTargetView_ = nullptr;
     ID3D11Texture2D* depthBuffer_ = nullptr;
     ID3D11DepthStencilView* depthBufferView_ = nullptr;
+
+    ID3D11VertexShader* vertexShader_ = nullptr;
+    ID3D11PixelShader* pixelShader_ = nullptr;
+    ID3D11InputLayout* vertexLayout_ = nullptr;
+    ID3D11Buffer* vertexBuffer_ = nullptr;
 
     int featureLevel_ = 0; //Really D3D_FEATURE_LEVEL, using int so d3d stuff only included in DX11Renderer.cpp
 
