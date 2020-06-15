@@ -4,3 +4,6 @@
 [submodule "Dependencies/DirectXTK"]
 	path = Dependencies/DirectXTK
 	url = https://github.com/microsoft/DirectXTK.git
+[submodule "Dependencies/imgui"]
+	path = Dependencies/imgui
+	url = https://github.com/ocornut/imgui.git
