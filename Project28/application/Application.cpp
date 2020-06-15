@@ -1,9 +1,11 @@
 #include "Application.h"
 #include "render/backend/DX11Renderer.h"
 #include "render/imgui/ImGuiFontManager.h"
+#include "common/filesystem/Path.h"
 #include <imgui/imgui.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
+#include <filesystem>
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -19,6 +21,8 @@ Application::Application(HINSTANCE hInstance)
     fontManager_ = new ImGuiFontManager;
     InitRenderer();
 
+    ScanPackfiles();
+
     //Init frame timing variables
     deltaTime_ = maxFrameRateDelta;
     frameTimer_.Start();
@@ -29,6 +33,9 @@ Application::~Application()
     delete fontManager_;
     delete renderer_;
     wndProcAppPtr = nullptr;
+
+    for (auto& packfile : packfiles_)
+        packfile.Cleanup();
 }
 
 void Application::Run()
@@ -83,37 +90,33 @@ void Application::UpdateGui()
     static bool show_demo_window = true;
     ImGui::ShowDemoWindow(&show_demo_window);
 
-    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
+    
+    ImGui::Begin("File explorer");
+
+    fontManager_->FontL.Push();
+    ImGui::Text(ICON_FA_ARCHIVE " Packfiles");
+    fontManager_->FontL.Pop();
+    ImGui::Separator();
+    for (auto& packfile : packfiles_)
     {
-        static float f = 0.0f;
-        static int counter = 0;
-
-        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-        ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-        ImGui::Checkbox("Another Window", &show_demo_window);
-
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        //ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-        if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-            counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
-
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::End();
+        gui::LabelAndValue(packfile.Name() + "   |", std::to_string(packfile.Header.NumberOfSubfiles) + " subfiles");
     }
 
-    // 3. Show another simple window.
-    if (show_demo_window)
+    ImGui::Separator();
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::End();
+}
+
+void Application::ScanPackfiles()
+{
+    for (auto& filePath : std::filesystem::directory_iterator(packfileFolderPath))
     {
-        ImGui::Begin("Another Window", &show_demo_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-        ImGui::Text("Hello from another window!");
-        if (ImGui::Button("Close Me"))
-            show_demo_window = false;
-        ImGui::End();
+        if (Path::GetExtension(filePath) == ".vpp_pc")
+        {
+            Packfile3 packfile(filePath.path().string());
+            packfile.ReadMetadata();
+            packfiles_.push_back(packfile);
+        }
     }
 }
 
