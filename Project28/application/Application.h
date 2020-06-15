@@ -8,6 +8,7 @@ struct HINSTANCE__;
 typedef HINSTANCE__* HINSTANCE;
 
 class DX11Renderer;
+class ImGuiFontManager;
 
 class Application
 {
@@ -27,6 +28,7 @@ private:
 
     HINSTANCE hInstance_ = nullptr;
     DX11Renderer* renderer_ = nullptr;
+    ImGuiFontManager* fontManager_ = nullptr;
 
     int windowWidth_ = 800;
     int windowHeight_ = 800;

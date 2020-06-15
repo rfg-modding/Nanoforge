@@ -7,3 +7,6 @@
 [submodule "Dependencies/imgui"]
 	path = Dependencies/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "Dependencies/IconFontCppHeaders"]
+	path = Dependencies/IconFontCppHeaders
+	url = https://github.com/juliettef/IconFontCppHeaders.git

@@ -33,6 +33,7 @@ target_include_directories(Project28 SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/RfgTools++/
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/
+    ${CMAKE_SOURCE_DIR}/dependencies/IconFontCppHeaders/
     ${CMAKE_SOURCE_DIR}/dependencies/
 )
 

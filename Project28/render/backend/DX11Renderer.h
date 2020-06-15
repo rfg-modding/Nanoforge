@@ -15,6 +15,8 @@ struct ID3D11InputLayout;
 struct ID3D11Buffer;
 struct ID3D10Blob;
 
+class ImGuiFontManager;
+
 struct Color
 {
     float red = 0.0f;
@@ -41,7 +43,7 @@ struct Vertex
 class DX11Renderer
 {
 public:
-    DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight);
+    DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager);
     ~DX11Renderer();
 
     void DoFrame(f32 deltaTime);
@@ -89,7 +91,9 @@ private:
     ID3D11InputLayout* vertexLayout_ = nullptr;
     ID3D11Buffer* vertexBuffer_ = nullptr;
 
+    ImGuiFontManager* fontManager_ = nullptr;
+
     int featureLevel_ = 0; //Really D3D_FEATURE_LEVEL, using int so d3d stuff only included in DX11Renderer.cpp
 
-    Color clearColor{ 0.1f, 0.1f, 0.1f, 1.0f };
+    Color clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 };

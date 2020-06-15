@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "render/backend/DX11Renderer.h"
+#include "render/imgui/ImGuiFontManager.h"
 #include <imgui/imgui.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
@@ -15,6 +16,7 @@ Application::Application(HINSTANCE hInstance)
 {
     wndProcAppPtr = this;
     hInstance_ = hInstance;
+    fontManager_ = new ImGuiFontManager;
     InitRenderer();
 
     //Init frame timing variables
@@ -24,6 +26,7 @@ Application::Application(HINSTANCE hInstance)
 
 Application::~Application()
 {
+    delete fontManager_;
     delete renderer_;
     wndProcAppPtr = nullptr;
 }
@@ -66,7 +69,7 @@ void Application::HandleResize()
 
 void Application::InitRenderer()
 {
-    renderer_ = new DX11Renderer(hInstance_, WndProc, windowWidth_, windowHeight_);
+    renderer_ = new DX11Renderer(hInstance_, WndProc, windowWidth_, windowHeight_, fontManager_);
 }
 
 void Application::UpdateGui()
