@@ -1,11 +1,11 @@
 #include "Application.h"
 #include "render/backend/DX11Renderer.h"
 #include "render/imgui/ImGuiFontManager.h"
-#include "common/filesystem/Path.h"
+#include "gui/MainGui.h"
+#include "rfg/PackfileVFS.h"
 #include <imgui/imgui.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
-#include <filesystem>
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -19,9 +19,11 @@ Application::Application(HINSTANCE hInstance)
     wndProcAppPtr = this;
     hInstance_ = hInstance;
     fontManager_ = new ImGuiFontManager;
+    packfileVFS_ = new PackfileVFS;
+    gui_ = new MainGui(fontManager_, packfileVFS_);
+    
     InitRenderer();
-
-    ScanPackfiles();
+    packfileVFS_->ScanPackfiles();
 
     //Init frame timing variables
     deltaTime_ = maxFrameRateDelta;
@@ -33,9 +35,6 @@ Application::~Application()
     delete fontManager_;
     delete renderer_;
     wndProcAppPtr = nullptr;
-
-    for (auto& packfile : packfiles_)
-        packfile.Cleanup();
 }
 
 void Application::Run()
@@ -86,38 +85,7 @@ void Application::UpdateGui()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    //Run gui code
-    static bool show_demo_window = true;
-    ImGui::ShowDemoWindow(&show_demo_window);
-
-    
-    ImGui::Begin("File explorer");
-
-    fontManager_->FontL.Push();
-    ImGui::Text(ICON_FA_ARCHIVE " Packfiles");
-    fontManager_->FontL.Pop();
-    ImGui::Separator();
-    for (auto& packfile : packfiles_)
-    {
-        gui::LabelAndValue(packfile.Name() + "   |", std::to_string(packfile.Header.NumberOfSubfiles) + " subfiles");
-    }
-
-    ImGui::Separator();
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-    ImGui::End();
-}
-
-void Application::ScanPackfiles()
-{
-    for (auto& filePath : std::filesystem::directory_iterator(packfileFolderPath))
-    {
-        if (Path::GetExtension(filePath) == ".vpp_pc")
-        {
-            Packfile3 packfile(filePath.path().string());
-            packfile.ReadMetadata();
-            packfiles_.push_back(packfile);
-        }
-    }
+    gui_->Update();
 }
 
 //Todo: Pass key & mouse messages to InputManager and have it send input messages to other parts of code via callbacks
