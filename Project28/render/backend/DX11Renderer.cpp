@@ -72,7 +72,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     //Render a triangle
     d3d11Context_->VSSetShader(vertexShader_, nullptr, 0);
     d3d11Context_->PSSetShader(pixelShader_, nullptr, 0);
-    d3d11Context_->Draw(3, 0);
+    d3d11Context_->DrawIndexed(6, 0, 0);
 
     ImGuiDoFrame();
 
@@ -196,23 +196,46 @@ bool DX11Renderer::InitScene()
 
 bool DX11Renderer::InitModels()
 {
-    // Create vertex buffer
+    //Vertices and indices to be used
     Vertex vertices[] =
     {
-        {Vector3(0.0f, 0.5f, 0.5f),   Color(1.0f, 0.0f, 0.0f, 1.0f)},
-        {Vector3(0.5f, -0.5f, 0.5f),  Color(0.0f, 1.0f, 0.0f, 1.0f)},
-        {Vector3(-0.5f, -0.5f, 0.5f), Color(0.0f, 0.0f, 1.0f, 1.0f)},
+        {Vector3(-0.5f, -0.5f, 0.5f),   Color(1.0f, 0.0f, 0.0f, 1.0f)},
+        {Vector3(-0.5f,  0.5f, 0.5f),  Color(0.0f, 1.0f, 0.0f, 1.0f)},
+        {Vector3(0.5f,  0.5f, 0.5f), Color(0.0f, 0.0f, 1.0f, 1.0f)},
+        {Vector3(0.5f,  -0.5f, 0.5f), Color(0.0f, 1.0f, 1.0f, 1.0f)},
     };
 
-    D3D11_BUFFER_DESC bd = {};
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(Vertex) * 3;
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bd.CPUAccessFlags = 0;
+    DWORD indices[] = {
+        0, 1, 2,
+        0, 2, 3,
+    };
 
-    D3D11_SUBRESOURCE_DATA InitData = {};
-    InitData.pSysMem = vertices;
-    HRESULT hr = d3d11Device_->CreateBuffer(&bd, &InitData, &vertexBuffer_);
+    //Create index buffer
+    D3D11_BUFFER_DESC indexBufferDesc = {};
+    indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    indexBufferDesc.ByteWidth = sizeof(DWORD) * 2 * 3;
+    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    indexBufferDesc.CPUAccessFlags = 0;
+    indexBufferDesc.MiscFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA indexBufferInitData;
+    indexBufferInitData.pSysMem = indices;
+    HRESULT hr = d3d11Device_->CreateBuffer(&indexBufferDesc, &indexBufferInitData, &indexBuffer_);
+    if (FAILED(hr))
+        return false;
+
+    d3d11Context_->IASetIndexBuffer(indexBuffer_, DXGI_FORMAT_R32_UINT, 0);
+
+    //Create vertex buffer
+    D3D11_BUFFER_DESC vertexBufferDesc = {};
+    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    vertexBufferDesc.ByteWidth = sizeof(Vertex) * 4;
+    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    vertexBufferDesc.CPUAccessFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA vertexBufferInitData = {};
+    vertexBufferInitData.pSysMem = vertices;
+    hr = d3d11Device_->CreateBuffer(&vertexBufferDesc, &vertexBufferInitData, &vertexBuffer_);
     if (FAILED(hr))
         return false;
 

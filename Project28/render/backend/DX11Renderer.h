@@ -93,6 +93,7 @@ private:
     ID3D11PixelShader* pixelShader_ = nullptr;
     ID3D11InputLayout* vertexLayout_ = nullptr;
     ID3D11Buffer* vertexBuffer_ = nullptr;
+    ID3D11Buffer* indexBuffer_ = nullptr;
 
     ImGuiFontManager* fontManager_ = nullptr;
 
