@@ -12,7 +12,13 @@ public:
 
     void Update();
 
+    bool Visible = true;
+
 private:
+    void DrawMainMenuBar();
+    void DrawDockspace();
+    void DrawFileExplorer();
+
     ImGuiFontManager* fontManager_ = nullptr;
     PackfileVFS* packfileVFS_ = nullptr;
 };

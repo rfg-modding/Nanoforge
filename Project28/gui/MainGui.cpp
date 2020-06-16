@@ -1,18 +1,73 @@
 #include "MainGui.h"
-#include <imgui/imgui.h>
-#include <imgui/examples/imgui_impl_win32.h>
-#include <imgui/examples/imgui_impl_dx11.h>
 #include "common/Typedefs.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
+#include "render/imgui/imgui_ext.h"
+#include <imgui/imgui.h>
 
 void MainGui::Update()
 {
     //Run gui code
+#ifdef DEBUG_BUILD
     static bool show_demo_window = true;
     ImGui::ShowDemoWindow(&show_demo_window);
+#endif
 
+    DrawMainMenuBar();
+    DrawDockspace();
+    DrawFileExplorer();
+}
 
+void MainGui::DrawMainMenuBar()
+{
+    ImGuiMainMenuBar
+    (
+        ImGuiMenu("File",
+            ImGuiMenuItemShort("Open file", )
+            ImGuiMenuItemShort("Save file", )
+            ImGuiMenuItemShort("Exit", )
+        )
+        ImGuiMenu("Help",
+            ImGuiMenuItemShort("Welcome", )
+            ImGuiMenuItemShort("Metrics", )
+            ImGuiMenuItemShort("About", )
+        )
+    )
+}
+
+void MainGui::DrawDockspace()
+{
+    //Dockspace flags
+    static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+
+    //Parent window flags
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
+        | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+        | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetWorkPos());
+    ImGui::SetNextWindowSize(viewport->GetWorkSize());
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("DockSpace parent window", &Visible, window_flags);
+    ImGui::PopStyleVar(3);
+
+    // DockSpace
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+    {
+        ImGuiID dockspace_id = ImGui::GetID("Editor dockspace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+    }
+
+    ImGui::End();
+}
+
+void MainGui::DrawFileExplorer()
+{
     ImGui::Begin("File explorer");
 
     fontManager_->FontL.Push();
