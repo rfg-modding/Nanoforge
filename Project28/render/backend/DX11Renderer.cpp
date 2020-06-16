@@ -197,16 +197,16 @@ bool DX11Renderer::InitScene()
 bool DX11Renderer::InitModels()
 {
     // Create vertex buffer
-    Vector3 vertices[] =
+    Vertex vertices[] =
     {
-        Vector3(0.0f, 0.5f, 0.5f),
-        Vector3(0.5f, -0.5f, 0.5f),
-        Vector3(-0.5f, -0.5f, 0.5f),
+        {Vector3(0.0f, 0.5f, 0.5f),   Color(1.0f, 0.0f, 0.0f, 1.0f)},
+        {Vector3(0.5f, -0.5f, 0.5f),  Color(0.0f, 1.0f, 0.0f, 1.0f)},
+        {Vector3(-0.5f, -0.5f, 0.5f), Color(0.0f, 0.0f, 1.0f, 1.0f)},
     };
 
     D3D11_BUFFER_DESC bd = {};
     bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(Vector3) * 3;
+    bd.ByteWidth = sizeof(Vertex) * 3;
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     bd.CPUAccessFlags = 0;
 
@@ -217,7 +217,7 @@ bool DX11Renderer::InitModels()
         return false;
 
     // Set vertex buffer
-    UINT stride = sizeof(Vector3);
+    UINT stride = sizeof(Vertex);
     UINT offset = 0;
     d3d11Context_->IASetVertexBuffers(0, 1, &vertexBuffer_, &stride, &offset);
 
@@ -261,6 +261,7 @@ bool DX11Renderer::InitShaders()
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     //Create the input layout
     if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &vertexLayout_)))
@@ -506,30 +507,23 @@ bool DX11Renderer::AcquireDxgiFactoryInstance()
 
 HRESULT DX11Renderer::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut)
 {
-    HRESULT hr = S_OK;
-
     DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef DEBUG_BUILD
-    // Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
-    // Setting this flag improves the shader debugging experience, but still allows 
-    // the shaders to be optimized and to run exactly the way they will run in 
-    // the release configuration of this program.
+    //Embed debug info into shaders and don't optimize them for best debugging experience
     dwShaderFlags |= D3DCOMPILE_DEBUG;
-
-    // Disable optimizations to further improve shader debugging
     dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
     ID3DBlob* pErrorBlob = nullptr;
-    hr = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel, dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
-    if (FAILED(hr))
+    HRESULT result = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel, dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
+    if (FAILED(result))
     {
         if (pErrorBlob)
         {
             OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
             pErrorBlob->Release();
         }
-        return hr;
+        return result;
     }
     if (pErrorBlob)
         pErrorBlob->Release();
@@ -542,11 +536,6 @@ void DX11Renderer::UpdateWindowDimensions()
     RECT rect;
     RECT usableRect;
 
-    //if (GetWindowRect(hwnd_, &rect))
-    //{
-    //    windowWidth_ = rect.right - rect.left;
-    //    windowHeight_ = rect.bottom - rect.top;
-    //}
     if (GetClientRect(hwnd_, &usableRect))
     {
         windowWidth_ = usableRect.right - usableRect.left;

@@ -19,6 +19,9 @@ class ImGuiFontManager;
 
 struct Color
 {
+    Color(float red_, float green_, float blue_, float alpha_) 
+        : red(red_), green(green_), blue(blue_), alpha(alpha_) {}
+
     float red = 0.0f;
     float green = 0.0f;
     float blue = 0.0f;
