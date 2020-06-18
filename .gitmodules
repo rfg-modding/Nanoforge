@@ -10,3 +10,9 @@
 [submodule "Dependencies/IconFontCppHeaders"]
 	path = Dependencies/IconFontCppHeaders
 	url = https://github.com/juliettef/IconFontCppHeaders.git
+[submodule "Dependencies/DirectXTex"]
+	path = Dependencies/DirectXTex
+	url = https://github.com/microsoft/DirectXTex.git
+[submodule "lib"]
+	path = lib
+	url = https://github.com/Moneyl/RF-Viewer-Lib.git
