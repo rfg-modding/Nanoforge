@@ -1,4 +1,4 @@
-﻿
+
 # Top level project. Treating this like a VS solution
 cmake_minimum_required (VERSION 3.8)
 project ("Project28")
@@ -25,6 +25,5 @@ endif()
 
 # Include sub-projects.
 add_subdirectory("Dependencies/RfgToolsPlusPlus")
-#add_subdirectory("Dependencies/DirectXTK")
 #add_subdirectory("Dependencies/RfgToolsPlusPlus/Common") # TODO: Move into own git submodule
 add_subdirectory("Project28")

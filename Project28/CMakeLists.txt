@@ -35,6 +35,8 @@ target_include_directories(Project28 SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/
     ${CMAKE_SOURCE_DIR}/dependencies/IconFontCppHeaders/
     ${CMAKE_SOURCE_DIR}/dependencies/
+    ${CMAKE_SOURCE_DIR}/dependencies/DirectXTex/DirectXTex/
+    ${CMAKE_SOURCE_DIR}/dependencies/DirectXTex/
 )
 
 # Copy assets directory to binary dir after builds
@@ -46,3 +48,10 @@ add_custom_command(TARGET Project28 POST_BUILD
 # Add statically linked libs
 target_link_libraries(Project28 PRIVATE Common)
 target_link_libraries(Project28 PRIVATE RfgTools++)
+
+# Have to manually link pre-built versions of these for the moment since it wasn't playing nice with cmake add_subdirectory
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_link_libraries(Project28 PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex_d.lib)
+else()
+    target_link_libraries(Project28 PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex.lib)
+endif()

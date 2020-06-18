@@ -124,13 +124,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
         wndProcAppPtr->HandleResize();
         return 0;
-    //case WM_ENTERSIZEMOVE:
-    //    wndProcAppPtr->Paused = true;
-    //    return 0;
-    //case WM_EXITSIZEMOVE:
-    //    wndProcAppPtr->Paused = false;
-    //    wndProcAppPtr->HandleResize();
-    //    return 0;
     }
 
     //Return the message for windows to handle it

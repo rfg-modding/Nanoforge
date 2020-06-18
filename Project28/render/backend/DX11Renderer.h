@@ -1,6 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include <ext/WindowsWrapper.h>
+#include <DirectXMath.h>
 
 struct IDXGIFactory;
 struct IDXGISwapChain;
@@ -14,33 +15,15 @@ struct ID3D11PixelShader;
 struct ID3D11InputLayout;
 struct ID3D11Buffer;
 struct ID3D10Blob;
+struct ID3D11ShaderResourceView;
+struct ID3D11SamplerState;
 
 class ImGuiFontManager;
 
-struct Color
-{
-    Color(float red_, float green_, float blue_, float alpha_) 
-        : red(red_), green(green_), blue(blue_), alpha(alpha_) {}
-
-    float red = 0.0f;
-    float green = 0.0f;
-    float blue = 0.0f;
-    float alpha = 0.0f;
-};
-
-struct Vector3
-{
-    Vector3(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
-
-    float x;
-    float y;
-    float z;
-};
-
 struct Vertex
 {
-    Vector3 pos;
-    Color color;
+    DirectX::XMFLOAT3 pos;
+    DirectX::XMFLOAT2 texCoord;
 };
 
 class DX11Renderer
@@ -78,8 +61,6 @@ private:
     HWND hwnd_ = nullptr;
     int windowWidth_ = 800;
     int windowHeight_ = 800;
-    int windowWidthUsable_ = 800;
-    int windowHeightUsable_ = 800;
 
     IDXGIFactory* dxgiFactory_ = nullptr;
     ID3D11Device* d3d11Device_ = nullptr;
@@ -99,5 +80,33 @@ private:
 
     int featureLevel_ = 0; //Really D3D_FEATURE_LEVEL, using int so d3d stuff only included in DX11Renderer.cpp
 
-    Color clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
+    DirectX::XMFLOAT4 clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
+
+    //Todo: Move camera values out into camera class
+    DirectX::XMMATRIX WVP;
+
+    DirectX::XMMATRIX cube1World;
+    DirectX::XMMATRIX cube2World;
+
+    DirectX::XMMATRIX camView;
+    DirectX::XMMATRIX camProjection;
+
+    DirectX::XMVECTOR camPosition;
+    DirectX::XMVECTOR camTarget;
+    DirectX::XMVECTOR camUp;
+
+    DirectX::XMMATRIX Rotation;
+    DirectX::XMMATRIX Scale;
+    DirectX::XMMATRIX Translation;
+    float rot = 0.01f;
+
+    ID3D11Buffer* cbPerObjectBuffer = nullptr;
+    struct cbPerObject
+    {
+        DirectX::XMMATRIX  WVP;
+    };
+    cbPerObject cbPerObj;
+
+    ID3D11ShaderResourceView* CubesTexture = nullptr;
+    ID3D11SamplerState* CubesTexSamplerState = nullptr;
 };

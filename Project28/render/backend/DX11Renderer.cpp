@@ -16,6 +16,8 @@
 #include <imgui/imconfig.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
+#include <DirectXTex.h>
+#include <Dependencies\DirectXTex\DirectXTex\DirectXTexD3D11.cpp>
 
 #define ReleaseCOM(x) if(x) x->Release();
 
@@ -40,6 +42,8 @@ DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth
         throw std::exception("Failed to init shaders! Exiting.");
     if (!InitImGui())
         throw std::exception("Failed to dear imgui! Exiting.");
+
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 }
 
 DX11Renderer::~DX11Renderer()
@@ -60,6 +64,8 @@ DX11Renderer::~DX11Renderer()
     ReleaseCOM(pixelShader_);
     ReleaseCOM(vertexLayout_);
     ReleaseCOM(vertexBuffer_);
+    ReleaseCOM(indexBuffer_);
+    ReleaseCOM(cbPerObjectBuffer);
 }
 
 void DX11Renderer::DoFrame(f32 deltaTime)
@@ -72,7 +78,59 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     //Render a triangle
     d3d11Context_->VSSetShader(vertexShader_, nullptr, 0);
     d3d11Context_->PSSetShader(pixelShader_, nullptr, 0);
-    d3d11Context_->DrawIndexed(6, 0, 0);
+
+    //Set the World/View/Projection matrix, then send it to constant buffer in effect file
+
+    //Keep the cubes rotating
+    rot += .02f;
+    if (rot > 6.26f)
+        rot = 0.0f;
+
+    //Reset cube1World
+    cube1World = DirectX::XMMatrixIdentity();
+
+    //Define cube1's world space matrix
+    DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    Rotation = DirectX::XMMatrixRotationAxis(rotaxis, rot);
+    Translation = DirectX::XMMatrixTranslation(0.0f, 0.0f, 4.0f);
+
+    //Set cube1's world space using the transformations
+    cube1World = Translation * Rotation;
+
+    //Reset cube2World
+    cube2World = DirectX::XMMatrixIdentity();
+
+    //Define cube2's world space matrix
+    Rotation = DirectX::XMMatrixRotationAxis(rotaxis, -rot);
+    Scale = DirectX::XMMatrixScaling(1.3f, 1.3f, 1.3f);
+
+    //Set cube2's world space matrix
+    cube2World = Rotation * Scale;
+
+
+
+    WVP = cube1World * camView * camProjection;
+    cbPerObj.WVP = XMMatrixTranspose(WVP);
+    d3d11Context_->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
+    d3d11Context_->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+
+    //Draw the first cube
+    d3d11Context_->DrawIndexed(36, 0, 0);
+
+    WVP = cube2World * camView * camProjection;
+    cbPerObj.WVP = XMMatrixTranspose(WVP);
+    d3d11Context_->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
+    d3d11Context_->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+
+    d3d11Context_->PSSetShaderResources(0, 1, &CubesTexture);
+    d3d11Context_->PSSetSamplers(0, 1, &CubesTexSamplerState);
+
+    //Draw the second cube
+    d3d11Context_->DrawIndexed(36, 0, 0);
+    
+    //Todo: See if need to repeatedly bind each vertex buffer for each model being rendered here
+    //Draw from selected vertex buffer & index buffer using indices
+    //d3d11Context_->DrawIndexed(36, 0, 0);
 
     ImGuiDoFrame();
 
@@ -97,6 +155,9 @@ void DX11Renderer::HandleResize()
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
+
+    //Set the Projection matrix
+    camProjection = DirectX::XMMatrixPerspectiveFovLH(80.0f, (f32)windowWidth_ / (f32)windowHeight_, 1.0f, 1000.0f);
 }
 
 void DX11Renderer::ImGuiDoFrame()
@@ -199,21 +260,73 @@ bool DX11Renderer::InitModels()
     //Vertices and indices to be used
     Vertex vertices[] =
     {
-        {Vector3(-0.5f, -0.5f, 0.5f),   Color(1.0f, 0.0f, 0.0f, 1.0f)},
-        {Vector3(-0.5f,  0.5f, 0.5f),  Color(0.0f, 1.0f, 0.0f, 1.0f)},
-        {Vector3(0.5f,  0.5f, 0.5f), Color(0.0f, 0.0f, 1.0f, 1.0f)},
-        {Vector3(0.5f,  -0.5f, 0.5f), Color(0.0f, 1.0f, 1.0f, 1.0f)},
-    };
+        // Front Face
+        {{-1.0f, -1.0f, -1.0f}, {0.0f, 1.0f}},
+        {{-1.0f,  1.0f, -1.0f}, {0.0f, 0.0f}},
+        {{1.0f,  1.0f, -1.0f},  {1.0f, 0.0f}},
+        {{1.0f, -1.0f, -1.0f},  {1.0f, 1.0f}},
+
+        // Back Face
+        {{-1.0f, -1.0f, 1.0f}, {1.0f, 1.0f}},
+        {{1.0f, -1.0f,  1.0f}, {0.0f, 1.0f}},
+        {{1.0f,  1.0f,  1.0f}, {0.0f, 0.0f}},
+        {{-1.0f,  1.0f, 1.0f}, {1.0f, 0.0f}},
+
+        // Top Face
+        {{-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f}},
+        {{-1.0f, 1.0f,  1.0f}, {0.0f, 0.0f}},
+        {{1.0f, 1.0f,   1.0f}, {1.0f, 0.0f}},
+        {{1.0f, 1.0f,  -1.0f}, {1.0f, 1.0f}},
+
+        // Bottom Face
+        {{-1.0f, -1.0f, -1.0f}, {1.0f, 1.0f}},
+        {{1.0f, -1.0f,  -1.0f}, {0.0f, 1.0f}},
+        {{1.0f, -1.0f,   1.0f}, {0.0f, 0.0f}},
+        {{-1.0f, -1.0f,  1.0f}, {1.0f, 0.0f}},
+
+        // Left Face
+        {{-1.0f, -1.0f,  1.0f}, {0.0f, 1.0f}},
+        {{-1.0f,  1.0f,  1.0f}, {0.0f, 0.0f}},
+        {{-1.0f,  1.0f, -1.0f}, {1.0f, 0.0f}},
+        {{-1.0f, -1.0f, -1.0f}, {1.0f, 1.0f}},
+
+        // Right Face
+        {{1.0f, -1.0f, -1.0f}, {0.0f, 1.0f}},
+        {{1.0f,  1.0f, -1.0f}, {0.0f, 0.0f}},
+        {{1.0f,  1.0f,  1.0f}, {1.0f, 0.0f}},
+        {{1.0f, -1.0f,  1.0f}, {1.0f, 1.0f}},
+    };                         
 
     DWORD indices[] = {
-        0, 1, 2,
-        0, 2, 3,
+        // Front Face
+        0,  1,  2,
+        0,  2,  3,
+
+        // Back Face
+        4,  5,  6,
+        4,  6,  7,
+
+        // Top Face
+        8,  9, 10,
+        8, 10, 11,
+
+        // Bottom Face
+        12, 13, 14,
+        12, 14, 15,
+
+        // Left Face
+        16, 17, 18,
+        16, 18, 19,
+
+        // Right Face
+        20, 21, 22,
+        20, 22, 23
     };
 
     //Create index buffer
     D3D11_BUFFER_DESC indexBufferDesc = {};
     indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    indexBufferDesc.ByteWidth = sizeof(DWORD) * 2 * 3;
+    indexBufferDesc.ByteWidth = sizeof(DWORD) * 12 * 3;
     indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
     indexBufferDesc.CPUAccessFlags = 0;
     indexBufferDesc.MiscFlags = 0;
@@ -229,7 +342,7 @@ bool DX11Renderer::InitModels()
     //Create vertex buffer
     D3D11_BUFFER_DESC vertexBufferDesc = {};
     vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    vertexBufferDesc.ByteWidth = sizeof(Vertex) * 4;
+    vertexBufferDesc.ByteWidth = sizeof(Vertex) * 24;
     vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vertexBufferDesc.CPUAccessFlags = 0;
 
@@ -246,6 +359,66 @@ bool DX11Renderer::InitModels()
 
     // Set primitive topology
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    //Create buffer for MVP matrix constant in shader
+    D3D11_BUFFER_DESC cbbd;
+    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
+
+    cbbd.Usage = D3D11_USAGE_DEFAULT;
+    cbbd.ByteWidth = sizeof(cbPerObject);
+    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbbd.CPUAccessFlags = 0;
+    cbbd.MiscFlags = 0;
+
+    hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &cbPerObjectBuffer);
+
+    //Camera information
+    camPosition = DirectX::XMVectorSet(5.0f, -7.0f, -8.0f, 0.0f);
+    camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+    camUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+    //Set the View matrix
+    camView = DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp);
+
+    //Set the Projection matrix
+    camProjection = DirectX::XMMatrixPerspectiveFovLH(80.0f, windowWidth_ / windowHeight_, 1.0f, 1000.0f);
+
+
+    //hr = D3DX11CreateShaderResourceViewFromFile(d3d11Device_, L"assets/braynzar.jpg", NULL, NULL, &CubesTexture, NULL);
+    auto image = std::make_unique<DirectX::ScratchImage>();
+    hr = LoadFromWICFile(L"assets/braynzar.jpg", DirectX::WIC_FLAGS::WIC_FLAGS_NONE, nullptr, *image);
+    if (FAILED(hr))
+        throw "Fuck";
+
+    CreateShaderResourceView(d3d11Device_, image->GetImages(), image->GetImageCount(), image->GetMetadata(), &CubesTexture);
+
+    // Describe the Sample State
+    D3D11_SAMPLER_DESC sampDesc;
+    ZeroMemory(&sampDesc, sizeof(sampDesc));
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    sampDesc.MinLOD = 0;
+    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+    //Create the Sample State
+    hr = d3d11Device_->CreateSamplerState(&sampDesc, &CubesTexSamplerState);
+
+
+
+
+
+    ////Set to render in wireframe mode
+    //ID3D11RasterizerState* WireFrame;
+
+    //D3D11_RASTERIZER_DESC wfdesc;
+    //ZeroMemory(&wfdesc, sizeof(D3D11_RASTERIZER_DESC));
+    //wfdesc.FillMode = D3D11_FILL_WIREFRAME;
+    //wfdesc.CullMode = D3D11_CULL_NONE;
+    //hr = d3d11Device_->CreateRasterizerState(&wfdesc, &WireFrame);
+    //d3d11Context_->RSSetState(WireFrame);
 
     return true;
 }
@@ -284,7 +457,7 @@ bool DX11Renderer::InitShaders()
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     //Create the input layout
     if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &vertexLayout_)))
