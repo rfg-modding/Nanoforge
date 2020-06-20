@@ -2,20 +2,6 @@
 #include <Common/Typedefs.h>
 #include <DirectXMath.h>
 
-//Todo: Move these into a glo board or something
-
-//Todo: Write camera class accesible by renderer
-//Todo: Write controls for camera
-//Todo: Integrate im3d
-//Todo: Draw grid
-//Todo: Load zone files and draw bounding boxes + label text + any other useful debug info about zone objects + zones
-//Todo: Make 2D map of zones using dear imgui with mouseover info
-//Todo: Load static meshes + their textures and render them in app
-//Todo: Draw debug info + node graph for scriptx files. Highlight objects in 3D based on script references
-//Todo: Have toggleable mission and activity layers
-//Todo: Load terrain meshes (at first without textures) and render whole map
-//Todo: Make zones editable with im3d gizmos and saveable
-
 class Camera
 {
 public:
