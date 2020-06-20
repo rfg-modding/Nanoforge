@@ -188,7 +188,30 @@ void MainGui::DrawIm3dPrimitives()
 {
     ImGui::Begin("Im3d tester");
 
+	//Draw grid
+	ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
+	if (ImGui::TreeNode("Grid"))
+	{
+		static int gridSize = 20;
+		ImGui::SliderInt("Grid Size", &gridSize, 1, 50);
+		const float gridHalf = (float)gridSize * 0.5f;
+		Im3d::SetAlpha(1.0f);
+		Im3d::SetSize(1.0f);
+		Im3d::BeginLines();
+		for (int x = 0; x <= gridSize; ++x)
+		{
+			Im3d::Vertex(-gridHalf, 0.0f, (float)x - gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
+			Im3d::Vertex(gridHalf, 0.0f, (float)x - gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
+		}
+		for (int z = 0; z <= gridSize; ++z)
+		{
+			Im3d::Vertex((float)z - gridHalf, 0.0f, -gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
+			Im3d::Vertex((float)z - gridHalf, 0.0f, gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
+		}
+		Im3d::End();
 
+		ImGui::TreePop();
+	}
 	//ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
 	if (ImGui::TreeNode("High Order Shapes"))
 	{
