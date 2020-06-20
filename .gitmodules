@@ -16,3 +16,6 @@
 [submodule "lib"]
 	path = lib
 	url = https://github.com/Moneyl/RF-Viewer-Lib.git
+[submodule "Dependencies/im3d"]
+	path = Dependencies/im3d
+	url = https://github.com/john-chapman/im3d.git

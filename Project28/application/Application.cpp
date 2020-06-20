@@ -3,6 +3,7 @@
 #include "render/imgui/ImGuiFontManager.h"
 #include "gui/MainGui.h"
 #include "rfg/PackfileVFS.h"
+#include "render/camera/Camera.h"
 #include <imgui/imgui.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
@@ -20,7 +21,8 @@ Application::Application(HINSTANCE hInstance)
     hInstance_ = hInstance;
     fontManager_ = new ImGuiFontManager;
     packfileVFS_ = new PackfileVFS;
-    gui_ = new MainGui(fontManager_, packfileVFS_);
+    camera_ = new Camera({ 10.0f, 10.0f, 10.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 1000.0f);
+    gui_ = new MainGui(fontManager_, packfileVFS_, camera_);
     
     InitRenderer();
     packfileVFS_->ScanPackfiles();
@@ -33,7 +35,10 @@ Application::Application(HINSTANCE hInstance)
 Application::~Application()
 {
     delete fontManager_;
+    delete packfileVFS_;
     delete renderer_;
+    delete camera_;
+    delete gui_;
     wndProcAppPtr = nullptr;
 }
 
@@ -58,6 +63,7 @@ void Application::Run()
         }
         else
         {
+            NewFrame();
             UpdateGui();
             renderer_->DoFrame(deltaTime_);
         }
@@ -75,16 +81,20 @@ void Application::HandleResize()
 
 void Application::InitRenderer()
 {
-    renderer_ = new DX11Renderer(hInstance_, WndProc, windowWidth_, windowHeight_, fontManager_);
+    renderer_ = new DX11Renderer(hInstance_, WndProc, windowWidth_, windowHeight_, fontManager_, camera_);
 }
 
-void Application::UpdateGui()
+void Application::NewFrame()
 {
     //Start new imgui frame
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+    renderer_->NewFrame(deltaTime_);
+}
 
+void Application::UpdateGui()
+{
     gui_->Update();
 }
 

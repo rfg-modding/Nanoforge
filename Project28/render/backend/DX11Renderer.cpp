@@ -1,5 +1,6 @@
 #include "DX11Renderer.h"
 #include "render/imgui/ImGuiFontManager.h"
+#include "render/camera/Camera.h"
 #include <ext/WindowsWrapper.h>
 #include <exception>
 
@@ -18,15 +19,17 @@
 #include <imgui/examples/imgui_impl_dx11.h>
 #include <DirectXTex.h>
 #include <Dependencies\DirectXTex\DirectXTex\DirectXTexD3D11.cpp>
+#include "render/util/DX11Helpers.h"
+#include "render/backend/Im3dRenderer.h"
 
-#define ReleaseCOM(x) if(x) x->Release();
-
-DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager)
+DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera)
 {
     hInstance_ = hInstance;
     windowWidth_ = WindowWidth;
     windowHeight_ = WindowHeight;
     fontManager_ = fontManager;
+    camera_ = camera;
+    im3dRenderer_ = new Im3dRenderer;
 
     if (!InitWindow(wndProc))
         throw std::exception("Failed to init window! Exiting.");
@@ -43,11 +46,20 @@ DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth
     if (!InitImGui())
         throw std::exception("Failed to dear imgui! Exiting.");
 
+    im3dRenderer_->Init(d3d11Device_, d3d11Context_, hwnd_, camera_);
+
+    //Needed by some DirectXTex functions
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    //Todo: Fix this, init should set up the matrices properly
+    //Quick fix for view being distorted before first window resize
+    HandleResize();
 }
 
 DX11Renderer::~DX11Renderer()
 {
+    im3dRenderer_->Shutdown();
+    delete im3dRenderer_;
+
     //Shutdown dear imgui
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
@@ -68,12 +80,30 @@ DX11Renderer::~DX11Renderer()
     ReleaseCOM(cbPerObjectBuffer);
 }
 
+void DX11Renderer::NewFrame(f32 deltaTime)
+{
+    im3dRenderer_->NewFrame(deltaTime);
+}
+
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
     //Set render target and clear it
     d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+    d3d11Context_->RSSetViewports(1, &viewport);
+    //d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
+    d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
+    d3d11Context_->RSSetState(rasterizerState_);
+
+    //Set the input layout
+    UINT stride = sizeof(Vertex);
+    UINT offset = 0;
+    d3d11Context_->IASetInputLayout(vertexLayout_);
+    d3d11Context_->IASetIndexBuffer(indexBuffer_, DXGI_FORMAT_R32_UINT, 0);
+    d3d11Context_->IASetVertexBuffers(0, 1, &vertexBuffer_, &stride, &offset);
+    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     //Render a triangle
     d3d11Context_->VSSetShader(vertexShader_, nullptr, 0);
@@ -109,15 +139,16 @@ void DX11Renderer::DoFrame(f32 deltaTime)
 
 
 
-    WVP = cube1World * camView * camProjection;
+    WVP = cube1World * camera_->camView * camera_->camProjection;
     cbPerObj.WVP = XMMatrixTranspose(WVP);
     d3d11Context_->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
     d3d11Context_->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
 
+    //Todo: Change to take a list of render commands each frame and draw based off of those
     //Draw the first cube
     d3d11Context_->DrawIndexed(36, 0, 0);
 
-    WVP = cube2World * camView * camProjection;
+    WVP = cube2World * camera_->camView * camera_->camProjection;
     cbPerObj.WVP = XMMatrixTranspose(WVP);
     d3d11Context_->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
     d3d11Context_->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
@@ -132,6 +163,8 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     //Draw from selected vertex buffer & index buffer using indices
     //d3d11Context_->DrawIndexed(36, 0, 0);
 
+    //Todo: Fix im3d tainting the state of the things rendered before this. Changes culling and texture settings
+    im3dRenderer_->EndFrame();
     ImGuiDoFrame();
 
     //Present the backbuffer to the screen
@@ -156,8 +189,8 @@ void DX11Renderer::HandleResize()
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
 
-    //Set the Projection matrix
-    camProjection = DirectX::XMMatrixPerspectiveFovLH(80.0f, (f32)windowWidth_ / (f32)windowHeight_, 1.0f, 1000.0f);
+    camera_->HandleResize( { (f32)windowWidth_, (f32)windowHeight_} );
+    im3dRenderer_->HandleResize((f32)windowWidth_, (f32)windowHeight_);
 }
 
 void DX11Renderer::ImGuiDoFrame()
@@ -234,7 +267,6 @@ bool DX11Renderer::InitSwapchainAndResources()
     if (!result)
         return false;
 
-    D3D11_VIEWPORT viewport;
     viewport.TopLeftX = 0.0f;
     viewport.TopLeftY = 0.0f;
     viewport.Width = windowWidth_;
@@ -372,23 +404,11 @@ bool DX11Renderer::InitModels()
 
     hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &cbPerObjectBuffer);
 
-    //Camera information
-    camPosition = DirectX::XMVectorSet(5.0f, -7.0f, -8.0f, 0.0f);
-    camTarget = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-    camUp = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-    //Set the View matrix
-    camView = DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp);
-
-    //Set the Projection matrix
-    camProjection = DirectX::XMMatrixPerspectiveFovLH(80.0f, windowWidth_ / windowHeight_, 1.0f, 1000.0f);
-
-
     //hr = D3DX11CreateShaderResourceViewFromFile(d3d11Device_, L"assets/braynzar.jpg", NULL, NULL, &CubesTexture, NULL);
     auto image = std::make_unique<DirectX::ScratchImage>();
     hr = LoadFromWICFile(L"assets/braynzar.jpg", DirectX::WIC_FLAGS::WIC_FLAGS_NONE, nullptr, *image);
     if (FAILED(hr))
-        throw "Fuck";
+        throw "Failed to load cube test texture";
 
     CreateShaderResourceView(d3d11Device_, image->GetImages(), image->GetImageCount(), image->GetMetadata(), &CubesTexture);
 
@@ -407,8 +427,15 @@ bool DX11Renderer::InitModels()
     hr = d3d11Device_->CreateSamplerState(&sampDesc, &CubesTexSamplerState);
 
 
+    D3D11_RASTERIZER_DESC rasterizerDesc;
+    ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
+    rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+    rasterizerDesc.CullMode = D3D11_CULL_BACK;
+    hr = d3d11Device_->CreateRasterizerState(&rasterizerDesc, &rasterizerState_);
+    d3d11Context_->RSSetState(rasterizerState_);
 
-
+    D3D11_DEPTH_STENCIL_DESC stencilDesc = {};
+    DxCheck(d3d11Device_->CreateDepthStencilState(&stencilDesc, &depthStencilState_), "Im3d depth stencil state creation failed!");
 
     ////Set to render in wireframe mode
     //ID3D11RasterizerState* WireFrame;
@@ -542,21 +569,6 @@ bool DX11Renderer::InitImGui()
     // Setup Platform/Renderer bindings
     ImGui_ImplWin32_Init(hwnd_);
     ImGui_ImplDX11_Init(d3d11Device_, d3d11Context_);
-
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Read 'docs/FONTS.txt' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
 
     return true;
 }
@@ -699,32 +711,6 @@ bool DX11Renderer::AcquireDxgiFactoryInstance()
     ReleaseCOM(dxgiAdapter);
 
     return true;
-}
-
-HRESULT DX11Renderer::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut)
-{
-    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#ifdef DEBUG_BUILD
-    //Embed debug info into shaders and don't optimize them for best debugging experience
-    dwShaderFlags |= D3DCOMPILE_DEBUG;
-    dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-
-    ID3DBlob* pErrorBlob = nullptr;
-    HRESULT result = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel, dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
-    if (FAILED(result))
-    {
-        if (pErrorBlob)
-        {
-            OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
-            pErrorBlob->Release();
-        }
-        return result;
-    }
-    if (pErrorBlob)
-        pErrorBlob->Release();
-
-    return S_OK;
 }
 
 void DX11Renderer::UpdateWindowDimensions()

@@ -2,23 +2,12 @@
 #include "common/Typedefs.h"
 #include <ext/WindowsWrapper.h>
 #include <DirectXMath.h>
-
-struct IDXGIFactory;
-struct IDXGISwapChain;
-struct ID3D11Device;
-struct ID3D11DeviceContext;
-struct ID3D11Texture2D;
-struct ID3D11DepthStencilView;
-struct ID3D11RenderTargetView;
-struct ID3D11VertexShader;
-struct ID3D11PixelShader;
-struct ID3D11InputLayout;
-struct ID3D11Buffer;
-struct ID3D10Blob;
-struct ID3D11ShaderResourceView;
-struct ID3D11SamplerState;
+#include <d3d11.h>
+#include <d3dcompiler.h>
 
 class ImGuiFontManager;
+class Camera;
+class Im3dRenderer;
 
 struct Vertex
 {
@@ -29,9 +18,10 @@ struct Vertex
 class DX11Renderer
 {
 public:
-    DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager);
+    DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera);
     ~DX11Renderer();
 
+    void NewFrame(f32 deltaTime);
     void DoFrame(f32 deltaTime);
     void HandleResize();
 
@@ -52,8 +42,6 @@ private:
     [[nodiscard]] bool CreateRenderTargetView();
     [[nodiscard]] bool CreateDepthBuffer();
     [[nodiscard]] bool AcquireDxgiFactoryInstance();
-
-    HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut);
 
     void UpdateWindowDimensions();
 
@@ -77,6 +65,8 @@ private:
     ID3D11Buffer* indexBuffer_ = nullptr;
 
     ImGuiFontManager* fontManager_ = nullptr;
+    Camera* camera_ = nullptr;
+    Im3dRenderer* im3dRenderer_ = nullptr;
 
     int featureLevel_ = 0; //Really D3D_FEATURE_LEVEL, using int so d3d stuff only included in DX11Renderer.cpp
 
@@ -87,13 +77,6 @@ private:
 
     DirectX::XMMATRIX cube1World;
     DirectX::XMMATRIX cube2World;
-
-    DirectX::XMMATRIX camView;
-    DirectX::XMMATRIX camProjection;
-
-    DirectX::XMVECTOR camPosition;
-    DirectX::XMVECTOR camTarget;
-    DirectX::XMVECTOR camUp;
 
     DirectX::XMMATRIX Rotation;
     DirectX::XMMATRIX Scale;
@@ -109,4 +92,9 @@ private:
 
     ID3D11ShaderResourceView* CubesTexture = nullptr;
     ID3D11SamplerState* CubesTexSamplerState = nullptr;
+
+    ID3D11RasterizerState* rasterizerState_ = nullptr;
+    ID3D11BlendState* blendState_ = nullptr;
+    ID3D11DepthStencilState* depthStencilState_ = nullptr;
+    D3D11_VIEWPORT viewport;
 };

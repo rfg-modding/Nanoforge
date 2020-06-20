@@ -22,7 +22,10 @@ add_executable (Project28 ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_draw.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_win32.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_dx11.cpp)
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_dx11.cpp
+    #Do the same with im3d
+    ${CMAKE_SOURCE_DIR}/Dependencies/im3d/im3d.cpp
+    )
 
 # Add include directories
 target_include_directories(Project28 SYSTEM PRIVATE
@@ -32,11 +35,12 @@ target_include_directories(Project28 SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/RfgTools++/
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui/
-    ${CMAKE_SOURCE_DIR}/dependencies/IconFontCppHeaders/
-    ${CMAKE_SOURCE_DIR}/dependencies/
-    ${CMAKE_SOURCE_DIR}/dependencies/DirectXTex/DirectXTex/
-    ${CMAKE_SOURCE_DIR}/dependencies/DirectXTex/
+    ${CMAKE_SOURCE_DIR}/Dependencies/imgui/
+    ${CMAKE_SOURCE_DIR}/Dependencies/IconFontCppHeaders/
+    ${CMAKE_SOURCE_DIR}/Dependencies/
+    ${CMAKE_SOURCE_DIR}/Dependencies/DirectXTex/DirectXTex/
+    ${CMAKE_SOURCE_DIR}/Dependencies/DirectXTex/
+    ${CMAKE_SOURCE_DIR}/Dependencies/im3d
 )
 
 # Copy assets directory to binary dir after builds

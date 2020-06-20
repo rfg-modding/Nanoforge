@@ -11,6 +11,7 @@ class DX11Renderer;
 class ImGuiFontManager;
 class MainGui;
 class PackfileVFS;
+class Camera;
 
 class Application
 {
@@ -26,6 +27,7 @@ public:
 
 private:
     void InitRenderer();
+    void NewFrame();
     void UpdateGui();
 
     HINSTANCE hInstance_ = nullptr;
@@ -33,6 +35,7 @@ private:
     ImGuiFontManager* fontManager_ = nullptr;
     MainGui* gui_ = nullptr;
     PackfileVFS* packfileVFS_ = nullptr;
+    Camera* camera_ = nullptr;
 
     int windowWidth_ = 1600;
     int windowHeight_ = 1000;
