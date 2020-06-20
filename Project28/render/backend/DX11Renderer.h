@@ -68,7 +68,7 @@ private:
     Camera* camera_ = nullptr;
     Im3dRenderer* im3dRenderer_ = nullptr;
 
-    int featureLevel_ = 0; //Really D3D_FEATURE_LEVEL, using int so d3d stuff only included in DX11Renderer.cpp
+    D3D_FEATURE_LEVEL featureLevel_;
 
     DirectX::XMFLOAT4 clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
