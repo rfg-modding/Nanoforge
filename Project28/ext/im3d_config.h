@@ -21,10 +21,10 @@
 //#define IM3D_VERTEX_ALIGNMENT 4
 
 // Enable internal culling for primitives (everything drawn between Begin*()/End()). The application must set a culling frustum via AppData.
-//#define IM3D_CULL_PRIMITIVES 1
+#define IM3D_CULL_PRIMITIVES 1
 
 // Enable internal culling for gizmos. The application must set a culling frustum via AppData.
-//#define IM3D_CULL_GIZMOS 1a
+#define IM3D_CULL_GIZMOS 1a
 
 using namespace Im3d;
 

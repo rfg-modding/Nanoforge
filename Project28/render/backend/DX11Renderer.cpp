@@ -105,65 +105,9 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     d3d11Context_->IASetVertexBuffers(0, 1, &vertexBuffer_, &stride, &offset);
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    //Render a triangle
-    d3d11Context_->VSSetShader(vertexShader_, nullptr, 0);
-    d3d11Context_->PSSetShader(pixelShader_, nullptr, 0);
+    //Todo: Add general mesh drawing behavior for non im3d or imgui rendering
+    //Todo: Take a list of render commands each frame and draw based off of those
 
-    //Set the World/View/Projection matrix, then send it to constant buffer in effect file
-
-    //Keep the cubes rotating
-    rot += .02f;
-    if (rot > 6.26f)
-        rot = 0.0f;
-
-    //Reset cube1World
-    cube1World = DirectX::XMMatrixIdentity();
-
-    //Define cube1's world space matrix
-    DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-    Rotation = DirectX::XMMatrixRotationAxis(rotaxis, rot);
-    Translation = DirectX::XMMatrixTranslation(0.0f, 0.0f, 4.0f);
-
-    //Set cube1's world space using the transformations
-    cube1World = Translation * Rotation;
-
-    //Reset cube2World
-    cube2World = DirectX::XMMatrixIdentity();
-
-    //Define cube2's world space matrix
-    Rotation = DirectX::XMMatrixRotationAxis(rotaxis, -rot);
-    Scale = DirectX::XMMatrixScaling(1.3f, 1.3f, 1.3f);
-
-    //Set cube2's world space matrix
-    cube2World = Rotation * Scale;
-
-
-
-    WVP = cube1World * camera_->camView * camera_->camProjection;
-    cbPerObj.WVP = XMMatrixTranspose(WVP);
-    d3d11Context_->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
-    d3d11Context_->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
-
-    //Todo: Change to take a list of render commands each frame and draw based off of those
-    //Draw the first cube
-    d3d11Context_->DrawIndexed(36, 0, 0);
-
-    WVP = cube2World * camera_->camView * camera_->camProjection;
-    cbPerObj.WVP = XMMatrixTranspose(WVP);
-    d3d11Context_->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
-    d3d11Context_->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
-
-    d3d11Context_->PSSetShaderResources(0, 1, &CubesTexture);
-    d3d11Context_->PSSetSamplers(0, 1, &CubesTexSamplerState);
-
-    //Draw the second cube
-    d3d11Context_->DrawIndexed(36, 0, 0);
-    
-    //Todo: See if need to repeatedly bind each vertex buffer for each model being rendered here
-    //Draw from selected vertex buffer & index buffer using indices
-    //d3d11Context_->DrawIndexed(36, 0, 0);
-
-    //Todo: Fix im3d tainting the state of the things rendered before this. Changes culling and texture settings
     im3dRenderer_->EndFrame();
     ImGuiDoFrame();
 

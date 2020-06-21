@@ -128,10 +128,11 @@ void Im3dRenderer::NewFrame(f32 deltaTime)
 
     ad.m_deltaTime = deltaTime;
     ad.m_viewportSize = Im3d::Vec2((f32)windowWidth_, (f32)windowHeight_);
-    ad.m_viewOrigin = Im3d::Vec3(camera_->camPosition.m128_f32[0], camera_->camPosition.m128_f32[1], camera_->camPosition.m128_f32[2]);
-    ad.m_viewDirection = Im3d::Vec3(camera_->camTarget.m128_f32[0], camera_->camTarget.m128_f32[1], camera_->camTarget.m128_f32[2]);
-    ad.m_worldUp = Im3d::Vec3(camera_->camUp.m128_f32[0], camera_->camUp.m128_f32[1], camera_->camUp.m128_f32[2]);// used internally for generating orthonormal bases
-    ad.m_projOrtho = false; //Whether or no camera is using orthographic projection
+    ad.m_viewOrigin = *(Im3d::Vec3*)(&camera_->camPosition);
+    auto normalizedViewDir = DirectX::XMVector4Normalize(camera_->camTarget);
+    ad.m_viewDirection = *(Im3d::Vec3*)(&normalizedViewDir);
+    ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);// used internally for generating orthonormal bases
+    ad.m_projOrtho = false; //Whether or not camera is using orthographic projection
 
     Im3d::Mat4 camProj = *(Im3d::Mat4*)(&camera_->camProjection); //Todo: Make conversion function for this. Fill out conversion operators in ext/im3d_config.h
     Im3d::Mat4 camWorld = Inverse(*(Im3d::Mat4*)(&camera_->camView));
@@ -148,7 +149,7 @@ void Im3dRenderer::NewFrame(f32 deltaTime)
     rayOrigin = ad.m_viewOrigin;
     rayDirection.x = cursorPos.x / camProj(0, 0);
     rayDirection.y = cursorPos.y / camProj(1, 1);
-    rayDirection.z = -1.0f;
+    rayDirection.z = 1.0f;
     rayDirection = camWorld * Im3d::Vec4(Normalize(rayDirection), 0.0f);
 
     ad.m_cursorRayOrigin = rayOrigin;
