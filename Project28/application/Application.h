@@ -24,6 +24,7 @@ public:
 
     bool Paused = false;
     Timer frameTimer_;
+    Camera* camera_ = nullptr;
 
 private:
     void InitRenderer();
@@ -35,7 +36,6 @@ private:
     ImGuiFontManager* fontManager_ = nullptr;
     MainGui* gui_ = nullptr;
     PackfileVFS* packfileVFS_ = nullptr;
-    Camera* camera_ = nullptr;
 
     int windowWidth_ = 1600;
     int windowHeight_ = 1000;

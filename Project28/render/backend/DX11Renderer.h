@@ -24,6 +24,7 @@ public:
     void NewFrame(f32 deltaTime);
     void DoFrame(f32 deltaTime);
     void HandleResize();
+    HWND GetSystemWindowHandle() { return hwnd_; }
 
 private:
     void ImGuiDoFrame();

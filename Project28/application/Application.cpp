@@ -22,9 +22,10 @@ Application::Application(HINSTANCE hInstance)
     fontManager_ = new ImGuiFontManager;
     packfileVFS_ = new PackfileVFS;
     camera_ = new Camera({ 10.0f, 10.0f, 10.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 1000.0f);
-    gui_ = new MainGui(fontManager_, packfileVFS_, camera_);
     
     InitRenderer();
+    gui_ = new MainGui(fontManager_, packfileVFS_, camera_, renderer_->GetSystemWindowHandle());
+    gui_->HandleResize();
     packfileVFS_->ScanPackfiles();
 
     //Init frame timing variables
@@ -77,6 +78,8 @@ void Application::HandleResize()
 {
     if(renderer_)
         renderer_->HandleResize();
+    if (gui_)
+        gui_->HandleResize();
 }
 
 void Application::InitRenderer()
@@ -95,7 +98,7 @@ void Application::NewFrame()
 
 void Application::UpdateGui()
 {
-    gui_->Update();
+    gui_->Update(deltaTime_);
 }
 
 //Todo: Pass key & mouse messages to InputManager and have it send input messages to other parts of code via callbacks
@@ -104,6 +107,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
         return true;
 
+    wndProcAppPtr->camera_->HandleInput(hwnd, msg, wParam, lParam);
+
     switch (msg)
     {
     case WM_KEYDOWN: //Key down
@@ -111,7 +116,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (wParam == VK_ESCAPE) 
         {
             if (MessageBox(0, "Are you sure you want to exit?",
-                "Really?", MB_YESNO | MB_ICONQUESTION) == IDYES)
+                "Confirm exit", MB_YESNO | MB_ICONQUESTION) == IDYES)
 
                 //Release the windows allocated memory  
                 DestroyWindow(hwnd);

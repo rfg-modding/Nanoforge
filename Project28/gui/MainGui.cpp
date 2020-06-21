@@ -8,7 +8,7 @@
 #include <im3d.h>
 #include <im3d_math.h>
 
-void MainGui::Update()
+void MainGui::Update(f32 deltaTime)
 {
     //Run gui code
 #ifdef DEBUG_BUILD
@@ -21,6 +21,19 @@ void MainGui::Update()
     DrawFileExplorer();
 	DrawCameraWindow();
     DrawIm3dPrimitives();
+	UpdateCamera(deltaTime);
+}
+
+void MainGui::HandleResize()
+{
+	RECT rect;
+	RECT usableRect;
+
+	if (GetClientRect(hwnd_, &usableRect))
+	{
+		windowWidth_ = usableRect.right - usableRect.left;
+		windowHeight_ = usableRect.bottom - usableRect.top;
+	}
 }
 
 void MainGui::DrawMainMenuBar()
@@ -120,10 +133,10 @@ void MainGui::DrawCameraWindow()
 	f32 fov = camera_->GetFov();
 	f32 nearPlane = camera_->GetNearPlane();
 	f32 farPlane = camera_->GetFarPlane();
-	//f32 lookSensitivity = camera_->GetLookSensitivity();
+	f32 lookSensitivity = camera_->GetLookSensitivity();
 
-	//ImGui::InputFloat("Speed", &camera_->Speed);
-	//ImGui::InputFloat("Sprint speed", &camera_->SprintSpeed);
+	ImGui::InputFloat("Speed", &camera_->Speed);
+	ImGui::InputFloat("Sprint speed", &camera_->SprintSpeed);
 	//ImGui::InputFloat("Camera smoothing", &camera_->CameraSmoothing);
 	ImGui::Separator();
 
@@ -133,8 +146,8 @@ void MainGui::DrawCameraWindow()
 		camera_->SetNearPlane(nearPlane);
 	if (ImGui::InputFloat("Far plane", &farPlane))
 		camera_->SetFarPlane(farPlane);
-	//if (ImGui::InputFloat("Look sensitivity", &lookSensitivity))
-	//	camera_->SetLookSensitivity(lookSensitivity);
+	if (ImGui::InputFloat("Look sensitivity", &lookSensitivity))
+		camera_->SetLookSensitivity(lookSensitivity);
 
 	//ImGui::Checkbox("Follow mouse", &camera_->FollowMouse);
 	ImGui::Separator();
@@ -146,8 +159,8 @@ void MainGui::DrawCameraWindow()
 	//gui::LabelAndValue("Position: ", util::to_string(camera_->GetPos()));
 	//gui::LabelAndValue("Target position: ", util::to_string(camera_->GetTargetPos()));
 	gui::LabelAndValue("Aspect ratio: ", std::to_string(camera_->GetAspectRatio()));
-	//gui::LabelAndValue("Pitch: ", std::to_string(camera_->GetPitch()));
-	//gui::LabelAndValue("Yaw: ", std::to_string(camera_->GetYaw()));
+	gui::LabelAndValue("Pitch: ", std::to_string(camera_->GetPitch()));
+	gui::LabelAndValue("Yaw: ", std::to_string(camera_->GetYaw()));
 
 	ImGui::End();
 }
@@ -415,4 +428,89 @@ void MainGui::DrawIm3dPrimitives()
     }
 
     ImGui::End();
+}
+
+//TODO: Rewrite this manually using directx math stuff only. Avoid doing all these messy type casts
+void MainGui::UpdateCamera(f32 deltaTime)
+{
+	////Simple way of handling this for the moment. Should move into input callbacks and the Camera class later on to keep things clean & organized
+
+	//float kCamSpeed = 2.0f;
+	//float kCamSpeedMul = 10.0f;
+	//float kCamRotationMul = 10.0f;
+
+	////Todo: Use proper conversion operators here or just eliminate im3d stuff altogether and us D3dMath stuff
+	//Im3d::Vec4& m_camPos = (Im3d::Vec4&)camera_->camPosition;
+	//Im3d::Vec4& m_camDir = (Im3d::Vec4&)camera_->camTarget;
+	////m_camWorld = Im3d::LookAt(*(Im3d::Vec3*) & camera_->camPosition, m_camPos - m_camDir);
+	//Im3d::Mat4 m_camWorld = Im3d::LookAt(m_camPos, (m_camPos) - (m_camDir));
+	//camera_->UpdateViewMatrix();
+	//Im3d::Mat4& m_camView = (Im3d::Mat4&)camera_->camView;
+	////m_camView = Inverse(m_camWorld);
+	////Im3d::Mat4 camProj = *(Im3d::Mat4*)(&camera_->camProjection); //Todo: Make conversion function for this. Fill out conversion operators in ext/im3d_config.h
+	////Im3d::Mat4 camWorld = Inverse(*(Im3d::Mat4*)(&camera_->camView));
+
+
+	//Im3d::Vec2 cursorPos = GetWindowRelativeCursor();
+	//if (SystemWindowFocused())
+	//{
+	//	if (!ImGui::GetIO().WantCaptureKeyboard)
+	//	{
+	//		if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
+	//		{
+	//			kCamSpeed *= 10.0f;
+	//		}
+	//		if ((GetAsyncKeyState(VK_LCONTROL) & 0x8000) == 0) // ctrl not pressed
+	//		{
+	//			if (GetAsyncKeyState(0x57) & 0x8000) // W (forward)
+	//			{
+	//				m_camPos = m_camPos - m_camWorld.getCol(2) * (deltaTime * kCamSpeed);
+	//			}
+	//			if (GetAsyncKeyState(0x41) & 0x8000) // A (left)
+	//			{
+	//				m_camPos = m_camPos - m_camWorld.getCol(0) * (deltaTime * kCamSpeed);
+	//			}
+	//			if (GetAsyncKeyState(0x53) & 0x8000) // S (backward)
+	//			{
+	//				m_camPos = m_camPos + m_camWorld.getCol(2) * (deltaTime * kCamSpeed);
+	//			}
+	//			if (GetAsyncKeyState(0x44) & 0x8000) // D (right)
+	//			{
+	//				m_camPos = m_camPos + m_camWorld.getCol(0) * (deltaTime * kCamSpeed);
+	//			}
+	//			if (GetAsyncKeyState(0x51) & 0x8000) // Q (down)
+	//			{
+	//				m_camPos = m_camPos - m_camWorld.getCol(1) * (deltaTime * kCamSpeed);
+	//			}
+	//			if (GetAsyncKeyState(0x45) & 0x8000) // D (up)
+	//			{
+	//				m_camPos = m_camPos + m_camWorld.getCol(1) * (deltaTime * kCamSpeed);
+	//			}
+	//		}
+	//	}
+	//	if (!ImGui::GetIO().WantCaptureMouse)
+	//	{
+	//		if (GetAsyncKeyState(VK_RBUTTON) & 0x8000)
+	//		{
+	//			Im3d::Vec2 cursorDelta = ((cursorPos - m_prevCursorPos) / Im3d::Vec2((f32)windowWidth_, (f32)windowHeight_)) * kCamRotationMul;
+	//			m_camDir = Im3d::Rotation(Im3d::Vec3(0.0f, 1.0f, 0.0f), -cursorDelta.x) * m_camDir;
+	//			m_camDir = Im3d::Rotation(m_camWorld.getCol(0), -cursorDelta.y) * m_camDir;
+	//		}
+	//	}
+	//}
+	////m_camView = Inverse(m_camWorld);
+	//m_prevCursorPos = cursorPos;
+}
+
+Im3d::Vec2 MainGui::GetWindowRelativeCursor() const
+{
+	POINT p = {};
+	GetCursorPos(&p);
+	ScreenToClient(hwnd_, &p);
+	return Im3d::Vec2((f32)p.x, (f32)p.y);
+}
+
+bool MainGui::SystemWindowFocused()
+{
+	return hwnd_ = GetFocus();
 }
