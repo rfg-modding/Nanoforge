@@ -22,7 +22,7 @@ Application::Application(HINSTANCE hInstance)
     fontManager_ = new ImGuiFontManager;
     packfileVFS_ = new PackfileVFS;
     //camera_ = new Camera({ 10.0f, 10.0f, 10.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 1000.0f);
-    camera_ = new Camera({ -1089.0f, 230.0f, 497.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 1000.0f);
+    camera_ = new Camera({ -1580.0f, 350.0f, 480.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 1000.0f);
     
     InitRenderer();
     gui_ = new MainGui(fontManager_, packfileVFS_, camera_, renderer_->GetSystemWindowHandle());
