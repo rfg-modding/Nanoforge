@@ -2,6 +2,7 @@
 #include "common/Typedefs.h"
 #include <ext/WindowsWrapper.h>
 #include <im3d/im3d.h>
+#include <RfgTools++\formats\zones\ZonePc36.h>
 
 class ImGuiFontManager;
 class PackfileVFS;
@@ -11,8 +12,7 @@ class Camera;
 class MainGui
 {
 public:
-    MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd)
-        : fontManager_(fontManager), packfileVFS_(packfileVFS), camera_(camera), hwnd_(hwnd) {}
+    MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd);
 
     void Update(f32 deltaTime);
     void HandleResize();
@@ -23,6 +23,7 @@ private:
     void DrawMainMenuBar();
     void DrawDockspace();
     void DrawFileExplorer();
+    void DrawZonePrimitives();
     void DrawCameraWindow();
     void DrawIm3dPrimitives();
     //Another function pulled from the im3d dx11 example
@@ -38,5 +39,5 @@ private:
     int windowWidth_ = 800;
     int windowHeight_ = 800;
 
-    Im3d::Vec2 m_prevCursorPos;
+    ZonePc36 zoneFile_;
 };

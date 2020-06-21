@@ -1,6 +1,7 @@
 #include "PackfileVFS.h"
 #include "common/filesystem/Path.h"
 #include <filesystem>
+#include <iostream>
 
 PackfileVFS::~PackfileVFS()
 {
@@ -14,9 +15,17 @@ void PackfileVFS::ScanPackfiles()
     {
         if (Path::GetExtension(filePath) == ".vpp_pc")
         {
-            Packfile3 packfile(filePath.path().string());
-            packfile.ReadMetadata();
-            packfiles_.push_back(packfile);
+            try 
+            {
+                Packfile3 packfile(filePath.path().string());
+                packfile.ReadMetadata();
+                packfile.ReadAsmFiles();
+                packfiles_.push_back(packfile);
+            }
+            catch (std::exception& ex)
+            {
+                std::cout << "Failed to parse vpp_pc file at \"" << filePath << "\". Error message: \"" << ex.what() << "\"\n";
+            }
         }
     }
 }

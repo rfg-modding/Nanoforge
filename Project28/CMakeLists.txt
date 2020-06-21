@@ -4,6 +4,8 @@ project (Project28 VERSION 1.0.0
                   DESCRIPTION "TestApp"
                   LANGUAGES CXX)
 
+                  message(${CMAKE_SOURCE_DIR})
+
 # Get list of source files in project src folders recursively
 # Places in SOURCES variable
 file(GLOB_RECURSE SOURCES 
@@ -11,8 +13,8 @@ file(GLOB_RECURSE SOURCES
     "${CMAKE_SOURCE_DIR}/Project28/*.h"
     # TODO: Hook this up as a static lib once it's got a CMakeLists.txt. For now this works
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.h
-    #${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.cpp)
-)
+    #${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.cpp
+    )
 
 # Add source to this project's executable.
 add_executable (Project28 ${SOURCES}
@@ -33,6 +35,7 @@ target_include_directories(Project28 SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Project28/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Common/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/
+    ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/RfgTools++/RfgTools++/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui/

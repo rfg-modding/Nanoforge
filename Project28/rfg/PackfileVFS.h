@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <RfgTools++\formats\packfiles\Packfile3.h>
+#include <RfgTools++\formats\zones\ZonePc36.h>
+#include <RfgTools++\formats\asm\AsmFile5.h>
 
 //Interface for interacting with RFG packfiles and their contents
 class PackfileVFS
