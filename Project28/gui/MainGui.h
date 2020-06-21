@@ -25,8 +25,6 @@ private:
     void DrawFileExplorer();
     void DrawCameraWindow();
     void DrawIm3dPrimitives();
-    //Todo: Move most of the code in this func to an input callback + the Camera class
-    void UpdateCamera(f32 deltaTime);
     //Another function pulled from the im3d dx11 example
     Im3d::Vec2 GetWindowRelativeCursor() const;
 
