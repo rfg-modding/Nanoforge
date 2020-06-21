@@ -47,8 +47,8 @@ public:
 
     DirectX::XMMATRIX camRotationMatrix;
 
-    f32 SprintSpeed = 5.0f;
-    f32 Speed = 2.0f;
+    f32 Speed = 50.0f;
+    f32 SprintSpeed = 120.0f;
 
     [[nodiscard]] f32 GetFov() const { return fov_; }
     [[nodiscard]] f32 GetFovRadians() const { return fov_ * (3.141593f / 180.0f); } //Todo: Make PI a constant
@@ -64,6 +64,8 @@ public:
     void SetNearPlane(f32 nearPlane) { nearPlane_ = nearPlane; UpdateProjectionMatrix(); }
     void SetFarPlane(f32 farPlane) { farPlane_ = farPlane; UpdateProjectionMatrix(); }
     void SetLookSensitivity(f32 lookSensitivity) { lookSensitivity_ = lookSensitivity; }
+
+    void SetPosition(f32 x, f32 y, f32 z);
 
 private:
     //Todo: Move these to static func / helper namespace

@@ -1,5 +1,6 @@
 #include "MainGui.h"
 #include "common/Typedefs.h"
+#include "common/filesystem/Path.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
 #include "render/imgui/imgui_ext.h"
@@ -7,23 +8,45 @@
 #include <imgui/imgui.h>
 #include <im3d.h>
 #include <im3d_math.h>
+#include <filesystem>
 
 MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd) 
     : fontManager_(fontManager), packfileVFS_(packfileVFS), camera_(camera), hwnd_(hwnd) 
 {
-    BinaryReader reader("G:/RFG Unpack/data/Unpack/zonescript_terr01.vpp_pc/terr01_05_06.rfgzone_pc");
-    zoneFile_.Read(reader);
+    //Todo: Make this load them directly from the packfile instead and search in other packfiles & str2s
+    //Read all zone files in pre-extracted zone folder
+    for (auto& file : std::filesystem::directory_iterator("G:/RFG Unpack/data/Unpack/zonescript_terr01.vpp_pc/"))
+    {
+        if (Path::GetExtension(file) != ".rfgzone_pc")
+            continue;
+
+        BinaryReader reader(file.path().string());
+        ZoneFile zoneFile;
+        zoneFile.Name = Path::GetFileName(file);
+        zoneFile.Zone.Read(reader);
+        zoneFiles_.push_back(zoneFile);
+    }
+
+    //Sort vector by object count for convenience
+    std::sort(zoneFiles_.begin(), zoneFiles_.end(),
+    [](const ZoneFile& a, const ZoneFile& b)
+    {
+        return a.Zone.Header.NumObjects > b.Zone.Header.NumObjects;
+    });
+
+    //Make first zone visible for convenience when debugging
+    zoneFiles_[0].RenderBoundingBoxes = true;
 }
 
 void MainGui::Update(f32 deltaTime)
 {
     //Run gui code
-
     DrawMainMenuBar();
     DrawDockspace();
     DrawFileExplorer();
     DrawZonePrimitives();
     DrawCameraWindow();
+    DrawZoneWindow();
     DrawIm3dPrimitives();
 }
 
@@ -120,34 +143,111 @@ void MainGui::DrawFileExplorer()
     ImGui::End();
 }
 
-void MainGui::DrawZonePrimitives()
+void MainGui::DrawZoneWindow()
 {
-    if (!ImGui::Begin("Zone draw settings", &Visible))
+    if (!ImGui::Begin("Zones", &Visible))
     {
         ImGui::End();
         return;
     }
 
-    static Im3d::Vec4 color = Im3d::Vec4(0.778f, 0.414f, 0.0f, 1.0f);
-    ImGui::ColorEdit4("Color", color);
-    static float thickness = 1.0f;
-    ImGui::SliderFloat("Thickness", &thickness, 0.0f, 16.0f);
+    fontManager_->FontL.Push();
+    ImGui::Text(ICON_FA_PALETTE " Zone draw settings");
+    fontManager_->FontL.Pop();
+    ImGui::Separator();
 
-    //Im3d::PushMatrix(transform);
-    Im3d::PushDrawState();
-    Im3d::SetSize(thickness);
-    Im3d::SetColor(Im3d::Color(color.x, color.y, color.z, color.w));
+    ImGui::ColorEdit4("Bounding box color", boundingBoxColor_);
+    ImGui::SliderFloat("Bounding box thickness", &boundingBoxThickness_, 0.0f, 16.0f);
 
-    //static Im3d::Vec2 quadSize(1.0f);
-    //ImGui::SliderFloat2("Size", quadSize, 0.0f, 10.0f);
-    for (const auto& object : zoneFile_.Objects)
+    ImGui::Separator();
+    fontManager_->FontL.Push();
+    ImGui::Text(ICON_FA_MAP " Zones");
+    fontManager_->FontL.Pop();
+    ImGui::Separator();
+    
+    static bool hideEmptyZones = true;
+    ImGui::Checkbox("Hide empty zones", &hideEmptyZones);
+
+    ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
+    ImGui::Columns(2);
+    for (auto& zone : zoneFiles_)
     {
-        //Todo: Make conversion operators to simplify this
-        Im3d::DrawAlignedBox(Im3d::Vec3(object.Bmin.x, object.Bmin.y, object.Bmin.z), Im3d::Vec3(object.Bmax.x, object.Bmax.y, object.Bmax.z));
+        if (hideEmptyZones && zone.Zone.Header.NumObjects == 0)
+            continue;
+
+        ImGui::SetColumnWidth(0, 200.0f);
+        ImGui::SetColumnWidth(1, 200.0f);
+        ImGui::Selectable(zone.Name.c_str(), &zone.Selected);
+        ImGui::NextColumn();
+        ImGui::Checkbox((string("Draw##") + zone.Name).c_str(), &zone.RenderBoundingBoxes);
+        ImGui::SameLine();
+        if (ImGui::Button((string(ICON_FA_MAP_MARKER "##") + zone.Name).c_str()))
+        {
+            if (zone.Zone.Objects.size() > 1)
+            {
+                auto& firstObj = zone.Zone.Objects[0];
+                Vec3 newCamPos = firstObj.Bmin;
+                newCamPos.x += 50.0f;
+                newCamPos.y += 100.0f;
+                newCamPos.z += 50.0f;
+                camera_->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+            }
+        }
+        ImGui::SameLine();
+        ImGui::Text(" | %d objects", zone.Zone.Header.NumObjects);
+        ImGui::NextColumn();
+    }
+    ImGui::Columns(1);
+    ImGui::EndChild();
+
+    ImGui::End();
+}
+
+void MainGui::DrawZonePrimitives()
+{
+    Im3d::PushDrawState();
+    Im3d::SetSize(boundingBoxThickness_);
+    Im3d::SetColor(Im3d::Color(boundingBoxColor_.x, boundingBoxColor_.y, boundingBoxColor_.z, boundingBoxColor_.w));
+    
+    //Draw bounding boxes
+    for (const auto& zone : zoneFiles_)
+    {
+        if (!zone.RenderBoundingBoxes)
+            continue;
+
+        for (const auto& object : zone.Zone.Objects)
+        {
+            //Todo: Make conversion operators to simplify this
+            Im3d::DrawAlignedBox(Im3d::Vec3(object.Bmin.x, object.Bmin.y, object.Bmin.z), Im3d::Vec3(object.Bmax.x, object.Bmax.y, object.Bmax.z));
+        }
     }
 
+    //Draw 0.0 height grid
+    Im3d::SetAlpha(1.0f);
+    Im3d::SetSize(1.0f);
+    Im3d::BeginLines();
+
+    //Update grid origin if it should follow the camera. Don't change y, just x & z coords
+    if (gridFollowCamera_)
+        gridOrigin_ = Im3d::Vec3(camera_->Position().m128_f32[0], gridOrigin_.y, camera_->Position().m128_f32[2]);
+
+    if (drawGrid_)
+    {
+        const float gridHalf = (float)gridSize_ * 0.5f;
+        for (int x = 0; x <= gridSize_; x += gridSpacing_)
+        {
+            Im3d::Vertex(gridOrigin_.x + -gridHalf, gridOrigin_.y + 0.0f, gridOrigin_.z + (float)x - gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
+            Im3d::Vertex(gridOrigin_.x + gridHalf, gridOrigin_.y + 0.0f, gridOrigin_.z + (float)x - gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
+        }
+        for (int z = 0; z <= gridSize_; z += gridSpacing_)
+        {
+            Im3d::Vertex(gridOrigin_.x + (float)z - gridHalf, gridOrigin_.y + 0.0f, gridOrigin_.z + -gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
+            Im3d::Vertex(gridOrigin_.x + (float)z - gridHalf, gridOrigin_.y + 0.0f, gridOrigin_.z + gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
+        }
+    }
+    Im3d::End();
+
     Im3d::PopDrawState();
-    ImGui::End();
 }
 
 void MainGui::DrawCameraWindow()
@@ -198,38 +298,6 @@ void MainGui::DrawCameraWindow()
     ImGui::End();
 }
 
-void RandSeed(int _seed)
-{
-    srand(_seed);
-}
-int RandInt(int _min, int _max)
-{
-    return _min + (int)rand() % (_max - _min);
-}
-float RandFloat(float _min, float _max)
-{
-    return _min + (float)rand() / (float)RAND_MAX * (_max - _min);
-}
-constexpr float Pi = 3.14159265359f;
-
-Im3d::Vec3 RandVec3(float _min, float _max)
-{
-    return Im3d::Vec3(
-        RandFloat(_min, _max),
-        RandFloat(_min, _max),
-        RandFloat(_min, _max)
-    );
-}
-Im3d::Mat3 RandRotation()
-{
-    return Im3d::Rotation(Im3d::Normalize(RandVec3(-1.0f, 1.0f)), RandFloat(-Pi, Pi));
-}
-Im3d::Color RandColor(float _min, float _max)
-{
-    Im3d::Vec3 v = RandVec3(_min, _max);
-    return Im3d::Color(v.x, v.y, v.z);
-}
-
 void MainGui::DrawIm3dPrimitives()
 {
     ImGui::Begin("Im3d tester");
@@ -244,23 +312,11 @@ void MainGui::DrawIm3dPrimitives()
     ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
     if (ImGui::TreeNode("Grid"))
     {
-        static int gridSize = 100;
-        ImGui::SliderInt("Grid Size", &gridSize, 1, 1000);
-        const float gridHalf = (float)gridSize * 0.5f;
-        Im3d::SetAlpha(1.0f);
-        Im3d::SetSize(1.0f);
-        Im3d::BeginLines();
-        for (int x = 0; x <= gridSize; ++x)
-        {
-            Im3d::Vertex(-gridHalf, 0.0f, (float)x - gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
-            Im3d::Vertex(gridHalf, 0.0f, (float)x - gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
-        }
-        for (int z = 0; z <= gridSize; ++z)
-        {
-            Im3d::Vertex((float)z - gridHalf, 0.0f, -gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
-            Im3d::Vertex((float)z - gridHalf, 0.0f, gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
-        }
-        Im3d::End();
+        ImGui::SliderInt("Grid size", &gridSize_, 1, 10000);
+        ImGui::SliderInt("Grid spacing", &gridSpacing_, 1, 50);
+        ImGui::SliderFloat3("Grid origin", (float*)&gridOrigin_, -8192.0f, 8192.0f);
+        ImGui::Checkbox("Have grid follow camera", &gridFollowCamera_);
+        ImGui::Checkbox("Draw grid", &drawGrid_);
 
         ImGui::TreePop();
     }
@@ -454,56 +510,6 @@ void MainGui::DrawIm3dPrimitives()
 
         ImGui::TreePop();
     }
-    if (ImGui::TreeNode("Basic Perf"))
-    {
-        // Simple perf test: draw a large number of points, enable/disable sorting and the use of the matrix stack.
-        static bool enableSorting = false;
-        static bool useMatrix = false; // if the matrix stack size == 1 Im3d assumes it's the identity matrix and skips the matrix mul as an optimisation
-        static int  primCount = 50000;
-        ImGui::Checkbox("Enable sorting", &enableSorting);
-        ImGui::Checkbox("Use matrix stack", &useMatrix);
-        ImGui::SliderInt("Prim Count", &primCount, 2, 100000);
-
-        Im3d::PushEnableSorting(enableSorting);
-        Im3d::BeginPoints();
-        if (useMatrix)
-        {
-            Im3d::PushMatrix();
-            for (int i = 0; i < primCount; ++i)
-            {
-                Im3d::Mat4 wm(1.0f);
-                wm.setTranslation(RandVec3(-10.0f, 10.0f));
-                Im3d::SetMatrix(wm);
-                Im3d::Vertex(Im3d::Vec3(0.0f), RandFloat(2.0f, 16.0f), RandColor(0.0f, 1.0f));
-            }
-            Im3d::PopMatrix();
-        }
-        else
-        {
-            for (int i = 0; i < primCount; ++i)
-            {
-                Im3d::Vec3 t = RandVec3(-10.0f, 10.0f);
-                Im3d::Vertex(t, RandFloat(2.0f, 16.0f), RandColor(0.0f, 1.0f));
-            }
-        }
-        Im3d::End();
-        Im3d::PopEnableSorting();
-
-        ImGui::TreePop();
-    }
 
     ImGui::End();
-}
-
-Im3d::Vec2 MainGui::GetWindowRelativeCursor() const
-{
-    POINT p = {};
-    GetCursorPos(&p);
-    ScreenToClient(hwnd_, &p);
-    return Im3d::Vec2((f32)p.x, (f32)p.y);
-}
-
-bool MainGui::SystemWindowFocused()
-{
-    return hwnd_ = GetFocus();
 }

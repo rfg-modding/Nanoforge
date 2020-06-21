@@ -3,10 +3,19 @@
 #include <ext/WindowsWrapper.h>
 #include <im3d/im3d.h>
 #include <RfgTools++\formats\zones\ZonePc36.h>
+#include <vector>
 
 class ImGuiFontManager;
 class PackfileVFS;
 class Camera;
+
+struct ZoneFile
+{
+    string Name;
+    ZonePc36 Zone;
+    bool RenderBoundingBoxes = false;
+    bool Selected = false;
+};
 
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
@@ -23,14 +32,10 @@ private:
     void DrawMainMenuBar();
     void DrawDockspace();
     void DrawFileExplorer();
+    void DrawZoneWindow();
     void DrawZonePrimitives();
     void DrawCameraWindow();
     void DrawIm3dPrimitives();
-    //Another function pulled from the im3d dx11 example
-    Im3d::Vec2 GetWindowRelativeCursor() const;
-
-
-    bool SystemWindowFocused();
 
     ImGuiFontManager* fontManager_ = nullptr;
     PackfileVFS* packfileVFS_ = nullptr;
@@ -39,5 +44,13 @@ private:
     int windowWidth_ = 800;
     int windowHeight_ = 800;
 
-    ZonePc36 zoneFile_;
+    std::vector<ZoneFile> zoneFiles_;
+    Im3d::Vec4 boundingBoxColor_ = Im3d::Vec4(0.778f, 0.414f, 0.0f, 1.0f);
+    f32 boundingBoxThickness_ = 1.0f;
+    
+    Im3d::Vec3 gridOrigin_ = { 0.0f, 0.0f, 0.0f };
+    bool gridFollowCamera_ = true;
+    bool drawGrid_ = false;
+    int gridSpacing_ = 10;
+    int gridSize_ = 100;
 };

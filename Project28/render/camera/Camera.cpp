@@ -180,6 +180,12 @@ void Camera::UpdateRotationFromMouse(f32 xDelta, f32 yDelta)
     UpdateViewMatrix();
 }
 
+void Camera::SetPosition(f32 x, f32 y, f32 z)
+{
+    camPosition = DirectX::XMVectorSet(x, y, z, 1.0f);
+    UpdateViewMatrix();
+}
+
 f32 Camera::ToRadians(f32 angleInDegrees)
 {
     const f32 PI = 3.14159265359f;
