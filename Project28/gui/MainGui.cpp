@@ -50,9 +50,9 @@ void MainGui::Update(f32 deltaTime)
     DrawDockspace();
     DrawCameraWindow();
     DrawFileExplorer();
-    DrawZoneWindow();
-    DrawZonePrimitives();
     DrawIm3dPrimitives();
+    DrawZonePrimitives();
+    DrawZoneWindow();
     DrawZoneObjectsWindow();
 }
 
@@ -287,7 +287,7 @@ void MainGui::DrawZoneObjectsWindow()
             ImGui::SetColumnWidth(1, 300.0f);
             ImGui::Selectable(object.Classname.c_str());
             ImGui::NextColumn();
-            ImGui::Text(" | {%.3f, %.3f, %.3f}", position.x, position.y, position.z);
+            ImGui::Text(" | {%.3f, %.3f, %.3f}", object.Bmin.x + (object.Bmax.x - object.Bmin.x) / 2.0f, object.Bmin.y + (object.Bmax.y - object.Bmin.y) / 2.0f, object.Bmin.z + (object.Bmax.z - object.Bmin.z) / 2.0f);
             ImGui::NextColumn();
         }
         ImGui::Columns(1);
