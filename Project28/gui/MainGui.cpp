@@ -9,6 +9,7 @@
 #include <im3d.h>
 #include <im3d_math.h>
 #include <filesystem>
+#include <iostream>
 
 MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd) 
     : fontManager_(fontManager), packfileVFS_(packfileVFS), camera_(camera), hwnd_(hwnd) 
@@ -36,6 +37,10 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
 
     //Make first zone visible for convenience when debugging
     zoneFiles_[0].RenderBoundingBoxes = true;
+    //Init object class data used for filtering and labelling
+    InitObjectClassData();
+    //Select first zone by default
+    SetSelectedZone(0);
 }
 
 void MainGui::Update(f32 deltaTime)
@@ -153,7 +158,7 @@ void MainGui::DrawZoneWindow()
     }
 
     fontManager_->FontL.Push();
-    ImGui::Text(ICON_FA_PALETTE " Zone draw settings");
+    ImGui::Text(ICON_FA_PALETTE " Render settings");
     fontManager_->FontL.Pop();
     ImGui::Separator();
 
@@ -226,23 +231,45 @@ void MainGui::DrawZoneObjectsWindow()
         return;
     }
 
-    fontManager_->FontL.Push();
-    ImGui::Text(ICON_FA_BOXES " Zone objects");
-    fontManager_->FontL.Pop();
-    ImGui::Separator();
-
-    //Todo: Add filtering by type of which should be drawn
     if (selectedZone == InvalidZoneIndex || selectedZone >= zoneFiles_.size())
     {
         ImGui::Text("%s Select a zone to see the objects it contains.", ICON_FA_EXCLAMATION_CIRCLE);
     }
     else
     {
+        fontManager_->FontL.Push();
+        ImGui::Text(ICON_FA_FILTER " Filtering");
+        fontManager_->FontL.Pop();
+        ImGui::Separator();
+
+        ImGui::BeginChild("##Zone object filters list", ImVec2(0, 300.0f), true);
+        for (auto& objectClass : zoneObjectClasses_)
+        {
+            ImGui::Checkbox(objectClass.Name.c_str(), &objectClass.Show);
+            ImGui::SameLine();
+            ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
+            ImGui::SameLine();
+            //Todo: Use a proper string formatting lib here
+            ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+            //ImGui::Text("|  %d instances", objectClass.NumInstances);
+        }
+        ImGui::EndChild();
+
+        ImGui::Separator();
+        fontManager_->FontL.Push();
+        ImGui::Text(ICON_FA_BOXES " Zone objects");
+        fontManager_->FontL.Pop();
+        ImGui::Separator();
+
+        //Object list
         auto& zone = zoneFiles_[selectedZone].Zone;
         ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
         ImGui::Columns(2);
         for (auto& object : zone.Objects)
         {
+            if (!ShouldShowObjectClass(object.ClassnameHash))
+                continue;
+
             Vec3 position = object.Bmax - object.Bmin;
             ImGui::SetColumnWidth(0, 200.0f);
             ImGui::SetColumnWidth(1, 300.0f);
@@ -273,7 +300,12 @@ void MainGui::DrawZonePrimitives()
 
         for (const auto& object : zone.Zone.Objects)
         {
+            auto objectClass = GetObjectClass(object.ClassnameHash);
+            if (!objectClass.Show)
+                continue;
+
             //Todo: Make conversion operators to simplify this
+            Im3d::SetColor(Im3d::Color(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, objectClass.Color.w));
             Im3d::DrawAlignedBox(Im3d::Vec3(object.Bmin.x, object.Bmin.y, object.Bmin.z), Im3d::Vec3(object.Bmax.x, object.Bmax.y, object.Bmax.z));
         }
     }
@@ -570,6 +602,32 @@ void MainGui::DrawIm3dPrimitives()
     ImGui::End();
 }
 
+bool MainGui::ShouldShowObjectClass(u32 classnameHash)
+{
+    for (const auto& objectClass : zoneObjectClasses_)
+    {
+        if (objectClass.Hash == classnameHash)
+            return objectClass.Show;
+    }
+    return true;
+}
+
+bool MainGui::ObjectClassRegistered(u32 classnameHash, u32& outIndex)
+{
+    outIndex = InvalidZoneIndex;
+    u32 i = 0;
+    for (const auto& objectClass : zoneObjectClasses_)
+    {
+        if (objectClass.Hash == classnameHash)
+        {
+            outIndex = i;
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
 void MainGui::SetSelectedZone(u32 index)
 {
     //Deselect if selecting already selected zone
@@ -581,4 +639,107 @@ void MainGui::SetSelectedZone(u32 index)
     
     //Otherwise select zone and update any data reliant on the selected zone
     selectedZone = index;
+    UpdateObjectClassInstanceCounts();
+}
+
+void MainGui::UpdateObjectClassInstanceCounts()
+{
+    //Zero instance counts for each object class
+    for (auto& objectClass : zoneObjectClasses_)
+        objectClass.NumInstances = 0;
+
+    //Update instance count for each object class
+    auto& zone = zoneFiles_[selectedZone].Zone;
+    for (auto& object : zone.Objects)
+    {
+        for (auto& objectClass : zoneObjectClasses_)
+        {
+            if (objectClass.Hash == object.ClassnameHash)
+            {
+                objectClass.NumInstances++;
+                break;
+            }
+        }
+    }
+
+    //Sort vector by instance count for convenience
+    std::sort(zoneObjectClasses_.begin(), zoneObjectClasses_.end(),
+    [](const ZoneObjectClass& a, const ZoneObjectClass& b)
+    {
+        return a.NumInstances > b.NumInstances;
+    });
+}
+
+void MainGui::InitObjectClassData()
+{
+    zoneObjectClasses_ =
+    {
+        {"rfg_mover",                      2898847573, 0, Vec4{ 0.923f, 0.648f, 0.0f, 1.0f }, true},
+        {"cover_node",                     3322951465, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f }, false},
+        {"navpoint",                       4055578105, 0, Vec4{ 1.0f, 0.968f, 0.0f, 1.0f }, false},
+        {"general_mover",                  1435016567, 0, Vec4{ 0.738f, 0.0f, 0.0f, 1.0f }, true},
+        {"player_start",                   1794022917, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"multi_object_marker",            1332551546, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"weapon",                         2760055731, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_action_node",             2017715543, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_squad_spawn_node",        311451949,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_guard_node",              968050919,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_path_road",               3007680500, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"shape_cutter",                   753322256,  0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"item",                           27482413,   0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_vehicle_spawn_node",      3057427650, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"ladder",                         1620465961, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"constraint",                     1798059225, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_effect",                  2663183315, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"trigger_region",                 2367895008, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_bftp_node",               3005715123, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, false},
+        {"object_bounding_box",            2575178582, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_turret_spawn_node",       96035668,   0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"obj_zone",                       3740226015, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_patrol",                  3656745166, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_dummy",                   2671133140, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_raid_node",               3006762854, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_delivery_node",           1315235117, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"marauder_ambush_region",         1783727054, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"unknown",                        0, 0,          Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_activity_spawn",          2219327965, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_mission_start_node",      1536827764, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_demolitions_master_node", 3497250449, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_restricted_area",         3157693713, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f }, true},
+        {"effect_streaming_node",          1742767984, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_house_arrest_node",       227226529,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_area_defense_node",       2107155776, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_safehouse",               3291687510, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_convoy_end_point",        1466427822, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_courier_end_point",       3654824104, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_riding_shotgun_node",     1227520137, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_upgrade_node",            2502352132, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_ambient_behavior_region", 2407660945, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"object_roadblock_node",          2100364527, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
+        {"object_spawn_region",            1854373986, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
+        {"obj_light",                      2915886275, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true}
+    };
+
+    for (auto& zone : zoneFiles_)
+    {
+        for (auto& object : zone.Zone.Objects)
+        {
+            u32 outIndex = InvalidZoneIndex;
+            if (!ObjectClassRegistered(object.ClassnameHash, outIndex))
+            {
+                zoneObjectClasses_.push_back({ object.Classname, object.ClassnameHash, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true });
+                std::cout << "Found unknown object class with hash " << object.ClassnameHash << " and name \"" << object.Classname << "\"\n";
+            }
+        }
+    }
+}
+
+ZoneObjectClass& MainGui::GetObjectClass(u32 classnameHash)
+{
+    for (auto& objectClass : zoneObjectClasses_)
+    {
+        if (objectClass.Hash == classnameHash)
+            return objectClass;
+    }
+    //Todo: Handle case of invalid hash. Returning std::optional would work
 }

@@ -3,6 +3,7 @@
 #include <ext/WindowsWrapper.h>
 #include <im3d/im3d.h>
 #include <RfgTools++\formats\zones\ZonePc36.h>
+#include <RfgTools++\types\Vec4.h>
 #include <vector>
 
 class ImGuiFontManager;
@@ -15,6 +16,15 @@ struct ZoneFile
     ZonePc36 Zone;
     bool RenderBoundingBoxes = false;
     bool Selected = false;
+};
+//Used to filter objects list by class type
+struct ZoneObjectClass
+{
+    string Name;
+    u32 Hash = 0;
+    u32 NumInstances = 0;
+    Vec4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
+    bool Show = true;
 };
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
@@ -40,8 +50,17 @@ private:
     void DrawCameraWindow();
     void DrawIm3dPrimitives();
 
+    //Whether or not this object should be shown based on filtering settings
+    bool ShouldShowObjectClass(u32 classnameHash);
+    //Checks if a object class is in the selected zones class list
+    bool ObjectClassRegistered(u32 classnameHash, u32& outIndex);
     //Set selected zone and update any cached data about it's objects
     void SetSelectedZone(u32 index);
+    //Update number of instances of each object class for selected zone
+    void UpdateObjectClassInstanceCounts();
+    //Scans all zone objects for any object class types that aren't known. Used for filtering and coloring purposes
+    void InitObjectClassData();
+    ZoneObjectClass& GetObjectClass(u32 classnameHash);
 
     ImGuiFontManager* fontManager_ = nullptr;
     PackfileVFS* packfileVFS_ = nullptr;
@@ -59,5 +78,7 @@ private:
     bool drawGrid_ = false;
     int gridSpacing_ = 10;
     int gridSize_ = 100;
+    
     u32 selectedZone = InvalidZoneIndex;
+    std::vector<ZoneObjectClass> zoneObjectClasses_ = {};
 };
