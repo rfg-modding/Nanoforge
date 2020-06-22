@@ -22,4 +22,37 @@ namespace gui
         ImGui::SameLine();
         ImGui::TextColored(SecondaryTextColor, Value.c_str());
     }
+
+    /* Creates a tooltip with the given description and font on the previous ImGui element
+     * created. The font argument is optional. If you leave it blank it'll use the current
+     * font on the top of the stack.
+     */
+    static void TooltipOnPrevious(const char* Description, ImFont* Font)
+    {
+        if (ImGui::IsItemHovered())
+        {
+            if (Font)
+            {
+                ImGui::PushFont(Font);
+            }
+            ImGui::BeginTooltip();
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+            ImGui::TextUnformatted(Description);
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+            if (Font)
+            {
+                ImGui::PopFont();
+            }
+        }
+    }
+
+    /* Creates a tooltip with the given description and font on the previous ImGui element
+     * created. The font argument is optional. If you leave it blank it'll use the current
+     * font on the top of the stack.
+     */
+    static void TooltipOnPrevious(std::string& Description, ImFont* Font)
+    {
+        TooltipOnPrevious(Description.c_str(), Font);
+    }
 }

@@ -14,8 +14,7 @@ struct ZoneFile
 {
     string Name;
     ZonePc36 Zone;
-    bool RenderBoundingBoxes = false;
-    bool Selected = false;
+    bool RenderBoundingBoxes = true;
 };
 //Used to filter objects list by class type
 struct ZoneObjectClass
@@ -25,6 +24,7 @@ struct ZoneObjectClass
     u32 NumInstances = 0;
     Vec4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
     bool Show = true;
+    bool ShowLabel = false;
 };
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
@@ -62,6 +62,8 @@ private:
     void InitObjectClassData();
     ZoneObjectClass& GetObjectClass(u32 classnameHash);
 
+    f32 ScaleTextSizeToDistance(f32 minSize, f32 maxSize, const Vec3& textPos);
+
     ImGuiFontManager* fontManager_ = nullptr;
     PackfileVFS* packfileVFS_ = nullptr;
     Camera* camera_ = nullptr;
@@ -81,4 +83,7 @@ private:
     
     u32 selectedZone = InvalidZoneIndex;
     std::vector<ZoneObjectClass> zoneObjectClasses_ = {};
+
+    f32 labelTextSize_ = 1.0f;
+    Vec4 labelTextColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
 };

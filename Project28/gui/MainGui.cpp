@@ -51,9 +51,9 @@ void MainGui::Update(f32 deltaTime)
     DrawCameraWindow();
     DrawFileExplorer();
     DrawZoneWindow();
-    DrawZoneObjectsWindow();
     DrawZonePrimitives();
     DrawIm3dPrimitives();
+    DrawZoneObjectsWindow();
 }
 
 void MainGui::HandleResize()
@@ -164,6 +164,8 @@ void MainGui::DrawZoneWindow()
 
     ImGui::ColorEdit4("Bounding box color", boundingBoxColor_);
     ImGui::SliderFloat("Bounding box thickness", &boundingBoxThickness_, 0.0f, 16.0f);
+    ImGui::ColorEdit3("Label text Color", (f32*)&labelTextColor_);
+    ImGui::SliderFloat("Label text Size", &labelTextSize_, 0.0f, 16.0f);
 
     ImGui::Separator();
     fontManager_->FontL.Push();
@@ -242,10 +244,20 @@ void MainGui::DrawZoneObjectsWindow()
         fontManager_->FontL.Pop();
         ImGui::Separator();
 
-        ImGui::BeginChild("##Zone object filters list", ImVec2(0, 300.0f), true);
+        ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true);
+        ImGui::Text(" " ICON_FA_EYE);
+        gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
+        ImGui::SameLine();
+        ImGui::Text(" " ICON_FA_MARKER);
+        gui::TooltipOnPrevious("Toggles whether class name labels are drawn for the object class", nullptr);
+        
         for (auto& objectClass : zoneObjectClasses_)
         {
-            ImGui::Checkbox(objectClass.Name.c_str(), &objectClass.Show);
+            ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show);
+            ImGui::SameLine();
+            ImGui::Checkbox((string("##showLabel") + objectClass.Name).c_str(), &objectClass.ShowLabel);
+            ImGui::SameLine();
+            ImGui::Text(objectClass.Name);
             ImGui::SameLine();
             ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
             ImGui::SameLine();
@@ -282,7 +294,6 @@ void MainGui::DrawZoneObjectsWindow()
         ImGui::EndChild();
     }
 
-
     ImGui::End();
 }
 
@@ -303,6 +314,17 @@ void MainGui::DrawZonePrimitives()
             auto objectClass = GetObjectClass(object.ClassnameHash);
             if (!objectClass.Show)
                 continue;
+            //if (objectClass.Hash == 1794022917)
+            if(objectClass.ShowLabel)
+            {
+                //Todo: Fix Vec3 operator- and use it here
+                Vec3 position = Vec3{ object.Bmin.x + (object.Bmax.x - object.Bmin.x) / 2.0f, object.Bmin.y + (object.Bmax.y - object.Bmin.y) / 2.0f, object.Bmin.z + (object.Bmax.z - object.Bmin.z) / 2.0f };
+                //Todo: Make conversion operators to simplify this
+                f32 size = ScaleTextSizeToDistance(0.0f, labelTextSize_, position);
+                Im3d::Text(Im3d::Vec3(position.x, position.y, position.z), size, 
+                           Im3d::Color(labelTextColor_.x, labelTextColor_.y, labelTextColor_.z, labelTextColor_.w),
+                           Im3d::TextFlags_Default, objectClass.Name.c_str());
+            }
 
             //Todo: Make conversion operators to simplify this
             Im3d::SetColor(Im3d::Color(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, objectClass.Color.w));
@@ -674,50 +696,50 @@ void MainGui::InitObjectClassData()
 {
     zoneObjectClasses_ =
     {
-        {"rfg_mover",                      2898847573, 0, Vec4{ 0.923f, 0.648f, 0.0f, 1.0f }, true},
-        {"cover_node",                     3322951465, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f }, false},
-        {"navpoint",                       4055578105, 0, Vec4{ 1.0f, 0.968f, 0.0f, 1.0f }, false},
-        {"general_mover",                  1435016567, 0, Vec4{ 0.738f, 0.0f, 0.0f, 1.0f }, true},
-        {"player_start",                   1794022917, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"multi_object_marker",            1332551546, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"weapon",                         2760055731, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_action_node",             2017715543, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_squad_spawn_node",        311451949,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_guard_node",              968050919,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_path_road",               3007680500, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"shape_cutter",                   753322256,  0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"item",                           27482413,   0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_vehicle_spawn_node",      3057427650, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"ladder",                         1620465961, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"constraint",                     1798059225, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_effect",                  2663183315, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"trigger_region",                 2367895008, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_bftp_node",               3005715123, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, false},
-        {"object_bounding_box",            2575178582, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_turret_spawn_node",       96035668,   0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"obj_zone",                       3740226015, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_patrol",                  3656745166, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_dummy",                   2671133140, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_raid_node",               3006762854, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_delivery_node",           1315235117, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"marauder_ambush_region",         1783727054, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"unknown",                        0, 0,          Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_activity_spawn",          2219327965, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_mission_start_node",      1536827764, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_demolitions_master_node", 3497250449, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_restricted_area",         3157693713, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f }, true},
-        {"effect_streaming_node",          1742767984, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_house_arrest_node",       227226529,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_area_defense_node",       2107155776, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_safehouse",               3291687510, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_convoy_end_point",        1466427822, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_courier_end_point",       3654824104, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_riding_shotgun_node",     1227520137, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_upgrade_node",            2502352132, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_ambient_behavior_region", 2407660945, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"object_roadblock_node",          2100364527, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f }, false},
-        {"object_spawn_region",            1854373986, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true},
-        {"obj_light",                      2915886275, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true}
+        {"rfg_mover",                      2898847573, 0, Vec4{ 0.923f, 0.648f, 0.0f, 1.0f }, true , false},
+        {"cover_node",                     3322951465, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f },     false, false},
+        {"navpoint",                       4055578105, 0, Vec4{ 1.0f, 0.968f, 0.0f, 1.0f },   false, false},
+        {"general_mover",                  1435016567, 0, Vec4{ 0.738f, 0.0f, 0.0f, 1.0f },   true , false},
+        {"player_start",                   1794022917, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"multi_object_marker",            1332551546, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"weapon",                         2760055731, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_action_node",             2017715543, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_squad_spawn_node",        311451949,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_guard_node",              968050919,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_path_road",               3007680500, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"shape_cutter",                   753322256,  0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"item",                           27482413,   0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_vehicle_spawn_node",      3057427650, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"ladder",                         1620465961, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"constraint",                     1798059225, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_effect",                  2663183315, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"trigger_region",                 2367895008, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_bftp_node",               3005715123, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     false, false},
+        {"object_bounding_box",            2575178582, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_turret_spawn_node",       96035668,   0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"obj_zone",                       3740226015, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_patrol",                  3656745166, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_dummy",                   2671133140, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_raid_node",               3006762854, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_delivery_node",           1315235117, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"marauder_ambush_region",         1783727054, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"unknown",                        0, 0,          Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_activity_spawn",          2219327965, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_mission_start_node",      1536827764, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_demolitions_master_node", 3497250449, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_restricted_area",         3157693713, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f },     true , true},
+        {"effect_streaming_node",          1742767984, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, true},
+        {"object_house_arrest_node",       227226529,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_area_defense_node",       2107155776, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_safehouse",               3291687510, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_convoy_end_point",        1466427822, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_courier_end_point",       3654824104, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_riding_shotgun_node",     1227520137, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_upgrade_node",            2502352132, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
+        {"object_ambient_behavior_region", 2407660945, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"object_roadblock_node",          2100364527, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, true},
+        {"object_spawn_region",            1854373986, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , true},
+        {"obj_light",                      2915886275, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , true}
     };
 
     for (auto& zone : zoneFiles_)
@@ -742,4 +764,17 @@ ZoneObjectClass& MainGui::GetObjectClass(u32 classnameHash)
             return objectClass;
     }
     //Todo: Handle case of invalid hash. Returning std::optional would work
+}
+
+f32 MainGui::ScaleTextSizeToDistance(f32 minSize, f32 maxSize, const Vec3& textPos)
+{
+    const f32 minSizeDistance = 1000.0f;
+    const f32 maxSizeDistance = 10.0f;
+    f32 distance = textPos.Distance({ camera_->Position().m128_f32[0], camera_->Position().m128_f32[1], camera_->Position().m128_f32[2] });
+    if (distance < maxSizeDistance)
+        return maxSize;
+    
+    //Lerp result from distance
+    f32 lerp = ((minSize * (maxSizeDistance - distance)) + (maxSize * (distance - minSizeDistance))) / (maxSizeDistance - minSizeDistance);
+    return lerp < 0.0f ? 0.0f : lerp;
 }
