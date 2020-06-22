@@ -43,16 +43,16 @@ void MainGui::Update(f32 deltaTime)
     //Run gui code
     DrawMainMenuBar();
     DrawDockspace();
-    DrawFileExplorer();
-    DrawZonePrimitives();
     DrawCameraWindow();
+    DrawFileExplorer();
     DrawZoneWindow();
+    DrawZoneObjectsWindow();
+    DrawZonePrimitives();
     DrawIm3dPrimitives();
 }
 
 void MainGui::HandleResize()
 {
-    RECT rect;
     RECT usableRect;
 
     if (GetClientRect(hwnd_, &usableRect))
@@ -64,6 +64,7 @@ void MainGui::HandleResize()
 
 void MainGui::DrawMainMenuBar()
 {
+    //Todo: Make this actually work
     ImGuiMainMenuBar
     (
         ImGuiMenu("File",
@@ -167,23 +168,35 @@ void MainGui::DrawZoneWindow()
     
     static bool hideEmptyZones = true;
     ImGui::Checkbox("Hide empty zones", &hideEmptyZones);
+    static bool hideObjectBelowObjectThreshold = true;
+    ImGui::Checkbox("Hide objects below count", &hideObjectBelowObjectThreshold);
+    static u32 minObjectsToShowZone = 2;
+    if(hideObjectBelowObjectThreshold)
+        ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
 
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     ImGui::Columns(2);
+    u32 i = 0;
     for (auto& zone : zoneFiles_)
     {
-        if (hideEmptyZones && zone.Zone.Header.NumObjects == 0)
+        if (hideEmptyZones && zone.Zone.Header.NumObjects == 0 || !(hideObjectBelowObjectThreshold ? zone.Zone.Objects.size() >= minObjectsToShowZone : true))
+        {
+            i++;
             continue;
+        }
 
         ImGui::SetColumnWidth(0, 200.0f);
-        ImGui::SetColumnWidth(1, 200.0f);
-        ImGui::Selectable(zone.Name.c_str(), &zone.Selected);
+        ImGui::SetColumnWidth(1, 300.0f);
+        if (ImGui::Selectable(zone.Name.c_str()))
+        {
+            SetSelectedZone(i);
+        }
         ImGui::NextColumn();
         ImGui::Checkbox((string("Draw##") + zone.Name).c_str(), &zone.RenderBoundingBoxes);
         ImGui::SameLine();
         if (ImGui::Button((string(ICON_FA_MAP_MARKER "##") + zone.Name).c_str()))
         {
-            if (zone.Zone.Objects.size() > 1)
+            if (zone.Zone.Objects.size() > 0)
             {
                 auto& firstObj = zone.Zone.Objects[0];
                 Vec3 newCamPos = firstObj.Bmin;
@@ -194,11 +207,54 @@ void MainGui::DrawZoneWindow()
             }
         }
         ImGui::SameLine();
-        ImGui::Text(" | %d objects", zone.Zone.Header.NumObjects);
+        ImGui::Text(" | %d objects | %s", zone.Zone.Header.NumObjects, zone.Zone.DistrictName() == "unknown" ? "" : zone.Zone.DistrictNameCstr());
         ImGui::NextColumn();
+        i++;
     }
     ImGui::Columns(1);
     ImGui::EndChild();
+
+    ImGui::End();
+}
+
+//Todo: May want to move this to be under each zone in the zone window list since we'll have a third panel for per-object properties
+void MainGui::DrawZoneObjectsWindow()
+{
+    if (!ImGui::Begin("Zone objects", &Visible))
+    {
+        ImGui::End();
+        return;
+    }
+
+    fontManager_->FontL.Push();
+    ImGui::Text(ICON_FA_BOXES " Zone objects");
+    fontManager_->FontL.Pop();
+    ImGui::Separator();
+
+    //Todo: Add filtering by type of which should be drawn
+    if (selectedZone == InvalidZoneIndex || selectedZone >= zoneFiles_.size())
+    {
+        ImGui::Text("%s Select a zone to see the objects it contains.", ICON_FA_EXCLAMATION_CIRCLE);
+    }
+    else
+    {
+        auto& zone = zoneFiles_[selectedZone].Zone;
+        ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
+        ImGui::Columns(2);
+        for (auto& object : zone.Objects)
+        {
+            Vec3 position = object.Bmax - object.Bmin;
+            ImGui::SetColumnWidth(0, 200.0f);
+            ImGui::SetColumnWidth(1, 300.0f);
+            ImGui::Selectable(object.Classname.c_str());
+            ImGui::NextColumn();
+            ImGui::Text(" | {%.3f, %.3f, %.3f}", position.x, position.y, position.z);
+            ImGui::NextColumn();
+        }
+        ImGui::Columns(1);
+        ImGui::EndChild();
+    }
+
 
     ImGui::End();
 }
@@ -512,4 +568,17 @@ void MainGui::DrawIm3dPrimitives()
     }
 
     ImGui::End();
+}
+
+void MainGui::SetSelectedZone(u32 index)
+{
+    //Deselect if selecting already selected zone
+    if (index == selectedZone)
+    {
+        selectedZone = InvalidZoneIndex;
+        return;
+    }
+    
+    //Otherwise select zone and update any data reliant on the selected zone
+    selectedZone = index;
 }

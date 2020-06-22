@@ -17,6 +17,8 @@ struct ZoneFile
     bool Selected = false;
 };
 
+constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
+
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
 {
@@ -33,9 +35,13 @@ private:
     void DrawDockspace();
     void DrawFileExplorer();
     void DrawZoneWindow();
+    void DrawZoneObjectsWindow();
     void DrawZonePrimitives();
     void DrawCameraWindow();
     void DrawIm3dPrimitives();
+
+    //Set selected zone and update any cached data about it's objects
+    void SetSelectedZone(u32 index);
 
     ImGuiFontManager* fontManager_ = nullptr;
     PackfileVFS* packfileVFS_ = nullptr;
@@ -53,4 +59,5 @@ private:
     bool drawGrid_ = false;
     int gridSpacing_ = 10;
     int gridSize_ = 100;
+    u32 selectedZone = InvalidZoneIndex;
 };
