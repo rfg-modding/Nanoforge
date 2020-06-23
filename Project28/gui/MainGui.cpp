@@ -158,7 +158,7 @@ void MainGui::DrawZoneWindow()
     }
 
     fontManager_->FontL.Push();
-    ImGui::Text(ICON_FA_PALETTE " Render settings");
+    ImGui::Text(ICON_FA_PALETTE " Zone draw settings");
     fontManager_->FontL.Pop();
     ImGui::Separator();
 
@@ -166,6 +166,7 @@ void MainGui::DrawZoneWindow()
     ImGui::SliderFloat("Bounding box thickness", &boundingBoxThickness_, 0.0f, 16.0f);
     ImGui::ColorEdit3("Label text Color", (f32*)&labelTextColor_);
     ImGui::SliderFloat("Label text Size", &labelTextSize_, 0.0f, 16.0f);
+    ImGui::Checkbox("Draw arrows to parents", &drawParentConnections_);
 
     ImGui::Separator();
     fontManager_->FontL.Push();
@@ -191,6 +192,8 @@ void MainGui::DrawZoneWindow()
             i++;
             continue;
         }
+
+
 
         ImGui::SetColumnWidth(0, 200.0f);
         ImGui::SetColumnWidth(1, 300.0f);
@@ -240,11 +243,12 @@ void MainGui::DrawZoneObjectsWindow()
     else
     {
         fontManager_->FontL.Push();
-        ImGui::Text(ICON_FA_FILTER " Filtering");
+        ImGui::Text(ICON_FA_FILTER " Filters");
         fontManager_->FontL.Pop();
         ImGui::Separator();
 
         ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true);
+
         ImGui::Text(" " ICON_FA_EYE);
         gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
         ImGui::SameLine();
@@ -302,7 +306,7 @@ void MainGui::DrawZonePrimitives()
     Im3d::PushDrawState();
     Im3d::SetSize(boundingBoxThickness_);
     Im3d::SetColor(Im3d::Color(boundingBoxColor_.x, boundingBoxColor_.y, boundingBoxColor_.z, boundingBoxColor_.w));
-    
+
     //Draw bounding boxes
     for (const auto& zone : zoneFiles_)
     {
@@ -329,6 +333,27 @@ void MainGui::DrawZonePrimitives()
             //Todo: Make conversion operators to simplify this
             Im3d::SetColor(Im3d::Color(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, objectClass.Color.w));
             Im3d::DrawAlignedBox(Im3d::Vec3(object.Bmin.x, object.Bmin.y, object.Bmin.z), Im3d::Vec3(object.Bmax.x, object.Bmax.y, object.Bmax.z));
+
+            //Draw object connection lines
+            if (drawParentConnections_)
+            {
+                if (object.Parent != InvalidZoneIndex) //Todo: Make invalid object handle constant
+                {
+                    //Todo: See if necessary to also search for parents in other zones
+                    for (const auto& object2 : zone.Zone.Objects)
+                    {
+                        if (object2.Handle == object.Parent)
+                        {
+                            Im3d::Color parentArrowColor(0.355f, 0.0f, 1.0f, 1.0f);
+                            Im3d::SetColor(parentArrowColor);
+                            Vec3 position1 = Vec3{ object.Bmin.x + (object.Bmax.x - object.Bmin.x) / 2.0f, object.Bmin.y + (object.Bmax.y - object.Bmin.y) / 2.0f, object.Bmin.z + (object.Bmax.z - object.Bmin.z) / 2.0f };
+                            Vec3 position2 = Vec3{ object2.Bmin.x + (object2.Bmax.x - object2.Bmin.x) / 2.0f, object2.Bmin.y + (object2.Bmax.y - object2.Bmin.y) / 2.0f, object2.Bmin.z + (object2.Bmax.z - object2.Bmin.z) / 2.0f };
+                            Im3d::DrawArrow(Im3d::Vec3(position1.x, position1.y, position1.z), Im3d::Vec3(position2.x, position2.y, position2.z), 1.0f, 10.0f);
+                            //Im3d::DrawLine(Im3d::Vec3(position1.x, position1.y, position1.z), Im3d::Vec3(position2.x, position2.y, position2.z), 1.0f, color)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -711,7 +736,7 @@ void MainGui::InitObjectClassData()
         {"item",                           27482413,   0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
         {"object_vehicle_spawn_node",      3057427650, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
         {"ladder",                         1620465961, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"constraint",                     1798059225, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
+        {"constraint",                     1798059225, 0, Vec4{ 0.958f, 0.0f, 1.0f, 1.0f },     true , false},
         {"object_effect",                  2663183315, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
         {"trigger_region",                 2367895008, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
         {"object_bftp_node",               3005715123, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     false, false},

@@ -86,4 +86,6 @@ private:
 
     f32 labelTextSize_ = 1.0f;
     Vec4 labelTextColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    bool drawParentConnections_ = false;
 };
