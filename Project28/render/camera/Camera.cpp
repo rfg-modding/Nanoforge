@@ -27,19 +27,19 @@ Camera::Camera(const DirectX::XMVECTOR& initialPos, f32 initialFov, const Direct
 void Camera::DoFrame(f32 deltaTime)
 {
     if (wDown) //w
-        Translate(forward);
+        Translate(forward, shiftDown);
     else if (sDown) //s
-        Translate(backward);
+        Translate(backward, shiftDown);
 
     if (aDown) //a
-        Translate(left);
+        Translate(left, shiftDown);
     else if (dDown) //d
-        Translate(right);
+        Translate(right, shiftDown);
 
     if (qDown) //q
-        Translate(up);
+        Translate(up, shiftDown);
     else if (eDown) //e
-        Translate(down);
+        Translate(down, shiftDown);
 }
 
 void Camera::HandleResize(const DirectX::XMFLOAT2& screenDimensions)
@@ -66,6 +66,8 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             qDown = true;
         if (wParam == 0x45) //e
             eDown = true;
+        if (wParam == VK_SHIFT)
+            shiftDown = true;
 
         break;
     case WM_KEYUP:
@@ -81,6 +83,8 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             qDown = false;
         if (wParam == 0x45) //e
             eDown = false;
+        if (wParam == VK_SHIFT)
+            shiftDown = false;
 
         break;
     case WM_RBUTTONDOWN:

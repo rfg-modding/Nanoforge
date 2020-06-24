@@ -48,7 +48,7 @@ public:
 
     DirectX::XMMATRIX camRotationMatrix;
 
-    f32 Speed = 50.0f;
+    f32 Speed = 5.0f;
     f32 SprintSpeed = 100.0f;
     f32 MinSpeed = 0.1f;
     f32 MaxSpeed = SprintSpeed;
@@ -94,6 +94,7 @@ private:
     f32 lastMouseXDelta = 0;
     f32 lastMouseYDelta = 0;
     bool rightMouseButtonDown = false;
+    bool shiftDown = false;
 
     //Todo: Make an InputManager class that tracks this for us. This works for now since there are so few input sinks
     bool wDown = false;
