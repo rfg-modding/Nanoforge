@@ -22,10 +22,11 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
             continue;
 
         BinaryReader reader(file.path().string());
-        ZoneFile zoneFile;
+        ZoneFile& zoneFile = zoneFiles_.emplace_back();
         zoneFile.Name = Path::GetFileName(file);
+        zoneFile.Zone.SetName(zoneFile.Name);
         zoneFile.Zone.Read(reader);
-        zoneFiles_.push_back(zoneFile);
+        zoneFile.Zone.GenerateObjectHierarchy();
     }
 
     //Sort vector by object count for convenience
@@ -167,6 +168,8 @@ void MainGui::DrawZoneWindow()
     ImGui::ColorEdit3("Label text Color", (f32*)&labelTextColor_);
     ImGui::SliderFloat("Label text Size", &labelTextSize_, 0.0f, 16.0f);
     ImGui::Checkbox("Draw arrows to parents", &drawParentConnections_);
+    ImGui::Checkbox("Draw lines to child objects", &drawChildConnections_);
+    ImGui::Checkbox("Draw lines between sibling objects", &drawSiblingConnections_);
 
     ImGui::Separator();
     fontManager_->FontL.Push();
@@ -242,6 +245,7 @@ void MainGui::DrawZoneObjectsWindow()
     }
     else
     {
+        //Draw object filters sub-window
         fontManager_->FontL.Push();
         ImGui::Text(ICON_FA_FILTER " Filters");
         fontManager_->FontL.Pop();
@@ -271,6 +275,8 @@ void MainGui::DrawZoneObjectsWindow()
         }
         ImGui::EndChild();
 
+
+        //Draw zone objects list
         ImGui::Separator();
         fontManager_->FontL.Push();
         ImGui::Text(ICON_FA_BOXES " Zone objects");
@@ -280,21 +286,73 @@ void MainGui::DrawZoneObjectsWindow()
         //Object list
         auto& zone = zoneFiles_[selectedZone].Zone;
         ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
+
+        u32 index = 0;
         ImGui::Columns(2);
-        for (auto& object : zone.Objects)
+        ImGui::SetColumnWidth(0, 200.0f);
+        ImGui::SetColumnWidth(1, 300.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
+        for (auto& object : zone.ObjectsHierarchical)
         {
-            if (!ShouldShowObjectClass(object.ClassnameHash))
+            auto objectClass = GetObjectClass(object.Self->ClassnameHash);
+            if (!objectClass.Show)
                 continue;
 
-            Vec3 position = object.Bmax - object.Bmin;
-            ImGui::SetColumnWidth(0, 200.0f);
-            ImGui::SetColumnWidth(1, 300.0f);
-            ImGui::Selectable(object.Classname.c_str());
-            ImGui::NextColumn();
-            ImGui::Text(" | {%.3f, %.3f, %.3f}", object.Bmin.x + (object.Bmax.x - object.Bmin.x) / 2.0f, object.Bmin.y + (object.Bmax.y - object.Bmin.y) / 2.0f, object.Bmin.z + (object.Bmax.z - object.Bmin.z) / 2.0f);
-            ImGui::NextColumn();
+            //Todo: Use a formatting lib/func here. This is bad
+            if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(index)).c_str(), 
+                object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None))
+            {
+                Vec3 position = object.Self->Bmin + ((object.Self->Bmax - object.Self->Bmin) / 2.0f);
+                ImGui::NextColumn();
+                ImGui::Text(" | {%.3f, %.3f, %.3f}", position.x, position.y, position.z);
+                ImGui::NextColumn();
+                
+                for (auto& childObject : object.Children)
+                {
+                    auto childObjectClass = GetObjectClass(childObject.Self->ClassnameHash);
+                    if (!childObjectClass.Show)
+                        continue;
+
+                    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + childObject.Self->Classname + "##" + std::to_string(index)).c_str(),
+                        childObject.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None))
+                    {
+
+                        ImGui::TreePop();
+                    }
+                    Vec3 childPosition = childObject.Self->Bmin + ((childObject.Self->Bmax - childObject.Self->Bmin) / 2.0f);
+                    ImGui::NextColumn();
+                    ImGui::Text(" | {%.3f, %.3f, %.3f}", childPosition.x, childPosition.y, childPosition.z);
+                    ImGui::NextColumn();
+                    index++;
+                }
+                ImGui::TreePop();
+            }
+            else
+            {
+                Vec3 position = object.Self->Bmin + ((object.Self->Bmax - object.Self->Bmin) / 2.0f);
+                ImGui::NextColumn();
+                ImGui::Text(" | {%.3f, %.3f, %.3f}", position.x, position.y, position.z);
+                ImGui::NextColumn();
+            }
+
+            index++;
         }
+        ImGui::PopStyleVar();
         ImGui::Columns(1);
+
+        //ImGui::Columns(2);
+        //for (auto& object : zone.Objects)
+        //{
+        //    Vec3 position = object.Bmax - object.Bmin;
+        //    ImGui::SetColumnWidth(0, 200.0f);
+        //    ImGui::SetColumnWidth(1, 300.0f);
+        //    ImGui::Selectable(object.Classname.c_str());
+        //    ImGui::NextColumn();
+        //    ImGui::Text(" | {%.3f, %.3f, %.3f}", object.Bmin.x + (object.Bmax.x - object.Bmin.x) / 2.0f, object.Bmin.y + (object.Bmax.y - object.Bmin.y) / 2.0f, 
+        //                                         object.Bmin.z + (object.Bmax.z - object.Bmin.z) / 2.0f);
+        //    ImGui::NextColumn();
+        //}
+        //ImGui::Columns(1);
         ImGui::EndChild();
     }
 
@@ -327,7 +385,7 @@ void MainGui::DrawZonePrimitives()
                 f32 size = ScaleTextSizeToDistance(0.0f, labelTextSize_, position);
                 Im3d::Text(Im3d::Vec3(position.x, position.y, position.z), size, 
                            Im3d::Color(labelTextColor_.x, labelTextColor_.y, labelTextColor_.z, labelTextColor_.w),
-                           Im3d::TextFlags_Default, objectClass.Name.c_str());
+                           Im3d::TextFlags_Default, (string(objectClass.LabelIcon) + objectClass.Name.c_str()).c_str());
             }
 
             //Todo: Make conversion operators to simplify this
@@ -335,6 +393,19 @@ void MainGui::DrawZonePrimitives()
             Im3d::DrawAlignedBox(Im3d::Vec3(object.Bmin.x, object.Bmin.y, object.Bmin.z), Im3d::Vec3(object.Bmax.x, object.Bmax.y, object.Bmax.z));
 
             //Draw object connection lines
+            if (drawChildConnections_)
+            {
+
+            }
+            if (drawChildConnections_)
+            {
+
+            }
+            if (drawSiblingConnections_)
+            {
+
+            }
+            
             if (drawParentConnections_)
             {
                 if (object.Parent != InvalidZoneIndex) //Todo: Make invalid object handle constant
@@ -733,50 +804,52 @@ void MainGui::InitObjectClassData()
 {
     zoneObjectClasses_ =
     {
-        {"rfg_mover",                      2898847573, 0, Vec4{ 0.923f, 0.648f, 0.0f, 1.0f }, true , false},
-        {"cover_node",                     3322951465, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f },     false, false},
-        {"navpoint",                       4055578105, 0, Vec4{ 1.0f, 0.968f, 0.0f, 1.0f },   false, false},
-        {"general_mover",                  1435016567, 0, Vec4{ 0.738f, 0.0f, 0.0f, 1.0f },   true , false},
-        {"player_start",                   1794022917, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"multi_object_marker",            1332551546, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"weapon",                         2760055731, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_action_node",             2017715543, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_squad_spawn_node",        311451949,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_guard_node",              968050919,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_path_road",               3007680500, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"shape_cutter",                   753322256,  0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"item",                           27482413,   0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_vehicle_spawn_node",      3057427650, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"ladder",                         1620465961, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"constraint",                     1798059225, 0, Vec4{ 0.958f, 0.0f, 1.0f, 1.0f },     true , false},
-        {"object_effect",                  2663183315, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"trigger_region",                 2367895008, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_bftp_node",               3005715123, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     false, false},
-        {"object_bounding_box",            2575178582, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_turret_spawn_node",       96035668,   0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"obj_zone",                       3740226015, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_patrol",                  3656745166, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_dummy",                   2671133140, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_raid_node",               3006762854, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_delivery_node",           1315235117, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"marauder_ambush_region",         1783727054, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"unknown",                        0, 0,          Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_activity_spawn",          2219327965, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_mission_start_node",      1536827764, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_demolitions_master_node", 3497250449, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_restricted_area",         3157693713, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f },     true , true},
-        {"effect_streaming_node",          1742767984, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, true},
-        {"object_house_arrest_node",       227226529,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_area_defense_node",       2107155776, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_safehouse",               3291687510, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_convoy_end_point",        1466427822, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_courier_end_point",       3654824104, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_riding_shotgun_node",     1227520137, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_upgrade_node",            2502352132, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, false},
-        {"object_ambient_behavior_region", 2407660945, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , false},
-        {"object_roadblock_node",          2100364527, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false, true},
-        {"object_spawn_region",            1854373986, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , true},
-        {"obj_light",                      2915886275, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true , true}
+        {"rfg_mover",                      2898847573, 0, Vec4{ 0.923f, 0.648f, 0.0f, 1.0f }, true ,   false, ICON_FA_HOME " "},
+        {"cover_node",                     3322951465, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f },     false,   false, ICON_FA_SHIELD_ALT " "},
+        {"navpoint",                       4055578105, 0, Vec4{ 1.0f, 0.968f, 0.0f, 1.0f },   false,   false, ICON_FA_LOCATION_ARROW " "},
+        {"general_mover",                  1435016567, 0, Vec4{ 0.738f, 0.0f, 0.0f, 1.0f },   true ,   false, ICON_FA_CUBES  " "},
+        {"player_start",                   1794022917, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_STREET_VIEW " "},
+        {"multi_object_marker",            1332551546, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_MAP_MARKER " "},
+        {"weapon",                         2760055731, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_CROSSHAIRS " "},
+        {"object_action_node",             2017715543, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_RUNNING " "},
+        {"object_squad_spawn_node",        311451949,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_USERS " "},
+        {"object_guard_node",              968050919,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_SHIELD_ALT " "},
+        {"object_path_road",               3007680500, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_ROAD " "},
+        {"shape_cutter",                   753322256,  0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_CUT " "},
+        {"item",                           27482413,   0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_TOOLS " "},
+        {"object_vehicle_spawn_node",      3057427650, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_CAR_SIDE " "},
+        {"ladder",                         1620465961, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_LEVEL_UP_ALT " "},
+        {"constraint",                     1798059225, 0, Vec4{ 0.958f, 0.0f, 1.0f, 1.0f },   true ,   false, ICON_FA_LOCK " "},
+        {"object_effect",                  2663183315, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_FIRE " "},
+        //Todo: Want a better icon for this one
+        {"trigger_region",                 2367895008, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BORDER_STYLE " "},
+        {"object_bftp_node",               3005715123, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     false,   false, ICON_FA_BOMB " "},
+        {"object_bounding_box",            2575178582, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BORDER_NONE " "},
+        {"object_turret_spawn_node",       96035668,   0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_CROSSHAIRS " "},
+        //Todo: Want a better icon for this one
+        {"obj_zone",                       3740226015, 0, Vec4{ 0.935f, 0.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_SEARCH_LOCATION " "},
+        {"object_patrol",                  3656745166, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BINOCULARS " "},
+        {"object_dummy",                   2671133140, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_MEH_BLANK " "},
+        {"object_raid_node",               3006762854, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_CAR_CRASH " "},
+        {"object_delivery_node",           1315235117, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_SHIPPING_FAST " "},
+        {"marauder_ambush_region",         1783727054, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_USER_NINJA " "},
+        {"unknown",                        0, 0,          Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_QUESTION_CIRCLE " "},
+        {"object_activity_spawn",          2219327965, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_SCROLL " "},
+        {"object_mission_start_node",      1536827764, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_MAP_MARKED " "},
+        {"object_demolitions_master_node", 3497250449, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_BOMB " "},
+        {"object_restricted_area",         3157693713, 0, Vec4{ 1.0f, 0.0f, 0.0f, 1.0f },     true ,   true,  ICON_FA_USER_SLASH " "},
+        {"effect_streaming_node",          1742767984, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   true,  ICON_FA_SPINNER " "},
+        {"object_house_arrest_node",       227226529,  0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_USER_LOCK " "},
+        {"object_area_defense_node",       2107155776, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_USER_SHIELD " "},
+        {"object_safehouse",               3291687510, 0, Vec4{ 0.0f, 0.905f, 1.0f, 1.0f },     true ,   false, ICON_FA_FIST_RAISED " "},
+        {"object_convoy_end_point",        1466427822, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_TRUCK_MOVING " "},
+        {"object_courier_end_point",       3654824104, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_FLAG_CHECKERED " "},
+        {"object_riding_shotgun_node",     1227520137, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_TRUCK_MONSTER " "},
+        {"object_upgrade_node",            2502352132, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   false, ICON_FA_ARROW_UP " "},
+        {"object_ambient_behavior_region", 2407660945, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_TREE " "},
+        {"object_roadblock_node",          2100364527, 0, Vec4{ 0.25f, 0.177f, 1.0f, 1.0f },  false,   true,  ICON_FA_HAND_PAPER " "},
+        {"object_spawn_region",            1854373986, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   true,  ICON_FA_USER_PLUS " "},
+        {"obj_light",                      2915886275, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f },     true ,   true,  ICON_FA_LIGHTBULB " "}
     };
 
     for (auto& zone : zoneFiles_)

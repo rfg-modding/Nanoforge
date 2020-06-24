@@ -49,9 +49,9 @@ public:
     DirectX::XMMATRIX camRotationMatrix;
 
     f32 Speed = 5.0f;
-    f32 SprintSpeed = 100.0f;
+    f32 SprintSpeed = 10.0f;
     f32 MinSpeed = 0.1f;
-    f32 MaxSpeed = SprintSpeed;
+    f32 MaxSpeed = 100.0f;
 
     [[nodiscard]] f32 GetFov() const { return fov_; }
     [[nodiscard]] f32 GetFovRadians() const { return fov_ * (3.141593f / 180.0f); } //Todo: Make PI a constant

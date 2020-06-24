@@ -25,6 +25,7 @@ struct ZoneObjectClass
     Vec4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
     bool Show = true;
     bool ShowLabel = false;
+    const char* LabelIcon = "";
 };
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
@@ -88,4 +89,6 @@ private:
     Vec4 labelTextColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     bool drawParentConnections_ = false;
+    bool drawChildConnections_ = false;
+    bool drawSiblingConnections_ = false;
 };
