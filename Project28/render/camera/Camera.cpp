@@ -89,6 +89,16 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_RBUTTONUP:
         rightMouseButtonDown = false;
         break;
+    case WM_MOUSEWHEEL:
+        {
+            f32 scrollDelta = (f32)GET_WHEEL_DELTA_WPARAM(wParam) / 1000.0f;
+            Speed += scrollDelta;
+            if (Speed < MinSpeed)
+                Speed = MinSpeed;
+            if (Speed > MaxSpeed)
+                Speed = MaxSpeed;
+        }
+        break;
     case WM_MOUSEMOVE:
         f32 mouseX = (f32)GET_X_LPARAM(lParam);
         f32 mouseY = (f32)GET_Y_LPARAM(lParam);

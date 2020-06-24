@@ -403,6 +403,18 @@ void MainGui::DrawCameraWindow()
     f32 farPlane = camera_->GetFarPlane();
     f32 lookSensitivity = camera_->GetLookSensitivity();
 
+    if (ImGui::Button("0.1")) camera_->Speed = 0.1f;
+    ImGui::SameLine();
+    if (ImGui::Button("1.0")) camera_->Speed = 1.0f;
+    ImGui::SameLine();
+    if (ImGui::Button("10.0")) camera_->Speed = 10.0f;
+    ImGui::SameLine();
+    if (ImGui::Button("25.0")) camera_->Speed = 25.0f;
+    ImGui::SameLine();
+    if (ImGui::Button("50.0")) camera_->Speed = 50.0f;
+    ImGui::SameLine();
+    if (ImGui::Button("100.0")) camera_->Speed = 100.0f;
+
     ImGui::InputFloat("Speed", &camera_->Speed);
     ImGui::InputFloat("Sprint speed", &camera_->SprintSpeed);
     //ImGui::InputFloat("Camera smoothing", &camera_->CameraSmoothing);
