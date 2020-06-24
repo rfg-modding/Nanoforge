@@ -25,9 +25,9 @@ Application::Application(HINSTANCE hInstance)
     camera_ = new Camera({ -1580.0f, 350.0f, 480.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 1000.0f);
     
     InitRenderer();
+    packfileVFS_->ScanPackfiles();
     gui_ = new MainGui(fontManager_, packfileVFS_, camera_, renderer_->GetSystemWindowHandle());
     gui_->HandleResize();
-    packfileVFS_->ScanPackfiles();
 
     //Init frame timing variables
     deltaTime_ = maxFrameRateDelta;
