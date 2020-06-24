@@ -10,6 +10,7 @@ class Camera
 public:
     Camera(const DirectX::XMVECTOR& initialPos, f32 initialFov, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane);
 
+    void DoFrame(f32 deltaTime);
     void HandleResize(const DirectX::XMFLOAT2& screenDimensions);
     //Todo: Make input manager class the takes functions ptrs to funcs like this instead of directly passing variables like this
     void HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -84,11 +85,19 @@ private:
     const f32 minPitch_ = -89.0f;
     const f32 maxPitch_ = 89.0f;
     f32 lookSensitivity_ = 100.0f;
-    bool rightMouseButtonDown = false;
 
     //Todo: Have InputManager provide easier way to track this
     f32 lastMouseXPos = 0;
     f32 lastMouseYPos = 0;
     f32 lastMouseXDelta = 0;
     f32 lastMouseYDelta = 0;
+    bool rightMouseButtonDown = false;
+
+    //Todo: Make an InputManager class that tracks this for us. This works for now since there are so few input sinks
+    bool wDown = false;
+    bool aDown = false;
+    bool sDown = false;
+    bool dDown = false;
+    bool qDown = false;
+    bool eDown = false;
 };

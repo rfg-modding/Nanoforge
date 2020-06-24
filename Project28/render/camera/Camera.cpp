@@ -24,6 +24,24 @@ Camera::Camera(const DirectX::XMVECTOR& initialPos, f32 initialFov, const Direct
 
 }
 
+void Camera::DoFrame(f32 deltaTime)
+{
+    if (wDown) //w
+        Translate(forward);
+    else if (sDown) //s
+        Translate(backward);
+
+    if (aDown) //a
+        Translate(left);
+    else if (dDown) //d
+        Translate(right);
+
+    if (qDown) //q
+        Translate(up);
+    else if (eDown) //e
+        Translate(down);
+}
+
 void Camera::HandleResize(const DirectX::XMFLOAT2& screenDimensions)
 {
     //Set the Projection matrix
@@ -37,17 +55,32 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_KEYDOWN: //Key down
         if (wParam == 0x57) //w
-            Translate(forward);
+            wDown = true;
         if (wParam == 0x41) //a
-            Translate(left);
+            aDown = true;
         if (wParam == 0x53) //s
-            Translate(backward);
+            sDown = true;
         if (wParam == 0x44) //d
-            Translate(right);
+            dDown = true;
         if (wParam == 0x51) //q
-            Translate(up);
+            qDown = true;
         if (wParam == 0x45) //e
-            Translate(down);
+            eDown = true;
+
+        break;
+    case WM_KEYUP:
+        if (wParam == 0x57) //w
+            wDown = false;
+        if (wParam == 0x41) //a
+            aDown = false;
+        if (wParam == 0x53) //s
+            sDown = false;
+        if (wParam == 0x44) //d
+            dDown = false;
+        if (wParam == 0x51) //q
+            qDown = false;
+        if (wParam == 0x45) //e
+            eDown = false;
 
         break;
     case WM_RBUTTONDOWN:
@@ -65,13 +98,14 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         lastMouseYPos = mouseY;
         if (rightMouseButtonDown)
             UpdateRotationFromMouse((f32)lastMouseXDelta / screenDimensions_.x, (f32)lastMouseYDelta / screenDimensions_.y);
+
+        break;
     }
 }
 
 void Camera::UpdateProjectionMatrix()
 {
     camProjection = DirectX::XMMatrixPerspectiveFovLH(fov_, screenDimensions_.x / screenDimensions_.y, nearPlane_, farPlane_);
-    //camProjection.r[1].m128_f32[1] *= -1.0f;
 }
 
 void Camera::UpdateViewMatrix()

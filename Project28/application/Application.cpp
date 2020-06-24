@@ -65,6 +65,7 @@ void Application::Run()
         }
         else
         {
+            camera_->DoFrame(deltaTime_);
             NewFrame();
             UpdateGui();
             renderer_->DoFrame(deltaTime_);
