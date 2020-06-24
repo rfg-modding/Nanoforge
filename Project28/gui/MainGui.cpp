@@ -392,20 +392,9 @@ void MainGui::DrawZonePrimitives()
             Im3d::SetColor(Im3d::Color(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, objectClass.Color.w));
             Im3d::DrawAlignedBox(Im3d::Vec3(object.Bmin.x, object.Bmin.y, object.Bmin.z), Im3d::Vec3(object.Bmax.x, object.Bmax.y, object.Bmax.z));
 
+            //Todo: Could speed this up by giving each zone object a ptr to their hierarchical node, or just using the nodes for everything
+            //Todo: Optionally have a flat node list separate from the actual zone data so RfgTools++ doesn't have things only used by this tool
             //Draw object connection lines
-            if (drawChildConnections_)
-            {
-
-            }
-            if (drawChildConnections_)
-            {
-
-            }
-            if (drawSiblingConnections_)
-            {
-
-            }
-            
             if (drawParentConnections_)
             {
                 if (object.Parent != InvalidZoneIndex) //Todo: Make invalid object handle constant
