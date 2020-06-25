@@ -1,5 +1,6 @@
 #include "PackfileVFS.h"
 #include "common/filesystem/Path.h"
+#include "common/string/String.h"
 #include <filesystem>
 #include <iostream>
 
@@ -27,5 +28,93 @@ void PackfileVFS::ScanPackfiles()
                 std::cout << "Failed to parse vpp_pc file at \"" << filePath << "\". Error message: \"" << ex.what() << "\"\n";
             }
         }
+    }
+}
+
+std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string>& searchFilters, bool recursive)
+{
+    //Vector for our file handles
+    std::vector<FileHandle> handles = {};
+
+    //Run search with each filter
+    for (auto& currentFilter : searchFilters)
+    {
+        //By default just match the filename to the search string
+        SearchType searchType = SearchType::Direct;
+        s_view filter = currentFilter; //Adjusted search string
+
+        //Search filtering options
+        if (filter.front() == '*') //Ex: *.rfgzone_pc (Finds filenames that end with .rfgzone_pc)
+        {
+            searchType = SearchType::AnyStart;
+            filter = filter.substr(1);
+        }
+        else if (filter.back() == '*') //Ex: always_loaded.* (Finds filenames with any extension that is named always_loaded)
+        {
+            searchType = SearchType::AnyEnd;
+            filter = filter.substr(0, filter.size() - 2);
+        }
+
+        //Loop through packfiles
+        for (auto& packfile : packfiles_)
+        {
+            //Todo: Add support for C&C packfiles
+            if (packfile.Compressed && packfile.Condensed)
+                continue;
+
+            for (u32 i = 0; i < packfile.Entries.size(); i++)
+            {
+                if (CheckSearchMatch(packfile.EntryNames[i], filter, searchType))
+                    handles.emplace_back(&packfile, packfile.EntryNames[i]);
+            }
+            if (recursive)
+            {
+                for (auto& asmFile : packfile.AsmFiles)
+                {
+                    for (auto& container : asmFile.Containers)
+                    {
+                        for (auto& primitive : container.Primitives)
+                        {
+                            if (CheckSearchMatch(primitive.Name, filter, searchType))
+                                handles.emplace_back(&packfile, primitive.Name, container.Name + ".str2_pc");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    //Return handles to files which matched the search filters
+    return handles;
+}
+
+std::vector<FileHandle> PackfileVFS::GetFiles(const string& filter, bool recursive)
+{
+    //Call primary overload which can take multiple filters
+    return GetFiles({filter}, recursive);
+}
+
+Packfile3* PackfileVFS::GetPackfile(const string& name)
+{
+    for (auto& packfile : packfiles_)
+    {
+        if (packfile.Name() == name)
+            return &packfile;
+    }
+    return nullptr;
+}
+
+bool PackfileVFS::CheckSearchMatch(s_view target, s_view filter, SearchType searchType)
+{
+    switch (searchType)
+    {
+    case SearchType::Direct:
+        return filter == target;
+    case SearchType::AnyStart:
+        return String::EndsWith(target, filter);
+    case SearchType::AnyEnd:
+        return String::StartsWith(target, filter);
+    default:
+        throw std::exception("Error! Invalid enum value passed to PackfileVFS::CheckSearchMatch");
     }
 }

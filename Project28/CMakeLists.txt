@@ -4,8 +4,6 @@ project (Project28 VERSION 1.0.0
                   DESCRIPTION "TestApp"
                   LANGUAGES CXX)
 
-                  message(${CMAKE_SOURCE_DIR})
-
 # Get list of source files in project src folders recursively
 # Places in SOURCES variable
 file(GLOB_RECURSE SOURCES 

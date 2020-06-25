@@ -1,6 +1,7 @@
 #include "MainGui.h"
 #include "common/Typedefs.h"
 #include "common/filesystem/Path.h"
+#include "common/filesystem/File.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
 #include "render/imgui/imgui_ext.h"
@@ -14,16 +15,27 @@
 MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd) 
     : fontManager_(fontManager), packfileVFS_(packfileVFS), camera_(camera), hwnd_(hwnd) 
 {
-    //Todo: Make this load them directly from the packfile instead and search in other packfiles & str2s
-    //Read all zone files in pre-extracted zone folder
-    for (auto& file : std::filesystem::directory_iterator("G:/RFG Unpack/data/Unpack/zonescript_terr01.vpp_pc/"))
+    //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory
+    //Read all zones from zonescript_terr01.vpp_pc
+    Packfile3* zonescriptVpp = packfileVFS_->GetPackfile("zonescript_terr01.vpp_pc");
+    if (!zonescriptVpp)
+        throw std::exception("Error! Could not find zonescript_terr01.vpp_pc in data folder. Required for the program to function.");
+
+    //Todo: Add search function with filters to packfile. Can base of search functions in PackfileVFS
+    for (u32 i = 0; i < zonescriptVpp->Entries.size(); i++)
     {
-        if (Path::GetExtension(file) != ".rfgzone_pc")
+        const char* path = zonescriptVpp->EntryNames[i];
+        string extension = Path::GetExtension(path);
+        if (extension != ".rfgzone_pc" && extension != ".layer_pc")
             continue;
 
-        BinaryReader reader(file.path().string());
+        auto fileBuffer = zonescriptVpp->ExtractSingleFile(path);
+        if (!fileBuffer)
+            throw std::exception("Error! Failed to extract a zone file from zonescript_terr01.vpp_pc");
+
+        BinaryReader reader(fileBuffer.value());
         ZoneFile& zoneFile = zoneFiles_.emplace_back();
-        zoneFile.Name = Path::GetFileName(file);
+        zoneFile.Name = Path::GetFileName(std::filesystem::path(path));
         zoneFile.Zone.SetName(zoneFile.Name);
         zoneFile.Zone.Read(reader);
         zoneFile.Zone.GenerateObjectHierarchy();
