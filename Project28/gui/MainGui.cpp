@@ -39,6 +39,7 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
         zoneFile.Zone.SetName(zoneFile.Name);
         zoneFile.Zone.Read(reader);
         zoneFile.Zone.GenerateObjectHierarchy();
+        delete[] fileBuffer.value().data();
     }
 
     //Sort vector by object count for convenience
