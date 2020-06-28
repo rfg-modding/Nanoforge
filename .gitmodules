@@ -19,3 +19,6 @@
 [submodule "Dependencies/im3d"]
 	path = Dependencies/im3d
 	url = https://github.com/john-chapman/im3d.git
+[submodule "Dependencies/imgui-node-editor"]
+	path = Dependencies/imgui-node-editor
+	url = https://github.com/thedmd/imgui-node-editor.git

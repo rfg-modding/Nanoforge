@@ -7,10 +7,15 @@
 #include "render/imgui/imgui_ext.h"
 #include "render/camera/Camera.h"
 #include <imgui/imgui.h>
+#include <imgui_node_editor.h>
+#include <imgui_internal.h>
 #include <im3d.h>
 #include <im3d_math.h>
 #include <filesystem>
 #include <iostream>
+
+namespace node = ax::NodeEditor;
+static node::EditorContext* gContext = nullptr;
 
 MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd) 
     : fontManager_(fontManager), packfileVFS_(packfileVFS), camera_(camera), hwnd_(hwnd) 
@@ -55,6 +60,8 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
     InitObjectClassData();
     //Select first zone by default
     SetSelectedZone(0);
+
+    gContext = node::CreateEditor();
 }
 
 void MainGui::Update(f32 deltaTime)
@@ -63,6 +70,8 @@ void MainGui::Update(f32 deltaTime)
     DrawMainMenuBar();
     DrawDockspace();
     DrawCameraWindow();
+    DrawRenderSettingsWindow();
+    DrawNodeEditor();
     DrawFileExplorer();
     DrawIm3dPrimitives();
     DrawZonePrimitives();
@@ -84,8 +93,8 @@ void MainGui::HandleResize()
 void MainGui::DrawMainMenuBar()
 {
     //Todo: Make this actually work
-    ImGuiMainMenuBar
-    (
+    if (ImGui::BeginMainMenuBar())
+    {
         ImGuiMenu("File",
             ImGuiMenuItemShort("Open file", )
             ImGuiMenuItemShort("Save file", )
@@ -96,7 +105,17 @@ void MainGui::DrawMainMenuBar()
             ImGuiMenuItemShort("Metrics", )
             ImGuiMenuItemShort("About", )
         )
-    )
+
+        //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements
+        auto* drawList = ImGui::GetWindowDrawList();
+        string framerate = std::to_string(ImGui::GetIO().Framerate);
+        u64 decimal = framerate.find('.');
+        const char* labelAndSeparator = "|    FPS: ";
+        drawList->AddText(ImVec2(ImGui::GetCursorPosX(), 3.0f), 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
+        drawList->AddText(ImVec2(ImGui::GetCursorPosX() + 49.0f, 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+
+        ImGui::EndMainMenuBar();
+    }
 }
 
 void MainGui::DrawDockspace()
@@ -171,19 +190,6 @@ void MainGui::DrawZoneWindow()
         return;
     }
 
-    fontManager_->FontL.Push();
-    ImGui::Text(ICON_FA_PALETTE " Zone draw settings");
-    fontManager_->FontL.Pop();
-    ImGui::Separator();
-
-    ImGui::ColorEdit4("Bounding box color", boundingBoxColor_);
-    ImGui::SliderFloat("Bounding box thickness", &boundingBoxThickness_, 0.0f, 16.0f);
-    ImGui::ColorEdit3("Label text Color", (f32*)&labelTextColor_);
-    ImGui::SliderFloat("Label text Size", &labelTextSize_, 0.0f, 16.0f);
-    ImGui::Checkbox("Draw arrows to parents", &drawParentConnections_);
-    ImGui::Checkbox("Draw lines to child objects", &drawChildConnections_);
-    ImGui::Checkbox("Draw lines between sibling objects", &drawSiblingConnections_);
-
     ImGui::Separator();
     fontManager_->FontL.Push();
     ImGui::Text(ICON_FA_MAP " Zones");
@@ -192,12 +198,15 @@ void MainGui::DrawZoneWindow()
     
     static bool hideEmptyZones = true;
     ImGui::Checkbox("Hide empty zones", &hideEmptyZones);
+    ImGui::SameLine();
     static bool hideObjectBelowObjectThreshold = true;
-    ImGui::Checkbox("Hide objects below count", &hideObjectBelowObjectThreshold);
+    ImGui::Checkbox("Minimum object count", &hideObjectBelowObjectThreshold);
     static u32 minObjectsToShowZone = 2;
-    if(hideObjectBelowObjectThreshold)
+    if (hideObjectBelowObjectThreshold)
+    {
+        ImGui::SetNextItemWidth(176.5f);
         ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
-
+    }
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     ImGui::Columns(2);
     u32 i = 0;
@@ -353,21 +362,30 @@ void MainGui::DrawZoneObjectsWindow()
         ImGui::PopStyleVar();
         ImGui::Columns(1);
 
-        //ImGui::Columns(2);
-        //for (auto& object : zone.Objects)
-        //{
-        //    Vec3 position = object.Bmax - object.Bmin;
-        //    ImGui::SetColumnWidth(0, 200.0f);
-        //    ImGui::SetColumnWidth(1, 300.0f);
-        //    ImGui::Selectable(object.Classname.c_str());
-        //    ImGui::NextColumn();
-        //    ImGui::Text(" | {%.3f, %.3f, %.3f}", object.Bmin.x + (object.Bmax.x - object.Bmin.x) / 2.0f, object.Bmin.y + (object.Bmax.y - object.Bmin.y) / 2.0f, 
-        //                                         object.Bmin.z + (object.Bmax.z - object.Bmin.z) / 2.0f);
-        //    ImGui::NextColumn();
-        //}
-        //ImGui::Columns(1);
         ImGui::EndChild();
     }
+
+    ImGui::End();
+}
+
+void MainGui::DrawRenderSettingsWindow()
+{
+    if (!ImGui::Begin("Render settings", &Visible))
+    {
+        ImGui::End();
+        return;
+    }
+
+    fontManager_->FontL.Push();
+    ImGui::Text(ICON_FA_PALETTE " Zone draw settings");
+    fontManager_->FontL.Pop();
+    ImGui::Separator();
+
+    ImGui::ColorEdit4("Bounding box color", boundingBoxColor_);
+    ImGui::SliderFloat("Bounding box thickness", &boundingBoxThickness_, 0.0f, 16.0f);
+    ImGui::ColorEdit3("Label text Color", (f32*)&labelTextColor_);
+    ImGui::SliderFloat("Label text Size", &labelTextSize_, 0.0f, 16.0f);
+    ImGui::Checkbox("Draw arrows to parents", &drawParentConnections_);
 
     ImGui::End();
 }
@@ -518,218 +536,164 @@ void MainGui::DrawCameraWindow()
     ImGui::End();
 }
 
-void MainGui::DrawIm3dPrimitives()
+void MainGui::DrawNodeEditor()
 {
-    ImGui::Begin("Im3d tester");
-
-    Im3d::Context& ctx = Im3d::GetContext();
-    Im3d::AppData& ad = Im3d::GetAppData();
-
-    ImGui::InputFloat3("Im3d ray origin", (float*)&ad.m_cursorRayOrigin);
-    ImGui::InputFloat3("Im3d ray direction", (float*)&ad.m_cursorRayDirection);
-
-    //Draw grid
-    ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
-    if (ImGui::TreeNode("Grid"))
+    if (!ImGui::Begin("Scriptx editor"))
     {
-        ImGui::SliderInt("Grid size", &gridSize_, 1, 10000);
-        ImGui::SliderInt("Grid spacing", &gridSpacing_, 1, 50);
-        ImGui::SliderFloat3("Grid origin", (float*)&gridOrigin_, -8192.0f, 8192.0f);
-        ImGui::Checkbox("Have grid follow camera", &gridFollowCamera_);
-        ImGui::Checkbox("Draw grid", &drawGrid_);
-
-        ImGui::TreePop();
+        ImGui::End();
+        return;
     }
 
-    if (ImGui::TreeNode("Cursor Ray Intersection"))
+    fontManager_->FontL.Push();
+    ImGui::Text(ICON_FA_DIRECTIONS "Scriptx editor");
+    fontManager_->FontL.Pop();
+    ImGui::Separator();
+
+    node::SetCurrentEditor(gContext);
+
+    node::Begin("My Editor");
+
+    // Struct to hold basic information about connection between
+// pins. Note that connection (aka. link) has its own ID.
+// This is useful later with dealing with selections, deletion
+// or other operations.
+    struct LinkInfo
     {
-        // Context exposes the 'hot depth' along the cursor ray which intersects with the current hot gizmo - this is useful
-        // when drawing the cursor ray.
-        float depth = FLT_MAX;
-        depth = Im3d::Min(depth, Im3d::GetContext().m_hotDepth);
-        float size = Im3d::Clamp(32.0f / depth, 4.0f, 32.0f);
+        node::LinkId Id;
+        node::PinId  InputId;
+        node::PinId  OutputId;
+    };
 
-        if (depth != FLT_MAX)
-        {
-            ImGui::Text("Depth: %f", depth);
-            Im3d::PushEnableSorting(true);
-            Im3d::BeginPoints();
-            Im3d::Vertex(ad.m_cursorRayOrigin + ad.m_cursorRayDirection * depth * 0.99f, size, Im3d::Color_Magenta);
-            Im3d::End();
-            Im3d::PopEnableSorting();
-        }
-        else
-        {
-            ImGui::Text("Depth: FLT_MAX");
-        }
+    u32 uniqueId = 1;
+    static bool g_FirstFrame = true;
+    static ImVector<LinkInfo>   g_Links;                // List of live links. It is dynamic unless you want to create read-only view over nodes.
+    static int                  g_NextLinkId = 100;     // Counter to help generate link ids. In real application this will probably based on pointer to user data structure.
 
-        ImGui::TreePop();
-    }
+    //
+    // 1) Commit known data to editor
+    //
 
-    //ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Once);
-    if (ImGui::TreeNode("High Order Shapes"))
+    // Submit Node A
+    node::NodeId nodeA_Id = uniqueId++;
+    node::PinId  nodeA_InputPinId = uniqueId++;
+    node::PinId  nodeA_OutputPinId = uniqueId++;
+
+    if (g_FirstFrame)
+        node::SetNodePosition(nodeA_Id, ImVec2(10, 10));
+    node::BeginNode(nodeA_Id);
+        ImGui::Text("Node A");
+        node::BeginPin(nodeA_InputPinId, node::PinKind::Input);
+            ImGui::Text("-> In");
+        node::EndPin();
+        ImGui::SameLine();
+        node::BeginPin(nodeA_OutputPinId, node::PinKind::Output);
+            ImGui::Text("Out ->");
+        node::EndPin();
+    node::EndNode();
+
+    // Submit Node B
+    node::NodeId nodeB_Id = uniqueId++;
+    node::PinId  nodeB_InputPinId1 = uniqueId++;
+    node::PinId  nodeB_InputPinId2 = uniqueId++;
+    node::PinId  nodeB_OutputPinId = uniqueId++;
+
+    if (g_FirstFrame)
+        node::SetNodePosition(nodeB_Id, ImVec2(210, 60));
+    node::BeginNode(nodeB_Id);
+        ImGui::Text("Node B");
+        //ImGuiEx_BeginColumn();
+            node::BeginPin(nodeB_InputPinId1, node::PinKind::Input);
+                ImGui::Text("-> In1");
+            node::EndPin();
+            node::BeginPin(nodeB_InputPinId2, node::PinKind::Input);
+                ImGui::Text("-> In2");
+            node::EndPin();
+        //ImGuiEx_NextColumn();
+            node::BeginPin(nodeB_OutputPinId, node::PinKind::Output);
+                ImGui::Text("Out ->");
+            node::EndPin();
+        //ImGuiEx_EndColumn();
+    node::EndNode();
+
+    // Submit Links
+    for (auto& linkInfo : g_Links)
+        node::Link(linkInfo.Id, linkInfo.InputId, linkInfo.OutputId);
+
+    //
+    // 2) Handle interactions
+    //
+
+    // Handle creation action, returns true if editor want to create new object (node or link)
+    if (node::BeginCreate())
     {
-        // Im3d provides functions to easily draw high order shapes - these don't strictly require a matrix to be pushed on
-        // the stack (although this is supported, as below).
-        static Im3d::Mat4 transform(1.0f);
-        Im3d::Gizmo("ShapeGizmo", transform);
+        node::PinId inputPinId, outputPinId;
+        if (node::QueryNewLink(&inputPinId, &outputPinId))
+        {
+            // QueryNewLink returns true if editor want to create new link between pins.
+            //
+            // Link can be created only for two valid pins, it is up to you to
+            // validate if connection make sense. Editor is happy to make any.
+            //
+            // Link always goes from input to output. User may choose to drag
+            // link from output pin or input pin. This determine which pin ids
+            // are valid and which are not:
+            //   * input valid, output invalid - user started to drag new ling from input pin
+            //   * input invalid, output valid - user started to drag new ling from output pin
+            //   * input valid, output valid   - user dragged link over other pin, can be validated
 
-        enum Shape {
-            Shape_Quad,
-            Shape_QuadFilled,
-            Shape_Circle,
-            Shape_CircleFilled,
-            Shape_Sphere,
-            Shape_SphereFilled,
-            Shape_AlignedBox,
-            Shape_AlignedBoxFilled,
-            Shape_Cylinder,
-            Shape_Capsule,
-            Shape_Prism,
-            Shape_Arrow
-        };
-        static const char* shapeList =
-            "Quad\0"
-            "Quad Filled\0"
-            "Circle\0"
-            "Circle Filled\0"
-            "Sphere\0"
-            "Sphere Filled\0"
-            "AlignedBox\0"
-            "AlignedBoxFilled\0"
-            "Cylinder\0"
-            "Capsule\0"
-            "Prism\0"
-            "Arrow\0"
-            ;
-        static int currentShape = Shape_Capsule;
-        ImGui::Combo("Shape", &currentShape, shapeList);
-        static Im3d::Vec4 color = Im3d::Vec4(1.0f, 0.0f, 0.6f, 1.0f);
-        ImGui::ColorEdit4("Color", color);
-        static float thickness = 4.0f;
-        ImGui::SliderFloat("Thickness", &thickness, 0.0f, 16.0f);
-        static int detail = -1;
+            if (inputPinId && outputPinId) // both are valid, let's accept link
+            {
+                // node::AcceptNewItem() return true when user release mouse button.
+                if (node::AcceptNewItem())
+                {
+                    // Since we accepted new link, lets add one to our list of links.
+                    g_Links.push_back({ node::LinkId(g_NextLinkId++), inputPinId, outputPinId });
 
-        Im3d::PushMatrix(transform);
-        Im3d::PushDrawState();
-        Im3d::SetSize(thickness);
-        Im3d::SetColor(Im3d::Color(color.x, color.y, color.z, color.w));
+                    // Draw new link.
+                    node::Link(g_Links.back().Id, g_Links.back().InputId, g_Links.back().OutputId);
+                }
 
-        switch ((Shape)currentShape)
-        {
-        case Shape_Quad:
-        case Shape_QuadFilled:
-        {
-            static Im3d::Vec2 quadSize(1.0f);
-            ImGui::SliderFloat2("Size", quadSize, 0.0f, 10.0f);
-            if (currentShape == Shape_Quad)
-            {
-                Im3d::DrawQuad(Im3d::Vec3(0.0f), Im3d::Vec3(0.0f, 0.0f, 1.0f), quadSize);
+                // You may choose to reject connection between these nodes
+                // by calling node::RejectNewItem(). This will allow editor to give
+                // visual feedback by changing link thickness and color.
             }
-            else
-            {
-                Im3d::DrawQuadFilled(Im3d::Vec3(0.0f), Im3d::Vec3(0.0f, 0.0f, 1.0f), quadSize);
-            }
-            break;
         }
-        case Shape_Circle:
-        case Shape_CircleFilled:
-        {
-            static float circleRadius = 1.0f;
-            ImGui::SliderFloat("Radius", &circleRadius, 0.0f, 10.0f);
-            ImGui::SliderInt("Detail", &detail, -1, 128);
-            if (currentShape == Shape_Circle)
-            {
-                Im3d::DrawCircle(Im3d::Vec3(0.0f), Im3d::Vec3(0.0f, 0.0f, 1.0f), circleRadius, detail);
-            }
-            else if (currentShape = Shape_CircleFilled)
-            {
-                Im3d::DrawCircleFilled(Im3d::Vec3(0.0f), Im3d::Vec3(0.0f, 0.0f, 1.0f), circleRadius, detail);
-            }
-            break;
-        }
-        case Shape_Sphere:
-        case Shape_SphereFilled:
-        {
-            static float sphereRadius = 1.0f;
-            ImGui::SliderFloat("Radius", &sphereRadius, 0.0f, 10.0f);
-            ImGui::SliderInt("Detail", &detail, -1, 128);
-            if (currentShape == Shape_Sphere)
-            {
-                Im3d::DrawSphere(Im3d::Vec3(0.0f), sphereRadius, detail);
-            }
-            else
-            {
-                Im3d::DrawSphereFilled(Im3d::Vec3(0.0f), sphereRadius, detail);
-            }
-            break;
-        }
-        case Shape_AlignedBox:
-        case Shape_AlignedBoxFilled:
-        {
-            static Im3d::Vec3 boxSize(1.0f);
-            ImGui::SliderFloat3("Size", boxSize, 0.0f, 10.0f);
-            if (currentShape == Shape_AlignedBox)
-            {
-                Im3d::DrawAlignedBox(-boxSize, boxSize);
-            }
-            else
-            {
-                Im3d::DrawAlignedBoxFilled(-boxSize, boxSize);
-            }
-            break;
-        }
-        case Shape_Cylinder:
-        {
-            static float cylinderRadius = 1.0f;
-            static float cylinderLength = 1.0f;
-            ImGui::SliderFloat("Radius", &cylinderRadius, 0.0f, 10.0f);
-            ImGui::SliderFloat("Length", &cylinderLength, 0.0f, 10.0f);
-            ImGui::SliderInt("Detail", &detail, -1, 128);
-            Im3d::DrawCylinder(Im3d::Vec3(0.0f, -cylinderLength, 0.0f), Im3d::Vec3(0.0f, cylinderLength, 0.0f), cylinderRadius, detail);
-            break;
-        }
-        case Shape_Capsule:
-        {
-            static float capsuleRadius = 0.5f;
-            static float capsuleLength = 1.0f;
-            ImGui::SliderFloat("Radius", &capsuleRadius, 0.0f, 10.0f);
-            ImGui::SliderFloat("Length", &capsuleLength, 0.0f, 10.0f);
-            ImGui::SliderInt("Detail", &detail, -1, 128);
-            Im3d::DrawCapsule(Im3d::Vec3(0.0f, -capsuleLength, 0.0f), Im3d::Vec3(0.0f, capsuleLength, 0.0f), capsuleRadius, detail);
-            break;
-        }
-        case Shape_Prism:
-        {
-            static float prismRadius = 1.0f;
-            static float prismLength = 1.0f;
-            static int   prismSides = 3;
-            ImGui::SliderFloat("Radius", &prismRadius, 0.0f, 10.0f);
-            ImGui::SliderFloat("Length", &prismLength, 0.0f, 10.0f);
-            ImGui::SliderInt("Sides", &prismSides, 3, 16);
-            Im3d::DrawPrism(Im3d::Vec3(0.0f, -prismLength, 0.0f), Im3d::Vec3(0.0f, prismLength, 0.0f), prismRadius, prismSides);
-            break;
-        }
-        case Shape_Arrow:
-        {
-            static float arrowLength = 1.0f;
-            static float headLength = -1.0f;
-            static float headThickness = -1.0f;
-            ImGui::SliderFloat("Length", &arrowLength, 0.0f, 10.0f);
-            ImGui::SliderFloat("Head Length", &headLength, 0.0f, 1.0f);
-            ImGui::SliderFloat("Head Thickness", &headThickness, 0.0f, 1.0f);
-            Im3d::DrawArrow(Im3d::Vec3(0.0f), Im3d::Vec3(0.0f, arrowLength, 0.0f), headLength, headThickness);
-            break;
-        }
-        default:
-            break;
-        };
-
-        Im3d::PopDrawState();
-        Im3d::PopMatrix();
-
-        ImGui::TreePop();
     }
+    node::EndCreate(); // Wraps up object creation action handling.
+
+
+    // Handle deletion action
+    if (node::BeginDelete())
+    {
+        // There may be many links marked for deletion, let's loop over them.
+        node::LinkId deletedLinkId;
+        while (node::QueryDeletedLink(&deletedLinkId))
+        {
+            // If you agree that link can be deleted, accept deletion.
+            if (node::AcceptDeletedItem())
+            {
+                // Then remove link from your data.
+                for (auto& link : g_Links)
+                {
+                    if (link.Id == deletedLinkId)
+                    {
+                        g_Links.erase(&link);
+                        break;
+                    }
+                }
+            }
+
+            // You may reject link deletion by calling:
+            // node::RejectDeletedItem();
+        }
+    }
+    node::EndDelete(); // Wrap up deletion action
+
+
+
+    node::End();
+
+    g_FirstFrame = false;
 
     ImGui::End();
 }

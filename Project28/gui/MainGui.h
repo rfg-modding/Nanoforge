@@ -35,6 +35,7 @@ class MainGui
 {
 public:
     MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd);
+    ~MainGui();
 
     void Update(f32 deltaTime);
     void HandleResize();
@@ -47,9 +48,10 @@ private:
     void DrawFileExplorer();
     void DrawZoneWindow();
     void DrawZoneObjectsWindow();
+    void DrawRenderSettingsWindow();
     void DrawZonePrimitives();
     void DrawCameraWindow();
-    void DrawIm3dPrimitives();
+    void DrawNodeEditor();
 
     //Whether or not this object should be shown based on filtering settings
     bool ShouldShowObjectClass(u32 classnameHash);
