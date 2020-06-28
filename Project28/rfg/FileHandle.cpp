@@ -52,3 +52,24 @@ std::span<u8> FileHandle::Get()
         return file.value();
     }
 }
+
+Packfile3* FileHandle::GetPackfile()
+{
+    return packfile_;
+}
+
+Packfile3* FileHandle::GetContainer()
+{
+    //Find container
+    auto containerBytes = packfile_->ExtractSingleFile(containerName_, false);
+#if DEBUG_BUILD
+    if (!containerBytes)
+        throw std::exception("Error! Failed to extract container from packfile via file handle.");
+#endif
+
+    //Parse container and get file byte buffer
+    Packfile3* container = new Packfile3(containerBytes.value());
+    container->ReadMetadata();
+
+    return container;
+}

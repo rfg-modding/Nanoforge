@@ -31,7 +31,7 @@ void PackfileVFS::ScanPackfiles()
     }
 }
 
-std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string>& searchFilters, bool recursive)
+std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchFilters, bool recursive, bool oneResultPerFilter)
 {
     //Vector for our file handles
     std::vector<FileHandle> handles = {};
@@ -65,7 +65,12 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string
             for (u32 i = 0; i < packfile.Entries.size(); i++)
             {
                 if (CheckSearchMatch(packfile.EntryNames[i], filter, searchType))
+                {
                     handles.emplace_back(&packfile, packfile.EntryNames[i]);
+                    //Break out to the top loop since we only want one result per filter
+                    if (oneResultPerFilter)
+                        goto continueRoot;
+                }
             }
             if (recursive)
             {
@@ -76,22 +81,33 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string
                         for (auto& primitive : container.Primitives)
                         {
                             if (CheckSearchMatch(primitive.Name, filter, searchType))
+                            {
                                 handles.emplace_back(&packfile, primitive.Name, container.Name + ".str2_pc");
+                                //Break out to the top loop since we only want one result per filter
+                                if (oneResultPerFilter)
+                                    goto continueRoot;
+                            }
                         }
                     }
                 }
             }
         }
+    continueRoot:;
     }
 
     //Return handles to files which matched the search filters
     return handles;
 }
 
-std::vector<FileHandle> PackfileVFS::GetFiles(const string& filter, bool recursive)
+std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool findOne)
+{
+    return GetFiles(std::vector<string>(searchFilters), recursive, findOne);
+}
+
+std::vector<FileHandle> PackfileVFS::GetFiles(const string& filter, bool recursive, bool findOne)
 {
     //Call primary overload which can take multiple filters
-    return GetFiles({filter}, recursive);
+    return GetFiles(std::vector<string>{filter}, recursive, findOne);
 }
 
 Packfile3* PackfileVFS::GetPackfile(const string& name)

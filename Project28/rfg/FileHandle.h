@@ -15,6 +15,11 @@ public:
     //Todo: Consider returning a class that auto-handles freeing the buffer here
     //Get the file as a byte array. The user must delete this buffer themselves or else it'll cause a memory leak
     std::span<u8> Get();
+    //Get top level packfile that the file or it's container is stored in. User should not free this one
+    Packfile3* GetPackfile();
+    //Todo: Automate freeing / releasing this
+    //Get container if the file is stored in one. User must free this pointer
+    Packfile3* GetContainer();
 
     string Filename() { return fileName_; }
     string ContainerName() { return containerName_; }

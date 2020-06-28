@@ -6,6 +6,7 @@
 #include "rfg/PackfileVFS.h"
 #include "render/imgui/imgui_ext.h"
 #include "render/camera/Camera.h"
+#include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
 #include <imgui/imgui.h>
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
@@ -43,7 +44,8 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
         zoneFile.Name = Path::GetFileName(std::filesystem::path(path));
         zoneFile.Zone.SetName(zoneFile.Name);
         zoneFile.Zone.Read(reader);
-        zoneFile.Zone.GenerateObjectHierarchy();
+        //TODO: RE-ENABLE THIS. DISABLED SINCE IT'S VERY SLOW IN DEBUG BUILDS
+        //zoneFile.Zone.GenerateObjectHierarchy();
         delete[] fileBuffer.value().data();
     }
 
@@ -54,6 +56,7 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
         return a.Zone.Header.NumObjects > b.Zone.Header.NumObjects;
     });
 
+
     //Make first zone visible for convenience when debugging
     zoneFiles_[0].RenderBoundingBoxes = true;
     //Init object class data used for filtering and labelling
@@ -62,10 +65,148 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
     SetSelectedZone(0);
 
     gContext = node::CreateEditor();
+
+    LoadTerrainMeshes();
+}
+
+MainGui::~MainGui()
+{
+    node::DestroyEditor(gContext);
+}
+
+void MainGui::LoadTerrainMeshes()
+{
+    //Todo: Split this into it's own function(s)
+//Get terrain mesh files for loaded zones and load them
+    std::vector<string> terrainCpuFileNames = {};
+    std::vector<string> terrainGpuFileNames = {};
+
+    //Create list of terrain meshes we need from obj_zone objects
+    for (auto& zone : zoneFiles_)
+    {
+        //Get obj zone object from zone
+        auto* objZoneObject = zone.Zone.GetSingleObject("obj_zone");
+        if (!objZoneObject)
+            continue;
+
+        //Attempt to get terrain mesh name from it's properties
+        auto* terrainFilenameProperty = objZoneObject->GetProperty<StringProperty>("terrain_file_name");
+        if (!terrainFilenameProperty)
+            continue;
+
+        bool found = false;
+        for (auto& filename : terrainCpuFileNames)
+        {
+            if (filename == terrainFilenameProperty->Data)
+                found = true;
+        }
+        if (!found)
+            terrainCpuFileNames.push_back(terrainFilenameProperty->Data);
+        else
+            std::cout << "Found another zone file using the terrain mesh \"" << terrainFilenameProperty->Data << "\"\n";
+    }
+
+    for (auto& filename : terrainCpuFileNames)
+    {
+        //Todo: Strip this in the StringProperty. Causes many issues
+        if (filename.ends_with('\0'))
+            filename.pop_back();
+    }
+
+    for (u32 i = 0; i < terrainCpuFileNames.size(); i++)
+    {
+        string& filename = terrainCpuFileNames[i];
+        terrainGpuFileNames.push_back(filename + ".gterrain_pc");
+        filename += ".cterrain_pc";
+    }
+
+    std::cout << "\n\nTerrain file names found:\n";
+    for (u32 i = 0; i < terrainCpuFileNames.size(); i++)
+    {
+        std::cout << "    - {" << terrainCpuFileNames[i] << ", " << terrainGpuFileNames[i] << "}\n";
+    }
+
+    //Get handles to cpu files
+    auto terrainMeshHandlesCpu = packfileVFS_->GetFiles(terrainCpuFileNames, true, true);
+
+    for (auto& terrainMesh : terrainMeshHandlesCpu)
+    {
+        //Get packfile that holds terrain meshes
+        auto* container = terrainMesh.GetContainer();
+        if (!container)
+            throw std::runtime_error("Error! Failed to get container ptr for a terrain mesh.");
+        
+        //Todo: This does a full extract twice on the container due to the way single file extracts work. Fix this
+        //Get mesh file byte arrays
+        auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
+        auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
+
+        //Ensure the mesh files were extracted
+        if (!cpuFileBytes)
+            throw std::runtime_error("Error! Failed to get terrain mesh cpu file byte array!");
+        if (!gpuFileBytes)
+            throw std::runtime_error("Error! Failed to get terrain mesh gpu file byte array!");
+
+        BinaryReader cpuFile(cpuFileBytes.value());
+        BinaryReader gpuFile(gpuFileBytes.value());
+
+        //Create new instance
+        TerrainInstance& terrain = TerrainInstances.emplace_back();
+
+        //Todo: Use shortcut to get vertex and index data for each of the 9 meshes in each terrain file
+        //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
+        for (u32 i = 0; i < 9; i++)
+        {
+            //Get mesh crc from gpu file. Will use this to find the mesh description data section of the cpu file which starts and ends with this value
+            //In while loop since a mesh file pair can have multiple meshes inside
+            u32 meshCrc = gpuFile.ReadUint32();
+            if(meshCrc == 0)
+                break;
+
+            while (true)
+            {
+                if (cpuFile.ReadUint32() == meshCrc)
+                    break;
+            }
+            cpuFile.SeekCur(-8); //Back up 8 bytes so mesh data block is fully read
+
+            //Todo: Read mesh data block type 
+            //Todo: Get rid of hack types from C# test
+            //Read mesh data block. Contains info on vertex + index layout + size + format
+            auto meshData = new HackMeshData();
+            meshData.DataLayout.Read(cpuFile, cpuFileInPath);
+
+            //Todo: Read index data into memory buffer then add span to instance list
+            //Read index data
+            gpuFile.Align(16); //Indices always start here
+            for(int i = 0; i < meshData.DataLayout.IndexBufferConfig.NumIndices; i++)
+            {
+                meshData.Indices.Add(new HackIndex(gpuFile.ReadUInt16(), 2));
+            }
+
+            //Todo: Read vertex data into memory buffer then add span to instance list
+            //Read vertex data
+            gpuFile.Align(16);
+        }
+
+
+        //Todo: Create D3D11 vertex buffers / shaders / whatever else is needed to render the terrain
+        //Todo: Tell the renderer to render each terrain mesh each frame
+        
+        //Todo: Clear index + vertex buffers after they've been uploaded to the gpu
+
+        //Clear resources
+        container->Cleanup();
+        delete container;
+        delete[] cpuFileBytes.value().data();
+        delete[] gpuFileBytes.value().data();
+    }
 }
 
 void MainGui::Update(f32 deltaTime)
 {
+    ImGui::ShowDemoWindow();
+
     //Run gui code
     DrawMainMenuBar();
     DrawDockspace();
@@ -73,7 +214,6 @@ void MainGui::Update(f32 deltaTime)
     DrawRenderSettingsWindow();
     DrawNodeEditor();
     DrawFileExplorer();
-    DrawIm3dPrimitives();
     DrawZonePrimitives();
     DrawZoneWindow();
     DrawZoneObjectsWindow();

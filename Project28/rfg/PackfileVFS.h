@@ -23,8 +23,9 @@ public:
     //Todo: Add support for C&C vpp_pc files. Supports C&C str2_pc files since they're small enough that full extract is reasonable
     //Gets files based on the provided search pattern. Searches str2_pc files if recursive is true. 
     //NOTE: Does not support vpp_pc files which are compressed + condensed (does support str2_pc files with those flags)
-    std::vector<FileHandle> GetFiles(const std::initializer_list<string>& searchFilters, bool recursive);
-    std::vector<FileHandle> GetFiles(const string& filter, bool recursive);
+    std::vector<FileHandle> GetFiles(const std::vector<string>& searchFilters, bool recursive, bool oneResultPerFilter = false);
+    std::vector<FileHandle> GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool oneResultPerFilter = false);
+    std::vector<FileHandle> GetFiles(const string& filter, bool recursive, bool oneResultPerFilter = false);
 
     //Todo: Ensure these stay valid if we start changing packfiles_ after init. May want some handle class that can return packfiles
     //Attempt to get a packfile. Returns nullptr if it fails to find the packfile

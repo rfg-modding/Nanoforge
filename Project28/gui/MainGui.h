@@ -4,6 +4,7 @@
 #include <im3d/im3d.h>
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\types\Vec4.h>
+#include <RfgTools++\formats\meshes\MeshDataBlock.h>
 #include <vector>
 
 class ImGuiFontManager;
@@ -27,6 +28,15 @@ struct ZoneObjectClass
     bool ShowLabel = false;
     const char* LabelIcon = "";
 };
+//Used to render a zones terrain
+struct TerrainInstance
+{
+    string Name;
+    std::vector<MeshDataBlock> Meshes = {}; //Low lod terrain files have 9 meshes (not technically submeshes)
+    std::vector<std::span<u16>> Indices = {{}};
+    std::vector<std::span<Vec3>> Vertices = {{}};
+    bool Visible = true;
+};
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
 
@@ -42,6 +52,8 @@ public:
 
     bool Visible = true;
 
+    std::vector<TerrainInstance> TerrainInstances = {};
+
 private:
     void DrawMainMenuBar();
     void DrawDockspace();
@@ -52,6 +64,8 @@ private:
     void DrawZonePrimitives();
     void DrawCameraWindow();
     void DrawNodeEditor();
+
+    void LoadTerrainMeshes();
 
     //Whether or not this object should be shown based on filtering settings
     bool ShouldShowObjectClass(u32 classnameHash);
@@ -91,6 +105,4 @@ private:
     Vec4 labelTextColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     bool drawParentConnections_ = false;
-    bool drawChildConnections_ = false;
-    bool drawSiblingConnections_ = false;
 };
