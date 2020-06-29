@@ -117,7 +117,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
     d3d11Context_->RSSetViewports(1, &viewport);
-    d3d11Context_->OMSetBlendState(0, nullptr, 0xffffffff);
+    d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
     d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
     d3d11Context_->RSSetState(rasterizerState_);
 
@@ -523,7 +523,7 @@ bool DX11Renderer::InitModels()
 
     CreateShaderResourceView(d3d11Device_, image->GetImages(), image->GetImageCount(), image->GetMetadata(), &CubesTexture);
 
-    // Describe the Sample State
+    //Describe the Sample State
     D3D11_SAMPLER_DESC sampDesc;
     ZeroMemory(&sampDesc, sizeof(sampDesc));
     sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -547,6 +547,9 @@ bool DX11Renderer::InitModels()
     d3d11Context_->RSSetState(rasterizerState_);
 
     D3D11_DEPTH_STENCIL_DESC stencilDesc = {};
+    stencilDesc.DepthEnable = true;
+    stencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    stencilDesc.DepthFunc = D3D11_COMPARISON_LESS;
     DxCheck(d3d11Device_->CreateDepthStencilState(&stencilDesc, &depthStencilState_), "Im3d depth stencil state creation failed!");
 
     ////Set to render in wireframe mode

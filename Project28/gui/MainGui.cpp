@@ -45,8 +45,7 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
         zoneFile.Name = Path::GetFileName(std::filesystem::path(path));
         zoneFile.Zone.SetName(zoneFile.Name);
         zoneFile.Zone.Read(reader);
-        //TODO: RE-ENABLE THIS. DISABLED SINCE IT'S VERY SLOW IN DEBUG BUILDS
-        //zoneFile.Zone.GenerateObjectHierarchy();
+        zoneFile.Zone.GenerateObjectHierarchy();
         delete[] fileBuffer.value().data();
     }
 
