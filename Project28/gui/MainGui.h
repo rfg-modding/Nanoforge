@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "TerrainHelpers.h"
 #include <ext/WindowsWrapper.h>
 #include <im3d/im3d.h>
 #include <RfgTools++\formats\zones\ZonePc36.h>
@@ -15,7 +16,7 @@ struct ZoneFile
 {
     string Name;
     ZonePc36 Zone;
-    bool RenderBoundingBoxes = true;
+    bool RenderBoundingBoxes = false;
 };
 //Used to filter objects list by class type
 struct ZoneObjectClass
@@ -27,15 +28,6 @@ struct ZoneObjectClass
     bool Show = true;
     bool ShowLabel = false;
     const char* LabelIcon = "";
-};
-//Used to render a zones terrain
-struct TerrainInstance
-{
-    string Name;
-    std::vector<MeshDataBlock> Meshes = {}; //Low lod terrain files have 9 meshes (not technically submeshes)
-    std::vector<std::span<u16>> Indices = {{}};
-    std::vector<std::span<Vec3>> Vertices = {{}};
-    bool Visible = true;
 };
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;

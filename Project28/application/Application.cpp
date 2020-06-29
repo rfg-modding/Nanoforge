@@ -29,6 +29,8 @@ Application::Application(HINSTANCE hInstance)
     gui_ = new MainGui(fontManager_, packfileVFS_, camera_, renderer_->GetSystemWindowHandle());
     gui_->HandleResize();
 
+    renderer_->InitTerrainMeshes(&gui_->TerrainInstances);
+
     //Init frame timing variables
     deltaTime_ = maxFrameRateDelta;
     frameTimer_.Start();

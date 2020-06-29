@@ -7,6 +7,7 @@
 #include "render/imgui/imgui_ext.h"
 #include "render/camera/Camera.h"
 #include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
+#include <RfgTools++\formats\meshes\MeshDataBlock.h>
 #include <imgui/imgui.h>
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
@@ -77,9 +78,10 @@ MainGui::~MainGui()
 void MainGui::LoadTerrainMeshes()
 {
     //Todo: Split this into it's own function(s)
-//Get terrain mesh files for loaded zones and load them
+    //Get terrain mesh files for loaded zones and load them
     std::vector<string> terrainCpuFileNames = {};
     std::vector<string> terrainGpuFileNames = {};
+    std::vector<Vec3> terrainPositions = {};
 
     //Create list of terrain meshes we need from obj_zone objects
     for (auto& zone : zoneFiles_)
@@ -101,7 +103,10 @@ void MainGui::LoadTerrainMeshes()
                 found = true;
         }
         if (!found)
+        {
             terrainCpuFileNames.push_back(terrainFilenameProperty->Data);
+            terrainPositions.push_back(objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f));
+        }
         else
             std::cout << "Found another zone file using the terrain mesh \"" << terrainFilenameProperty->Data << "\"\n";
     }
@@ -129,6 +134,7 @@ void MainGui::LoadTerrainMeshes()
     //Get handles to cpu files
     auto terrainMeshHandlesCpu = packfileVFS_->GetFiles(terrainCpuFileNames, true, true);
 
+    u32 terrainMeshIndex = 0;
     for (auto& terrainMesh : terrainMeshHandlesCpu)
     {
         //Get packfile that holds terrain meshes
@@ -152,54 +158,73 @@ void MainGui::LoadTerrainMeshes()
 
         //Create new instance
         TerrainInstance& terrain = TerrainInstances.emplace_back();
+        terrain.Position = terrainPositions[terrainMeshIndex];
 
-        //Todo: Use shortcut to get vertex and index data for each of the 9 meshes in each terrain file
         //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
+        u32 cpuFileIndex = 0;
+        u32* cpuFileAsUintArray = (u32*)cpuFileBytes.value().data();
         for (u32 i = 0; i < 9; i++)
         {
             //Get mesh crc from gpu file. Will use this to find the mesh description data section of the cpu file which starts and ends with this value
             //In while loop since a mesh file pair can have multiple meshes inside
             u32 meshCrc = gpuFile.ReadUint32();
-            if(meshCrc == 0)
-                break;
+            if (meshCrc == 0)
+                throw std::runtime_error("Error! Failed to read next mesh data block hash in terrain gpu file.");
 
+            //Find next mesh data block in cpu file
             while (true)
             {
-                if (cpuFile.ReadUint32() == meshCrc)
+                //This is done instead of using BinaryReader::ReadUint32() because that method was incredibly slow (+ several minutes slow)
+                if (cpuFileAsUintArray[cpuFileIndex] == meshCrc)
                     break;
+
+                cpuFileIndex++;
             }
-            cpuFile.SeekCur(-8); //Back up 8 bytes so mesh data block is fully read
+            u64 meshDataBlockStart = (cpuFileIndex * 4) - 4;
+            cpuFile.SeekBeg(meshDataBlockStart);
 
-            //Todo: Read mesh data block type 
-            //Todo: Get rid of hack types from C# test
+
             //Read mesh data block. Contains info on vertex + index layout + size + format
-            auto meshData = new HackMeshData();
-            meshData.DataLayout.Read(cpuFile, cpuFileInPath);
+            MeshDataBlock meshData;
+            meshData.Read(cpuFile);
+            cpuFileIndex += (cpuFile.Position() - meshDataBlockStart) / 4;
 
-            //Todo: Read index data into memory buffer then add span to instance list
+            terrain.Meshes.push_back(meshData);
+
             //Read index data
             gpuFile.Align(16); //Indices always start here
-            for(int i = 0; i < meshData.DataLayout.IndexBufferConfig.NumIndices; i++)
-            {
-                meshData.Indices.Add(new HackIndex(gpuFile.ReadUInt16(), 2));
-            }
+            u32 indicesSize = meshData.NumIndices * meshData.IndexSize;
+            u8* indexBuffer = new u8[indicesSize];
+            gpuFile.ReadToMemory(indexBuffer, indicesSize);
+            terrain.Indices.push_back(std::span<u16>{ (u16*)indexBuffer, indicesSize / 2 });
 
-            //Todo: Read vertex data into memory buffer then add span to instance list
             //Read vertex data
             gpuFile.Align(16);
+            u32 verticesSize = meshData.NumVertices * meshData.VertexStride0;
+            u8* vertexBuffer = new u8[verticesSize];
+            gpuFile.ReadToMemory(vertexBuffer, verticesSize);
+            terrain.Vertices.push_back(std::span<LowLodTerrainVertex>{ (LowLodTerrainVertex*)vertexBuffer, verticesSize / sizeof(LowLodTerrainVertex)});
+
+            u32 endMeshCrc = gpuFile.ReadUint32();
+            if (meshCrc != endMeshCrc)
+                throw std::runtime_error("Error, verification hash at start of gpu file mesh data doesn't match hash end of gpu file mesh data!");
         }
 
 
         //Todo: Create D3D11 vertex buffers / shaders / whatever else is needed to render the terrain
         //Todo: Tell the renderer to render each terrain mesh each frame
         
-        //Todo: Clear index + vertex buffers after they've been uploaded to the gpu
+        //Todo: Clear index + vertex buffers in RAM after they've been uploaded to the gpu
 
         //Clear resources
         container->Cleanup();
         delete container;
         delete[] cpuFileBytes.value().data();
         delete[] gpuFileBytes.value().data();
+
+        //Todo: Remove this + same break in DX11Renderer once testing over. Causes only first terrain mesh to be rendered
+        //break;
+        terrainMeshIndex++;
     }
 }
 
@@ -262,22 +287,22 @@ void MainGui::DrawDockspace()
 {
     //Dockspace flags
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-
+    
     //Parent window flags
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
-        | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-        | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+                                    | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+                                    | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetWorkPos());
     ImGui::SetNextWindowSize(viewport->GetWorkSize());
     ImGui::SetNextWindowViewport(viewport->ID);
-
+    
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("DockSpace parent window", &Visible, window_flags);
     ImGui::PopStyleVar(3);
-
+    
     // DockSpace
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
@@ -285,7 +310,7 @@ void MainGui::DrawDockspace()
         ImGuiID dockspace_id = ImGui::GetID("Editor dockspace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
-
+    
     ImGui::End();
 }
 
@@ -335,7 +360,7 @@ void MainGui::DrawZoneWindow()
     ImGui::Text(ICON_FA_MAP " Zones");
     fontManager_->FontL.Pop();
     ImGui::Separator();
-    
+
     static bool hideEmptyZones = true;
     ImGui::Checkbox("Hide empty zones", &hideEmptyZones);
     ImGui::SameLine();
@@ -348,6 +373,22 @@ void MainGui::DrawZoneWindow()
         ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
     }
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
+    if (ImGui::Button("Show all"))
+    {
+        for (auto& zone : zoneFiles_)
+        {
+            zone.RenderBoundingBoxes = true;
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Hide all"))
+    {
+        for (auto& zone : zoneFiles_)
+        {
+            zone.RenderBoundingBoxes = false;
+        }
+    }
+
     ImGui::Columns(2);
     u32 i = 0;
     for (auto& zone : zoneFiles_)
@@ -357,8 +398,6 @@ void MainGui::DrawZoneWindow()
             i++;
             continue;
         }
-
-
 
         ImGui::SetColumnWidth(0, 200.0f);
         ImGui::SetColumnWidth(1, 300.0f);
@@ -685,7 +724,7 @@ void MainGui::DrawNodeEditor()
     }
 
     fontManager_->FontL.Push();
-    ImGui::Text(ICON_FA_DIRECTIONS "Scriptx editor");
+    ImGui::Text(ICON_FA_PROJECT_DIAGRAM "Scriptx editor");
     fontManager_->FontL.Pop();
     ImGui::Separator();
 

@@ -1,9 +1,11 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "gui/TerrainHelpers.h"
 #include <ext/WindowsWrapper.h>
 #include <DirectXMath.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <array>
 
 class ImGuiFontManager;
 class Camera;
@@ -13,6 +15,13 @@ struct Vertex
 {
     DirectX::XMFLOAT3 pos;
     DirectX::XMFLOAT2 texCoord;
+};
+
+//Render data for a single terrain instance. A terrain instance is the terrain for a single zone which consists of 9 meshes which are stitched together
+struct TerrainInstanceRenderData
+{
+    std::array<ID3D11Buffer*, 9> terrainVertexBuffers_ = {};
+    std::array<ID3D11Buffer*, 9> terrainIndexBuffers_ = {};
 };
 
 class DX11Renderer
@@ -25,6 +34,8 @@ public:
     void DoFrame(f32 deltaTime);
     void HandleResize();
     HWND GetSystemWindowHandle() { return hwnd_; }
+
+    void InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances);
 
 private:
     void ImGuiDoFrame();
@@ -98,4 +109,19 @@ private:
     ID3D11BlendState* blendState_ = nullptr;
     ID3D11DepthStencilState* depthStencilState_ = nullptr;
     D3D11_VIEWPORT viewport;
+
+    //Terrain data
+    //Data that's the same for all terrain instances
+    ID3D11VertexShader* terrainVertexShader_ = nullptr;
+    ID3D11PixelShader* terrainPixelShader_ = nullptr;
+    ID3D11InputLayout* terrainVertexLayout_ = nullptr;
+    ID3D11Buffer* terrainPerObjectBuffer_ = nullptr;
+    cbPerObject cbPerObjTerrain;
+    UINT terrainVertexStride = 0;
+    UINT terrainVertexOffset = 0;
+
+    //Per instance terrain data
+    std::vector<TerrainInstanceRenderData> terrainInstanceRenderData_ = {};
+    std::vector<TerrainInstance>* terrainInstances_ = nullptr;
+    std::vector<DirectX::XMMATRIX> terrainModelMatrices_ = {};
 };

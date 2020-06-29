@@ -7,6 +7,7 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "dxguid.lib")
 #include <dxgi.h>
 #include <d3dcommon.h>
 #include <d3d11.h>
@@ -21,6 +22,14 @@
 #include <Dependencies\DirectXTex\DirectXTex\DirectXTexD3D11.cpp>
 #include "render/util/DX11Helpers.h"
 #include "render/backend/Im3dRenderer.h"
+#include <iostream>
+
+//Todo: Stick this in a debug namespace
+void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
+{
+    if (child != nullptr)
+        child->SetPrivateData(WKPDID_D3DDebugObjectName, name.size(), name.c_str());
+}
 
 DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera)
 {
@@ -66,6 +75,18 @@ DX11Renderer::~DX11Renderer()
     ImGui::DestroyContext();
 
     //Release DX11 resources
+    ReleaseCOM(terrainVertexShader_);
+    ReleaseCOM(terrainPixelShader_);
+    ReleaseCOM(terrainVertexLayout_);
+    for (auto& instance : terrainInstanceRenderData_)
+        for(auto& vertexBuffer : instance.terrainVertexBuffers_)
+            ReleaseCOM(vertexBuffer);
+    for (auto& instance : terrainInstanceRenderData_)
+        for (auto& indexBuffer : instance.terrainVertexBuffers_)
+            ReleaseCOM(indexBuffer);
+
+    ReleaseCOM(terrainPerObjectBuffer_);
+    
     ReleaseCOM(depthBuffer_);
     ReleaseCOM(depthBufferView_);
     ReleaseCOM(SwapChain_);
@@ -87,26 +108,53 @@ void DX11Renderer::NewFrame(f32 deltaTime)
 
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
+    //Todo: Add general mesh drawing behavior for non im3d or imgui rendering
+    //Todo: Take a list of render commands each frame and draw based off of those
+
     //Set render target and clear it
     d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
     d3d11Context_->RSSetViewports(1, &viewport);
-    //d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
+    d3d11Context_->OMSetBlendState(0, nullptr, 0xffffffff);
     d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
     d3d11Context_->RSSetState(rasterizerState_);
 
-    //Set the input layout
-    UINT stride = sizeof(Vertex);
-    UINT offset = 0;
-    d3d11Context_->IASetInputLayout(vertexLayout_);
-    d3d11Context_->IASetIndexBuffer(indexBuffer_, DXGI_FORMAT_R32_UINT, 0);
-    d3d11Context_->IASetVertexBuffers(0, 1, &vertexBuffer_, &stride, &offset);
-    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    //Draw terrain meshes
+    d3d11Context_->IASetInputLayout(terrainVertexLayout_);
+    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    for (u32 i = 0; i < terrainInstanceRenderData_.size(); i++)
+    {
+        auto& instance = terrainInstances_->at(i);
+        auto& renderInstance = terrainInstanceRenderData_[i];
+        
+        for (u32 j = 0; j < 9; j++)
+        {
+            d3d11Context_->VSSetShader(terrainVertexShader_, nullptr, 0);
+            d3d11Context_->PSSetShader(terrainPixelShader_, nullptr, 0);
 
-    //Todo: Add general mesh drawing behavior for non im3d or imgui rendering
-    //Todo: Take a list of render commands each frame and draw based off of those
+            DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+            DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
+            DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(instance.Position.x, instance.Position.y, instance.Position.z);
+
+            terrainModelMatrices_[i] = DirectX::XMMatrixIdentity();
+            terrainModelMatrices_[i] = translation * rotation;
+
+            WVP = terrainModelMatrices_[i] * camera_->camView * camera_->camProjection;
+            cbPerObjTerrain.WVP = XMMatrixTranspose(WVP);
+            d3d11Context_->UpdateSubresource(terrainPerObjectBuffer_, 0, NULL, &cbPerObjTerrain, 0, 0);
+            d3d11Context_->VSSetConstantBuffers(0, 1, &terrainPerObjectBuffer_);
+
+            d3d11Context_->IASetIndexBuffer(renderInstance.terrainIndexBuffers_[j], DXGI_FORMAT_R16_UINT, 0);
+            d3d11Context_->IASetVertexBuffers(0, 1, &renderInstance.terrainVertexBuffers_[j], &terrainVertexStride, &terrainVertexOffset);
+
+            d3d11Context_->DrawIndexed(instance.Meshes[j].NumIndices, 0, 0);
+        }
+
+        //Todo: Remove this + same break in MainGui once testing over. Causes only first terrain mesh to be rendered
+        //break;
+    }
 
     im3dRenderer_->EndFrame();
     ImGuiDoFrame();
@@ -135,6 +183,125 @@ void DX11Renderer::HandleResize()
 
     camera_->HandleResize( { (f32)windowWidth_, (f32)windowHeight_} );
     im3dRenderer_->HandleResize((f32)windowWidth_, (f32)windowHeight_);
+}
+
+void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances)
+{
+    //Compile & create terrain vertex and pixel shaders
+    ID3DBlob* pVSBlob = nullptr;
+    ID3DBlob* pPSBlob = nullptr;
+
+    //Compile the vertex shader
+    if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "VS", "vs_4_0", &pVSBlob)))
+    {
+        throw std::runtime_error("Error! Failed to compile terrain vertex shader!");
+    }
+    if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &terrainVertexShader_)))
+    {
+        pVSBlob->Release();
+        throw std::runtime_error("Error! Failed to create terrain vertex shader!");
+    }
+    //Compile the pixel shader
+    if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "PS", "ps_4_0", &pPSBlob)))
+    {
+        throw std::runtime_error("Errpr! Failed to compile terrain pixel shader!");
+    }
+    if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &terrainPixelShader_)))
+    {
+        pPSBlob->Release();
+        throw std::runtime_error("Error! Failed to create terrain pixel shader!");
+    }
+
+    //Create terrain vertex input layout
+    D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
+        { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    //Create the input layout
+    if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &terrainVertexLayout_)))
+        throw std::runtime_error("Error! Failed to create terrain vertex layout");
+
+    //Set the input layout
+    d3d11Context_->IASetInputLayout(terrainVertexLayout_);
+    
+    //Create buffer for MVP matrix constant in shader
+    D3D11_BUFFER_DESC cbbd;
+    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
+
+    //Create per object buffer
+    cbbd.Usage = D3D11_USAGE_DEFAULT;
+    cbbd.ByteWidth = sizeof(cbPerObject);
+    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbbd.CPUAccessFlags = 0;
+    cbbd.MiscFlags = 0;
+
+    HRESULT hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &terrainPerObjectBuffer_);
+    
+    ReleaseCOM(pVSBlob);
+    ReleaseCOM(pPSBlob);
+
+
+    //Create terrain index & vertex buffers
+    terrainInstances_ = terrainInstances;
+    for (auto& instance : *terrainInstances)
+    {
+        auto& renderInstance = terrainInstanceRenderData_.emplace_back();
+        for (u32 i = 0; i < 9; i++)
+        {
+            ID3D11Buffer* terrainIndexBuffer = nullptr;
+            ID3D11Buffer* terrainVertexBuffer = nullptr;
+
+            //Create index buffer for instance
+            D3D11_BUFFER_DESC indexBufferDesc = {};
+            indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+            indexBufferDesc.ByteWidth = instance.Indices[i].size_bytes();
+            //indexBufferDesc.ByteWidth = sizeof(DWORD) * 12 * 3;
+            indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+            indexBufferDesc.CPUAccessFlags = 0;
+            indexBufferDesc.MiscFlags = 0;
+
+            D3D11_SUBRESOURCE_DATA indexBufferInitData;
+            indexBufferInitData.pSysMem = instance.Indices[i].data();
+            HRESULT hr = d3d11Device_->CreateBuffer(&indexBufferDesc, &indexBufferInitData, &terrainIndexBuffer);
+            if (FAILED(hr))
+                throw std::runtime_error("Failed to create a terrain index buffer!");
+
+            d3d11Context_->IASetIndexBuffer(terrainIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+            //Create vertex buffer for instance
+            D3D11_BUFFER_DESC vertexBufferDesc = {};
+            vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+            vertexBufferDesc.ByteWidth = instance.Vertices[i].size_bytes();
+            vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+            vertexBufferDesc.CPUAccessFlags = 0;
+
+            D3D11_SUBRESOURCE_DATA vertexBufferInitData = {};
+            vertexBufferInitData.pSysMem = instance.Vertices[i].data();
+            hr = d3d11Device_->CreateBuffer(&vertexBufferDesc, &vertexBufferInitData, &terrainVertexBuffer);
+            if (FAILED(hr))
+                throw std::runtime_error("Failed to create a terrain vertex buffer!");
+
+            //Set vertex buffer
+            terrainVertexStride = sizeof(LowLodTerrainVertex);
+            terrainVertexOffset = 0;
+            d3d11Context_->IASetVertexBuffers(0, 1, &terrainVertexBuffer, &terrainVertexStride, &terrainVertexOffset);
+
+            //Set primitive topology
+            d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+#ifdef DEBUG_BUILD
+            SetDebugName(terrainIndexBuffer, "terrain_index_buffer__" + instance.Name + std::to_string(i));
+            SetDebugName(terrainVertexBuffer, "terrain_vertex_buffer__" + instance.Name + std::to_string(i));
+#endif
+
+            renderInstance.terrainIndexBuffers_[i] = terrainIndexBuffer;
+            renderInstance.terrainVertexBuffers_[i] = terrainVertexBuffer;
+            terrainModelMatrices_.push_back(DirectX::XMMATRIX());
+        }
+
+        delete instance.Indices.data();
+        delete instance.Vertices.data();
+    }
 }
 
 void DX11Renderer::ImGuiDoFrame()
@@ -375,6 +542,7 @@ bool DX11Renderer::InitModels()
     ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
     rasterizerDesc.FillMode = D3D11_FILL_SOLID;
     rasterizerDesc.CullMode = D3D11_CULL_BACK;
+    rasterizerDesc.FrontCounterClockwise = false;
     hr = d3d11Device_->CreateRasterizerState(&rasterizerDesc, &rasterizerState_);
     d3d11Context_->RSSetState(rasterizerState_);
 
@@ -624,6 +792,22 @@ bool DX11Renderer::CreateDepthBuffer()
         MessageBox(0, "Failed to create depth buffer view", 0, 0);
         return false;
     }
+
+    D3D11_BLEND_DESC blendDesc;
+    ZeroMemory(&blendDesc, sizeof(blendDesc));
+
+    //D3D11_RENDER_TARGET_BLEND_DESC rtbd;
+    //ZeroMemory(&rtbd, sizeof(rtbd));
+
+    blendDesc.RenderTarget[0].BlendEnable = false;
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_COLOR;
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_BLEND_FACTOR;
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    DxCheck(d3d11Device_->CreateBlendState(&blendDesc, &blendState_), "Im3d blend state creation failed!");
 
     return true;
 }

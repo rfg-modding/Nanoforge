@@ -1,5 +1,6 @@
 #include "DX11Helpers.h"
 #include <d3dcompiler.h>
+#include <iostream>
 
 HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut, const char* defines)
 {
@@ -14,8 +15,10 @@ HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCS
     HRESULT result = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel, dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
     if (FAILED(result))
     {
+        const char* error = (const char*)pErrorBlob->GetBufferPointer();
         if (pErrorBlob)
         {
+            std::cout << "D3DCompileFromFile error! Error message: \"" << error << "\"\n";
             OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
             pErrorBlob->Release();
         }
