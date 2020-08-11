@@ -15,6 +15,7 @@
 #include <im3d_math.h>
 #include <filesystem>
 #include <iostream>
+#include <future>
 
 namespace node = ax::NodeEditor;
 static node::EditorContext* gContext = nullptr;
@@ -22,13 +23,64 @@ static node::EditorContext* gContext = nullptr;
 MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd) 
     : fontManager_(fontManager), packfileVFS_(packfileVFS), camera_(camera), hwnd_(hwnd) 
 {
+    gContext = node::CreateEditor();
+    //Start worker thread and capture it's future. If future isn't captured it won't actually run async
+    static std::future<void> dummy = std::async(std::launch::async, &MainGui::WorkerThread, this);
+}
+
+MainGui::~MainGui()
+{
+    node::DestroyEditor(gContext);
+}
+
+void MainGui::Update(f32 deltaTime)
+{
+    ImGui::ShowDemoWindow();
+
+    //Run gui code
+    DrawMainMenuBar();
+    DrawDockspace();
+    DrawStatusBar();
+    DrawCameraWindow();
+    DrawRenderSettingsWindow();
+    DrawNodeEditor();
+    DrawFileExplorer();
+    DrawZonePrimitives();
+    DrawZoneWindow();
+    DrawZoneObjectsWindow();
+}
+
+void MainGui::HandleResize()
+{
+    RECT usableRect;
+
+    if (GetClientRect(hwnd_, &usableRect))
+    {
+        windowWidth_ = usableRect.right - usableRect.left;
+        windowHeight_ = usableRect.bottom - usableRect.top;
+    }
+}
+
+void MainGui::WorkerThread()
+{
+    SetStatus(ICON_FA_SYNC " Waiting for init signal", Working);
+    while (!CanStartInit)
+    {
+        Sleep(100);
+    }
+
+    //Scan contents of packfiles
+    SetStatus(ICON_FA_SYNC " Scanning packfiles", Working);
+    packfileVFS_->ScanPackfiles();
+
     //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory
     //Read all zones from zonescript_terr01.vpp_pc
+    SetStatus(ICON_FA_SYNC " Loading zones", Working);
     Packfile3* zonescriptVpp = packfileVFS_->GetPackfile("zonescript_terr01.vpp_pc");
     if (!zonescriptVpp)
         throw std::exception("Error! Could not find zonescript_terr01.vpp_pc in data folder. Required for the program to function.");
 
-    //Todo: Add search function with filters to packfile. Can base of search functions in PackfileVFS
+    //Todo: Add search function with filters to packfile. Can base off of search functions in PackfileVFS
     for (u32 i = 0; i < zonescriptVpp->Entries.size(); i++)
     {
         const char* path = zonescriptVpp->EntryNames[i];
@@ -40,6 +92,7 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
         if (!fileBuffer)
             throw std::exception("Error! Failed to extract a zone file from zonescript_terr01.vpp_pc");
 
+        //Todo: It'd be safer to do this all in a temporary vector and then .swap() it into the real one
         BinaryReader reader(fileBuffer.value());
         ZoneFile& zoneFile = zoneFiles_.emplace_back();
         zoneFile.Name = Path::GetFileName(std::filesystem::path(path));
@@ -49,6 +102,7 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
         delete[] fileBuffer.value().data();
     }
 
+    SetStatus(ICON_FA_SYNC " Sorting zones by object count", Working);
     //Sort vector by object count for convenience
     std::sort(zoneFiles_.begin(), zoneFiles_.end(),
     [](const ZoneFile& a, const ZoneFile& b)
@@ -64,18 +118,18 @@ MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera
     //Select first zone by default
     SetSelectedZone(0);
 
-    gContext = node::CreateEditor();
-
+    //Load terrain meshes and extract their index + vertex data
     LoadTerrainMeshes();
+
+    ClearStatus();
 }
 
-MainGui::~MainGui()
-{
-    node::DestroyEditor(gContext);
-}
-
+//Loads vertex and index data of each zones terrain mesh
+//Note: This function is run by the worker thread
 void MainGui::LoadTerrainMeshes()
 {
+    SetStatus(ICON_FA_SYNC " Locating terrain files", Working);
+
     //Todo: Split this into it's own function(s)
     //Get terrain mesh files for loaded zones and load them
     std::vector<string> terrainCpuFileNames = {};
@@ -110,6 +164,7 @@ void MainGui::LoadTerrainMeshes()
             std::cout << "Found another zone file using the terrain mesh \"" << terrainFilenameProperty->Data << "\"\n";
     }
 
+    //Remove extra null terminators that RFG so loves to have in it's files
     for (auto& filename : terrainCpuFileNames)
     {
         //Todo: Strip this in the StringProperty. Causes many issues
@@ -117,6 +172,7 @@ void MainGui::LoadTerrainMeshes()
             filename.pop_back();
     }
 
+    //Generate gpu file names from cpu file names
     for (u32 i = 0; i < terrainCpuFileNames.size(); i++)
     {
         string& filename = terrainCpuFileNames[i];
@@ -124,14 +180,10 @@ void MainGui::LoadTerrainMeshes()
         filename += ".cterrain_pc";
     }
 
-    std::cout << "\n\nTerrain file names found:\n";
-    for (u32 i = 0; i < terrainCpuFileNames.size(); i++)
-    {
-        std::cout << "    - {" << terrainCpuFileNames[i] << ", " << terrainGpuFileNames[i] << "}\n";
-    }
-
     //Get handles to cpu files
     auto terrainMeshHandlesCpu = packfileVFS_->GetFiles(terrainCpuFileNames, true, true);
+
+    SetStatus(ICON_FA_SYNC " Loading terrain meshes", Working);
 
     u32 terrainMeshIndex = 0;
     for (auto& terrainMesh : terrainMeshHandlesCpu)
@@ -140,7 +192,7 @@ void MainGui::LoadTerrainMeshes()
         auto* container = terrainMesh.GetContainer();
         if (!container)
             throw std::runtime_error("Error! Failed to get container ptr for a terrain mesh.");
-        
+
         //Todo: This does a full extract twice on the container due to the way single file extracts work. Fix this
         //Get mesh file byte arrays
         auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
@@ -156,7 +208,7 @@ void MainGui::LoadTerrainMeshes()
         BinaryReader gpuFile(gpuFileBytes.value());
 
         //Create new instance
-        TerrainInstance& terrain = TerrainInstances.emplace_back();
+        TerrainInstance terrain;
         terrain.Position = terrainPositions[terrainMeshIndex];
 
         //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
@@ -212,7 +264,7 @@ void MainGui::LoadTerrainMeshes()
 
         //Todo: Create D3D11 vertex buffers / shaders / whatever else is needed to render the terrain
         //Todo: Tell the renderer to render each terrain mesh each frame
-        
+
         //Todo: Clear index + vertex buffers in RAM after they've been uploaded to the gpu
 
         //Clear resources
@@ -221,36 +273,13 @@ void MainGui::LoadTerrainMeshes()
         delete[] cpuFileBytes.value().data();
         delete[] gpuFileBytes.value().data();
 
-        //Todo: Remove this + same break in DX11Renderer once testing over. Causes only first terrain mesh to be rendered
-        //break;
+
         terrainMeshIndex++;
-    }
-}
-
-void MainGui::Update(f32 deltaTime)
-{
-    ImGui::ShowDemoWindow();
-
-    //Run gui code
-    DrawMainMenuBar();
-    DrawDockspace();
-    DrawCameraWindow();
-    DrawRenderSettingsWindow();
-    DrawNodeEditor();
-    DrawFileExplorer();
-    DrawZonePrimitives();
-    DrawZoneWindow();
-    DrawZoneObjectsWindow();
-}
-
-void MainGui::HandleResize()
-{
-    RECT usableRect;
-
-    if (GetClientRect(hwnd_, &usableRect))
-    {
-        windowWidth_ = usableRect.right - usableRect.left;
-        windowHeight_ = usableRect.bottom - usableRect.top;
+        
+        //Acquire resource lock before writing terrain instance data to the instance list
+        std::lock_guard<std::mutex> lock(ResourceLock);
+        TerrainInstances.push_back(terrain);
+        NewTerrainInstanceAdded = true;
     }
 }
 
@@ -293,7 +322,9 @@ void MainGui::DrawDockspace()
                                     | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetWorkPos());
-    ImGui::SetNextWindowSize(viewport->GetWorkSize());
+    ImVec2 dockspaceSize = viewport->GetWorkSize();
+    dockspaceSize.y -= statusBarHeight_;
+    ImGui::SetNextWindowSize(dockspaceSize);
     ImGui::SetNextWindowViewport(viewport->ID);
     
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
@@ -313,6 +344,73 @@ void MainGui::DrawDockspace()
     ImGui::End();
 }
 
+void MainGui::DrawStatusBar()
+{
+    //Parent window flags
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
+        | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+        | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 viewSize = viewport->GetWorkSize();
+    ImVec2 size = viewport->GetWorkSize();
+    size.y = statusBarHeight_;
+    ImVec2 pos = viewport->GetWorkPos();
+    pos.y += viewSize.y - statusBarHeight_;
+
+    ImGui::SetNextWindowPos(pos);
+    ImGui::SetNextWindowSize(size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4.0f, 6.0f));
+
+    //Set color based on status
+    switch (status_)
+    {
+    case Ready:
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.48f, 0.8f, 1.0f));
+        break;
+    case Working:
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.79f, 0.32f, 0.0f, 1.0f));
+        break;
+    case Error:
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.8f, 0.0f, 0.0f, 1.0f));
+        break;
+    default:
+        throw std::out_of_range("Error! Status enum in MainGui has an invalid value!");
+    }
+
+    ImGui::Begin("Status bar window", &Visible, window_flags);
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(2);
+
+    //If custom message is empty, use the default ones
+    if (customStatusMessage_ == "")
+    {
+        switch (status_)
+        {
+        case Ready:
+            ImGui::Text(ICON_FA_CHECK " Ready");
+            break;
+        case Working:
+            ImGui::Text(ICON_FA_SYNC " Working");
+            break;
+        case Error:
+            ImGui::Text(ICON_FA_EXCLAMATION_TRIANGLE " Error");
+            break;
+        default:
+            throw std::out_of_range("Error! Status enum in MainGui has an invalid value!");
+        }
+    }
+    else //Else use custom one
+    {
+        ImGui::Text(customStatusMessage_.c_str());
+    }
+
+    ImGui::End();
+}
+
 void MainGui::DrawFileExplorer()
 {
     ImGui::Begin("File explorer");
@@ -321,6 +419,7 @@ void MainGui::DrawFileExplorer()
     ImGui::Text(ICON_FA_ARCHIVE " Packfiles");
     fontManager_->FontL.Pop();
     ImGui::Separator();
+
     for (auto& packfile : packfileVFS_->packfiles_)
     {
         string packfileNodeLabel = packfile.Name() + " [" + std::to_string(packfile.Header.NumberOfSubfiles) + " subfiles";

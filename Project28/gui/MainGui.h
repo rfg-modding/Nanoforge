@@ -7,6 +7,7 @@
 #include <RfgTools++\types\Vec4.h>
 #include <RfgTools++\formats\meshes\MeshDataBlock.h>
 #include <vector>
+#include <mutex>
 
 class ImGuiFontManager;
 class PackfileVFS;
@@ -32,6 +33,15 @@ struct ZoneObjectClass
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
 
+//Used to color status bar
+enum GuiStatus
+{
+    Ready, //Used when the app isn't doing any background work and the gui / overlays are completely ready for use
+    Working, //Used when the app is doing background work. User may have to wait for the work to complete to use the entire gui
+    Error, //Used when a serious error that requires user attention is encountered
+    None //Used for default function arguments
+};
+
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
 {
@@ -46,9 +56,20 @@ public:
 
     std::vector<TerrainInstance> TerrainInstances = {};
 
+    //Lock used to make sure the worker thread and main thread aren't using resources at the same time
+    std::mutex ResourceLock;
+    //Tells the main thread that the worker thread pushed a new terrain instance that needs to be uploaded to the gpu
+    bool NewTerrainInstanceAdded = false;
+    bool CanStartInit = false;
+
 private:
+    //Todo: Move the worker thread into different threads / files / etc
+    void WorkerThread();
+    void LoadTerrainMeshes();
+    
     void DrawMainMenuBar();
     void DrawDockspace();
+    void DrawStatusBar();
     void DrawFileExplorer();
     void DrawZoneWindow();
     void DrawZoneObjectsWindow();
@@ -57,7 +78,6 @@ private:
     void DrawCameraWindow();
     void DrawNodeEditor();
 
-    void LoadTerrainMeshes();
 
     //Whether or not this object should be shown based on filtering settings
     bool ShouldShowObjectClass(u32 classnameHash);
@@ -97,4 +117,24 @@ private:
     Vec4 labelTextColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     bool drawParentConnections_ = false;
+
+    f32 statusBarHeight_ = 25.0f;
+    GuiStatus status_ = Ready;
+    string customStatusMessage_ = "";
+
+    //Set status message and enum
+    void SetStatus(const string& message, GuiStatus status = None)
+    {
+        //Set status enum too if it's not the default argument value
+        if (status != None)
+            status_ = status;
+
+        customStatusMessage_ = message;
+    }
+    //Clear status message and set status enum to 'Ready'
+    void ClearStatus()
+    {
+        status_ = Ready;
+        customStatusMessage_ = "";
+    }
 };

@@ -62,6 +62,9 @@ DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth
     //Todo: Fix this, init should set up the matrices properly
     //Quick fix for view being distorted before first window resize
     HandleResize();
+
+    //Init terrain shaders and buffers that don't need to be streamed in
+    InitTerrainResources();
 }
 
 DX11Renderer::~DX11Renderer()
@@ -126,7 +129,6 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     for (u32 i = 0; i < terrainInstanceRenderData_.size(); i++)
     {
-        auto& instance = terrainInstances_->at(i);
         auto& renderInstance = terrainInstanceRenderData_[i];
         
         for (u32 j = 0; j < 9; j++)
@@ -136,7 +138,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
 
             DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
             DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
-            DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(instance.Position.x, instance.Position.y, instance.Position.z);
+            DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(renderInstance.Position.x, renderInstance.Position.y, renderInstance.Position.z);
 
             terrainModelMatrices_[i] = DirectX::XMMatrixIdentity();
             terrainModelMatrices_[i] = translation * rotation;
@@ -149,7 +151,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
             d3d11Context_->IASetIndexBuffer(renderInstance.terrainIndexBuffers_[j], DXGI_FORMAT_R16_UINT, 0);
             d3d11Context_->IASetVertexBuffers(0, 1, &renderInstance.terrainVertexBuffers_[j], &terrainVertexStride, &terrainVertexOffset);
 
-            d3d11Context_->DrawIndexed(instance.Meshes[j].NumIndices, 0, 0);
+            d3d11Context_->DrawIndexed(renderInstance.MeshIndexCounts_[j], 0, 0);
         }
 
         //Todo: Remove this + same break in MainGui once testing over. Causes only first terrain mesh to be rendered
@@ -187,65 +189,16 @@ void DX11Renderer::HandleResize()
 
 void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances)
 {
-    //Compile & create terrain vertex and pixel shaders
-    ID3DBlob* pVSBlob = nullptr;
-    ID3DBlob* pPSBlob = nullptr;
-
-    //Compile the vertex shader
-    if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "VS", "vs_4_0", &pVSBlob)))
-    {
-        throw std::runtime_error("Error! Failed to compile terrain vertex shader!");
-    }
-    if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &terrainVertexShader_)))
-    {
-        pVSBlob->Release();
-        throw std::runtime_error("Error! Failed to create terrain vertex shader!");
-    }
-    //Compile the pixel shader
-    if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "PS", "ps_4_0", &pPSBlob)))
-    {
-        throw std::runtime_error("Errpr! Failed to compile terrain pixel shader!");
-    }
-    if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &terrainPixelShader_)))
-    {
-        pPSBlob->Release();
-        throw std::runtime_error("Error! Failed to create terrain pixel shader!");
-    }
-
-    //Create terrain vertex input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] =
-    {
-        { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-    //Create the input layout
-    if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &terrainVertexLayout_)))
-        throw std::runtime_error("Error! Failed to create terrain vertex layout");
-
-    //Set the input layout
-    d3d11Context_->IASetInputLayout(terrainVertexLayout_);
-    
-    //Create buffer for MVP matrix constant in shader
-    D3D11_BUFFER_DESC cbbd;
-    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
-
-    //Create per object buffer
-    cbbd.Usage = D3D11_USAGE_DEFAULT;
-    cbbd.ByteWidth = sizeof(cbPerObject);
-    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    cbbd.CPUAccessFlags = 0;
-    cbbd.MiscFlags = 0;
-
-    HRESULT hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &terrainPerObjectBuffer_);
-    
-    ReleaseCOM(pVSBlob);
-    ReleaseCOM(pPSBlob);
-
-
     //Create terrain index & vertex buffers
-    terrainInstances_ = terrainInstances;
     for (auto& instance : *terrainInstances)
     {
+        //Skip already-initialized terrain instances
+        if (instance.RenderDataInitialized)
+            continue;
+
         auto& renderInstance = terrainInstanceRenderData_.emplace_back();
+        renderInstance.Position = instance.Position;
+
         for (u32 i = 0; i < 9; i++)
         {
             ID3D11Buffer* terrainIndexBuffer = nullptr;
@@ -296,12 +249,71 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
 
             renderInstance.terrainIndexBuffers_[i] = terrainIndexBuffer;
             renderInstance.terrainVertexBuffers_[i] = terrainVertexBuffer;
+            renderInstance.MeshIndexCounts_[i] = instance.Indices[i].size();
             terrainModelMatrices_.push_back(DirectX::XMMATRIX());
         }
 
         delete instance.Indices.data();
         delete instance.Vertices.data();
+        //Set bool so the instance isn't initialized more than once
+        instance.RenderDataInitialized = true;
     }
+}
+
+void DX11Renderer::InitTerrainResources()
+{
+    //Compile & create terrain vertex and pixel shaders
+    ID3DBlob* pVSBlob = nullptr;
+    ID3DBlob* pPSBlob = nullptr;
+
+    //Compile the vertex shader
+    if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "VS", "vs_4_0", &pVSBlob)))
+    {
+        throw std::runtime_error("Error! Failed to compile terrain vertex shader!");
+    }
+    if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &terrainVertexShader_)))
+    {
+        pVSBlob->Release();
+        throw std::runtime_error("Error! Failed to create terrain vertex shader!");
+    }
+    //Compile the pixel shader
+    if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "PS", "ps_4_0", &pPSBlob)))
+    {
+        throw std::runtime_error("Errpr! Failed to compile terrain pixel shader!");
+    }
+    if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &terrainPixelShader_)))
+    {
+        pPSBlob->Release();
+        throw std::runtime_error("Error! Failed to create terrain pixel shader!");
+    }
+
+    //Create terrain vertex input layout
+    D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
+        { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    //Create the input layout
+    if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &terrainVertexLayout_)))
+        throw std::runtime_error("Error! Failed to create terrain vertex layout");
+
+    //Set the input layout
+    d3d11Context_->IASetInputLayout(terrainVertexLayout_);
+
+    //Create buffer for MVP matrix constant in shader
+    D3D11_BUFFER_DESC cbbd;
+    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
+
+    //Create per object buffer
+    cbbd.Usage = D3D11_USAGE_DEFAULT;
+    cbbd.ByteWidth = sizeof(cbPerObject);
+    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbbd.CPUAccessFlags = 0;
+    cbbd.MiscFlags = 0;
+
+    HRESULT hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &terrainPerObjectBuffer_);
+
+    ReleaseCOM(pVSBlob);
+    ReleaseCOM(pPSBlob);
 }
 
 void DX11Renderer::ImGuiDoFrame()

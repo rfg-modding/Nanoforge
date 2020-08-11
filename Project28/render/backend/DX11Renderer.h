@@ -22,6 +22,8 @@ struct TerrainInstanceRenderData
 {
     std::array<ID3D11Buffer*, 9> terrainVertexBuffers_ = {};
     std::array<ID3D11Buffer*, 9> terrainIndexBuffers_ = {};
+    std::array<u32, 9> MeshIndexCounts_ = {};
+    Vec3 Position;
 };
 
 class DX11Renderer
@@ -38,6 +40,7 @@ public:
     void InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances);
 
 private:
+    void InitTerrainResources();
     void ImGuiDoFrame();
     [[nodiscard]] bool InitWindow(WNDPROC wndProc);
     [[nodiscard]] bool InitDx11();
@@ -122,6 +125,5 @@ private:
 
     //Per instance terrain data
     std::vector<TerrainInstanceRenderData> terrainInstanceRenderData_ = {};
-    std::vector<TerrainInstance>* terrainInstances_ = nullptr;
     std::vector<DirectX::XMMATRIX> terrainModelMatrices_ = {};
 };

@@ -22,5 +22,6 @@ struct TerrainInstance
     std::vector<std::span<u16>> Indices = {};
     std::vector<std::span<LowLodTerrainVertex>> Vertices = {};
     bool Visible = true;
+    bool RenderDataInitialized = false;
     Vec3 Position;
 };

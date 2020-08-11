@@ -26,6 +26,7 @@ public:
     Timer frameTimer_;
     Camera* camera_ = nullptr;
 
+    MainGui* gui_ = nullptr;
 private:
     void InitRenderer();
     void NewFrame();
@@ -34,7 +35,6 @@ private:
     HINSTANCE hInstance_ = nullptr;
     DX11Renderer* renderer_ = nullptr;
     ImGuiFontManager* fontManager_ = nullptr;
-    MainGui* gui_ = nullptr;
     PackfileVFS* packfileVFS_ = nullptr;
 
     int windowWidth_ = 1600;
