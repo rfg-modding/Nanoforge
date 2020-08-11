@@ -6,6 +6,7 @@
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\types\Vec4.h>
 #include <RfgTools++\formats\meshes\MeshDataBlock.h>
+#include "rfg/FileHandle.h"
 #include <vector>
 #include <mutex>
 
@@ -67,6 +68,7 @@ private:
     //Todo: Move the worker thread into different threads / files / etc
     void WorkerThread();
     void LoadTerrainMeshes();
+    void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position);
     
     void DrawMainMenuBar();
     void DrawDockspace();

@@ -185,102 +185,112 @@ void MainGui::LoadTerrainMeshes()
 
     SetStatus(ICON_FA_SYNC " Loading terrain meshes", Working);
 
+    //Todo: Make multithreaded loading optional
+    std::vector<std::future<void>> futures;
     u32 terrainMeshIndex = 0;
     for (auto& terrainMesh : terrainMeshHandlesCpu)
     {
-        //Get packfile that holds terrain meshes
-        auto* container = terrainMesh.GetContainer();
-        if (!container)
-            throw std::runtime_error("Error! Failed to get container ptr for a terrain mesh.");
-
-        //Todo: This does a full extract twice on the container due to the way single file extracts work. Fix this
-        //Get mesh file byte arrays
-        auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
-        auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
-
-        //Ensure the mesh files were extracted
-        if (!cpuFileBytes)
-            throw std::runtime_error("Error! Failed to get terrain mesh cpu file byte array!");
-        if (!gpuFileBytes)
-            throw std::runtime_error("Error! Failed to get terrain mesh gpu file byte array!");
-
-        BinaryReader cpuFile(cpuFileBytes.value());
-        BinaryReader gpuFile(gpuFileBytes.value());
-
-        //Create new instance
-        TerrainInstance terrain;
-        terrain.Position = terrainPositions[terrainMeshIndex];
-
-        //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
-        u32 cpuFileIndex = 0;
-        u32* cpuFileAsUintArray = (u32*)cpuFileBytes.value().data();
-        for (u32 i = 0; i < 9; i++)
-        {
-            //Get mesh crc from gpu file. Will use this to find the mesh description data section of the cpu file which starts and ends with this value
-            //In while loop since a mesh file pair can have multiple meshes inside
-            u32 meshCrc = gpuFile.ReadUint32();
-            if (meshCrc == 0)
-                throw std::runtime_error("Error! Failed to read next mesh data block hash in terrain gpu file.");
-
-            //Find next mesh data block in cpu file
-            while (true)
-            {
-                //This is done instead of using BinaryReader::ReadUint32() because that method was incredibly slow (+ several minutes slow)
-                if (cpuFileAsUintArray[cpuFileIndex] == meshCrc)
-                    break;
-
-                cpuFileIndex++;
-            }
-            u64 meshDataBlockStart = (cpuFileIndex * 4) - 4;
-            cpuFile.SeekBeg(meshDataBlockStart);
-
-
-            //Read mesh data block. Contains info on vertex + index layout + size + format
-            MeshDataBlock meshData;
-            meshData.Read(cpuFile);
-            cpuFileIndex += (cpuFile.Position() - meshDataBlockStart) / 4;
-
-            terrain.Meshes.push_back(meshData);
-
-            //Read index data
-            gpuFile.Align(16); //Indices always start here
-            u32 indicesSize = meshData.NumIndices * meshData.IndexSize;
-            u8* indexBuffer = new u8[indicesSize];
-            gpuFile.ReadToMemory(indexBuffer, indicesSize);
-            terrain.Indices.push_back(std::span<u16>{ (u16*)indexBuffer, indicesSize / 2 });
-
-            //Read vertex data
-            gpuFile.Align(16);
-            u32 verticesSize = meshData.NumVertices * meshData.VertexStride0;
-            u8* vertexBuffer = new u8[verticesSize];
-            gpuFile.ReadToMemory(vertexBuffer, verticesSize);
-            terrain.Vertices.push_back(std::span<LowLodTerrainVertex>{ (LowLodTerrainVertex*)vertexBuffer, verticesSize / sizeof(LowLodTerrainVertex)});
-
-            u32 endMeshCrc = gpuFile.ReadUint32();
-            if (meshCrc != endMeshCrc)
-                throw std::runtime_error("Error, verification hash at start of gpu file mesh data doesn't match hash end of gpu file mesh data!");
-        }
-
-
-        //Todo: Create D3D11 vertex buffers / shaders / whatever else is needed to render the terrain
-        //Todo: Tell the renderer to render each terrain mesh each frame
-
-        //Todo: Clear index + vertex buffers in RAM after they've been uploaded to the gpu
-
-        //Clear resources
-        container->Cleanup();
-        delete container;
-        delete[] cpuFileBytes.value().data();
-        delete[] gpuFileBytes.value().data();
-
-
+        futures.push_back(std::async(std::launch::async, &MainGui::LoadTerrainMesh, this, terrainMesh, terrainPositions[terrainMeshIndex]));
+        //LoadTerrainMesh(terrainMesh, terrainPositions[terrainMeshIndex]);
         terrainMeshIndex++;
-        
-        //Acquire resource lock before writing terrain instance data to the instance list
-        std::lock_guard<std::mutex> lock(ResourceLock);
-        TerrainInstances.push_back(terrain);
-        NewTerrainInstanceAdded = true;
     }
+    for (auto& future : futures)
+    {
+        future.wait();
+    }
+}
+
+void MainGui::LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position)
+{
+    //Get packfile that holds terrain meshes
+    auto* container = terrainMesh.GetContainer();
+    if (!container)
+        throw std::runtime_error("Error! Failed to get container ptr for a terrain mesh.");
+
+    //Todo: This does a full extract twice on the container due to the way single file extracts work. Fix this
+    //Get mesh file byte arrays
+    auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
+    auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
+
+    //Ensure the mesh files were extracted
+    if (!cpuFileBytes)
+        throw std::runtime_error("Error! Failed to get terrain mesh cpu file byte array!");
+    if (!gpuFileBytes)
+        throw std::runtime_error("Error! Failed to get terrain mesh gpu file byte array!");
+
+    BinaryReader cpuFile(cpuFileBytes.value());
+    BinaryReader gpuFile(gpuFileBytes.value());
+
+    //Create new instance
+    TerrainInstance terrain;
+    terrain.Position = position;
+
+    //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
+    u32 cpuFileIndex = 0;
+    u32* cpuFileAsUintArray = (u32*)cpuFileBytes.value().data();
+    for (u32 i = 0; i < 9; i++)
+    {
+        //Get mesh crc from gpu file. Will use this to find the mesh description data section of the cpu file which starts and ends with this value
+        //In while loop since a mesh file pair can have multiple meshes inside
+        u32 meshCrc = gpuFile.ReadUint32();
+        if (meshCrc == 0)
+            throw std::runtime_error("Error! Failed to read next mesh data block hash in terrain gpu file.");
+
+        //Find next mesh data block in cpu file
+        while (true)
+        {
+            //This is done instead of using BinaryReader::ReadUint32() because that method was incredibly slow (+ several minutes slow)
+            if (cpuFileAsUintArray[cpuFileIndex] == meshCrc)
+                break;
+
+            cpuFileIndex++;
+        }
+        u64 meshDataBlockStart = (cpuFileIndex * 4) - 4;
+        cpuFile.SeekBeg(meshDataBlockStart);
+
+
+        //Read mesh data block. Contains info on vertex + index layout + size + format
+        MeshDataBlock meshData;
+        meshData.Read(cpuFile);
+        cpuFileIndex += (cpuFile.Position() - meshDataBlockStart) / 4;
+
+        terrain.Meshes.push_back(meshData);
+
+        //Read index data
+        gpuFile.Align(16); //Indices always start here
+        u32 indicesSize = meshData.NumIndices * meshData.IndexSize;
+        u8* indexBuffer = new u8[indicesSize];
+        gpuFile.ReadToMemory(indexBuffer, indicesSize);
+        terrain.Indices.push_back(std::span<u16>{ (u16*)indexBuffer, indicesSize / 2 });
+
+        //Read vertex data
+        gpuFile.Align(16);
+        u32 verticesSize = meshData.NumVertices * meshData.VertexStride0;
+        u8* vertexBuffer = new u8[verticesSize];
+        gpuFile.ReadToMemory(vertexBuffer, verticesSize);
+        terrain.Vertices.push_back(std::span<LowLodTerrainVertex>{ (LowLodTerrainVertex*)vertexBuffer, verticesSize / sizeof(LowLodTerrainVertex)});
+
+        u32 endMeshCrc = gpuFile.ReadUint32();
+        if (meshCrc != endMeshCrc)
+            throw std::runtime_error("Error, verification hash at start of gpu file mesh data doesn't match hash end of gpu file mesh data!");
+    }
+
+
+    //Todo: Create D3D11 vertex buffers / shaders / whatever else is needed to render the terrain
+    //Todo: Tell the renderer to render each terrain mesh each frame
+
+    //Todo: Clear index + vertex buffers in RAM after they've been uploaded to the gpu
+
+    //Clear resources
+    container->Cleanup();
+    delete container;
+    delete[] cpuFileBytes.value().data();
+    delete[] gpuFileBytes.value().data();
+
+    //Acquire resource lock before writing terrain instance data to the instance list
+    std::lock_guard<std::mutex> lock(ResourceLock);
+    TerrainInstances.push_back(terrain);
+    NewTerrainInstanceAdded = true;
 }
 
 void MainGui::DrawMainMenuBar()
