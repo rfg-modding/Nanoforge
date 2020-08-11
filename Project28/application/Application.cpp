@@ -21,8 +21,6 @@ Application::Application(HINSTANCE hInstance)
     hInstance_ = hInstance;
     fontManager_ = new ImGuiFontManager;
     packfileVFS_ = new PackfileVFS;
-    //camera_ = new Camera({ 10.0f, 10.0f, 10.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 1000.0f);
-    //camera_ = new Camera({ -1580.0f, 350.0f, 480.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     camera_ = new Camera({ -2573.0f, 2337.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();

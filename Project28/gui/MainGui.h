@@ -60,7 +60,8 @@ public:
     std::mutex ResourceLock;
     //Tells the main thread that the worker thread pushed a new terrain instance that needs to be uploaded to the gpu
     bool NewTerrainInstanceAdded = false;
-    bool CanStartInit = false;
+    //Set this to false to test the init sequence. It will wait for this to be set to true to start init. F1 sets this to true
+    bool CanStartInit = true;
 
 private:
     //Todo: Move the worker thread into different threads / files / etc
