@@ -40,6 +40,8 @@ add_executable (Project28 ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_node_editor_internal.inl
     ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_node_editor.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Support/imgui_node_editor.natvis
+    # tinyxml2 files
+    ${CMAKE_SOURCE_DIR}/dependencies/tinyxml2/tinyxml2.cpp
     )
 
 # Add include directories
@@ -59,6 +61,7 @@ target_include_directories(Project28 SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Source/
     ${CMAKE_SOURCE_DIR}/Dependencies/im3d
+    ${CMAKE_SOURCE_DIR}/Dependencies/tinyxml2
 )
 
 # Copy assets directory to binary dir after builds

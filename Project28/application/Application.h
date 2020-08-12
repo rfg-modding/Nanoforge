@@ -31,6 +31,7 @@ private:
     void InitRenderer();
     void NewFrame();
     void UpdateGui();
+    void LoadSettings();
 
     HINSTANCE hInstance_ = nullptr;
     DX11Renderer* renderer_ = nullptr;
@@ -46,4 +47,6 @@ private:
     f32 deltaTime_ = 0.01f;
     const u32 maxFrameRate = 60;
     const f32 maxFrameRateDelta = 1.0f / static_cast<f32>(maxFrameRate);
+
+    std::string packfileFolderPath_ = "C:/Program Files (x86)/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered";
 };

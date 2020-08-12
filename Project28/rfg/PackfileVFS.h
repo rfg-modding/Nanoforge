@@ -17,6 +17,7 @@ enum class SearchType
 class PackfileVFS
 {
 public:
+    PackfileVFS(const string& packfileFolderPath) : packfileFolderPath_(packfileFolderPath) {}
     ~PackfileVFS();
 
     void ScanPackfiles();
@@ -38,6 +39,6 @@ private:
     bool CheckSearchMatch(s_view target, s_view filter, SearchType searchType = SearchType::Direct);
 
     //Todo: Make externally configurable
-    std::string packfileFolderPath = "G:\\RFG Unpack\\data\\";
+    std::string packfileFolderPath_;
 
 };

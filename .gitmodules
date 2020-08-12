@@ -22,3 +22,6 @@
 [submodule "Dependencies/imgui-node-editor"]
 	path = Dependencies/imgui-node-editor
 	url = https://github.com/thedmd/imgui-node-editor.git
+[submodule "Dependencies/tinyxml2"]
+	path = Dependencies/tinyxml2
+	url = https://github.com/leethomason/tinyxml2.git

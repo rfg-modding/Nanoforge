@@ -4,9 +4,11 @@
 #include "gui/MainGui.h"
 #include "rfg/PackfileVFS.h"
 #include "render/camera/Camera.h"
+#include <tinyxml2/tinyxml2.h>
 #include <imgui/imgui.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
+#include <filesystem>
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -17,10 +19,11 @@ Application* wndProcAppPtr = nullptr;
 
 Application::Application(HINSTANCE hInstance)
 {
+    LoadSettings();
     wndProcAppPtr = this;
     hInstance_ = hInstance;
     fontManager_ = new ImGuiFontManager;
-    packfileVFS_ = new PackfileVFS;
+    packfileVFS_ = new PackfileVFS(packfileFolderPath_);
     camera_ = new Camera({ -2573.0f, 2337.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
@@ -107,6 +110,30 @@ void Application::NewFrame()
 void Application::UpdateGui()
 {
     gui_->Update(deltaTime_);
+}
+
+void Application::LoadSettings()
+{
+    namespace fs = std::filesystem;
+    //Load settings file if it exists
+    if (fs::exists("./Settings.xml"))
+    {
+        tinyxml2::XMLDocument settings;
+        settings.LoadFile("./Settings.xml");
+        const char* dataPath = settings.FirstChildElement("DataPath")->GetText();
+        if (!dataPath)
+            throw std::exception("Error! Failed to get DataPath from Settings.xml");
+
+        packfileFolderPath_ = string(dataPath);
+    }
+    else //Otherwise recreate it with the default values
+    {
+        tinyxml2::XMLDocument settings;
+        auto* dataPath = settings.NewElement("DataPath");
+        settings.InsertFirstChild(dataPath);
+        dataPath->SetText(packfileFolderPath_.c_str());
+        settings.SaveFile("./Settings.xml");
+    }
 }
 
 //Todo: Pass key & mouse messages to InputManager and have it send input messages to other parts of code via callbacks

@@ -12,7 +12,7 @@ PackfileVFS::~PackfileVFS()
 
 void PackfileVFS::ScanPackfiles()
 {
-    for (auto& filePath : std::filesystem::directory_iterator(packfileFolderPath))
+    for (auto& filePath : std::filesystem::directory_iterator(packfileFolderPath_))
     {
         if (Path::GetExtension(filePath) == ".vpp_pc")
         {
