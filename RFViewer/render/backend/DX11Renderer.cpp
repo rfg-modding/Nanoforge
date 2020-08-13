@@ -28,7 +28,7 @@
 void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
 {
     if (child != nullptr)
-        child->SetPrivateData(WKPDID_D3DDebugObjectName, name.size(), name.c_str());
+        child->SetPrivateData(WKPDID_D3DDebugObjectName, (UINT)name.size(), name.c_str());
 }
 
 void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera)
@@ -181,10 +181,11 @@ void DX11Renderer::HandleResize()
     ReleaseCOM(SwapChain_);
 
     //Recreate swapchain and it's resources
-    InitSwapchainAndResources();
+    if (!InitSwapchainAndResources())
+        throw std::exception("DX11Renderer::InitSwapchainAndResources() failed in DX11Renderer::HandleResize()!");
 
     ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
+    io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
 
     //camera_->HandleResize( { (f32)windowWidth_, (f32)windowHeight_} );
     camera_->HandleResize( { (f32)sceneViewWidth_, (f32)sceneViewHeight_} );
@@ -211,7 +212,7 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             //Create index buffer for instance
             D3D11_BUFFER_DESC indexBufferDesc = {};
             indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-            indexBufferDesc.ByteWidth = instance.Indices[i].size_bytes();
+            indexBufferDesc.ByteWidth = (UINT)instance.Indices[i].size_bytes();
             //indexBufferDesc.ByteWidth = sizeof(DWORD) * 12 * 3;
             indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
             indexBufferDesc.CPUAccessFlags = 0;
@@ -228,7 +229,7 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             //Create vertex buffer for instance
             D3D11_BUFFER_DESC vertexBufferDesc = {};
             vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-            vertexBufferDesc.ByteWidth = instance.Vertices[i].size_bytes();
+            vertexBufferDesc.ByteWidth = (UINT)instance.Vertices[i].size_bytes();
             vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
             vertexBufferDesc.CPUAccessFlags = 0;
 
@@ -253,7 +254,7 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
 
             renderInstance.terrainIndexBuffers_[i] = terrainIndexBuffer;
             renderInstance.terrainVertexBuffers_[i] = terrainVertexBuffer;
-            renderInstance.MeshIndexCounts_[i] = instance.Indices[i].size();
+            renderInstance.MeshIndexCounts_[i] = (u32)instance.Indices[i].size();
             terrainModelMatrices_.push_back(DirectX::XMMATRIX());
         }
 
@@ -335,16 +336,16 @@ void DX11Renderer::ViewportsDoFrame()
 
     if (contentAreaSize.x != sceneViewWidth_ || contentAreaSize.y != sceneViewHeight_)
     {
-        sceneViewWidth_ = contentAreaSize.x;
-        sceneViewHeight_ = contentAreaSize.y;
+        sceneViewWidth_ = (u32)contentAreaSize.x;
+        sceneViewHeight_ = (u32)contentAreaSize.y;
         InitScene();
 
         //Recreate depth buffer
         CreateDepthBuffer(false);
         sceneViewport_.TopLeftX = 0.0f;
         sceneViewport_.TopLeftY = 0.0f;
-        sceneViewport_.Width = sceneViewWidth_;
-        sceneViewport_.Height = sceneViewHeight_;
+        sceneViewport_.Width = (f32)sceneViewWidth_;
+        sceneViewport_.Height = (f32)sceneViewHeight_;
         sceneViewport_.MinDepth = 0.0f;
         sceneViewport_.MaxDepth = 1.0f;
         camera_->HandleResize({ (f32)sceneViewWidth_, (f32)sceneViewHeight_ });
