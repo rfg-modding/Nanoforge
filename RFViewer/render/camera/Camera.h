@@ -12,7 +12,7 @@ public:
 
     void DoFrame(f32 deltaTime);
     void HandleResize(const DirectX::XMFLOAT2& screenDimensions);
-    //Todo: Make input manager class the takes functions ptrs to funcs like this instead of directly passing variables like this
+    //Todo: Make an InputManager class which provides callbacks to input handlers and tracks key state
     void HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     void UpdateProjectionMatrix();

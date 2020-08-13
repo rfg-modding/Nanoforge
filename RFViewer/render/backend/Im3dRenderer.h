@@ -24,8 +24,7 @@ struct ID3D11BlendState;
 struct ID3D11DepthStencilState;
 class Camera;
 
-//Todo: Clean up this class and it's functions. Using a bunch of code from the im3d example project. Likely a lot of duplicate code
-//Todo: or code that doesn't match the style of the rest of the project. This should be cleaned up at some point.
+//Todo: Replace this with a primitive renderer built around the needs of this application
 
 //Initializes im3d manages any data it needs access to
 class Im3dRenderer

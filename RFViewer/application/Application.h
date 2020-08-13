@@ -42,5 +42,5 @@ private:
     const u32 maxFrameRate = 60;
     const f32 maxFrameRateDelta = 1.0f / static_cast<f32>(maxFrameRate);
 
-    std::string packfileFolderPath_ = "C:/Program Files (x86)/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered";
+    string packfileFolderPath_ = "C:/Program Files (x86)/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered";
 };
