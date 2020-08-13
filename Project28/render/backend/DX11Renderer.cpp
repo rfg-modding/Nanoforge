@@ -46,14 +46,14 @@ DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth
     UpdateWindowDimensions();
     if (!InitDx11())
         throw std::exception("Failed to init DX11! Exiting.");
-    if (!InitScene())
-        throw std::exception("Failed to init render scene! Exiting.");
     if (!InitModels())
         throw std::exception("Failed to init models! Exiting.");
     if (!InitShaders())
         throw std::exception("Failed to init shaders! Exiting.");
     if (!InitImGui())
         throw std::exception("Failed to dear imgui! Exiting.");
+    if (!InitScene())
+        throw std::exception("Failed to init render scene! Exiting.");
 
     im3dRenderer_->Init(d3d11Device_, d3d11Context_, hwnd_, camera_);
 
@@ -111,15 +111,16 @@ void DX11Renderer::NewFrame(f32 deltaTime)
 
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
-    //Todo: Add general mesh drawing behavior for non im3d or imgui rendering
-    //Todo: Take a list of render commands each frame and draw based off of those
-
     //Set render target and clear it
-    d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
-    d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
-    d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    //d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
+    //d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
+    d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<float*>(&clearColor));
+    //d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
 
-    d3d11Context_->RSSetViewports(1, &viewport);
+    //TODO: IMPORTANT: SHOULD SET VIEWPORT AND SCENE CAM SIZES TO SIZE OF SCENE WINDOW AREA
+    //d3d11Context_->RSSetViewports(1, &viewport);
+    d3d11Context_->RSSetViewports(1, &sceneViewport_);
     d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
     d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
     d3d11Context_->RSSetState(rasterizerState_);
@@ -153,12 +154,14 @@ void DX11Renderer::DoFrame(f32 deltaTime)
 
             d3d11Context_->DrawIndexed(renderInstance.MeshIndexCounts_[j], 0, 0);
         }
-
-        //Todo: Remove this + same break in MainGui once testing over. Causes only first terrain mesh to be rendered
-        //break;
     }
 
     im3dRenderer_->EndFrame();
+
+    d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, NULL);
+    d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
+    d3d11Context_->RSSetViewports(1, &viewport);
+    ViewportsDoFrame(); //Update viewport guis which render scene view textures
     ImGuiDoFrame();
 
     //Present the backbuffer to the screen
@@ -183,8 +186,9 @@ void DX11Renderer::HandleResize()
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
 
-    camera_->HandleResize( { (f32)windowWidth_, (f32)windowHeight_} );
-    im3dRenderer_->HandleResize((f32)windowWidth_, (f32)windowHeight_);
+    //camera_->HandleResize( { (f32)windowWidth_, (f32)windowHeight_} );
+    camera_->HandleResize( { (f32)sceneViewWidth_, (f32)sceneViewHeight_} );
+    im3dRenderer_->HandleResize((f32)sceneViewWidth_, (f32)sceneViewHeight_);
 }
 
 void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances)
@@ -316,6 +320,44 @@ void DX11Renderer::InitTerrainResources()
     ReleaseCOM(pPSBlob);
 }
 
+void DX11Renderer::ViewportsDoFrame()
+{
+    //On first ever draw set the viewport size to the default one. Only happens if the viewport window doesn't have a .ini entry
+    //ImGui::SetNextWindowSize(ImVec2((f32)sceneViewWidth_, (f32)sceneViewHeight_), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Scene view"))
+    {
+        ImGui::End();
+    }
+    ImVec2 contentAreaSize;
+    contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
+    contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
+
+    if (contentAreaSize.x != sceneViewWidth_ || contentAreaSize.y != sceneViewHeight_)
+    {
+        sceneViewWidth_ = contentAreaSize.x;
+        sceneViewHeight_ = contentAreaSize.y;
+        InitScene();
+
+        //Recreate depth buffer
+        CreateDepthBuffer(false);
+        sceneViewport_.TopLeftX = 0.0f;
+        sceneViewport_.TopLeftY = 0.0f;
+        sceneViewport_.Width = sceneViewWidth_;
+        sceneViewport_.Height = sceneViewHeight_;
+        sceneViewport_.MinDepth = 0.0f;
+        sceneViewport_.MaxDepth = 1.0f;
+        camera_->HandleResize({ (f32)sceneViewWidth_, (f32)sceneViewHeight_ });
+        im3dRenderer_->HandleResize((f32)sceneViewWidth_, (f32)sceneViewHeight_);
+    }
+
+    //Render scene texture
+    ImGui::Image(sceneViewShaderResource_, ImVec2((f32)sceneViewWidth_, (f32)sceneViewHeight_));
+    ImGui::PopStyleColor();
+
+    ImGui::End();
+}
+
 void DX11Renderer::ImGuiDoFrame()
 {
     ImGui::Render();
@@ -397,19 +439,71 @@ bool DX11Renderer::InitSwapchainAndResources()
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
 
-    d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
-    d3d11Context_->RSSetViewports(1, &viewport);
+    //d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
+    d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
+    d3d11Context_->RSSetViewports(1, &sceneViewport_);
 
     return true;
 }
 
+//Init or reset texture and render target view we render the scene camera view to
 bool DX11Renderer::InitScene()
 {
+    //Release scene texture and view if they've already been initialized
+    if (sceneViewShaderResource_)
+        ReleaseCOM(sceneViewShaderResource_);
+    if (sceneViewRenderTarget_)
+        ReleaseCOM(sceneViewRenderTarget_);
+    if (sceneViewTexture_)
+        ReleaseCOM(sceneViewTexture_);
 
+    //Create texture the view is rendered to
+    D3D11_TEXTURE2D_DESC textureDesc;
+    ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
+    textureDesc.Width = sceneViewWidth_;
+    textureDesc.Height = sceneViewHeight_;
+    textureDesc.MipLevels = 1;
+    textureDesc.ArraySize = 1;
+    textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.Usage = D3D11_USAGE_DEFAULT;
+    textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    textureDesc.CPUAccessFlags = 0;
+    textureDesc.MiscFlags = 0;
+    d3d11Device_->CreateTexture2D(&textureDesc, NULL, &sceneViewTexture_);
+
+    //Create the render target view for the scene
+    D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+    renderTargetViewDesc.Format = textureDesc.Format;
+    renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+    //Create the scene render target view and map it to the scene texture
+    d3d11Device_->CreateRenderTargetView(sceneViewTexture_, &renderTargetViewDesc, &sceneViewRenderTarget_);
+
+    //Create shader resource for dear imgui to use
+    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+    shaderResourceViewDesc.Format = textureDesc.Format;
+    shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+    shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+    //Todo: Add error code and (if possible) error string reporting to the DxCheck macro
+    //Create the shader resource view.
+    HRESULT result = d3d11Device_->CreateShaderResourceView(sceneViewTexture_, &shaderResourceViewDesc, &sceneViewShaderResource_);
+    DxCheck(result, ("Error! Failed to create scene shader resource view! Error code: " + std::to_string(result)).c_str());
+
+
+#ifdef DEBUG_BUILD
+    SetDebugName(sceneViewTexture_, "sceneViewTexture_");
+    SetDebugName(sceneViewRenderTarget_, "sceneViewRenderTarget_");
+    SetDebugName(sceneViewShaderResource_, "sceneViewShaderResource_");
+#endif
 
     return true;
 }
 
+//Todo: See if any or all of this function can be removed
 bool DX11Renderer::InitModels()
 {
     //Vertices and indices to be used
@@ -527,28 +621,6 @@ bool DX11Renderer::InitModels()
 
     hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &cbPerObjectBuffer);
 
-    //hr = D3DX11CreateShaderResourceViewFromFile(d3d11Device_, L"assets/braynzar.jpg", NULL, NULL, &CubesTexture, NULL);
-    auto image = std::make_unique<DirectX::ScratchImage>();
-    hr = LoadFromWICFile(L"assets/braynzar.jpg", DirectX::WIC_FLAGS::WIC_FLAGS_NONE, nullptr, *image);
-    if (FAILED(hr))
-        throw "Failed to load cube test texture";
-
-    CreateShaderResourceView(d3d11Device_, image->GetImages(), image->GetImageCount(), image->GetMetadata(), &CubesTexture);
-
-    //Describe the Sample State
-    D3D11_SAMPLER_DESC sampDesc;
-    ZeroMemory(&sampDesc, sizeof(sampDesc));
-    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    sampDesc.MinLOD = 0;
-    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
-    //Create the Sample State
-    hr = d3d11Device_->CreateSamplerState(&sampDesc, &CubesTexSamplerState);
-
 
     D3D11_RASTERIZER_DESC rasterizerDesc;
     ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
@@ -563,16 +635,6 @@ bool DX11Renderer::InitModels()
     stencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
     stencilDesc.DepthFunc = D3D11_COMPARISON_LESS;
     DxCheck(d3d11Device_->CreateDepthStencilState(&stencilDesc, &depthStencilState_), "Im3d depth stencil state creation failed!");
-
-    ////Set to render in wireframe mode
-    //ID3D11RasterizerState* WireFrame;
-
-    //D3D11_RASTERIZER_DESC wfdesc;
-    //ZeroMemory(&wfdesc, sizeof(D3D11_RASTERIZER_DESC));
-    //wfdesc.FillMode = D3D11_FILL_WIREFRAME;
-    //wfdesc.CullMode = D3D11_CULL_NONE;
-    //hr = d3d11Device_->CreateRasterizerState(&wfdesc, &WireFrame);
-    //d3d11Context_->RSSetState(WireFrame);
 
     return true;
 }
@@ -693,7 +755,7 @@ bool DX11Renderer::InitImGui()
     colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
     colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
 
-    // Setup Platform/Renderer bindings
+    //Setup Platform/Renderer bindings
     ImGui_ImplWin32_Init(hwnd_);
     ImGui_ImplDX11_Init(d3d11Device_, d3d11Context_);
 
@@ -782,11 +844,17 @@ bool DX11Renderer::CreateRenderTargetView()
     return true;
 }
 
-bool DX11Renderer::CreateDepthBuffer()
+bool DX11Renderer::CreateDepthBuffer(bool firstResize)
 {
+    //Clear depth resources if we're re-initing them
+    if (!firstResize && depthBuffer_)
+        ReleaseCOM(depthBuffer_);
+    if (!firstResize && depthBufferView_)
+        ReleaseCOM(depthBufferView_);
+
     D3D11_TEXTURE2D_DESC depthBufferDesc;
-    depthBufferDesc.Width = windowWidth_;
-    depthBufferDesc.Height = windowHeight_;
+    depthBufferDesc.Width = sceneViewWidth_;
+    depthBufferDesc.Height = sceneViewHeight_;
     depthBufferDesc.MipLevels = 1;
     depthBufferDesc.ArraySize = 1;
     depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;

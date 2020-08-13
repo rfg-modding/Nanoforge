@@ -41,6 +41,9 @@ public:
 
 private:
     void InitTerrainResources();
+    //Todo: Add a callback so viewport windows can be written outside of the renderer
+    //Draw viewports which render a DX11 texture (usually of a scene)
+    void ViewportsDoFrame();
     void ImGuiDoFrame();
     [[nodiscard]] bool InitWindow(WNDPROC wndProc);
     [[nodiscard]] bool InitDx11();
@@ -55,7 +58,7 @@ private:
     [[nodiscard]] bool CreateDevice();
     [[nodiscard]] bool CreateSwapchain();
     [[nodiscard]] bool CreateRenderTargetView();
-    [[nodiscard]] bool CreateDepthBuffer();
+    [[nodiscard]] bool CreateDepthBuffer(bool firstResize = true);
     [[nodiscard]] bool AcquireDxgiFactoryInstance();
 
     void UpdateWindowDimensions();
@@ -105,7 +108,6 @@ private:
     };
     cbPerObject cbPerObj;
 
-    ID3D11ShaderResourceView* CubesTexture = nullptr;
     ID3D11SamplerState* CubesTexSamplerState = nullptr;
 
     ID3D11RasterizerState* rasterizerState_ = nullptr;
@@ -126,4 +128,13 @@ private:
     //Per instance terrain data
     std::vector<TerrainInstanceRenderData> terrainInstanceRenderData_ = {};
     std::vector<DirectX::XMMATRIX> terrainModelMatrices_ = {};
+
+    //Todo: Make general scene and camera classes and support multiple scenes & camera views which might be rendered to an imgui window
+    //Variables for rendering main scene camera to a texture
+    ID3D11Texture2D* sceneViewTexture_ = nullptr;
+    ID3D11RenderTargetView* sceneViewRenderTarget_ = nullptr;
+    ID3D11ShaderResourceView* sceneViewShaderResource_ = nullptr;
+    D3D11_VIEWPORT sceneViewport_;
+    u32 sceneViewWidth_ = 200;
+    u32 sceneViewHeight_ = 200;
 };

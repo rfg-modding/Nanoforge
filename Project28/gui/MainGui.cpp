@@ -43,7 +43,10 @@ void MainGui::Update(f32 deltaTime)
     DrawStatusBar();
     DrawCameraWindow();
     DrawRenderSettingsWindow();
+    //Todo: Enable in release builds when this is a working feature
+#ifdef DEBUG_BUILD
     DrawNodeEditor();
+#endif
     DrawFileExplorer();
     DrawZonePrimitives();
     DrawZoneWindow();
@@ -324,7 +327,7 @@ void MainGui::DrawMainMenuBar()
 void MainGui::DrawDockspace()
 {
     //Dockspace flags
-    static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+    static ImGuiDockNodeFlags dockspace_flags = 0;
     
     //Parent window flags
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
