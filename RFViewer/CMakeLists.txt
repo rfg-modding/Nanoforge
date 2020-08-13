@@ -1,21 +1,21 @@
 ﻿
 cmake_minimum_required (VERSION 3.8)
-project (Project28 VERSION 1.0.0
-                  DESCRIPTION "TestApp"
+project (RFViewer VERSION 1.0.0
+                  DESCRIPTION "RFViewer"
                   LANGUAGES CXX)
 
 # Get list of source files in project src folders recursively
 # Places in SOURCES variable
 file(GLOB_RECURSE SOURCES 
-    "${CMAKE_SOURCE_DIR}/Project28/*.cpp"
-    "${CMAKE_SOURCE_DIR}/Project28/*.h"
+    "${CMAKE_SOURCE_DIR}/RFViewer/*.cpp"
+    "${CMAKE_SOURCE_DIR}/RFViewer/*.h"
     # TODO: Hook this up as a static lib once it's got a CMakeLists.txt. For now this works
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.h
     #${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.cpp
     )
 
 # Add source to this project's executable.
-add_executable (Project28 ${SOURCES}
+add_executable (RFViewer ${SOURCES}
     #Need to manually add the dear imgui files)
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_demo.cpp
@@ -45,9 +45,9 @@ add_executable (Project28 ${SOURCES}
     )
 
 # Add include directories
-target_include_directories(Project28 SYSTEM PRIVATE
+target_include_directories(RFViewer SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/
-    ${CMAKE_SOURCE_DIR}/Project28/
+    ${CMAKE_SOURCE_DIR}/RFViewer/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Common/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/
@@ -65,18 +65,18 @@ target_include_directories(Project28 SYSTEM PRIVATE
 )
 
 # Copy assets directory to binary dir after builds
-add_custom_command(TARGET Project28 POST_BUILD 
+add_custom_command(TARGET RFViewer POST_BUILD 
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                    ${CMAKE_SOURCE_DIR}/assets/
                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets/)
 
 # Add statically linked libs
-target_link_libraries(Project28 PRIVATE Common)
-target_link_libraries(Project28 PRIVATE RfgTools++)
+target_link_libraries(RFViewer PRIVATE Common)
+target_link_libraries(RFViewer PRIVATE RfgTools++)
 
 # Have to manually link pre-built versions of these for the moment since it wasn't playing nice with cmake add_subdirectory
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_link_libraries(Project28 PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex_d.lib)
+    target_link_libraries(RFViewer PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex_d.lib)
 else()
-    target_link_libraries(Project28 PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex.lib)
+    target_link_libraries(RFViewer PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex.lib)
 endif()
