@@ -4,6 +4,11 @@
 #include <filesystem>
 #include <iostream>
 
+void PackfileVFS::Init(const string& packfileFolderPath)
+{
+    packfileFolderPath_ = packfileFolderPath;
+}
+
 PackfileVFS::~PackfileVFS()
 {
     for (auto& packfile : packfiles_)

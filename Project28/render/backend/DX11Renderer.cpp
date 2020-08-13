@@ -31,7 +31,7 @@ void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
         child->SetPrivateData(WKPDID_D3DDebugObjectName, name.size(), name.c_str());
 }
 
-DX11Renderer::DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera)
+void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera)
 {
     hInstance_ = hInstance;
     windowWidth_ = WindowWidth;
@@ -115,7 +115,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     //d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
     //d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<float*>(&clearColor));
-    //d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
 
     //TODO: IMPORTANT: SHOULD SET VIEWPORT AND SCENE CAM SIZES TO SIZE OF SCENE WINDOW AREA

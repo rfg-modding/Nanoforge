@@ -47,7 +47,7 @@ enum GuiStatus
 class MainGui
 {
 public:
-    MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd);
     ~MainGui();
 
     void Update(f32 deltaTime);

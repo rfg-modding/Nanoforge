@@ -20,10 +20,16 @@
 namespace node = ax::NodeEditor;
 static node::EditorContext* gContext = nullptr;
 
-MainGui::MainGui(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd) 
-    : fontManager_(fontManager), packfileVFS_(packfileVFS), camera_(camera), hwnd_(hwnd) 
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, HWND hwnd)
 {
+    fontManager_ = fontManager;
+    packfileVFS_ = packfileVFS;
+    camera_ = camera;
+    hwnd_ = hwnd;
+
+    //Create node editor library context
     gContext = node::CreateEditor();
+    
     //Start worker thread and capture it's future. If future isn't captured it won't actually run async
     static std::future<void> dummy = std::async(std::launch::async, &MainGui::WorkerThread, this);
 }

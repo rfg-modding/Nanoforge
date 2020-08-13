@@ -1,17 +1,13 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "common/timing/Timer.h"
+#include "render/camera/Camera.h"
+#include "render/backend/DX11Renderer.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "rfg/PackfileVFS.h"
+#include "gui/MainGui.h"
 #include <ext/WindowsWrapper.h>
 #include <chrono>
-
-struct HINSTANCE__;
-typedef HINSTANCE__* HINSTANCE;
-
-class DX11Renderer;
-class ImGuiFontManager;
-class MainGui;
-class PackfileVFS;
-class Camera;
 
 class Application
 {
@@ -23,10 +19,10 @@ public:
     void HandleResize();
 
     bool Paused = false;
-    Timer frameTimer_;
-    Camera* camera_ = nullptr;
+    Timer FrameTimer;
+    Camera Camera;
+    MainGui Gui;
 
-    MainGui* gui_ = nullptr;
 private:
     void InitRenderer();
     void NewFrame();
@@ -34,14 +30,12 @@ private:
     void LoadSettings();
 
     HINSTANCE hInstance_ = nullptr;
-    DX11Renderer* renderer_ = nullptr;
-    ImGuiFontManager* fontManager_ = nullptr;
-    PackfileVFS* packfileVFS_ = nullptr;
+    DX11Renderer renderer_;
+    ImGuiFontManager fontManager_;
+    PackfileVFS packfileVFS_;
 
     int windowWidth_ = 1600;
     int windowHeight_ = 1000;
-
-    MSG msg; //Windows message struct
 
     //Frame timing variables
     f32 deltaTime_ = 0.01f;

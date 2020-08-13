@@ -15,44 +15,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 //Ptr to application instance for WndProc use
-Application* wndProcAppPtr = nullptr;
+Application* appInstance = nullptr;
 
 Application::Application(HINSTANCE hInstance)
 {
     LoadSettings();
-    wndProcAppPtr = this;
+    appInstance = this;
     hInstance_ = hInstance;
-    fontManager_ = new ImGuiFontManager;
-    packfileVFS_ = new PackfileVFS(packfileFolderPath_);
-    camera_ = new Camera({ -2573.0f, 2337.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
+    packfileVFS_.Init(packfileFolderPath_);
+    Camera.Init({ -2573.0f, 2337.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
-    gui_ = new MainGui(fontManager_, packfileVFS_, camera_, renderer_->GetSystemWindowHandle());
-    gui_->HandleResize();
+    Gui.Init(&fontManager_, &packfileVFS_, &Camera, renderer_.GetSystemWindowHandle());
+    Gui.HandleResize();
 
     //Init frame timing variables
     deltaTime_ = maxFrameRateDelta;
-    frameTimer_.Start();
+    FrameTimer.Start();
 }
 
 Application::~Application()
 {
-    delete fontManager_;
-    delete packfileVFS_;
-    delete renderer_;
-    delete camera_;
-    delete gui_;
-    wndProcAppPtr = nullptr;
+    appInstance = nullptr;
 }
 
 void Application::Run()
 {
-    //MSG msg; //Create a new message structure
+    MSG msg; //Create a new message structure
     ZeroMemory(&msg, sizeof(MSG)); //Clear message structure to NULL
 
     while(msg.message != WM_QUIT) //Loop while there are messages available
     {
-        frameTimer_.Reset();
+        FrameTimer.Reset();
 
         //Dispatch messages if present
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -66,36 +60,36 @@ void Application::Run()
         }
         else
         {
-            camera_->DoFrame(deltaTime_);
+            Camera.DoFrame(deltaTime_);
             NewFrame();
             UpdateGui();
 
             //Check for newly streamed terrain instances that need to be initialized
-            if (gui_->NewTerrainInstanceAdded)
+            if (Gui.NewTerrainInstanceAdded)
             {
-                std::lock_guard<std::mutex> lock(gui_->ResourceLock);
-                renderer_->InitTerrainMeshes(&gui_->TerrainInstances);
+                //If there are new terrain instances lock their mutex and pass them to the renderer
+                std::lock_guard<std::mutex> lock(Gui.ResourceLock);
+                //The renderer will upload the vertex and index buffers of the new instances to the gpu
+                renderer_.InitTerrainMeshes(&Gui.TerrainInstances);
             }
 
-            renderer_->DoFrame(deltaTime_);
+            renderer_.DoFrame(deltaTime_);
         }
 
-        while (frameTimer_.ElapsedSecondsPrecise() < maxFrameRateDelta)
-            deltaTime_ = frameTimer_.ElapsedSecondsPrecise();
+        while (FrameTimer.ElapsedSecondsPrecise() < maxFrameRateDelta)
+            deltaTime_ = FrameTimer.ElapsedSecondsPrecise();
     }
 }
 
 void Application::HandleResize()
 {
-    if(renderer_)
-        renderer_->HandleResize();
-    if (gui_)
-        gui_->HandleResize();
+    renderer_.HandleResize();
+    Gui.HandleResize();
 }
 
 void Application::InitRenderer()
 {
-    renderer_ = new DX11Renderer(hInstance_, WndProc, windowWidth_, windowHeight_, fontManager_, camera_);
+    renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_, &Camera);
 }
 
 void Application::NewFrame()
@@ -104,12 +98,12 @@ void Application::NewFrame()
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-    renderer_->NewFrame(deltaTime_);
+    renderer_.NewFrame(deltaTime_);
 }
 
 void Application::UpdateGui()
 {
-    gui_->Update(deltaTime_);
+    Gui.Update(deltaTime_);
 }
 
 void Application::LoadSettings()
@@ -142,7 +136,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
         return true;
 
-    wndProcAppPtr->camera_->HandleInput(hwnd, msg, wParam, lParam);
+    appInstance->Camera.HandleInput(hwnd, msg, wParam, lParam);
 
     switch (msg)
     {
@@ -158,7 +152,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         if (wParam == VK_F1)
         {
-            wndProcAppPtr->gui_->CanStartInit = true;
+            appInstance->Gui.CanStartInit = true;
         }
         return 0;
     case WM_DESTROY: //Exit if window close button pressed
@@ -167,16 +161,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_ACTIVATE:
         if (LOWORD(wParam) == WA_INACTIVE)
         {
-            wndProcAppPtr->Paused = true;
+            appInstance->Paused = true;
         }
         else
         {
-            wndProcAppPtr->Paused = false;
-            wndProcAppPtr->frameTimer_.Reset();
+            appInstance->Paused = false;
+            appInstance->FrameTimer.Reset();
         }
         return 0;
     case WM_SIZE:
-        wndProcAppPtr->HandleResize();
+        appInstance->HandleResize();
         return 0;
     }
 

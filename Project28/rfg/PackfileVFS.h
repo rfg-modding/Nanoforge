@@ -17,7 +17,7 @@ enum class SearchType
 class PackfileVFS
 {
 public:
-    PackfileVFS(const string& packfileFolderPath) : packfileFolderPath_(packfileFolderPath) {}
+    void Init(const string& packfileFolderPath);
     ~PackfileVFS();
 
     void ScanPackfiles();

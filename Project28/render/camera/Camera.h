@@ -8,7 +8,7 @@ enum CameraDirection { up, down, left, right, forward, backward };
 class Camera
 {
 public:
-    Camera(const DirectX::XMVECTOR& initialPos, f32 initialFov, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane);
+    void Init(const DirectX::XMVECTOR& initialPos, f32 initialFov, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane);
 
     void DoFrame(f32 deltaTime);
     void HandleResize(const DirectX::XMFLOAT2& screenDimensions);

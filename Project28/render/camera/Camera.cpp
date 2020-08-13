@@ -2,7 +2,7 @@
 #include <DirectXMath.h>
 #include <windowsx.h>
 
-Camera::Camera(const DirectX::XMVECTOR& initialPos, f32 initialFov, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane)
+void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFov, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane)
 {
     camPosition = initialPos;
     fov_ = initialFov;
@@ -21,7 +21,6 @@ Camera::Camera(const DirectX::XMVECTOR& initialPos, f32 initialFov, const Direct
     //Set matrices
     UpdateViewMatrix();
     UpdateProjectionMatrix();
-
 }
 
 void Camera::DoFrame(f32 deltaTime)

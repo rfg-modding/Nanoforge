@@ -29,7 +29,7 @@ struct TerrainInstanceRenderData
 class DX11Renderer
 {
 public:
-    DX11Renderer(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera);
+    void Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera);
     ~DX11Renderer();
 
     void NewFrame(f32 deltaTime);
