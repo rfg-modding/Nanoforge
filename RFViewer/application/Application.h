@@ -9,6 +9,7 @@
 #include "gui/MainGui.h"
 #include <ext/WindowsWrapper.h>
 #include <chrono>
+#include <spdlog/spdlog.h>
 
 class Application
 {
@@ -45,4 +46,6 @@ private:
     const f32 maxFrameRateDelta = 1.0f / static_cast<f32>(maxFrameRate);
 
     string packfileFolderPath_ = "C:/Program Files (x86)/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered";
+
+    std::vector<spdlog::sink_ptr> logSinks_ = {};
 };
