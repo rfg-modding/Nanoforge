@@ -5,6 +5,7 @@
 #include "render/backend/DX11Renderer.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
+#include "rfg/ZoneManager.h"
 #include "gui/MainGui.h"
 #include <ext/WindowsWrapper.h>
 #include <chrono>
@@ -33,6 +34,7 @@ private:
     DX11Renderer renderer_;
     ImGuiFontManager fontManager_;
     PackfileVFS packfileVFS_;
+    ZoneManager zoneManager_;
 
     int windowWidth_ = 1600;
     int windowHeight_ = 1000;

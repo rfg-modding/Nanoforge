@@ -23,10 +23,11 @@ Application::Application(HINSTANCE hInstance)
     appInstance = this;
     hInstance_ = hInstance;
     packfileVFS_.Init(packfileFolderPath_);
+    zoneManager_.Init(&packfileVFS_);
     Camera.Init({ -2573.0f, 2337.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
-    Gui.Init(&fontManager_, &packfileVFS_, &Camera, renderer_.GetSystemWindowHandle());
+    Gui.Init(&fontManager_, &packfileVFS_, &Camera, renderer_.GetSystemWindowHandle(), &zoneManager_);
     Gui.HandleResize();
 
     //Init frame timing variables
