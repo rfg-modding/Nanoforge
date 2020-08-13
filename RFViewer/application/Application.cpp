@@ -5,6 +5,7 @@
 #include "rfg/PackfileVFS.h"
 #include "render/camera/Camera.h"
 #include "WorkerThread.h"
+#include "Log.h"
 #include <tinyxml2/tinyxml2.h>
 #include <imgui/imgui.h>
 #include <imgui/examples/imgui_impl_win32.h>
@@ -21,7 +22,11 @@ Application* appInstance = nullptr;
 
 Application::Application(HINSTANCE hInstance)
 {
+    //Init logger and load settings.xml
+    spdlog::set_pattern("[%^%l%$] %v");
+    Log = spdlog::stdout_color_mt("console");
     LoadSettings();
+
     appInstance = this;
     hInstance_ = hInstance;
     packfileVFS_.Init(packfileFolderPath_);
@@ -122,7 +127,7 @@ void Application::LoadSettings()
         settings.LoadFile("./Settings.xml");
         const char* dataPath = settings.FirstChildElement("DataPath")->GetText();
         if (!dataPath)
-            throw std::exception("Error! Failed to get DataPath from Settings.xml");
+            THROW_EXCEPTION("Error! Failed to get <DataPath> from Settings.xml");
 
         packfileFolderPath_ = string(dataPath);
     }

@@ -25,5 +25,5 @@ endif()
 
 # Include sub-projects.
 add_subdirectory("Dependencies/RfgToolsPlusPlus")
-#add_subdirectory("Dependencies/RfgToolsPlusPlus/Common") # TODO: Move into own git submodule
+add_subdirectory("Dependencies/spdlog")
 add_subdirectory("RFViewer")

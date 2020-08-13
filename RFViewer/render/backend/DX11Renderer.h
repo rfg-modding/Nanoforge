@@ -137,4 +137,6 @@ private:
     D3D11_VIEWPORT sceneViewport_;
     u32 sceneViewWidth_ = 200;
     u32 sceneViewHeight_ = 200;
+
+    bool initialized_ = false;
 };

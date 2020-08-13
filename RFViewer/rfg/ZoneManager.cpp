@@ -1,6 +1,7 @@
 #include "ZoneManager.h"
 #include "common/filesystem/Path.h"
 #include "common/filesystem/File.h"
+#include "Log.h"
 
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
@@ -14,7 +15,7 @@ void ZoneManager::LoadZoneData()
 {
     Packfile3* zonescriptVpp = packfileVFS_->GetPackfile("zonescript_terr01.vpp_pc");
     if (!zonescriptVpp)
-        throw std::exception("Error! Could not find zonescript_terr01.vpp_pc in data folder. Required for the program to function.");
+        THROW_EXCEPTION("Error! Could not find zonescript_terr01.vpp_pc in data folder. Required for the program to function.");
 
     //Todo: Add search function with filters to packfile. Can base off of search functions in PackfileVFS
     for (u32 i = 0; i < zonescriptVpp->Entries.size(); i++)
@@ -26,7 +27,7 @@ void ZoneManager::LoadZoneData()
 
         auto fileBuffer = zonescriptVpp->ExtractSingleFile(path);
         if (!fileBuffer)
-            throw std::exception("Error! Failed to extract a zone file from zonescript_terr01.vpp_pc");
+            THROW_EXCEPTION("Error! Failed to extract a zone file from zonescript_terr01.vpp_pc");
 
         //Todo: It'd be safer to do this all in a temporary vector and then .swap() it into the real one
         BinaryReader reader(fileBuffer.value());
@@ -166,7 +167,7 @@ void ZoneManager::InitObjectClassData()
             if (!ObjectClassRegistered(object.ClassnameHash, outIndex))
             {
                 ZoneObjectClasses.push_back({ object.Classname, object.ClassnameHash, 0, Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, true });
-                std::cout << "Found unknown object class with hash " << object.ClassnameHash << " and name \"" << object.Classname << "\"\n";
+                Log->warn("Found unknown object class with hash {} and name \"{}\"", object.ClassnameHash, object.Classname);
             }
         }
     }

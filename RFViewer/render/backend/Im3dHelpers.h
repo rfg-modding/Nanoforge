@@ -7,6 +7,7 @@
 #include <DirectXMath.h>
 #include "render/util/DX11Helpers.h"
 #include "render/camera/Camera.h"
+#include "Log.h"
 #include <vector>
 #include <im3d.h>
 
@@ -50,25 +51,21 @@ static void AppendLine(const char* _str, std::vector<char>& _out_)
 
 static bool LoadShader(const char* _path, const char* _defines, std::vector<char>& _out_)
 {
-    fprintf(stdout, "Loading shader: '%s'", StripPath(_path));
     if (_defines)
     {
-        fprintf(stdout, " ");
         while (*_defines != '\0')
         {
-            fprintf(stdout, " %s,", _defines);
             Append("#define ", _out_);
             AppendLine(_defines, _out_);
             _defines = strchr(_defines, 0);
             ++_defines;
         }
     }
-    fprintf(stdout, "\n");
 
     FILE* fin = fopen(_path, "rb");
     if (!fin)
     {
-        fprintf(stderr, "Error opening '%s'\n", _path);
+        Log->error("Error opening '{}'", _path);
         return false;
     }
     fseek(fin, 0, SEEK_END); // not portable but should work almost everywhere
@@ -80,7 +77,7 @@ static bool LoadShader(const char* _path, const char* _defines, std::vector<char
     if (fread(_out_.data() + srcbeg, 1, fsize, fin) != fsize)
     {
         fclose(fin);
-        fprintf(stderr, "Error reading '%s'\n", _path);
+        Log->error("Error opening '{}'", _path);
         return false;
     }
     fclose(fin);
@@ -105,10 +102,10 @@ ID3DBlob* LoadCompileShader(const char* _target, const char* _path, const char* 
     D3DCompile(src.data(), src.size(), nullptr, nullptr, nullptr, "main", _target, flags, 0, &ret, &err);
     if (ret == nullptr)
     {
-        fprintf(stderr, "Error compiling '%s':\n\n", _path);
+        Log->error("Error compiling '{}'", _path);
         if (err)
         {
-            fprintf(stderr, (char*)err->GetBufferPointer());
+            Log->error("{}", err->GetBufferPointer());
             err->Release();
         }
     }

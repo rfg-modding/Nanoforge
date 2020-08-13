@@ -1,6 +1,7 @@
 #include "PackfileVFS.h"
 #include "common/filesystem/Path.h"
 #include "common/string/String.h"
+#include "Log.h"
 #include <filesystem>
 #include <iostream>
 
@@ -136,6 +137,6 @@ bool PackfileVFS::CheckSearchMatch(s_view target, s_view filter, SearchType sear
     case SearchType::AnyEnd:
         return String::StartsWith(target, filter);
     default:
-        throw std::exception("Error! Invalid enum value passed to PackfileVFS::CheckSearchMatch");
+        THROW_EXCEPTION("Error! Invalid enum value passed to PackfileVFS::CheckSearchMatch");
     }
 }

@@ -23,6 +23,7 @@
 #include "render/util/DX11Helpers.h"
 #include "render/backend/Im3dRenderer.h"
 #include <iostream>
+#include "Log.h"
 
 //Todo: Stick this in a debug namespace
 void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
@@ -41,19 +42,19 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
     im3dRenderer_ = new Im3dRenderer;
 
     if (!InitWindow(wndProc))
-        throw std::exception("Failed to init window! Exiting.");
+        THROW_EXCEPTION("Failed to init window! Exiting.");
 
     UpdateWindowDimensions();
     if (!InitDx11())
-        throw std::exception("Failed to init DX11! Exiting.");
+        THROW_EXCEPTION("Failed to init DX11! Exiting.");
     if (!InitModels())
-        throw std::exception("Failed to init models! Exiting.");
+        THROW_EXCEPTION("Failed to init models! Exiting.");
     if (!InitShaders())
-        throw std::exception("Failed to init shaders! Exiting.");
+        THROW_EXCEPTION("Failed to init shaders! Exiting.");
     if (!InitImGui())
-        throw std::exception("Failed to dear imgui! Exiting.");
+        THROW_EXCEPTION("Failed to dear imgui! Exiting.");
     if (!InitScene())
-        throw std::exception("Failed to init render scene! Exiting.");
+        THROW_EXCEPTION("Failed to init render scene! Exiting.");
 
     im3dRenderer_->Init(d3d11Device_, d3d11Context_, hwnd_, camera_);
 
@@ -65,12 +66,20 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
 
     //Init terrain shaders and buffers that don't need to be streamed in
     InitTerrainResources();
+
+    initialized_ = true;
 }
 
 DX11Renderer::~DX11Renderer()
 {
-    im3dRenderer_->Shutdown();
-    delete im3dRenderer_;
+    if (!initialized_)
+        return;
+
+    if (im3dRenderer_)
+    {
+        im3dRenderer_->Shutdown();
+        delete im3dRenderer_;
+    }
 
     //Shutdown dear imgui
     ImGui_ImplDX11_Shutdown();
@@ -182,7 +191,7 @@ void DX11Renderer::HandleResize()
 
     //Recreate swapchain and it's resources
     if (!InitSwapchainAndResources())
-        throw std::exception("DX11Renderer::InitSwapchainAndResources() failed in DX11Renderer::HandleResize()!");
+        THROW_EXCEPTION("DX11Renderer::InitSwapchainAndResources() failed in DX11Renderer::HandleResize()!");
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
@@ -222,7 +231,7 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             indexBufferInitData.pSysMem = instance.Indices[i].data();
             HRESULT hr = d3d11Device_->CreateBuffer(&indexBufferDesc, &indexBufferInitData, &terrainIndexBuffer);
             if (FAILED(hr))
-                throw std::runtime_error("Failed to create a terrain index buffer!");
+                THROW_EXCEPTION("Failed to create a terrain index buffer!");
 
             d3d11Context_->IASetIndexBuffer(terrainIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
@@ -237,7 +246,7 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             vertexBufferInitData.pSysMem = instance.Vertices[i].data();
             hr = d3d11Device_->CreateBuffer(&vertexBufferDesc, &vertexBufferInitData, &terrainVertexBuffer);
             if (FAILED(hr))
-                throw std::runtime_error("Failed to create a terrain vertex buffer!");
+                THROW_EXCEPTION("Failed to create a terrain vertex buffer!");
 
             //Set vertex buffer
             terrainVertexStride = sizeof(LowLodTerrainVertex);
@@ -274,22 +283,22 @@ void DX11Renderer::InitTerrainResources()
     //Compile the vertex shader
     if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "VS", "vs_4_0", &pVSBlob)))
     {
-        throw std::runtime_error("Error! Failed to compile terrain vertex shader!");
+        THROW_EXCEPTION("Failed to compile terrain vertex shader!");
     }
     if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &terrainVertexShader_)))
     {
         pVSBlob->Release();
-        throw std::runtime_error("Error! Failed to create terrain vertex shader!");
+        THROW_EXCEPTION("Failed to create terrain vertex shader!");
     }
     //Compile the pixel shader
     if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "PS", "ps_4_0", &pPSBlob)))
     {
-        throw std::runtime_error("Errpr! Failed to compile terrain pixel shader!");
+        THROW_EXCEPTION("Failed to compile terrain pixel shader!");
     }
     if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &terrainPixelShader_)))
     {
         pPSBlob->Release();
-        throw std::runtime_error("Error! Failed to create terrain pixel shader!");
+        THROW_EXCEPTION("Failed to create terrain pixel shader!");
     }
 
     //Create terrain vertex input layout
@@ -299,7 +308,7 @@ void DX11Renderer::InitTerrainResources()
     };
     //Create the input layout
     if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &terrainVertexLayout_)))
-        throw std::runtime_error("Error! Failed to create terrain vertex layout");
+        THROW_EXCEPTION("Failed to create terrain vertex layout");
 
     //Set the input layout
     d3d11Context_->IASetInputLayout(terrainVertexLayout_);
@@ -316,6 +325,8 @@ void DX11Renderer::InitTerrainResources()
     cbbd.MiscFlags = 0;
 
     HRESULT hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &terrainPerObjectBuffer_);
+    if (FAILED(hr))
+        THROW_EXCEPTION("Failed to create terrain uniform buffer.");
 
     ReleaseCOM(pVSBlob);
     ReleaseCOM(pPSBlob);
@@ -492,7 +503,7 @@ bool DX11Renderer::InitScene()
     //Todo: Add error code and (if possible) error string reporting to the DxCheck macro
     //Create the shader resource view.
     HRESULT result = d3d11Device_->CreateShaderResourceView(sceneViewTexture_, &shaderResourceViewDesc, &sceneViewShaderResource_);
-    DxCheck(result, ("Error! Failed to create scene shader resource view! Error code: " + std::to_string(result)).c_str());
+    // DxCheck(result, ("Error! Failed to create scene shader resource view! Error code: " + std::to_string(result)).c_str());
 
 
 #ifdef DEBUG_BUILD

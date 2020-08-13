@@ -232,7 +232,7 @@ void Im3dRenderer::EndFrame()
             desc.Usage = D3D11_USAGE_DYNAMIC;
             desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
             desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-            DxCheck(d3d11Device_->CreateBuffer(&desc, nullptr, &vertexBuffer_));
+            DxCheck(d3d11Device_->CreateBuffer(&desc, nullptr, &vertexBuffer_), "Failed to create im3d vertex buffer");
             //vertexBuffer_ = CreateVertexBuffer(s_vertexBufferSize * sizeof(Im3d::VertexData), D3D11_USAGE_DYNAMIC);
         }
         memcpy(MapBuffer(d3d11Context_, vertexBuffer_, D3D11_MAP_WRITE_DISCARD), drawList.m_vertexData, drawList.m_vertexCount * sizeof(Im3d::VertexData));

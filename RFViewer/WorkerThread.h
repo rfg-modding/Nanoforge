@@ -3,6 +3,7 @@
 #include "rfg/TerrainHelpers.h"
 #include "common/filesystem/Path.h"
 #include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
+#include "Log.h"
 #include <future>
 
 std::vector<TerrainInstance> TerrainInstances = {};
@@ -28,12 +29,14 @@ void WorkerThread(GuiState* state)
     //Scan contents of packfiles
     state->SetStatus(ICON_FA_SYNC " Scanning packfiles", Working);
     state->PackfileVFS->ScanPackfiles();
+    Log->info("Loaded {} packfiles", state->PackfileVFS->packfiles_.size());
 
     //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory
     //Read all zones from zonescript_terr01.vpp_pc
     state->SetStatus(ICON_FA_SYNC " Loading zones", Working);
     state->ZoneManager->LoadZoneData();
     state->SetSelectedZone(0);
+    Log->info("Loaded {} zones", state->ZoneManager->ZoneFiles.size());
 
     //Load terrain meshes and extract their index + vertex data
     LoadTerrainMeshes(state);
@@ -99,6 +102,7 @@ void LoadTerrainMeshes(GuiState* state)
 
     //Get handles to cpu files
     auto terrainMeshHandlesCpu = state->PackfileVFS->GetFiles(terrainCpuFileNames, true, true);
+    Log->info("Found {} terrain meshes. Loading...", terrainMeshHandlesCpu.size());
 
     state->SetStatus(ICON_FA_SYNC " Loading terrain meshes", Working);
 
@@ -115,6 +119,7 @@ void LoadTerrainMeshes(GuiState* state)
     {
         future.wait();
     }
+    Log->info("Done loading terrain meshes");
 }
 
 void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
@@ -122,7 +127,7 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
     //Get packfile that holds terrain meshes
     auto* container = terrainMesh.GetContainer();
     if (!container)
-        throw std::runtime_error("Error! Failed to get container ptr for a terrain mesh.");
+        THROW_EXCEPTION("Error! Failed to get container ptr for a terrain mesh.");
 
     //Todo: This does a full extract twice on the container due to the way single file extracts work. Fix this
     //Get mesh file byte arrays
@@ -131,9 +136,9 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
 
     //Ensure the mesh files were extracted
     if (!cpuFileBytes)
-        throw std::runtime_error("Error! Failed to get terrain mesh cpu file byte array!");
+        THROW_EXCEPTION("Error! Failed to get terrain mesh cpu file byte array!");
     if (!gpuFileBytes)
-        throw std::runtime_error("Error! Failed to get terrain mesh gpu file byte array!");
+        THROW_EXCEPTION("Error! Failed to get terrain mesh gpu file byte array!");
 
     BinaryReader cpuFile(cpuFileBytes.value());
     BinaryReader gpuFile(gpuFileBytes.value());
@@ -151,7 +156,7 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
         //In while loop since a mesh file pair can have multiple meshes inside
         u32 meshCrc = gpuFile.ReadUint32();
         if (meshCrc == 0)
-            throw std::runtime_error("Error! Failed to read next mesh data block hash in terrain gpu file.");
+            THROW_EXCEPTION("Error! Failed to read next mesh data block hash in terrain gpu file.");
 
         //Find next mesh data block in cpu file
         while (true)
@@ -189,7 +194,7 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
 
         u32 endMeshCrc = gpuFile.ReadUint32();
         if (meshCrc != endMeshCrc)
-            throw std::runtime_error("Error, verification hash at start of gpu file mesh data doesn't match hash end of gpu file mesh data!");
+            THROW_EXCEPTION("Error, verification hash at start of gpu file mesh data doesn't match hash end of gpu file mesh data!");
     }
 
 

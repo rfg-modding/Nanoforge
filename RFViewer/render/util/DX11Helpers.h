@@ -1,12 +1,16 @@
 #pragma once
 #include <ext/WindowsWrapper.h>
+#include "Log.h"
 
 #define ReleaseCOM(x) if(x) x->Release();
 
-//Todo: Make this more advanced and provide option that doesn't use exceptions. See Im3d's dxAssert as a good example.
 #define DxCheck(call, failureMessage) \
-    if(FAILED(call)) \
-        throw failureMessage; \
+{ \
+    HRESULT result = call; \
+    if (result != S_OK) \
+        THROW_EXCEPTION("DxCheck failed. [{} : {}], Result: {}, Message: {}", __FILE__, __LINE__, result, failureMessage); \
+} \
+
 
 struct ID3D10Blob;
 HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut, const char* defines = nullptr);

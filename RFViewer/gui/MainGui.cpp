@@ -1,9 +1,7 @@
 #include "MainGui.h"
 #include "common/Typedefs.h"
 #include "render/imgui/ImGuiFontManager.h"
-#include "rfg/PackfileVFS.h"
 #include "render/imgui/imgui_ext.h"
-#include "render/camera/Camera.h"
 #include "gui/panels/FileExplorer.h"
 #include "gui/panels/CameraPanel.h"
 #include "gui/panels/RenderSettings.h"
@@ -12,10 +10,10 @@
 #include "gui/panels/ZoneList.h"
 #include "gui/panels/ZoneObjectsList.h"
 #include "gui/panels/ZoneRender.h"
+#include "Log.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
-#include <iostream>
-#include <future>
+
 
 MainGui::~MainGui()
 {
@@ -60,7 +58,7 @@ void MainGui::Update(f32 deltaTime)
 #ifdef DEBUG_BUILD
         //Todo: Add panel name to the error
         if (!panel.Update)
-            throw std::exception("Error! Update function pointer for panel was nullptr.");
+            THROW_EXCEPTION("Error! Update function pointer for panel was nullptr.");
 #endif
 
         panel.Update(&State);
