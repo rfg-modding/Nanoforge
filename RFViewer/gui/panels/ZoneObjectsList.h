@@ -11,16 +11,16 @@ void ZoneObjectsList_Update(GuiState* state)
         return;
     }
 
-    if (state->selectedZone == InvalidZoneIndex || state->selectedZone >= state->zoneManager_->ZoneFiles.size())
+    if (state->SelectedZone == InvalidZoneIndex || state->SelectedZone >= state->ZoneManager->ZoneFiles.size())
     {
         ImGui::Text("%s Select a zone to see the objects it contains.", ICON_FA_EXCLAMATION_CIRCLE);
     }
     else
     {
         //Draw object filters sub-window
-        state->fontManager_->FontL.Push();
+        state->FontManager->FontL.Push();
         ImGui::Text(ICON_FA_FILTER " Filters");
-        state->fontManager_->FontL.Pop();
+        state->FontManager->FontL.Pop();
         ImGui::Separator();
 
         ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true);
@@ -31,7 +31,7 @@ void ZoneObjectsList_Update(GuiState* state)
         ImGui::Text(" " ICON_FA_MARKER);
         gui::TooltipOnPrevious("Toggles whether class name labels are drawn for the object class", nullptr);
 
-        for (auto& objectClass : state->zoneManager_->ZoneObjectClasses)
+        for (auto& objectClass : state->ZoneManager->ZoneObjectClasses)
         {
             ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show);
             ImGui::SameLine();
@@ -50,13 +50,13 @@ void ZoneObjectsList_Update(GuiState* state)
 
         //Draw zone objects list
         ImGui::Separator();
-        state->fontManager_->FontL.Push();
+        state->FontManager->FontL.Push();
         ImGui::Text(ICON_FA_BOXES " Zone objects");
-        state->fontManager_->FontL.Pop();
+        state->FontManager->FontL.Pop();
         ImGui::Separator();
 
         //Object list
-        auto& zone = state->zoneManager_->ZoneFiles[state->selectedZone].Zone;
+        auto& zone = state->ZoneManager->ZoneFiles[state->SelectedZone].Zone;
         ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
 
         u32 index = 0;
@@ -66,7 +66,7 @@ void ZoneObjectsList_Update(GuiState* state)
         ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
         for (auto& object : zone.ObjectsHierarchical)
         {
-            auto objectClass = state->zoneManager_->GetObjectClass(object.Self->ClassnameHash);
+            auto objectClass = state->ZoneManager->GetObjectClass(object.Self->ClassnameHash);
             if (!objectClass.Show)
                 continue;
 
@@ -81,7 +81,7 @@ void ZoneObjectsList_Update(GuiState* state)
 
                 for (auto& childObject : object.Children)
                 {
-                    auto childObjectClass = state->zoneManager_->GetObjectClass(childObject.Self->ClassnameHash);
+                    auto childObjectClass = state->ZoneManager->GetObjectClass(childObject.Self->ClassnameHash);
                     if (!childObjectClass.Show)
                         continue;
 

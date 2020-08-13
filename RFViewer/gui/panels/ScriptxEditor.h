@@ -9,12 +9,12 @@ void ScriptxEditor_Update(GuiState* state)
         return;
     }
 
-    state->fontManager_->FontL.Push();
+    state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_PROJECT_DIAGRAM "Scriptx editor");
-    state->fontManager_->FontL.Pop();
+    state->FontManager->FontL.Pop();
     ImGui::Separator();
 
-    node::SetCurrentEditor(state->nodeEditor_);
+    node::SetCurrentEditor(state->NodeEditor);
 
     node::Begin("My Editor");
 

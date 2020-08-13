@@ -9,16 +9,16 @@ void RenderSettings_Update(GuiState* state)
         return;
     }
 
-    state->fontManager_->FontL.Push();
+    state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_PALETTE " Zone draw settings");
-    state->fontManager_->FontL.Pop();
+    state->FontManager->FontL.Pop();
     ImGui::Separator();
 
-    ImGui::ColorEdit4("Bounding box color", state->boundingBoxColor_);
-    ImGui::SliderFloat("Bounding box thickness", &state->boundingBoxThickness_, 0.0f, 16.0f);
-    ImGui::ColorEdit3("Label text Color", (f32*)&state->labelTextColor_);
-    ImGui::SliderFloat("Label text Size", &state->labelTextSize_, 0.0f, 16.0f);
-    ImGui::Checkbox("Draw arrows to parents", &state->drawParentConnections_);
+    ImGui::ColorEdit4("Bounding box color", state->BoundingBoxColor);
+    ImGui::SliderFloat("Bounding box thickness", &state->BoundingBoxThickness, 0.0f, 16.0f);
+    ImGui::ColorEdit3("Label text Color", (f32*)&state->LabelTextColor);
+    ImGui::SliderFloat("Label text Size", &state->LabelTextSize, 0.0f, 16.0f);
+    ImGui::Checkbox("Draw arrows to parents", &state->DrawParentConnections);
 
     ImGui::End();
 }

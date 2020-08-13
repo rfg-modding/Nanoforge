@@ -4,11 +4,13 @@
 #include "gui/MainGui.h"
 #include "rfg/PackfileVFS.h"
 #include "render/camera/Camera.h"
+#include "WorkerThread.h"
 #include <tinyxml2/tinyxml2.h>
 #include <imgui/imgui.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
 #include <filesystem>
+#include <future>
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -27,8 +29,11 @@ Application::Application(HINSTANCE hInstance)
     Camera.Init({ -2573.0f, 2337.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
-    Gui.Init(&fontManager_, &packfileVFS_, &Camera, renderer_.GetSystemWindowHandle(), &zoneManager_);
+    Gui.Init(&fontManager_, &packfileVFS_, &Camera, &zoneManager_);
     Gui.HandleResize();
+
+    //Start worker thread and capture it's future. If future isn't captured it won't actually run async
+    static std::future<void> dummy = std::async(std::launch::async, &WorkerThread, &Gui.State);
 
     //Init frame timing variables
     deltaTime_ = maxFrameRateDelta;
@@ -66,12 +71,12 @@ void Application::Run()
             UpdateGui();
 
             //Check for newly streamed terrain instances that need to be initialized
-            if (Gui.NewTerrainInstanceAdded)
+            if (NewTerrainInstanceAdded)
             {
                 //If there are new terrain instances lock their mutex and pass them to the renderer
-                std::lock_guard<std::mutex> lock(Gui.ResourceLock);
+                std::lock_guard<std::mutex> lock(ResourceLock);
                 //The renderer will upload the vertex and index buffers of the new instances to the gpu
-                renderer_.InitTerrainMeshes(&Gui.TerrainInstances);
+                renderer_.InitTerrainMeshes(&TerrainInstances);
             }
 
             renderer_.DoFrame(deltaTime_);
@@ -153,7 +158,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         if (wParam == VK_F1)
         {
-            appInstance->Gui.CanStartInit = true;
+            CanStartInit = true;
         }
         return 0;
     case WM_DESTROY: //Exit if window close button pressed

@@ -19,60 +19,60 @@ enum GuiStatus
 class GuiState
 {
 public:
-    ImGuiFontManager* fontManager_ = nullptr;
-    PackfileVFS* packfileVFS_ = nullptr; 
-    Camera* camera_ = nullptr;
-    ZoneManager* zoneManager_ = nullptr;
+    ImGuiFontManager* FontManager = nullptr;
+    PackfileVFS* PackfileVFS = nullptr; 
+    Camera* Camera = nullptr;
+    ZoneManager* ZoneManager = nullptr;
 
     bool Visible = true;
 
-    GuiStatus status_ = Ready;
-    string customStatusMessage_ = "";
-    f32 statusBarHeight_ = 25.0f;
+    GuiStatus Status = Ready;
+    string CustomStatusMessage = "";
+    f32 StatusBarHeight = 25.0f;
 
-    Im3d::Vec4 boundingBoxColor_ = Im3d::Vec4(0.778f, 0.414f, 0.0f, 1.0f);
-    f32 boundingBoxThickness_ = 1.0f;
-    f32 labelTextSize_ = 1.0f;
-    Vec4 labelTextColor_ = { 1.0f, 1.0f, 1.0f, 1.0f };
-    bool drawParentConnections_ = false;
+    Im3d::Vec4 BoundingBoxColor = Im3d::Vec4(0.778f, 0.414f, 0.0f, 1.0f);
+    f32 BoundingBoxThickness = 1.0f;
+    f32 LabelTextSize = 1.0f;
+    Vec4 LabelTextColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+    bool DrawParentConnections = false;
 
-    node::EditorContext* nodeEditor_ = nullptr;
+    node::EditorContext* NodeEditor = nullptr;
 
-    u32 selectedZone = InvalidZoneIndex;
+    u32 SelectedZone = InvalidZoneIndex;
 
-    Im3d::Vec3 gridOrigin_ = { 0.0f, 0.0f, 0.0f };
-    bool gridFollowCamera_ = true;
-    bool drawGrid_ = false;
-    int gridSpacing_ = 10;
-    int gridSize_ = 100;
+    Im3d::Vec3 GridOrigin = { 0.0f, 0.0f, 0.0f };
+    bool GridFollowCamera = true;
+    bool DrawGrid = false;
+    int GridSpacing = 10;
+    int GridSize = 100;
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
     {
         //Set status enum too if it's not the default argument value
         if (status != None)
-            status_ = status;
+            Status = status;
 
-        customStatusMessage_ = message;
+        CustomStatusMessage = message;
     }
     //Clear status message and set status enum to 'Ready'
     void ClearStatus()
     {
-        status_ = Ready;
-        customStatusMessage_ = "";
+        Status = Ready;
+        CustomStatusMessage = "";
     }
     //Set selected zone and update any cached data about it's objects
     void SetSelectedZone(u32 index)
     {
         //Deselect if selecting already selected zone
-        if (index == selectedZone)
+        if (index == SelectedZone)
         {
-            selectedZone = InvalidZoneIndex;
+            SelectedZone = InvalidZoneIndex;
             return;
         }
 
         //Otherwise select zone and update any data reliant on the selected zone
-        selectedZone = index;
-        zoneManager_->UpdateObjectClassInstanceCounts(selectedZone);
+        SelectedZone = index;
+        ZoneManager->UpdateObjectClassInstanceCounts(SelectedZone);
     }
 };

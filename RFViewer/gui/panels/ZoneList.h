@@ -10,9 +10,9 @@ void ZoneList_Update(GuiState* state)
     }
 
     ImGui::Separator();
-    state->fontManager_->FontL.Push();
+    state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_MAP " Zones");
-    state->fontManager_->FontL.Pop();
+    state->FontManager->FontL.Pop();
     ImGui::Separator();
 
     static bool hideEmptyZones = true;
@@ -29,7 +29,7 @@ void ZoneList_Update(GuiState* state)
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     if (ImGui::Button("Show all"))
     {
-        for (auto& zone : state->zoneManager_->ZoneFiles)
+        for (auto& zone : state->ZoneManager->ZoneFiles)
         {
             zone.RenderBoundingBoxes = true;
         }
@@ -37,7 +37,7 @@ void ZoneList_Update(GuiState* state)
     ImGui::SameLine();
     if (ImGui::Button("Hide all"))
     {
-        for (auto& zone : state->zoneManager_->ZoneFiles)
+        for (auto& zone : state->ZoneManager->ZoneFiles)
         {
             zone.RenderBoundingBoxes = false;
         }
@@ -45,7 +45,7 @@ void ZoneList_Update(GuiState* state)
 
     ImGui::Columns(2);
     u32 i = 0;
-    for (auto& zone : state->zoneManager_->ZoneFiles)
+    for (auto& zone : state->ZoneManager->ZoneFiles)
     {
         if (hideEmptyZones && zone.Zone.Header.NumObjects == 0 || !(hideObjectBelowObjectThreshold ? zone.Zone.Objects.size() >= minObjectsToShowZone : true))
         {
@@ -71,7 +71,7 @@ void ZoneList_Update(GuiState* state)
                 newCamPos.x += 50.0f;
                 newCamPos.y += 100.0f;
                 newCamPos.z += 50.0f;
-                state->camera_->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+                state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
             }
         }
         ImGui::SameLine();

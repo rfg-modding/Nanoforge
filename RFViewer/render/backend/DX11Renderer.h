@@ -1,6 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "gui/TerrainHelpers.h"
+#include "rfg/TerrainHelpers.h"
 #include <ext/WindowsWrapper.h>
 #include <DirectXMath.h>
 #include <d3d11.h>

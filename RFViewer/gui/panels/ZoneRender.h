@@ -7,18 +7,18 @@ f32 ScaleTextSizeToDistance(f32 minSize, f32 maxSize, const Vec3& textPos, Camer
 void ZoneRender_Update(GuiState* state)
 {
     Im3d::PushDrawState();
-    Im3d::SetSize(state->boundingBoxThickness_);
-    Im3d::SetColor(Im3d::Color(state->boundingBoxColor_.x, state->boundingBoxColor_.y, state->boundingBoxColor_.z, state->boundingBoxColor_.w));
+    Im3d::SetSize(state->BoundingBoxThickness);
+    Im3d::SetColor(Im3d::Color(state->BoundingBoxColor.x, state->BoundingBoxColor.y, state->BoundingBoxColor.z, state->BoundingBoxColor.w));
 
     //Draw bounding boxes
-    for (const auto& zone : state->zoneManager_->ZoneFiles)
+    for (const auto& zone : state->ZoneManager->ZoneFiles)
     {
         if (!zone.RenderBoundingBoxes)
             continue;
 
         for (const auto& object : zone.Zone.Objects)
         {
-            auto objectClass = state->zoneManager_->GetObjectClass(object.ClassnameHash);
+            auto objectClass = state->ZoneManager->GetObjectClass(object.ClassnameHash);
             if (!objectClass.Show)
                 continue;
             //if (objectClass.Hash == 1794022917)
@@ -27,9 +27,9 @@ void ZoneRender_Update(GuiState* state)
                 //Todo: Fix Vec3 operator- and use it here
                 Vec3 position = Vec3{ object.Bmin.x + (object.Bmax.x - object.Bmin.x) / 2.0f, object.Bmin.y + (object.Bmax.y - object.Bmin.y) / 2.0f, object.Bmin.z + (object.Bmax.z - object.Bmin.z) / 2.0f };
                 //Todo: Make conversion operators to simplify this
-                f32 size = ScaleTextSizeToDistance(0.0f, state->labelTextSize_, position, state->camera_);
+                f32 size = ScaleTextSizeToDistance(0.0f, state->LabelTextSize, position, state->Camera);
                 Im3d::Text(Im3d::Vec3(position.x, position.y, position.z), size,
-                    Im3d::Color(state->labelTextColor_.x, state->labelTextColor_.y, state->labelTextColor_.z, state->labelTextColor_.w),
+                    Im3d::Color(state->LabelTextColor.x, state->LabelTextColor.y, state->LabelTextColor.z, state->LabelTextColor.w),
                     Im3d::TextFlags_Default, (string(objectClass.LabelIcon) + objectClass.Name.c_str()).c_str());
             }
 
@@ -40,7 +40,7 @@ void ZoneRender_Update(GuiState* state)
             //Todo: Could speed this up by giving each zone object a ptr to their hierarchical node, or just using the nodes for everything
             //Todo: Optionally have a flat node list separate from the actual zone data so RfgTools++ doesn't have things only used by this tool
             //Draw object connection lines
-            if (state->drawParentConnections_)
+            if (state->DrawParentConnections)
             {
                 if (object.Parent != InvalidZoneIndex) //Todo: Make invalid object handle constant
                 {
@@ -68,21 +68,21 @@ void ZoneRender_Update(GuiState* state)
     Im3d::BeginLines();
 
     //Update grid origin if it should follow the camera. Don't change y, just x & z coords
-    if (state->gridFollowCamera_)
-        state->gridOrigin_ = Im3d::Vec3(state->camera_->Position().m128_f32[0], state->gridOrigin_.y, state->camera_->Position().m128_f32[2]);
+    if (state->GridFollowCamera)
+        state->GridOrigin = Im3d::Vec3(state->Camera->Position().m128_f32[0], state->GridOrigin.y, state->Camera->Position().m128_f32[2]);
 
-    if (state->drawGrid_)
+    if (state->DrawGrid)
     {
-        const float gridHalf = (float)state->gridSize_ * 0.5f;
-        for (int x = 0; x <= state->gridSize_; x += state->gridSpacing_)
+        const float gridHalf = (float)state->GridSize * 0.5f;
+        for (int x = 0; x <= state->GridSize; x += state->GridSpacing)
         {
-            Im3d::Vertex(state->gridOrigin_.x + -gridHalf, state->gridOrigin_.y + 0.0f, state->gridOrigin_.z + (float)x - gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
-            Im3d::Vertex(state->gridOrigin_.x + gridHalf, state->gridOrigin_.y + 0.0f, state->gridOrigin_.z + (float)x - gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
+            Im3d::Vertex(state->GridOrigin.x + -gridHalf, state->GridOrigin.y + 0.0f, state->GridOrigin.z + (float)x - gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
+            Im3d::Vertex(state->GridOrigin.x + gridHalf, state->GridOrigin.y + 0.0f, state->GridOrigin.z + (float)x - gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
         }
-        for (int z = 0; z <= state->gridSize_; z += state->gridSpacing_)
+        for (int z = 0; z <= state->GridSize; z += state->GridSpacing)
         {
-            Im3d::Vertex(state->gridOrigin_.x + (float)z - gridHalf, state->gridOrigin_.y + 0.0f, state->gridOrigin_.z + -gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
-            Im3d::Vertex(state->gridOrigin_.x + (float)z - gridHalf, state->gridOrigin_.y + 0.0f, state->gridOrigin_.z + gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
+            Im3d::Vertex(state->GridOrigin.x + (float)z - gridHalf, state->GridOrigin.y + 0.0f, state->GridOrigin.z + -gridHalf, Im3d::Color(0.0f, 0.0f, 0.0f));
+            Im3d::Vertex(state->GridOrigin.x + (float)z - gridHalf, state->GridOrigin.y + 0.0f, state->GridOrigin.z + gridHalf, Im3d::Color(1.0f, 1.0f, 1.0f));
         }
     }
     Im3d::End();

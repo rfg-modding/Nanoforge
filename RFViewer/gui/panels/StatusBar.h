@@ -10,9 +10,9 @@ void StatusBar_Update(GuiState* state)
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImVec2 viewSize = viewport->GetWorkSize();
     ImVec2 size = viewport->GetWorkSize();
-    size.y = state->statusBarHeight_;
+    size.y = state->StatusBarHeight;
     ImVec2 pos = viewport->GetWorkPos();
-    pos.y += viewSize.y - state->statusBarHeight_;
+    pos.y += viewSize.y - state->StatusBarHeight;
 
     ImGui::SetNextWindowPos(pos);
     ImGui::SetNextWindowSize(size);
@@ -23,7 +23,7 @@ void StatusBar_Update(GuiState* state)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4.0f, 6.0f));
 
     //Set color based on status
-    switch (state->status_)
+    switch (state->Status)
     {
     case Ready:
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.48f, 0.8f, 1.0f));
@@ -43,9 +43,9 @@ void StatusBar_Update(GuiState* state)
     ImGui::PopStyleVar(2);
 
     //If custom message is empty, use the default ones
-    if (state->customStatusMessage_ == "")
+    if (state->CustomStatusMessage == "")
     {
-        switch (state->status_)
+        switch (state->Status)
         {
         case Ready:
             ImGui::Text(ICON_FA_CHECK " Ready");
@@ -62,7 +62,7 @@ void StatusBar_Update(GuiState* state)
     }
     else //Else use custom one
     {
-        ImGui::Text(state->customStatusMessage_.c_str());
+        ImGui::Text(state->CustomStatusMessage.c_str());
     }
 
     ImGui::End();

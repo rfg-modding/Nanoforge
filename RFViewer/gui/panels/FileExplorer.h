@@ -5,12 +5,12 @@ void FileExplorer_Update(GuiState* state)
 {
     ImGui::Begin("File explorer");
 
-    state->fontManager_->FontL.Push();
+    state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_ARCHIVE " Packfiles");
-    state->fontManager_->FontL.Pop();
+    state->FontManager->FontL.Pop();
     ImGui::Separator();
 
-    for (auto& packfile : state->packfileVFS_->packfiles_)
+    for (auto& packfile : state->PackfileVFS->packfiles_)
     {
         string packfileNodeLabel = packfile.Name() + " [" + std::to_string(packfile.Header.NumberOfSubfiles) + " subfiles";
         if (packfile.Compressed)
