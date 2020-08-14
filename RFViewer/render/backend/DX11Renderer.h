@@ -50,7 +50,6 @@ private:
     //Initialize swapchain and resources it uses. Run each time the window is resized
     [[nodiscard]] bool InitSwapchainAndResources();
     [[nodiscard]] bool InitScene();
-    [[nodiscard]] bool InitModels();
     [[nodiscard]] bool InitShaders();
     [[nodiscard]] bool InitImGui();
 
