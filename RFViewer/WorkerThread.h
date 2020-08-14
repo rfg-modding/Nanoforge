@@ -103,11 +103,6 @@ void LoadTerrainMeshes(GuiState* state)
     //Get handles to cpu files
     auto terrainMeshHandlesCpu = state->PackfileVFS->GetFiles(terrainCpuFileNames, true, true);
     Log->info("Found {} terrain meshes. Loading...", terrainMeshHandlesCpu.size());
-    for (auto& name : terrainCpuFileNames)
-    {
-        Log->info("Terrain cpu file found: {}", name);
-    }
-
     state->SetStatus(ICON_FA_SYNC " Loading terrain meshes", Working);
 
     //Todo: Make multithreaded loading optional

@@ -31,13 +31,6 @@ Application::Application(HINSTANCE hInstance)
     Log = std::make_shared<spdlog::logger>("MainLogger", begin(logSinks_), end(logSinks_));
     Log->flush_on(spdlog::level::level_enum::info); //Always flush
     Log->set_pattern("[%Y-%m-%d, %H:%M:%S][%^%l%$]: %v");
-    
-    Log->info("info");
-    Log->warn("warn");
-    Log->error("error");
-    Log->critical("critical");
-    Log->debug("debug");
-    
 
     //Load settings.xml
     LoadSettings();
