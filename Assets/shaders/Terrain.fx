@@ -56,6 +56,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     diffuse *= sunIntensity;
 
     return float4(diffuse, 1.0f) + float4(ambientIntensity, ambientIntensity, ambientIntensity, ambientIntensity);
+    //return float4(input.Normal.xyz, 1.0f);
 
     //Adjust range from [-255.5, 255.5] to [0.0, 511.0] and set color to elevation
     //float color = (input.ZonePos.y + 255.5f) / 511.0f;
