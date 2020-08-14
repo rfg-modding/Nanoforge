@@ -17,6 +17,19 @@ bool CanStartInit = true;
 
 void LoadTerrainMeshes(GuiState* state);
 void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state);
+struct ShortVec4
+{
+    i16 x = 0;
+    i16 y = 0;
+    i16 z = 0;
+    i16 w = 0;
+
+    ShortVec4 operator-(const ShortVec4& B)
+    {
+        return ShortVec4{ x - B.x, y - B.y, z - B.z, w - B.w };
+    }
+};
+std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices);
 
 void WorkerThread(GuiState* state)
 {
@@ -188,18 +201,18 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
         u32 verticesSize = meshData.NumVertices * meshData.VertexStride0;
         u8* vertexBuffer = new u8[verticesSize];
         gpuFile.ReadToMemory(vertexBuffer, verticesSize);
-        terrain.Vertices.push_back(std::span<LowLodTerrainVertex>{ (LowLodTerrainVertex*)vertexBuffer, verticesSize / sizeof(LowLodTerrainVertex)});
+
+        std::span<LowLodTerrainVertex> verticesWithNormals = GenerateTerrainNormals
+        (
+            std::span<ShortVec4>{ (ShortVec4*)vertexBuffer, verticesSize / 8},
+            std::span<u16>{ (u16*)indexBuffer, indicesSize / 2 }
+        );
+        terrain.Vertices.push_back(verticesWithNormals);
 
         u32 endMeshCrc = gpuFile.ReadUint32();
         if (meshCrc != endMeshCrc)
             THROW_EXCEPTION("Error, verification hash at start of gpu file mesh data doesn't match hash end of gpu file mesh data!");
     }
-
-
-    //Todo: Create D3D11 vertex buffers / shaders / whatever else is needed to render the terrain
-    //Todo: Tell the renderer to render each terrain mesh each frame
-
-    //Todo: Clear index + vertex buffers in RAM after they've been uploaded to the gpu
 
     //Clear resources
     container->Cleanup();
@@ -211,4 +224,74 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
     std::lock_guard<std::mutex> lock(ResourceLock);
     TerrainInstances.push_back(terrain);
     NewTerrainInstanceAdded = true;
+}
+
+std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices)
+{
+    struct Face
+    {
+        u32 verts[3];
+        //Vec3 normal;
+    };
+
+    //Generate list of faces and face normals
+    std::vector<Face> faces = {};
+    for (u32 i = 0; i < indices.size() - 3; i++)
+    {
+        u32 index0 = indices[i];
+        u32 index1 = indices[i + 1];
+        u32 index2 = indices[i + 2];
+
+        faces.emplace_back(Face{ .verts = {index0, index1, index2} });
+
+        //Vec3 vert0 = { (f32)vertices[index0].x, (f32)vertices[index0].y, (f32)vertices[index0].z };
+        //Vec3 vert1 = { (f32)vertices[index1].x, (f32)vertices[index1].y, (f32)vertices[index1].z };
+        //Vec3 vert2 = { (f32)vertices[index2].x, (f32)vertices[index2].y, (f32)vertices[index2].z };
+
+        //Vec3 normal;
+
+        //faces.emplace_back({ , vertices[index1], vertices[index2] }, normal);
+    }
+
+    //Generate list of vertices with position and normal data
+    u8* vertBuffer = new u8[vertices.size() * sizeof(LowLodTerrainVertex)];
+    std::span<LowLodTerrainVertex> outVerts((LowLodTerrainVertex*)vertBuffer, vertices.size());
+    for (u32 i = 0; i < vertices.size(); i++)
+    {
+        outVerts[i].x = vertices[i].x;
+        outVerts[i].y = vertices[i].y;
+        outVerts[i].z = vertices[i].z;
+        outVerts[i].w = vertices[i].w;
+        outVerts[i].normal = { 0.0f, 0.0f, 0.0f };
+    }
+    for (auto& face : faces)
+    {
+        const u32 ia = face.verts[0];
+        const u32 ib = face.verts[1];
+        const u32 ic = face.verts[2];
+
+        Vec3 vert0 = { (f32)vertices[ia].x, (f32)vertices[ia].y, (f32)vertices[ia].z };
+        Vec3 vert1 = { (f32)vertices[ib].x, (f32)vertices[ib].y, (f32)vertices[ib].z };
+        Vec3 vert2 = { (f32)vertices[ic].x, (f32)vertices[ic].y, (f32)vertices[ic].z };
+
+        Vec3 e1 = vert0 - vert1;
+        Vec3 e2 = vert2 - vert1;
+        Vec3 normal = e1.Cross(e2);
+        outVerts[ia].normal += normal;
+        outVerts[ib].normal += normal;
+        outVerts[ic].normal += normal;
+
+        //const ShortVec4 e1 = vert[ia].pos - vert[ib].pos;
+        //const ShortVec4 e2 = vert[ic].pos - vert[ib].pos;
+        //const Vec3 no = cross(e1, e2);
+
+        //vert[ia].normal += no;
+        //vert[ib].normal += no;
+        //vert[ic].normal += no;
+    }
+    for (u32 i = 0; i < vertices.size(); i++)
+    {
+        outVerts[i].normal = outVerts[i].normal.Normalize();
+    }
+    return outVerts;
 }

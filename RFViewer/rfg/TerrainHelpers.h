@@ -4,15 +4,19 @@
 #include <vector>
 #include <span>
 
-//Stride = 8 bytes
+//Stride = 20 bytes
 struct LowLodTerrainVertex
 {
+    //8 bytes
     i16 x = 0;
     i16 y = 0;
     i16 z = 0;
     i16 w = 0;
+
+    //12 bytes
+    Vec3 normal;
 };
-static_assert(sizeof(LowLodTerrainVertex) == 8, "LowLodTerrainVertex size incorrect!");
+static_assert(sizeof(LowLodTerrainVertex) == 20, "LowLodTerrainVertex size incorrect!");
 
 //Data for a single zones terrain. Made up of 9 smaller meshes which are stitched together
 struct TerrainInstance
