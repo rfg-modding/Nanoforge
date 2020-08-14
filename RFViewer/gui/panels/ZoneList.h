@@ -26,6 +26,8 @@ void ZoneList_Update(GuiState* state)
         ImGui::SetNextItemWidth(176.5f);
         ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
     }
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     if (ImGui::Button("Show all"))
     {
@@ -81,6 +83,7 @@ void ZoneList_Update(GuiState* state)
     }
     ImGui::Columns(1);
     ImGui::EndChild();
+    ImGui::PopStyleColor();
 
     ImGui::End();
 }

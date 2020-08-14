@@ -2,7 +2,10 @@
 #include "common/Typedefs.h"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/details/null_mutex.h>
+#include <spdlog/sinks/base_sink.h>
 #include <exception>
+#include <mutex>
 
 extern std::shared_ptr<spdlog::logger> Log;
 

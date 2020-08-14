@@ -23,6 +23,7 @@ void ZoneObjectsList_Update(GuiState* state)
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
         ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true);
 
         ImGui::Text(" " ICON_FA_EYE);
@@ -46,6 +47,7 @@ void ZoneObjectsList_Update(GuiState* state)
             //ImGui::Text("|  %d instances", objectClass.NumInstances);
         }
         ImGui::EndChild();
+        ImGui::PopStyleColor();
 
 
         //Draw zone objects list
@@ -57,6 +59,7 @@ void ZoneObjectsList_Update(GuiState* state)
 
         //Object list
         auto& zone = state->ZoneManager->ZoneFiles[state->SelectedZone].Zone;
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
         ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
 
         u32 index = 0;
@@ -113,6 +116,7 @@ void ZoneObjectsList_Update(GuiState* state)
         ImGui::Columns(1);
 
         ImGui::EndChild();
+        ImGui::PopStyleColor();
     }
 
     ImGui::End();

@@ -10,6 +10,7 @@
 #include "gui/panels/ZoneList.h"
 #include "gui/panels/ZoneObjectsList.h"
 #include "gui/panels/ZoneRender.h"
+#include "gui/panels/LogPanel.h"
 #include "Log.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
@@ -36,6 +37,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Came
         GuiPanel{&StatusBar_Update},
         GuiPanel{&ZoneObjectsList_Update},
         GuiPanel{&ZoneRender_Update},
+        GuiPanel{&LogPanel_Update},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD

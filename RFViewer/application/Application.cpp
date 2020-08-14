@@ -7,6 +7,7 @@
 #include "WorkerThread.h"
 #include "Log.h"
 #include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/ringbuffer_sink.h>
 #include <tinyxml2/tinyxml2.h>
 #include <imgui/imgui.h>
 #include <imgui/examples/imgui_impl_win32.h>
@@ -26,9 +27,17 @@ Application::Application(HINSTANCE hInstance)
     //Init logger
     logSinks_.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
     logSinks_.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("MasterLog.log"));
+    logSinks_.push_back(std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(120));
     Log = std::make_shared<spdlog::logger>("MainLogger", begin(logSinks_), end(logSinks_));
     Log->flush_on(spdlog::level::level_enum::info); //Always flush
     Log->set_pattern("[%Y-%m-%d, %H:%M:%S][%^%l%$]: %v");
+    
+    Log->info("info");
+    Log->warn("warn");
+    Log->error("error");
+    Log->critical("critical");
+    Log->debug("debug");
+    
 
     //Load settings.xml
     LoadSettings();
