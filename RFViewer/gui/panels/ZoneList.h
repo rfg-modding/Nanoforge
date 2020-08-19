@@ -1,5 +1,8 @@
 #pragma once
 #include "gui/GuiState.h"
+#include "common/string/String.h"
+
+static string ZoneList_SearchTerm = "";
 
 void ZoneList_Update(GuiState* state)
 {
@@ -45,10 +48,16 @@ void ZoneList_Update(GuiState* state)
         }
     }
 
+    ImGui::Separator();
+    ImGui::InputText("Search", &ZoneList_SearchTerm);
+
     ImGui::Columns(2);
     u32 i = 0;
     for (auto& zone : state->ZoneManager->ZoneFiles)
     {
+        if (ZoneList_SearchTerm != "" && zone.Name.find(ZoneList_SearchTerm) == string::npos)
+            continue;
+
         if (hideEmptyZones && zone.Zone.Header.NumObjects == 0 || !(hideObjectBelowObjectThreshold ? zone.Zone.Objects.size() >= minObjectsToShowZone : true))
         {
             i++;
