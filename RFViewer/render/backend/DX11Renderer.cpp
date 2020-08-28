@@ -58,7 +58,6 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
 
     //Needed by some DirectXTex functions
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    //Todo: Fix this, init should set up the matrices properly
     //Quick fix for view being distorted before first window resize
     HandleResize();
 
@@ -119,14 +118,10 @@ void DX11Renderer::NewFrame(f32 deltaTime)
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
     //Set render target and clear it
-    //d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
-    //d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
 
-    //TODO: IMPORTANT: SHOULD SET VIEWPORT AND SCENE CAM SIZES TO SIZE OF SCENE WINDOW AREA
-    //d3d11Context_->RSSetViewports(1, &viewport);
     d3d11Context_->RSSetViewports(1, &sceneViewport_);
     d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
     d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
@@ -193,8 +188,6 @@ void DX11Renderer::HandleResize()
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
-
-    //camera_->HandleResize( { (f32)windowWidth_, (f32)windowHeight_} );
     camera_->HandleResize( { (f32)sceneViewWidth_, (f32)sceneViewHeight_} );
     im3dRenderer_->HandleResize((f32)sceneViewWidth_, (f32)sceneViewHeight_);
 }
@@ -220,7 +213,6 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             D3D11_BUFFER_DESC indexBufferDesc = {};
             indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
             indexBufferDesc.ByteWidth = (UINT)instance.Indices[i].size_bytes();
-            //indexBufferDesc.ByteWidth = sizeof(DWORD) * 12 * 3;
             indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
             indexBufferDesc.CPUAccessFlags = 0;
             indexBufferDesc.MiscFlags = 0;
@@ -333,7 +325,6 @@ void DX11Renderer::InitTerrainResources()
 void DX11Renderer::ViewportsDoFrame()
 {
     //On first ever draw set the viewport size to the default one. Only happens if the viewport window doesn't have a .ini entry
-    //ImGui::SetNextWindowSize(ImVec2((f32)sceneViewWidth_, (f32)sceneViewHeight_), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Scene view"))
     {
         ImGui::End();
@@ -449,7 +440,6 @@ bool DX11Renderer::InitSwapchainAndResources()
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
 
-    //d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
     d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
     d3d11Context_->RSSetViewports(1, &sceneViewport_);
 
@@ -501,8 +491,6 @@ bool DX11Renderer::InitScene()
     //Todo: Add error code and (if possible) error string reporting to the DxCheck macro
     //Create the shader resource view.
     HRESULT result = d3d11Device_->CreateShaderResourceView(sceneViewTexture_, &shaderResourceViewDesc, &sceneViewShaderResource_);
-    // DxCheck(result, ("Error! Failed to create scene shader resource view! Error code: " + std::to_string(result)).c_str());
-
 
 #ifdef DEBUG_BUILD
     SetDebugName(sceneViewTexture_, "sceneViewTexture_");
@@ -573,7 +561,7 @@ bool DX11Renderer::InitImGui()
 
     fontManager_->RegisterFonts();
 
-    // Setup Dear ImGui style
+    //Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
     ImGui::GetStyle().FrameRounding = 4.0f;
@@ -752,10 +740,6 @@ bool DX11Renderer::CreateDepthBuffer(bool firstResize)
 
     D3D11_BLEND_DESC blendDesc;
     ZeroMemory(&blendDesc, sizeof(blendDesc));
-
-    //D3D11_RENDER_TARGET_BLEND_DESC rtbd;
-    //ZeroMemory(&rtbd, sizeof(rtbd));
-
     blendDesc.RenderTarget[0].BlendEnable = false;
     blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_COLOR;
     blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_BLEND_FACTOR;
