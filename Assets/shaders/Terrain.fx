@@ -70,13 +70,9 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 
     //Adjust range from [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0] and set color to elevation
     float elevationNormalized = (input.ZonePos.y + 255.5f) / 511.0f;
-    float maxElevationFactor = 0.23; //Note: Set this to zero to not factor elevation in
     float elevationFactor = (elevationNormalized - 0.5);
-    //Attempt to limit brightness of high elevation terrain
-    if(elevationFactor >= maxElevationFactor)
-    {
-        elevationFactor = maxElevationFactor;
-    }
+    //Note: Set this to zero to not factor elevation in
+    elevationFactor *= 0.8; //Scale elevation factor to make high terrain brightless less harsh
 
     //Note: Return this line to apply basic lighting + optional coloring by elevation
     return float4(diffuse, 1.0f) + float4(specular, 1.0f) + float4(ambientIntensity, ambientIntensity, ambientIntensity, ambientIntensity) + elevationFactor;
