@@ -73,27 +73,21 @@ void Application::Run()
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        if (Paused)
-        {
-            Sleep(100);
-        }
-        else
-        {
-            Camera.DoFrame(deltaTime_);
-            NewFrame();
-            UpdateGui();
 
-            //Check for newly streamed terrain instances that need to be initialized
-            if (NewTerrainInstanceAdded)
-            {
-                //If there are new terrain instances lock their mutex and pass them to the renderer
-                std::lock_guard<std::mutex> lock(ResourceLock);
-                //The renderer will upload the vertex and index buffers of the new instances to the gpu
-                renderer_.InitTerrainMeshes(&TerrainInstances);
-            }
+        Camera.DoFrame(deltaTime_);
+        NewFrame();
+        UpdateGui();
 
-            renderer_.DoFrame(deltaTime_);
+        //Check for newly streamed terrain instances that need to be initialized
+        if (NewTerrainInstanceAdded)
+        {
+            //If there are new terrain instances lock their mutex and pass them to the renderer
+            std::lock_guard<std::mutex> lock(ResourceLock);
+            //The renderer will upload the vertex and index buffers of the new instances to the gpu
+            renderer_.InitTerrainMeshes(&TerrainInstances);
         }
+
+        renderer_.DoFrame(deltaTime_);
 
         while (FrameTimer.ElapsedSecondsPrecise() < maxFrameRateDelta)
             deltaTime_ = FrameTimer.ElapsedSecondsPrecise();
