@@ -47,14 +47,13 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
     UpdateWindowDimensions();
     if (!InitDx11())
         THROW_EXCEPTION("Failed to init DX11! Exiting.");
-    if (!InitShaders())
-        THROW_EXCEPTION("Failed to init shaders! Exiting.");
     if (!InitImGui())
         THROW_EXCEPTION("Failed to dear imgui! Exiting.");
     if (!InitScene())
         THROW_EXCEPTION("Failed to init render scene! Exiting.");
 
     im3dRenderer_->Init(d3d11Device_, d3d11Context_, hwnd_, camera_);
+    terrainShaderWriteTime_ = std::filesystem::last_write_time(terrainShaderPath_);
 
     //Needed by some DirectXTex functions
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -88,12 +87,12 @@ DX11Renderer::~DX11Renderer()
     ReleaseCOM(terrainVertexShader_);
     ReleaseCOM(terrainPixelShader_);
     ReleaseCOM(terrainVertexLayout_);
-    for (auto& instance : terrainInstanceRenderData_)
-        for(auto& vertexBuffer : instance.terrainVertexBuffers_)
-            ReleaseCOM(vertexBuffer);
-    for (auto& instance : terrainInstanceRenderData_)
-        for (auto& indexBuffer : instance.terrainVertexBuffers_)
-            ReleaseCOM(indexBuffer);
+    //for (auto& instance : terrainInstanceRenderData_)
+    //    for(auto& vertexBuffer : instance.terrainVertexBuffers_)
+    //        ReleaseCOM(vertexBuffer);
+    //for (auto& instance : terrainInstanceRenderData_)
+    //    for (auto& indexBuffer : instance.terrainVertexBuffers_)
+    //        ReleaseCOM(indexBuffer);
 
     ReleaseCOM(terrainPerObjectBuffer_);
     
@@ -119,6 +118,16 @@ void DX11Renderer::NewFrame(f32 deltaTime)
 
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
+    //Reload shaders if necessary
+    auto latestShaderWriteTime = std::filesystem::last_write_time(terrainShaderPath_);
+    if (latestShaderWriteTime != terrainShaderWriteTime_)
+    {
+        terrainShaderWriteTime_ = latestShaderWriteTime;
+        Log->info("Reloading shaders...");
+        LoadTerrainShaders(true);
+        Log->info("Shaders reloaded.");
+    }
+
     //Set render target and clear it
     d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -274,14 +283,52 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
     }
 }
 
+//Todo: Toss this in a utility file somewhere
+//Convert const char* to wchar_t*. Source: https://stackoverflow.com/a/8032108
+const wchar_t* GetWC(const char* c)
+{
+    const size_t cSize = strlen(c) + 1;
+    wchar_t* wc = new wchar_t[cSize];
+    mbstowcs(wc, c, cSize);
+
+    return wc;
+}
+
 void DX11Renderer::InitTerrainResources()
 {
+    LoadTerrainShaders();
+
+    //Create buffer for MVP matrix constant in shader
+    D3D11_BUFFER_DESC cbbd;
+    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
+
+    //Create per object buffer
+    cbbd.Usage = D3D11_USAGE_DEFAULT;
+    cbbd.ByteWidth = sizeof(cbPerObject);
+    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbbd.CPUAccessFlags = 0;
+    cbbd.MiscFlags = 0;
+
+    HRESULT hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &terrainPerObjectBuffer_);
+    if (FAILED(hr))
+        THROW_EXCEPTION("Failed to create terrain uniform buffer.");
+}
+
+void DX11Renderer::LoadTerrainShaders(bool reload)
+{
+    if (reload)
+    {
+        ReleaseCOM(terrainVertexShader_);
+        ReleaseCOM(terrainPixelShader_);
+        ReleaseCOM(terrainVertexLayout_);
+    }
+
     //Compile & create terrain vertex and pixel shaders
     ID3DBlob* pVSBlob = nullptr;
     ID3DBlob* pPSBlob = nullptr;
 
     //Compile the vertex shader
-    if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "VS", "vs_4_0", &pVSBlob)))
+    if (FAILED(CompileShaderFromFile(GetWC(terrainShaderPath_.c_str()), "VS", "vs_4_0", &pVSBlob)))
     {
         THROW_EXCEPTION("Failed to compile terrain vertex shader!");
     }
@@ -291,7 +338,7 @@ void DX11Renderer::InitTerrainResources()
         THROW_EXCEPTION("Failed to create terrain vertex shader!");
     }
     //Compile the pixel shader
-    if (FAILED(CompileShaderFromFile(L"assets/shaders/Terrain.fx", "PS", "ps_4_0", &pPSBlob)))
+    if (FAILED(CompileShaderFromFile(GetWC(terrainShaderPath_.c_str()), "PS", "ps_4_0", &pPSBlob)))
     {
         THROW_EXCEPTION("Failed to compile terrain pixel shader!");
     }
@@ -313,21 +360,6 @@ void DX11Renderer::InitTerrainResources()
 
     //Set the input layout
     d3d11Context_->IASetInputLayout(terrainVertexLayout_);
-
-    //Create buffer for MVP matrix constant in shader
-    D3D11_BUFFER_DESC cbbd;
-    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
-
-    //Create per object buffer
-    cbbd.Usage = D3D11_USAGE_DEFAULT;
-    cbbd.ByteWidth = sizeof(cbPerObject);
-    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    cbbd.CPUAccessFlags = 0;
-    cbbd.MiscFlags = 0;
-
-    HRESULT hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &terrainPerObjectBuffer_);
-    if (FAILED(hr))
-        THROW_EXCEPTION("Failed to create terrain uniform buffer.");
 
     ReleaseCOM(pVSBlob);
     ReleaseCOM(pPSBlob);
@@ -526,53 +558,6 @@ bool DX11Renderer::InitScene()
     return true;
 }
 
-bool DX11Renderer::InitShaders()
-{
-    //Vertex and pixel shader binaries
-    ID3DBlob* pVSBlob = nullptr;
-    ID3DBlob* pPSBlob = nullptr;
-
-    //Compile the vertex shader
-    if (FAILED(CompileShaderFromFile(L"assets/shaders/Triangle.fx", "VS", "vs_4_0", &pVSBlob)))
-    {
-        MessageBox(nullptr, "The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", "Error", MB_OK);
-        return false;
-    }
-    if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &vertexShader_)))
-    {
-        pVSBlob->Release();
-        return false;
-    }
-    //Compile the pixel shader
-    if (FAILED(CompileShaderFromFile(L"assets/shaders/Triangle.fx", "PS", "ps_4_0", &pPSBlob)))
-    {
-        MessageBox(nullptr, "The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", "Error", MB_OK);
-        return false;
-    }
-    if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &pixelShader_)))
-    {
-        pPSBlob->Release();
-        return false;
-    }
-
-
-    //Define the input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-    //Create the input layout
-    if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &vertexLayout_)))
-        return false;
-
-    //Set the input layout
-    d3d11Context_->IASetInputLayout(vertexLayout_);
-    pVSBlob->Release();
-    pPSBlob->Release();
-    
-    return true;
-}
 
 bool DX11Renderer::InitImGui()
 {
