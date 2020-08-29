@@ -124,6 +124,8 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     {
         terrainShaderWriteTime_ = latestShaderWriteTime;
         Log->info("Reloading shaders...");
+        //Wait for a moment as a quickfix to a crash that happens when we read the shader as it's being saved
+        Sleep(250);
         LoadTerrainShaders(true);
         Log->info("Shaders reloaded.");
     }

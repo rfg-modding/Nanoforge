@@ -231,7 +231,6 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
     struct Face
     {
         u32 verts[3];
-        //Vec3 normal;
     };
 
     //Generate list of faces and face normals
@@ -243,14 +242,6 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
         u32 index2 = indices[i + 2];
 
         faces.emplace_back(Face{ .verts = {index0, index1, index2} });
-
-        //Vec3 vert0 = { (f32)vertices[index0].x, (f32)vertices[index0].y, (f32)vertices[index0].z };
-        //Vec3 vert1 = { (f32)vertices[index1].x, (f32)vertices[index1].y, (f32)vertices[index1].z };
-        //Vec3 vert2 = { (f32)vertices[index2].x, (f32)vertices[index2].y, (f32)vertices[index2].z };
-
-        //Vec3 normal;
-
-        //faces.emplace_back({ , vertices[index1], vertices[index2] }, normal);
     }
 
     //Generate list of vertices with position and normal data
@@ -277,102 +268,22 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
         Vec3 e1 = vert1 - vert0;
         Vec3 e2 = vert2 - vert1;
         Vec3 normal = e2.Cross(e1);
+        //Todo: Fix normal vector calculation. This code below is a temporary fix but I'm pretty certain this normals aren't perfectly correct.
+        //Fudge the normals. They don't get calculated otherwise. This isn't correct but creates decent results
         if (normal.y < 0.0f)
         {
-            normal.x = abs(normal.x);
-            normal.y = abs(normal.y);
-            normal.z = abs(normal.z);
+            normal.x *= -1.0f;
+            normal.y *= -1.0f;
+            normal.z *= -1.0f;
         }
         //normal = normal.Normalize();
         outVerts[ia].normal += normal;
         outVerts[ib].normal += normal;
         outVerts[ic].normal += normal;
-
-        //const ShortVec4 e1 = vert[ia].pos - vert[ib].pos;
-        //const ShortVec4 e2 = vert[ic].pos - vert[ib].pos;
-        //const Vec3 no = cross(e1, e2);
-
-        //vert[ia].normal += no;
-        //vert[ib].normal += no;
-        //vert[ic].normal += no;
     }
     for (u32 i = 0; i < vertices.size(); i++)
     {
         outVerts[i].normal = outVerts[i].normal.Normalize();
-        //outVerts[i].normal.x = abs(outVerts[i].normal.x);
-        //outVerts[i].normal.y = abs(outVerts[i].normal.y);
-        //outVerts[i].normal.z = abs(outVerts[i].normal.z);
     }
     return outVerts;
 }
-
-
-//std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices)
-//{
-//    struct Face
-//    {
-//        u32 verts[3];
-//        //Vec3 normal;
-//    };
-//
-//    //Generate list of faces and face normals
-//    std::vector<Face> faces = {};
-//    for (u32 i = 0; i < indices.size() - 3; i++)
-//    {
-//        u32 index0 = indices[i];
-//        u32 index1 = indices[i + 1];
-//        u32 index2 = indices[i + 2];
-//
-//        faces.emplace_back(Face{ .verts = {index0, index1, index2} });
-//
-//        //Vec3 vert0 = { (f32)vertices[index0].x, (f32)vertices[index0].y, (f32)vertices[index0].z };
-//        //Vec3 vert1 = { (f32)vertices[index1].x, (f32)vertices[index1].y, (f32)vertices[index1].z };
-//        //Vec3 vert2 = { (f32)vertices[index2].x, (f32)vertices[index2].y, (f32)vertices[index2].z };
-//
-//        //Vec3 normal;
-//
-//        //faces.emplace_back({ , vertices[index1], vertices[index2] }, normal);
-//    }
-//
-//    //Generate list of vertices with position and normal data
-//    u8* vertBuffer = new u8[vertices.size() * sizeof(LowLodTerrainVertex)];
-//    std::span<LowLodTerrainVertex> outVerts((LowLodTerrainVertex*)vertBuffer, vertices.size());
-//    for (u32 i = 0; i < vertices.size(); i++)
-//    {
-//        outVerts[i].x = vertices[i].x;
-//        outVerts[i].y = vertices[i].y;
-//        outVerts[i].z = vertices[i].z;
-//        outVerts[i].w = vertices[i].w;
-//        outVerts[i].normal = { 0.0f, 0.0f, 0.0f };
-//    }
-//    for (auto& face : faces)
-//    {
-//        const u32 ia = face.verts[0];
-//        const u32 ib = face.verts[1];
-//        const u32 ic = face.verts[2];
-//
-//        Vec3 vert0 = { (f32)vertices[ia].x, (f32)vertices[ia].y, (f32)vertices[ia].z };
-//        Vec3 vert1 = { (f32)vertices[ib].x, (f32)vertices[ib].y, (f32)vertices[ib].z };
-//        Vec3 vert2 = { (f32)vertices[ic].x, (f32)vertices[ic].y, (f32)vertices[ic].z };
-//
-//        Vec3 e1 = vert0 - vert1;
-//        Vec3 e2 = vert2 - vert1;
-//        Vec3 normal = e1.Cross(e2);
-//        outVerts[ia].normal += normal;
-//        outVerts[ib].normal += normal;
-//        outVerts[ic].normal += normal;
-//
-//        //const ShortVec4 e1 = vert[ia].pos - vert[ib].pos;
-//        //const ShortVec4 e2 = vert[ic].pos - vert[ib].pos;
-//        //const Vec3 no = cross(e1, e2);
-//
-//        //vert[ia].normal += no;
-//        //vert[ib].normal += no;
-//        //vert[ic].normal += no;
-//    }
-//    for (u32 i = 0; i < vertices.size(); i++)
-//    {
-//        outVerts[i].normal = outVerts[i].normal.Normalize();
-//    }
-//    return outVerts;
-//}
