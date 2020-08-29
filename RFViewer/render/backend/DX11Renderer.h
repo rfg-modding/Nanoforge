@@ -6,6 +6,7 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include <array>
+#include <filesystem>
 
 class ImGuiFontManager;
 class Camera;
@@ -41,6 +42,7 @@ public:
 
 private:
     void InitTerrainResources();
+    void LoadTerrainShaders(bool reload = false);
     //Todo: Add a callback so viewport windows can be written outside of the renderer
     //Draw viewports which render a DX11 texture (usually of a scene)
     void ViewportsDoFrame();
@@ -50,7 +52,6 @@ private:
     //Initialize swapchain and resources it uses. Run each time the window is resized
     [[nodiscard]] bool InitSwapchainAndResources();
     [[nodiscard]] bool InitScene();
-    [[nodiscard]] bool InitShaders();
     [[nodiscard]] bool InitImGui();
 
 
@@ -75,6 +76,7 @@ private:
     ID3D11Texture2D* depthBuffer_ = nullptr;
     ID3D11DepthStencilView* depthBufferView_ = nullptr;
 
+    std::filesystem::file_time_type terrainShaderWriteTime_;
     ID3D11VertexShader* vertexShader_ = nullptr;
     ID3D11PixelShader* pixelShader_ = nullptr;
     ID3D11InputLayout* vertexLayout_ = nullptr;
@@ -103,9 +105,16 @@ private:
     ID3D11Buffer* cbPerObjectBuffer = nullptr;
     struct cbPerObject
     {
-        DirectX::XMMATRIX  WVP;
+        DirectX::XMMATRIX WVP;
     };
     cbPerObject cbPerObj;
+
+    ID3D11Buffer* cbPerFrameBuffer = nullptr;
+    struct cbPerFrame
+    {
+        DirectX::XMVECTOR ViewPos;
+    };
+    cbPerFrame cbPerFrameObject;
 
     ID3D11SamplerState* CubesTexSamplerState = nullptr;
 
@@ -138,4 +147,11 @@ private:
     u32 sceneViewHeight_ = 200;
 
     bool initialized_ = false;
+
+    //Todo: Add build path variable for each contributor to set
+#ifdef DEBUG_BUILD
+    string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
+#else
+    string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
+#endif
 };

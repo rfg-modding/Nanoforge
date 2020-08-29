@@ -6,16 +6,18 @@
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
 
-void ZoneManager::Init(PackfileVFS* packfileVFS)
+void ZoneManager::Init(PackfileVFS* packfileVFS, const string& territoryFilename)
 {
     packfileVFS_ = packfileVFS;
+    territoryFilename_ = territoryFilename;
 }
 
 void ZoneManager::LoadZoneData()
 {
-    Packfile3* zonescriptVpp = packfileVFS_->GetPackfile("zonescript_terr01.vpp_pc");
+    Log->info("Loading zone data from {}", territoryFilename_);
+    Packfile3* zonescriptVpp = packfileVFS_->GetPackfile(territoryFilename_);
     if (!zonescriptVpp)
-        THROW_EXCEPTION("Error! Could not find zonescript_terr01.vpp_pc in data folder. Required for the program to function.");
+        THROW_EXCEPTION("Error! Could not find territory file {} in data folder. Required for the program to function.", territoryFilename_);
 
     //Todo: Add search function with filters to packfile. Can base off of search functions in PackfileVFS
     for (u32 i = 0; i < zonescriptVpp->Entries.size(); i++)
