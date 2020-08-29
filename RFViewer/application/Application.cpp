@@ -38,7 +38,7 @@ Application::Application(HINSTANCE hInstance)
     appInstance = this;
     hInstance_ = hInstance;
     packfileVFS_.Init(packfileFolderPath_);
-    zoneManager_.Init(&packfileVFS_);
+    zoneManager_.Init(&packfileVFS_, territoryFilename_);
     Camera.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
@@ -134,17 +134,28 @@ void Application::LoadSettings()
         tinyxml2::XMLDocument settings;
         settings.LoadFile("./Settings.xml");
         const char* dataPath = settings.FirstChildElement("DataPath")->GetText();
-        if (!dataPath)
-            THROW_EXCEPTION("Error! Failed to get <DataPath> from Settings.xml");
+        if (!dataPath) //Todo: Make this more fault tolerant. Use default values where possible
+            THROW_EXCEPTION("Failed to get <DataPath> from Settings.xml");
+        
+        const char* territoryFile = settings.FirstChildElement("TerritoryFile")->GetText();
+        if (!territoryFile)
+            THROW_EXCEPTION("Failed to get <TerritoryFile> from Settings.xml");
 
         packfileFolderPath_ = string(dataPath);
+        territoryFilename_ = string(territoryFile);
     }
     else //Otherwise recreate it with the default values
     {
         tinyxml2::XMLDocument settings;
+
         auto* dataPath = settings.NewElement("DataPath");
         settings.InsertFirstChild(dataPath);
         dataPath->SetText(packfileFolderPath_.c_str());
+        
+        auto* territoryFile = settings.NewElement("TerritoryFile");
+        settings.InsertFirstChild(territoryFile);
+        dataPath->SetText(territoryFilename_.c_str());
+
         settings.SaveFile("./Settings.xml");
     }
 }

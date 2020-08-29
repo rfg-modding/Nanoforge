@@ -33,7 +33,7 @@ class ZoneManager
 {
 public:
     //Set values needed for it to function
-    void Init(PackfileVFS* packfileVFS);
+    void Init(PackfileVFS* packfileVFS, const string& territoryFilename);
     //Load all zone files and gather info about them
     void LoadZoneData();
 
@@ -52,5 +52,6 @@ public:
 
 private:
     PackfileVFS* packfileVFS_ = nullptr;
-
+    //Name of the vpp_pc file that zone data is loaded from at startup
+    string territoryFilename_;
 };
