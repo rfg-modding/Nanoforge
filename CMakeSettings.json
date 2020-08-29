@@ -34,7 +34,13 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": []
+      "variables": [
+        {
+          "name": "RFGTOOLS_BUILD_ZLIB",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ]
     }
   ]
 }

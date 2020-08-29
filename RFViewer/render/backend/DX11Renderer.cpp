@@ -97,6 +97,7 @@ DX11Renderer::~DX11Renderer()
 
     ReleaseCOM(terrainPerObjectBuffer_);
     
+    ReleaseCOM(cbPerFrameBuffer);
     ReleaseCOM(depthBuffer_);
     ReleaseCOM(depthBufferView_);
     ReleaseCOM(SwapChain_);
@@ -119,18 +120,19 @@ void DX11Renderer::NewFrame(f32 deltaTime)
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
     //Set render target and clear it
-    //d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, depthBufferView_);
-    //d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
 
-    //TODO: IMPORTANT: SHOULD SET VIEWPORT AND SCENE CAM SIZES TO SIZE OF SCENE WINDOW AREA
-    //d3d11Context_->RSSetViewports(1, &viewport);
     d3d11Context_->RSSetViewports(1, &sceneViewport_);
     d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
     d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
     d3d11Context_->RSSetState(rasterizerState_);
+
+    //Update per-frame constant buffer
+    cbPerFrameObject.ViewPos = camera_->Position();
+    d3d11Context_->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &cbPerFrameObject, 0, 0);
+    d3d11Context_->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 
     //Draw terrain meshes
     d3d11Context_->IASetInputLayout(terrainVertexLayout_);
@@ -510,6 +512,16 @@ bool DX11Renderer::InitScene()
     SetDebugName(sceneViewRenderTarget_, "sceneViewRenderTarget_");
     SetDebugName(sceneViewShaderResource_, "sceneViewShaderResource_");
 #endif
+
+    //Create per-frame constant buffer
+    D3D11_BUFFER_DESC cbbd;
+    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
+    cbbd.Usage = D3D11_USAGE_DEFAULT;
+    cbbd.ByteWidth = sizeof(cbPerFrame);
+    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbbd.CPUAccessFlags = 0;
+    cbbd.MiscFlags = 0;
+    result = d3d11Device_->CreateBuffer(&cbbd, NULL, &cbPerFrameBuffer);
 
     return true;
 }

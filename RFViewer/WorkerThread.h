@@ -274,10 +274,10 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
         Vec3 vert1 = { (f32)vertices[ib].x, (f32)vertices[ib].y, (f32)vertices[ib].z };
         Vec3 vert2 = { (f32)vertices[ic].x, (f32)vertices[ic].y, (f32)vertices[ic].z };
 
-        Vec3 e1 = vert0 - vert1;
+        Vec3 e1 = vert1 - vert0;
         Vec3 e2 = vert2 - vert1;
-        Vec3 normal = e1.Cross(e2);
-        normal = normal.Normalize();
+        Vec3 normal = e2.Cross(e1);
+        //normal = normal.Normalize();
         outVerts[ia].normal += normal;
         outVerts[ib].normal += normal;
         outVerts[ic].normal += normal;
@@ -293,6 +293,9 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
     for (u32 i = 0; i < vertices.size(); i++)
     {
         outVerts[i].normal = outVerts[i].normal.Normalize();
+        outVerts[i].normal.x = abs(outVerts[i].normal.x);
+        outVerts[i].normal.y = abs(outVerts[i].normal.y);
+        outVerts[i].normal.z = abs(outVerts[i].normal.z);
     }
     return outVerts;
 }

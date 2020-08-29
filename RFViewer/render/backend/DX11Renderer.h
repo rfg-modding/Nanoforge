@@ -103,9 +103,16 @@ private:
     ID3D11Buffer* cbPerObjectBuffer = nullptr;
     struct cbPerObject
     {
-        DirectX::XMMATRIX  WVP;
+        DirectX::XMMATRIX WVP;
     };
     cbPerObject cbPerObj;
+
+    ID3D11Buffer* cbPerFrameBuffer = nullptr;
+    struct cbPerFrame
+    {
+        DirectX::XMVECTOR ViewPos;
+    };
+    cbPerFrame cbPerFrameObject;
 
     ID3D11SamplerState* CubesTexSamplerState = nullptr;
 
