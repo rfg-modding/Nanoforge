@@ -11,6 +11,7 @@ void ImGuiFontManager::RegisterFonts()
     ImGuiIO& io = ImGui::GetIO();
     FontSmall.Load(io, &icons_config, icons_ranges);
     FontDefault.Load(io, &icons_config, icons_ranges);
+    FontMedium.Load(io, &icons_config, icons_ranges);
     FontL.Load(io, &icons_config, icons_ranges);
     FontXL.Load(io, &icons_config, icons_ranges);
     //FontXXL.Load(io, &icons_config, icons_ranges);

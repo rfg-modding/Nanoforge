@@ -42,7 +42,7 @@ Application::Application(HINSTANCE hInstance)
     Camera.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
-    Gui.Init(&fontManager_, &packfileVFS_, &Camera, &zoneManager_);
+    Gui.Init(&fontManager_, &packfileVFS_, &Camera, &zoneManager_, &renderer_);
     Gui.HandleResize();
 
     //Start worker thread and capture it's future. If future isn't captured it won't actually run async

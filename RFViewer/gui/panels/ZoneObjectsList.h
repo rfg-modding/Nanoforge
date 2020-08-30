@@ -17,38 +17,35 @@ void ZoneObjectsList_Update(GuiState* state)
     }
     else
     {
-        //Draw object filters sub-window
-        state->FontManager->FontL.Push();
-        ImGui::Text(ICON_FA_FILTER " Filters");
-        state->FontManager->FontL.Pop();
-        ImGui::Separator();
-
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
-        ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true);
-
-        ImGui::Text(" " ICON_FA_EYE);
-        gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
-        ImGui::SameLine();
-        ImGui::Text(" " ICON_FA_MARKER);
-        gui::TooltipOnPrevious("Toggles whether class name labels are drawn for the object class", nullptr);
-
-        for (auto& objectClass : state->ZoneManager->ZoneObjectClasses)
+        if (ImGui::CollapsingHeader(ICON_FA_FILTER " Filters##CollapsingHeader"))
         {
-            ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show);
-            ImGui::SameLine();
-            ImGui::Checkbox((string("##showLabel") + objectClass.Name).c_str(), &objectClass.ShowLabel);
-            ImGui::SameLine();
-            ImGui::Text(objectClass.Name);
-            ImGui::SameLine();
-            ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
-            ImGui::SameLine();
-            //Todo: Use a proper string formatting lib here
-            ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
-            //ImGui::Text("|  %d instances", objectClass.NumInstances);
-        }
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
+            //Draw object filters sub-window
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
+            ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true);
 
+            ImGui::Text(" " ICON_FA_EYE);
+            gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
+            ImGui::SameLine();
+            ImGui::Text(" " ICON_FA_MARKER);
+            gui::TooltipOnPrevious("Toggles whether class name labels are drawn for the object class", nullptr);
+
+            for (auto& objectClass : state->ZoneManager->ZoneObjectClasses)
+            {
+                ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show);
+                ImGui::SameLine();
+                ImGui::Checkbox((string("##showLabel") + objectClass.Name).c_str(), &objectClass.ShowLabel);
+                ImGui::SameLine();
+                ImGui::Text(objectClass.Name);
+                ImGui::SameLine();
+                ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
+                ImGui::SameLine();
+                //Todo: Use a proper string formatting lib here
+                ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+                //ImGui::Text("|  %d instances", objectClass.NumInstances);
+            }
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
+        }
 
         //Draw zone objects list
         ImGui::Separator();
@@ -63,10 +60,9 @@ void ZoneObjectsList_Update(GuiState* state)
         ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
 
         u32 index = 0;
-        ImGui::Columns(2);
-        ImGui::SetColumnWidth(0, 200.0f);
-        ImGui::SetColumnWidth(1, 300.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
+
+        int node_clicked = -1;
         for (auto& object : zone.ObjectsHierarchical)
         {
             auto objectClass = state->ZoneManager->GetObjectClass(object.Self->ClassnameHash);
@@ -75,12 +71,15 @@ void ZoneObjectsList_Update(GuiState* state)
 
             //Todo: Use a formatting lib/func here. This is bad
             if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(index)).c_str(),
-                object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None))
+                (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
             {
-                Vec3 position = object.Self->Bmin + ((object.Self->Bmax - object.Self->Bmin) / 2.0f);
-                ImGui::NextColumn();
-                ImGui::Text(" | {%.3f, %.3f, %.3f}", position.x, position.y, position.z);
-                ImGui::NextColumn();
+                //Update selection state
+                if (ImGui::IsItemClicked())
+                {
+                    state->SetSelectedZoneObject(&object);
+                }
+                object.Selected = &object == state->SelectedObject;
+
 
                 for (auto& childObject : object.Children)
                 {
@@ -89,31 +88,23 @@ void ZoneObjectsList_Update(GuiState* state)
                         continue;
 
                     if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + childObject.Self->Classname + "##" + std::to_string(index)).c_str(),
-                        childObject.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None))
+                        (childObject.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (childObject.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
                     {
-
+                        //Update selection state
+                        if (ImGui::IsItemClicked())
+                        {
+                            state->SetSelectedZoneObject(&childObject);
+                        }
+                        childObject.Selected = &childObject == state->SelectedObject;
                         ImGui::TreePop();
                     }
-                    Vec3 childPosition = childObject.Self->Bmin + ((childObject.Self->Bmax - childObject.Self->Bmin) / 2.0f);
-                    ImGui::NextColumn();
-                    ImGui::Text(" | {%.3f, %.3f, %.3f}", childPosition.x, childPosition.y, childPosition.z);
-                    ImGui::NextColumn();
                     index++;
                 }
                 ImGui::TreePop();
             }
-            else
-            {
-                Vec3 position = object.Self->Bmin + ((object.Self->Bmax - object.Self->Bmin) / 2.0f);
-                ImGui::NextColumn();
-                ImGui::Text(" | {%.3f, %.3f, %.3f}", position.x, position.y, position.z);
-                ImGui::NextColumn();
-            }
-
             index++;
         }
         ImGui::PopStyleVar();
-        ImGui::Columns(1);
 
         ImGui::EndChild();
         ImGui::PopStyleColor();

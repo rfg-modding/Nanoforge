@@ -69,6 +69,7 @@ void ZoneList_Update(GuiState* state)
         if (ImGui::Selectable(zone.Name.c_str()))
         {
             state->SetSelectedZone(i);
+            state->SetSelectedZoneObject(nullptr);
         }
         ImGui::NextColumn();
         ImGui::Checkbox((string("Draw##") + zone.Name).c_str(), &zone.RenderBoundingBoxes);

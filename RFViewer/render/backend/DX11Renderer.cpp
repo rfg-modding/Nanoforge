@@ -155,7 +155,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
         {
             d3d11Context_->VSSetShader(terrainVertexShader_, nullptr, 0);
             d3d11Context_->PSSetShader(terrainPixelShader_, nullptr, 0);
-
+            
             DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
             DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
             DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(renderInstance.Position.x, renderInstance.Position.y, renderInstance.Position.z);

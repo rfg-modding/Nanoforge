@@ -10,6 +10,7 @@ class ImGuiFontManager;
 class PackfileVFS;
 class Camera;
 class ZoneManager;
+class DX11Renderer;
 
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
@@ -17,7 +18,7 @@ class MainGui
 public:
     ~MainGui();
 
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, ZoneManager* zoneManager);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, ZoneManager* zoneManager, DX11Renderer* renderer);
     void Update(f32 deltaTime);
     void HandleResize();
 

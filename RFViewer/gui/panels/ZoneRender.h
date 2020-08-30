@@ -8,7 +8,6 @@ void ZoneRender_Update(GuiState* state)
 {
     Im3d::PushDrawState();
     Im3d::SetSize(state->BoundingBoxThickness);
-    Im3d::SetColor(Im3d::Color(state->BoundingBoxColor.x, state->BoundingBoxColor.y, state->BoundingBoxColor.z, state->BoundingBoxColor.w));
 
     //Draw bounding boxes
     for (const auto& zone : state->ZoneManager->ZoneFiles)

@@ -12,6 +12,8 @@ namespace gui
 namespace gui
 {
     const ImVec4 SecondaryTextColor(0.2f, 0.7f, 1.0f, 1.00f); //Light blue;
+    //const ImVec4 TertiaryTextColor(0.573f, 0.596f, 0.62f, 1.00f); //Light grey
+    const ImVec4 TertiaryTextColor(0.64f, 0.67f, 0.69f, 1.00f); //Light grey
     const ImVec4 Red(0.784f, 0.094f, 0.035f, 1.0f);
 
     //Todo: Move into gui helpers file

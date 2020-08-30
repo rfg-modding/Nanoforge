@@ -6,7 +6,21 @@ cbuffer cbPerObject
 
 cbuffer cbPerFrame
 {
+    //Position of the camera
     float3 ViewPos;
+    int Padding0; //Padding since DirectX::XMVector is really 16 bytes
+
+    //Color of the diffuse light
+    float3 DiffuseColor;
+    int Padding1; //Padding since DirectX::XMVector is really 16 bytes
+
+    //Intensity of diffuse light 
+    float DiffuseIntensity;
+    //Bias of elevation coloring in ShadeMode 1. If 0 elevation won't effect color
+    float ElevationFactorBias;
+    //Shade mode 0: Color terrain only by elevation
+    //Shade mode 1: Color terrain with basic lighting + option elevation coloring
+    int ShadeMode;
 };
 
 struct VS_OUTPUT
@@ -47,36 +61,32 @@ VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
+    //Sun direction for diffuse lighting
     float3 sunDir = float3(0.436f, -1.0f, 0.598f);
-    float3 sunColor = float3(1.0f, 1.0f, 1.0f);
-    float sunIntensity = 0.6f;
-    float ambientIntensity = 0.05f;
-    float specularStrength = 0.5f;
-    float shininess = 32.0f;
 
     //Diffuse
     float3 lightDir = normalize(-sunDir);
     float diff = max(dot(input.Normal, lightDir), 0.0f);
-    float3 diffuse = diff * sunColor;
-
-    //Specular
-    float3 viewDir = normalize(ViewPos - input.Pos);
-    float3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(viewDir, halfwayDir), 0.0), shininess);
-    float3 specular = spec * specularStrength * sunColor;
-    
-    diffuse *= sunIntensity;
-    specular *= sunIntensity;
+    float3 diffuse = diff * DiffuseColor * DiffuseIntensity;
 
     //Adjust range from [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0] and set color to elevation
     float elevationNormalized = (input.ZonePos.y + 255.5f) / 511.0f;
     float elevationFactor = (elevationNormalized - 0.5);
-    //Note: Set this to zero to not factor elevation in
-    elevationFactor *= 0.8; //Scale elevation factor to make high terrain brightless less harsh
+    elevationFactor *= ElevationFactorBias; //Scale elevation factor to make high terrain brightless less harsh
 
-    //Note: Return this line to apply basic lighting + optional coloring by elevation
-    return float4(diffuse, 1.0f) + float4(specular, 1.0f) + float4(ambientIntensity, ambientIntensity, ambientIntensity, ambientIntensity) + elevationFactor;
-
-    //Note: Return this line instead of the above to only color terrain by elevation and ignore lighting calculations
-    //return float4(elevationNormalized, elevationNormalized, elevationNormalized, 1.0f);
+    if(ShadeMode == 0)
+    {
+        //Color terrain only by elevation
+        return float4(elevationNormalized, elevationNormalized, elevationNormalized, 1.0f);
+    }
+    else if(ShadeMode == 1)
+    {
+        //Color terrain with basic lighting + optional elevation coloring
+        return float4(diffuse, 1.0f) + elevationFactor;
+    }
+    else
+    {
+        //If given invalid ShadeMode use elevation coloring (mode 0)
+        return float4(elevationNormalized, elevationNormalized, elevationNormalized, 1.0f);
+    }
 }

@@ -9,6 +9,7 @@
 #include "gui/panels/StatusBar.h"
 #include "gui/panels/ZoneList.h"
 #include "gui/panels/ZoneObjectsList.h"
+#include "gui/panels/PropertyList.h"
 #include "gui/panels/ZoneRender.h"
 #include "gui/panels/LogPanel.h"
 #include "Log.h"
@@ -21,9 +22,9 @@ MainGui::~MainGui()
     node::DestroyEditor(State.NodeEditor);
 }
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, ZoneManager* zoneManager)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, ZoneManager* zoneManager, DX11Renderer* renderer)
 {
-    State = GuiState{ fontManager, packfileVFS, camera, zoneManager };
+    State = GuiState{ fontManager, packfileVFS, camera, zoneManager, renderer };
 
     //Create node editor library context
     State.NodeEditor = node::CreateEditor();
@@ -36,6 +37,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Came
         GuiPanel{&RenderSettings_Update},
         GuiPanel{&StatusBar_Update},
         GuiPanel{&ZoneObjectsList_Update},
+        GuiPanel{&PropertyList_Update},
         GuiPanel{&ZoneRender_Update},
         GuiPanel{&LogPanel_Update},
 

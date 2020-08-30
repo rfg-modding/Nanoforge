@@ -5,6 +5,7 @@
 #include "render/camera/Camera.h"
 #include <imgui_node_editor.h>
 
+class DX11Renderer;
 namespace node = ax::NodeEditor;
 
 //Used to color status bar
@@ -23,6 +24,8 @@ public:
     PackfileVFS* PackfileVFS = nullptr; 
     Camera* Camera = nullptr;
     ZoneManager* ZoneManager = nullptr;
+    //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
+    DX11Renderer* Renderer = nullptr;
 
     bool Visible = true;
 
@@ -30,8 +33,7 @@ public:
     string CustomStatusMessage = "";
     f32 StatusBarHeight = 25.0f;
 
-    Im3d::Vec4 BoundingBoxColor = Im3d::Vec4(0.778f, 0.414f, 0.0f, 1.0f);
-    f32 BoundingBoxThickness = 1.0f;
+    f32 BoundingBoxThickness = 3.0f;
     f32 LabelTextSize = 1.0f;
     Vec4 LabelTextColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     bool DrawParentConnections = false;
@@ -45,6 +47,8 @@ public:
     bool DrawGrid = false;
     int GridSpacing = 10;
     int GridSize = 100;
+
+    ZoneObjectNode36* SelectedObject = nullptr;
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
@@ -74,5 +78,9 @@ public:
         //Otherwise select zone and update any data reliant on the selected zone
         SelectedZone = index;
         ZoneManager->UpdateObjectClassInstanceCounts(SelectedZone);
+    }
+    void SetSelectedZoneObject(ZoneObjectNode36* object)
+    {
+        SelectedObject = object;
     }
 };
