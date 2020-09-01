@@ -50,6 +50,10 @@ public:
 
     ZoneObjectNode36* SelectedObject = nullptr;
 
+    //Used to trigger and reload and load a different territory
+    bool ReloadNeeded = false;
+    string CurrentTerritoryName;
+
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
     {
@@ -82,5 +86,20 @@ public:
     void SetSelectedZoneObject(ZoneObjectNode36* object)
     {
         SelectedObject = object;
+    }
+    void SetTerritory(const string& newTerritory, bool firstLoad = false)
+    {
+        string terr = newTerritory;
+        if (terr == "terr01")
+            terr = "zonescript_terr01";
+        if (terr == "dlc01")
+            terr = "zonescript_dlc01";
+
+        if(!firstLoad)
+            terr += ".vpp_pc";
+        
+        CurrentTerritoryName = terr;
+        if (!firstLoad)
+            ReloadNeeded = true;
     }
 };

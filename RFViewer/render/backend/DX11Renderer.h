@@ -37,6 +37,7 @@ public:
     void DoFrame(f32 deltaTime);
     void HandleResize();
     HWND GetSystemWindowHandle() { return hwnd_; }
+    void ResetTerritoryData();
 
     void InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances);
 

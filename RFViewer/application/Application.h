@@ -10,6 +10,7 @@
 #include <ext/WindowsWrapper.h>
 #include <chrono>
 #include <spdlog/spdlog.h>
+#include <future>
 
 class Application
 {
@@ -30,6 +31,8 @@ private:
     void NewFrame();
     void UpdateGui();
     void LoadSettings();
+    //Reload map with new territory
+    void Reload();
 
     HINSTANCE hInstance_ = nullptr;
     DX11Renderer renderer_;
@@ -50,4 +53,7 @@ private:
     string territoryFilename_ = "zonescript_terr01.vpp_pc";
 
     std::vector<spdlog::sink_ptr> logSinks_ = {};
+
+    //Future for worker thread. Need to store it for std::async to actually run it asynchronously
+    std::future<void> workerFuture_;
 };

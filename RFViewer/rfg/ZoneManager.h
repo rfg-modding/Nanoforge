@@ -36,6 +36,8 @@ public:
     void Init(PackfileVFS* packfileVFS, const string& territoryFilename);
     //Load all zone files and gather info about them
     void LoadZoneData();
+    //Reset / clear data in preparation for territory reload
+    void ResetTerritoryData();
 
     //Whether or not this object should be shown based on filtering settings
     bool ShouldShowObjectClass(u32 classnameHash);

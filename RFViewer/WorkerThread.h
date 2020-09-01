@@ -14,6 +14,8 @@ std::mutex ResourceLock;
 bool NewTerrainInstanceAdded = false;
 //Set this to false to test the init sequence. It will wait for this to be set to true to start init. F1 sets this to true
 bool CanStartInit = true;
+//Signals that the worker thread is done so any worker resources can be cleared once the rest of the program is done with them
+bool WorkerDone = false;
 
 void LoadTerrainMeshes(GuiState* state);
 void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state);
@@ -31,18 +33,23 @@ struct ShortVec4
 };
 std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices);
 
-void WorkerThread(GuiState* state)
+void WorkerThread(GuiState* state, bool reload)
 {
+    WorkerDone = false;
     state->SetStatus(ICON_FA_SYNC " Waiting for init signal", Working);
     while (!CanStartInit)
     {
         Sleep(100);
     }
 
-    //Scan contents of packfiles
-    state->SetStatus(ICON_FA_SYNC " Scanning packfiles", Working);
-    state->PackfileVFS->ScanPackfiles();
-    Log->info("Loaded {} packfiles", state->PackfileVFS->packfiles_.size());
+    //We only need to scan the packfiles once. Packfile data is independent from our current territory
+    if (!reload)
+    {
+        //Scan contents of packfiles
+        state->SetStatus(ICON_FA_SYNC " Scanning packfiles", Working);
+        state->PackfileVFS->ScanPackfiles();
+        Log->info("Loaded {} packfiles", state->PackfileVFS->packfiles_.size());
+    }
 
     //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory
     //Read all zones from zonescript_terr01.vpp_pc
@@ -51,10 +58,26 @@ void WorkerThread(GuiState* state)
     state->SetSelectedZone(0);
     Log->info("Loaded {} zones", state->ZoneManager->ZoneFiles.size());
 
+    //Move camera close to zone with the most objects by default. Convenient as some territories have origins distant from each other
+    if (state->ZoneManager->ZoneFiles.size() > 0)
+    {
+        ZoneFile& zone = state->ZoneManager->ZoneFiles[0];
+        if (zone.Zone.Objects.size() > 0)
+        {
+            auto& firstObj = zone.Zone.Objects[0];
+            Vec3 newCamPos = firstObj.Bmin;
+            newCamPos.x += 100.0f;
+            newCamPos.y += 500.0f;
+            newCamPos.z += 100.0f;
+            state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+        }
+    }
+
     //Load terrain meshes and extract their index + vertex data
     LoadTerrainMeshes(state);
 
     state->ClearStatus();
+    WorkerDone = true;
 }
 
 //Loads vertex and index data of each zones terrain mesh
@@ -286,4 +309,26 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
         outVerts[i].normal = outVerts[i].normal.Normalize();
     }
     return outVerts;
+}
+
+//Clear temporary data created by the worker thread. Called by Application once the worker thread is done working and the renderer is done using the worker data
+void WorkerThread_ClearData()
+{
+    Log->info("Worker thread temporary data cleared.");
+    for (auto& instance : TerrainInstances)
+    {
+        //Free vertex and index buffer memory
+        //Note: Assumes same amount of vertex and index buffers
+        for (u32 i = 0; i < instance.Indices.size(); i++)
+        {
+            delete instance.Indices[i].data();
+            delete instance.Vertices[i].data();
+        }
+        //Clear vectors
+        instance.Indices.clear();
+        instance.Vertices.clear();
+        instance.Meshes.clear();
+    }
+    //Clear instance list
+    TerrainInstances.clear();
 }

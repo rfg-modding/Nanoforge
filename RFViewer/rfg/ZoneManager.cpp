@@ -55,6 +55,16 @@ void ZoneManager::LoadZoneData()
     InitObjectClassData();
 }
 
+void ZoneManager::ResetTerritoryData()
+{
+    for (auto& zoneFile : ZoneFiles)
+    {
+        zoneFile.Zone.Cleanup();
+    }
+    ZoneFiles.clear();
+    ZoneObjectClasses.clear();;
+}
+
 bool ZoneManager::ShouldShowObjectClass(u32 classnameHash)
 {
     for (const auto& objectClass : ZoneObjectClasses)

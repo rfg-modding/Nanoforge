@@ -3,6 +3,61 @@
 #include "common/string/String.h"
 
 static string ZoneList_SearchTerm = "";
+static std::vector<const char*> TerritoryList =
+{
+    "terr01",
+    "dlc01",
+    "mp_cornered",
+    "mp_crashsite",
+    "mp_crescent",
+    "mp_crevice",
+    "mp_deadzone",
+    "mp_downfall",
+    "mp_excavation",
+    "mp_fallfactor",
+    "mp_framework",
+    "mp_garrison",
+    "mp_gauntlet",
+    "mp_overpass",
+    "mp_pcx_assembly",
+    "mp_pcx_crossover",
+    "mp_pinnacle",
+    "mp_quarantine",
+    "mp_radial",
+    "mp_rift",
+    "mp_sandpit",
+    "mp_settlement",
+    "mp_warlords",
+    "mp_wasteland",
+    "mp_wreckage",
+    "mpdlc_broadside",
+    "mpdlc_division",
+    "mpdlc_islands",
+    "mpdlc_landbridge",
+    "mpdlc_minibase",
+    "mpdlc_overhang",
+    "mpdlc_puncture",
+    "mpdlc_ruins",
+    "wc1",
+    "wc2",
+    "wc3",
+    "wc4",
+    "wc5",
+    "wc6",
+    "wc7",
+    "wc8",
+    "wc9",
+    "wc10",
+    "wcdlc1",
+    "wcdlc2",
+    "wcdlc3",
+    "wcdlc4",
+    "wcdlc5",
+    "wcdlc6",
+    "wcdlc7",
+    "wcdlc8",
+    "wcdlc9"
+};
 
 void ZoneList_Update(GuiState* state)
 {
@@ -16,6 +71,15 @@ void ZoneList_Update(GuiState* state)
     state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_MAP " Zones");
     state->FontManager->FontL.Pop();
+    ImGui::Separator();
+
+    static int currentTerritory = 0;
+    ImGui::Combo("Territory", &currentTerritory, TerritoryList.data(), TerritoryList.size());
+    ImGui::SameLine();
+    if (ImGui::Button("Set##SetTerritory"))
+    {
+        state->SetTerritory(string(TerritoryList[currentTerritory]));
+    }
     ImGui::Separator();
 
     static bool hideEmptyZones = true;

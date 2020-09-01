@@ -86,13 +86,18 @@ DX11Renderer::~DX11Renderer()
     ReleaseCOM(terrainVertexShader_);
     ReleaseCOM(terrainPixelShader_);
     ReleaseCOM(terrainVertexLayout_);
-    //for (auto& instance : terrainInstanceRenderData_)
-    //    for(auto& vertexBuffer : instance.terrainVertexBuffers_)
-    //        ReleaseCOM(vertexBuffer);
-    //for (auto& instance : terrainInstanceRenderData_)
-    //    for (auto& indexBuffer : instance.terrainVertexBuffers_)
-    //        ReleaseCOM(indexBuffer);
-
+    for (auto& instance : terrainInstanceRenderData_)
+    {
+        //Todo: Figure out why final buffer pair have a reference count of 0. It's likely leaking memory here by not clearing the last buffer.
+        //Note: We don't release the last pair of buffers as doing so causes a crash due to them having a ref count of 0. Unsure why the refcount is zero
+        for (u32 i = 0; i < instance.terrainVertexBuffers_.size() - 1; i++)
+        {
+            auto* vertexBuffer = instance.terrainVertexBuffers_[i];
+            auto* indexBuffer = instance.terrainIndexBuffers_[i];
+            ReleaseCOM(vertexBuffer);
+            ReleaseCOM(indexBuffer);
+        }
+    }
     ReleaseCOM(terrainPerObjectBuffer_);
     
     ReleaseCOM(cbPerFrameBuffer);
@@ -209,6 +214,24 @@ void DX11Renderer::HandleResize()
     im3dRenderer_->HandleResize((f32)sceneViewWidth_, (f32)sceneViewHeight_);
 }
 
+void DX11Renderer::ResetTerritoryData()
+{
+    for (auto& instance : terrainInstanceRenderData_)
+    {
+        //Todo: Figure out why final buffer pair have a reference count of 0. It's likely leaking memory here by not clearing the last buffer.
+        //Note: We don't release the last pair of buffers as doing so causes a crash due to them having a ref count of 0. Unsure why the refcount is zero
+        for (u32 i = 0; i < instance.terrainVertexBuffers_.size() - 1; i++)
+        {
+            auto* vertexBuffer = instance.terrainVertexBuffers_[i];
+            auto* indexBuffer = instance.terrainIndexBuffers_[i];
+            ReleaseCOM(vertexBuffer);
+            ReleaseCOM(indexBuffer);
+        }
+    }
+    terrainInstanceRenderData_.clear();
+    terrainModelMatrices_.clear();
+}
+
 void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances)
 {
     //Create terrain index & vertex buffers
@@ -274,8 +297,6 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             terrainModelMatrices_.push_back(DirectX::XMMATRIX());
         }
 
-        delete instance.Indices.data();
-        delete instance.Vertices.data();
         //Set bool so the instance isn't initialized more than once
         instance.RenderDataInitialized = true;
     }

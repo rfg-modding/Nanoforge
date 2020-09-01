@@ -38,15 +38,18 @@ Application::Application(HINSTANCE hInstance)
     appInstance = this;
     hInstance_ = hInstance;
     packfileVFS_.Init(packfileFolderPath_);
-    zoneManager_.Init(&packfileVFS_, territoryFilename_);
     Camera.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
+    //Setup gui
     Gui.Init(&fontManager_, &packfileVFS_, &Camera, &zoneManager_, &renderer_);
+    //Set initial territory name
+    Gui.State.SetTerritory(territoryFilename_, true);
+    zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName);
     Gui.HandleResize();
 
     //Start worker thread and capture it's future. If future isn't captured it won't actually run async
-    static std::future<void> dummy = std::async(std::launch::async, &WorkerThread, &Gui.State);
+    workerFuture_ = std::async(std::launch::async, &WorkerThread, &Gui.State, false);
 
     //Init frame timing variables
     deltaTime_ = maxFrameRateDelta;
@@ -74,6 +77,10 @@ void Application::Run()
             DispatchMessage(&msg);
         }
 
+        //Reload territory if necessary
+        if (Gui.State.ReloadNeeded)
+            Reload();
+
         Camera.DoFrame(deltaTime_);
         NewFrame();
         UpdateGui();
@@ -83,8 +90,13 @@ void Application::Run()
         {
             //If there are new terrain instances lock their mutex and pass them to the renderer
             std::lock_guard<std::mutex> lock(ResourceLock);
+            NewTerrainInstanceAdded = false;
             //The renderer will upload the vertex and index buffers of the new instances to the gpu
             renderer_.InitTerrainMeshes(&TerrainInstances);
+
+            //If the worker is done clear it's temporary data
+            if (WorkerDone)
+                WorkerThread_ClearData();
         }
 
         renderer_.DoFrame(deltaTime_);
@@ -152,6 +164,26 @@ void Application::LoadSettings()
 
         settings.SaveFile("./Settings.xml");
     }
+}
+
+void Application::Reload()
+{
+    //Wait for worker thread to exit
+    Log->info("Reload triggered.");
+    workerFuture_.wait();
+    Log->info("Clearing old territory data.");
+
+    //Clear old territory data
+    renderer_.ResetTerritoryData();
+    zoneManager_.ResetTerritoryData();
+    zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName);
+    WorkerThread_ClearData();
+
+    //Start worker thread and capture it's future. If future isn't captured it won't actually run async
+    workerFuture_ = std::async(std::launch::async, &WorkerThread, &Gui.State, true);
+    Log->info("Restarted worker thread.");
+    Gui.State.ReloadNeeded = false;
+    Gui.State.SetSelectedZoneObject(nullptr);
 }
 
 //Todo: Pass key & mouse messages to InputManager and have it send input messages to other parts of code via callbacks
