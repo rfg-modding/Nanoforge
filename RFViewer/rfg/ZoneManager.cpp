@@ -1,15 +1,17 @@
 #include "ZoneManager.h"
 #include "common/filesystem/Path.h"
 #include "common/filesystem/File.h"
+#include "common/string/String.h"
 #include "Log.h"
 
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
 
-void ZoneManager::Init(PackfileVFS* packfileVFS, const string& territoryFilename)
+void ZoneManager::Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname)
 {
     packfileVFS_ = packfileVFS;
     territoryFilename_ = territoryFilename;
+    territoryShortname_ = territoryShortname;
 }
 
 void ZoneManager::LoadZoneData()
@@ -38,6 +40,11 @@ void ZoneManager::LoadZoneData()
         zoneFile.Zone.SetName(zoneFile.Name);
         zoneFile.Zone.Read(reader);
         zoneFile.Zone.GenerateObjectHierarchy();
+        if (String::StartsWith(zoneFile.Name, "p_"))
+            zoneFile.Persistent = true;
+
+        SetZoneShortName(zoneFile);
+
         delete[] fileBuffer.value().data();
     }
 
@@ -47,6 +54,14 @@ void ZoneManager::LoadZoneData()
     {
         return a.Zone.Header.NumObjects > b.Zone.Header.NumObjects;
     });
+    //Get zone name with most characters for UI purposes. Really shouldn't be in this class like other UI things
+    u32 longest = 0;
+    for (auto& zone : ZoneFiles)
+    {
+        if (zone.ShortName.length() > longest)
+            longest = zone.ShortName.length();
+    }
+    LongestZoneName = longest;
 
 
     //Make first zone visible for convenience when debugging
@@ -193,4 +208,42 @@ ZoneObjectClass& ZoneManager::GetObjectClass(u32 classnameHash)
             return objectClass;
     }
     //Todo: Handle case of invalid hash. Returning std::optional would work
+}
+
+void ZoneManager::SetZoneShortName(ZoneFile& zone)
+{
+    const string& fullName = zone.Name;
+    zone.ShortName = fullName; //Set shortname to fullname by default in case of failure
+    const string expectedPostfix0 = ".rfgzone_pc";
+    const string expectedPostfix1 = ".layer_pc";
+    const string expectedPrefix = zone.Persistent ? "p_" + territoryShortname_ + "_" : territoryShortname_ + "_";
+
+    //Try to find location of rfgzone_pc or layer_pc extension. If neither is found return
+    size_t postfixIndex0 = fullName.find(expectedPostfix0, 0);
+    size_t postfixIndex1 = fullName.find(expectedPostfix1, 0);
+    size_t finalPostfixIndex = string::npos;
+    if (postfixIndex0 != string::npos)
+        finalPostfixIndex = postfixIndex0;
+    else if (postfixIndex1 != string::npos)
+        finalPostfixIndex = postfixIndex1;
+    else
+        return;
+
+    //Make sure the name starts with the expected prefix
+    if (!String::StartsWith(fullName, expectedPrefix))
+        return;
+
+    //For some files there is nothing between the prefix and postfix. We preserve the prefix in this case so something remains
+    if (finalPostfixIndex == expectedPrefix.length())
+    {
+        zone.ShortName = fullName.substr(0, finalPostfixIndex); //Remove the postfix, keep the rest
+    }
+    else //Otherwise we strip the prefix and postfix and use the remaining string as our shortname
+    {
+        zone.ShortName = fullName.substr(expectedPrefix.length(), finalPostfixIndex - expectedPrefix.length()); //Keep string between prefix and postfix
+    }
+
+    //Add p_ prefix back onto persistent files
+    if (zone.Persistent)
+        zone.ShortName = "p_" + zone.ShortName;
 }

@@ -128,9 +128,11 @@ void ZoneList_Update(GuiState* state)
             continue;
         }
 
-        ImGui::SetColumnWidth(0, 200.0f);
+        //Todo: Come up with a way of calculating this value at runtime
+        const f32 glyphWidth = 9.0f;
+        ImGui::SetColumnWidth(0, glyphWidth * (f32)state->ZoneManager->LongestZoneName);
         ImGui::SetColumnWidth(1, 300.0f);
-        if (ImGui::Selectable(zone.Name.c_str()))
+        if (ImGui::Selectable(zone.ShortName.c_str()))
         {
             state->SetSelectedZone(i);
             state->SetSelectedZoneObject(nullptr);

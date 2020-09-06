@@ -6,6 +6,7 @@
 #include "render/camera/Camera.h"
 #include "WorkerThread.h"
 #include "Log.h"
+#include "common/string/String.h"
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <tinyxml2/tinyxml2.h>
@@ -45,7 +46,7 @@ Application::Application(HINSTANCE hInstance)
     Gui.Init(&fontManager_, &packfileVFS_, &Camera, &zoneManager_, &renderer_);
     //Set initial territory name
     Gui.State.SetTerritory(territoryFilename_, true);
-    zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName);
+    zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName, Gui.State.CurrentTerritoryShortname);
     Gui.HandleResize();
 
     //Start worker thread and capture it's future. If future isn't captured it won't actually run async
@@ -149,6 +150,17 @@ void Application::LoadSettings()
 
         packfileFolderPath_ = string(dataPath);
         territoryFilename_ = string(territoryFile);
+
+        //Temporary compatibility patches for convenience. Previous versions expected vpp_pc files instead of shorthand names
+        if (territoryFilename_ == "zonescript_terr01.vpp_pc")
+            territoryFilename_ = "terr01";
+        if (territoryFilename_ == "zonescript_dlc01.vpp_pc")
+            territoryFilename_ = "dlc01";
+        if (String::EndsWith(territoryFilename_, ".vpp_pc"))
+        {
+            size_t postfixIndex = territoryFilename_.find(".vpp_pc");
+            territoryFilename_ = territoryFilename_.substr(0, postfixIndex);
+        }
     }
     else //Otherwise recreate it with the default values
     {
@@ -176,7 +188,7 @@ void Application::Reload()
     //Clear old territory data
     renderer_.ResetTerritoryData();
     zoneManager_.ResetTerritoryData();
-    zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName);
+    zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName, Gui.State.CurrentTerritoryShortname);
     WorkerThread_ClearData();
 
     //Start worker thread and capture it's future. If future isn't captured it won't actually run async

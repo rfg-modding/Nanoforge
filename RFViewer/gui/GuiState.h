@@ -53,6 +53,7 @@ public:
     //Used to trigger and reload and load a different territory
     bool ReloadNeeded = false;
     string CurrentTerritoryName;
+    string CurrentTerritoryShortname;
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
@@ -95,10 +96,10 @@ public:
         if (terr == "dlc01")
             terr = "zonescript_dlc01";
 
-        if(!firstLoad)
-            terr += ".vpp_pc";
+        terr += ".vpp_pc";
         
         CurrentTerritoryName = terr;
+        CurrentTerritoryShortname = newTerritory;
         if (!firstLoad)
             ReloadNeeded = true;
     }

@@ -9,8 +9,10 @@
 struct ZoneFile
 {
     string Name;
+    string ShortName;
     ZonePc36 Zone;
     bool RenderBoundingBoxes = false;
+    bool Persistent = false;
 };
 
 //Used by ZoneManager to filter objects list by class type
@@ -33,7 +35,7 @@ class ZoneManager
 {
 public:
     //Set values needed for it to function
-    void Init(PackfileVFS* packfileVFS, const string& territoryFilename);
+    void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname);
     //Load all zone files and gather info about them
     void LoadZoneData();
     //Reset / clear data in preparation for territory reload
@@ -52,8 +54,17 @@ public:
     std::vector<ZoneFile> ZoneFiles;
     std::vector<ZoneObjectClass> ZoneObjectClasses = {};
 
+    u32 LongestZoneName = 0;
+
 private:
+    //Determine short name for zone if possible. E.g. terr01_07_02.rfgzone_pc -> 07_02
+    //Goal is to hide unecessary info such as the territory, prefix, and extension where possible
+    //Still has full name for situations where that info is useful or for users who prefer that format
+    //Note: Assumes persistence prefix "p_" has already been checked for and that Name has already been set.
+    void SetZoneShortName(ZoneFile& zone);
+
     PackfileVFS* packfileVFS_ = nullptr;
     //Name of the vpp_pc file that zone data is loaded from at startup
     string territoryFilename_;
+    string territoryShortname_;
 };
