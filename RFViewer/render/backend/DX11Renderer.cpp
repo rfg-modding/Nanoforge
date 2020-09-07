@@ -583,6 +583,8 @@ bool DX11Renderer::InitImGui()
     io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
+    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
 
     fontManager_->RegisterFonts();
 

@@ -33,13 +33,13 @@ public:
     void RegisterFonts();
 
     //Default font size
-    ImGuiFont FontSmall{ 15.0f };
-    ImGuiFont FontDefault{ 17.0f };
-    ImGuiFont FontMedium{ 20.0f };
+    ImGuiFont FontSmall{ 11.0f };
+    ImGuiFont FontDefault{ 13.0f };
+    ImGuiFont FontMedium{ 16.0f };
 
     //Fonts larger than the default font //Note: Most disabled for now since not needed yet and increases load time + mem usage
-    ImGuiFont FontL{ 27.0f };
-    ImGuiFont FontXL{ 34.5f };
+    ImGuiFont FontL{ 24.0f };
+    ImGuiFont FontXL{ 31.5f };
     //ImGuiFont FontXXL(42.0f);
     //ImGuiFont FontXXXL(49.5f);
     //ImGuiFont FontXXXXL(57.0f);
