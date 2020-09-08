@@ -33,7 +33,7 @@ public:
     void Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera);
     ~DX11Renderer();
 
-    void NewFrame(f32 deltaTime);
+    void NewFrame(f32 deltaTime) const;
     void DoFrame(f32 deltaTime);
     void HandleResize();
     HWND GetSystemWindowHandle() { return hwnd_; }
@@ -64,7 +64,7 @@ private:
     //Initialize swapchain and resources it uses. Run each time the window is resized
     [[nodiscard]] bool InitSwapchainAndResources();
     [[nodiscard]] bool InitScene();
-    [[nodiscard]] bool InitImGui();
+    [[nodiscard]] bool InitImGui() const;
 
 
     [[nodiscard]] bool CreateDevice();
@@ -155,7 +155,7 @@ private:
 
     //Todo: Add build path variable for each contributor to set
 #ifdef DEBUG_BUILD
-    string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
+    string terrainShaderPath_ = "C:/Users/Luke/source/repos/RF-Viewer/Assets/shaders/Terrain.fx";
 #else
     string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
 #endif

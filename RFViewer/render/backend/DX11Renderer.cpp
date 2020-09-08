@@ -29,7 +29,7 @@
 void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
 {
     if (child != nullptr)
-        child->SetPrivateData(WKPDID_D3DDebugObjectName, (UINT)name.size(), name.c_str());
+        child->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<u32>(name.size()), name.c_str());
 }
 
 void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager, Camera* camera)
@@ -57,6 +57,9 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
 
     //Needed by some DirectXTex functions
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (hr != S_OK)
+        THROW_EXCEPTION("CoInitializeEx failed and returned {}", hr);
+
     //Quick fix for view being distorted before first window resize
     HandleResize();
 
@@ -115,7 +118,7 @@ DX11Renderer::~DX11Renderer()
     ReleaseCOM(cbPerObjectBuffer);
 }
 
-void DX11Renderer::NewFrame(f32 deltaTime)
+void DX11Renderer::NewFrame(f32 deltaTime) const
 {
     im3dRenderer_->NewFrame(deltaTime);
 }
@@ -123,7 +126,7 @@ void DX11Renderer::NewFrame(f32 deltaTime)
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
     //Reload shaders if necessary
-    auto latestShaderWriteTime = std::filesystem::last_write_time(terrainShaderPath_);
+    const auto latestShaderWriteTime = std::filesystem::last_write_time(terrainShaderPath_);
     if (latestShaderWriteTime != terrainShaderWriteTime_)
     {
         terrainShaderWriteTime_ = latestShaderWriteTime;
@@ -161,11 +164,11 @@ void DX11Renderer::DoFrame(f32 deltaTime)
             d3d11Context_->VSSetShader(terrainVertexShader_, nullptr, 0);
             d3d11Context_->PSSetShader(terrainPixelShader_, nullptr, 0);
             
-            DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-            DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
-            DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(renderInstance.Position.x, renderInstance.Position.y, renderInstance.Position.z);
+            XMVECTOR rotaxis = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+            XMMATRIX rotation = XMMatrixRotationAxis(rotaxis, 0.0f);
+            XMMATRIX translation = XMMatrixTranslation(renderInstance.Position.x, renderInstance.Position.y, renderInstance.Position.z);
 
-            terrainModelMatrices_[i] = DirectX::XMMatrixIdentity();
+            terrainModelMatrices_[i] = XMMatrixIdentity();
             terrainModelMatrices_[i] = translation * rotation;
 
             WVP = terrainModelMatrices_[i] * camera_->camView * camera_->camProjection;
@@ -182,7 +185,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
 
     im3dRenderer_->EndFrame();
 
-    d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, NULL);
+    d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, nullptr);
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
     d3d11Context_->RSSetViewports(1, &viewport);
     ViewportsDoFrame(); //Update viewport guis which render scene view textures
@@ -209,9 +212,9 @@ void DX11Renderer::HandleResize()
         THROW_EXCEPTION("DX11Renderer::InitSwapchainAndResources() failed in DX11Renderer::HandleResize()!");
 
     ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
-    camera_->HandleResize( { (f32)sceneViewWidth_, (f32)sceneViewHeight_} );
-    im3dRenderer_->HandleResize((f32)sceneViewWidth_, (f32)sceneViewHeight_);
+    io.DisplaySize = ImVec2(static_cast<f32>(windowWidth_), static_cast<f32>(windowHeight_));
+    camera_->HandleResize( { static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_)} );
+    im3dRenderer_->HandleResize(static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_));
 }
 
 void DX11Renderer::ResetTerritoryData()
@@ -252,7 +255,7 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             //Create index buffer for instance
             D3D11_BUFFER_DESC indexBufferDesc = {};
             indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-            indexBufferDesc.ByteWidth = (UINT)instance.Indices[i].size_bytes();
+            indexBufferDesc.ByteWidth = static_cast<u32>(instance.Indices[i].size_bytes());
             indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
             indexBufferDesc.CPUAccessFlags = 0;
             indexBufferDesc.MiscFlags = 0;
@@ -268,7 +271,7 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             //Create vertex buffer for instance
             D3D11_BUFFER_DESC vertexBufferDesc = {};
             vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-            vertexBufferDesc.ByteWidth = (UINT)instance.Vertices[i].size_bytes();
+            vertexBufferDesc.ByteWidth = static_cast<u32>(instance.Vertices[i].size_bytes());
             vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
             vertexBufferDesc.CPUAccessFlags = 0;
 
@@ -293,8 +296,8 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
 
             renderInstance.terrainIndexBuffers_[i] = terrainIndexBuffer;
             renderInstance.terrainVertexBuffers_[i] = terrainVertexBuffer;
-            renderInstance.MeshIndexCounts_[i] = (u32)instance.Indices[i].size();
-            terrainModelMatrices_.push_back(DirectX::XMMATRIX());
+            renderInstance.MeshIndexCounts_[i] = static_cast<u32>(instance.Indices[i].size());
+            terrainModelMatrices_.push_back(XMMATRIX());
         }
 
         //Set bool so the instance isn't initialized more than once
@@ -328,8 +331,8 @@ void DX11Renderer::InitTerrainResources()
     cbbd.CPUAccessFlags = 0;
     cbbd.MiscFlags = 0;
 
-    HRESULT hr = d3d11Device_->CreateBuffer(&cbbd, NULL, &terrainPerObjectBuffer_);
-    if (FAILED(hr))
+    HRESULT result = d3d11Device_->CreateBuffer(&cbbd, nullptr, &terrainPerObjectBuffer_);
+    if (FAILED(result))
         THROW_EXCEPTION("Failed to create terrain uniform buffer.");
 }
 
@@ -398,24 +401,27 @@ void DX11Renderer::ViewportsDoFrame()
 
     if (contentAreaSize.x != sceneViewWidth_ || contentAreaSize.y != sceneViewHeight_)
     {
-        sceneViewWidth_ = (u32)contentAreaSize.x;
-        sceneViewHeight_ = (u32)contentAreaSize.y;
-        InitScene();
+        sceneViewWidth_ = static_cast<u32>(contentAreaSize.x);
+        sceneViewHeight_ = static_cast<u32>(contentAreaSize.y);
+        if (!InitScene())
+            THROW_EXCEPTION("DX11Renderer::InitScene() call failed in DX11Renderer::ViewportsDoFrame()!");
 
         //Recreate depth buffer
-        CreateDepthBuffer(false);
+        if (!CreateDepthBuffer(false))
+            THROW_EXCEPTION("DX11Renderer::CreateDepthBuffer() call failed in DX11Renderer::ViewportsDoFrame()");
+
         sceneViewport_.TopLeftX = 0.0f;
         sceneViewport_.TopLeftY = 0.0f;
-        sceneViewport_.Width = (f32)sceneViewWidth_;
-        sceneViewport_.Height = (f32)sceneViewHeight_;
+        sceneViewport_.Width = static_cast<f32>(sceneViewWidth_);
+        sceneViewport_.Height = static_cast<f32>(sceneViewHeight_);
         sceneViewport_.MinDepth = 0.0f;
         sceneViewport_.MaxDepth = 1.0f;
-        camera_->HandleResize({ (f32)sceneViewWidth_, (f32)sceneViewHeight_ });
-        im3dRenderer_->HandleResize((f32)sceneViewWidth_, (f32)sceneViewHeight_);
+        camera_->HandleResize({ static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_) });
+        im3dRenderer_->HandleResize(static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_));
     }
 
     //Render scene texture
-    ImGui::Image(sceneViewShaderResource_, ImVec2((f32)sceneViewWidth_, (f32)sceneViewHeight_));
+    ImGui::Image(sceneViewShaderResource_, ImVec2(static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_)));
     ImGui::PopStyleColor();
 
     ImGui::End();
@@ -442,17 +448,17 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
     wc.cbClsExtra = NULL; //Extra bytes after our wc structure
     wc.cbWndExtra = NULL; //Extra bytes after our windows instance
     wc.hInstance = hInstance_; //Instance to current application
-    wc.hIcon = LoadIcon(NULL, IDI_WINLOGO); //Title bar Icon
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW); //Default mouse Icon
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 2); //Window bg color
-    wc.lpszMenuName = NULL; //Name of the menu attached to our window
+    wc.hIcon = LoadIcon(nullptr, IDI_WINLOGO); //Title bar Icon
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW); //Default mouse Icon
+    wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 2); //Window bg color
+    wc.lpszMenuName = nullptr; //Name of the menu attached to our window
     wc.lpszClassName = windowClassName; //Name of our windows class
-    wc.hIconSm = LoadIcon(NULL, IDI_WINLOGO); //Icon in your taskbar
+    wc.hIconSm = LoadIcon(nullptr, IDI_WINLOGO); //Icon in your taskbar
 
     if (!RegisterClassEx(&wc)) //Register our windows class
     {
         //if registration failed, display error
-        MessageBox(NULL, "Error registering class", "Error", MB_OK | MB_ICONERROR);
+        MessageBox(nullptr, "Error registering class", "Error", MB_OK | MB_ICONERROR);
         return false;
     }
 
@@ -465,16 +471,16 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
         CW_USEDEFAULT, CW_USEDEFAULT, //Top left corner of window
         windowWidth_, //Width of our window
         windowHeight_, //Height of our window
-        NULL, //Handle to parent window
-        NULL, //Handle to a Menu
+        nullptr, //Handle to parent window
+        nullptr, //Handle to a Menu
         hInstance_, //Specifies instance of current program
-        NULL //used for an MDI client window
+        nullptr //used for an MDI client window
     );
 
     if (!hwnd_) //Make sure our window has been created
     {
         //If not, display error
-        MessageBox(NULL, "Error creating window", "Error", MB_OK | MB_ICONERROR);
+        MessageBox(nullptr, "Error creating window", "Error", MB_OK | MB_ICONERROR);
         return false;
     }
 
@@ -491,7 +497,7 @@ bool DX11Renderer::InitDx11()
 
 bool DX11Renderer::InitSwapchainAndResources()
 {
-    bool result = CreateSwapchain() && CreateRenderTargetView() && CreateDepthBuffer();
+    const bool result = CreateSwapchain() && CreateRenderTargetView() && CreateDepthBuffer();
     if (!result)
         return false;
 
@@ -532,7 +538,9 @@ bool DX11Renderer::InitScene()
     textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
     textureDesc.CPUAccessFlags = 0;
     textureDesc.MiscFlags = 0;
-    d3d11Device_->CreateTexture2D(&textureDesc, NULL, &sceneViewTexture_);
+    d3d11Device_->CreateTexture2D(&textureDesc, nullptr, &sceneViewTexture_);
+    if (!sceneViewTexture_)
+        THROW_EXCEPTION("sceneViewTexture_ nullptr after call to CreateTexture2D in DX11Renderer::InitScene()");
 
     //Create the render target view for the scene
     D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
@@ -574,13 +582,13 @@ bool DX11Renderer::InitScene()
 }
 
 
-bool DX11Renderer::InitImGui()
+bool DX11Renderer::InitImGui() const
 {
     //Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); 
-    io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
+    io.DisplaySize = ImVec2(static_cast<f32>(windowWidth_), static_cast<f32>(windowHeight_));
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
@@ -661,7 +669,7 @@ bool DX11Renderer::CreateDevice()
 
     //Get d3d device interface ptr
     D3D_FEATURE_LEVEL featureLevel;
-    HRESULT deviceCreateResult = D3D11CreateDevice(
+    const HRESULT deviceCreateResult = D3D11CreateDevice(
         0, //Default adapter
         D3D_DRIVER_TYPE_HARDWARE,
         0, //No software device
@@ -725,6 +733,8 @@ bool DX11Renderer::CreateRenderTargetView()
     //Get ptr to swapchains backbuffer
     ID3D11Texture2D* backBuffer;
     SwapChain_->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
+    if (!backBuffer)
+        THROW_EXCEPTION("GetBuffer() returned a nullptr in DX11Renderer::CreateRenderTargetView()");
 
     //Create render target and get view of it
     d3d11Device_->CreateRenderTargetView(backBuffer, NULL, &renderTargetView_);
@@ -788,17 +798,17 @@ bool DX11Renderer::AcquireDxgiFactoryInstance()
     IDXGIAdapter* dxgiAdapter = 0;
     if (FAILED(d3d11Device_->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice))))
     {
-        MessageBox(0, "Failed to get IDXGIDevice* from newly created ID3D11Device*", 0, 0);
+        MessageBox(nullptr, "Failed to get IDXGIDevice* from newly created ID3D11Device*", nullptr, 0);
         return false;
     }
     if (FAILED(dxgiDevice->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(&dxgiAdapter))))
     {
-        MessageBox(0, "Failed to get IDXGIAdapter instance.", 0, 0);
+        MessageBox(nullptr, "Failed to get IDXGIAdapter instance.", nullptr, 0);
         return false;
     }
     if (FAILED(dxgiAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&dxgiFactory_))))
     {
-        MessageBox(0, "Failed to get IDXGIFactory instance.", 0, 0);
+        MessageBox(nullptr, "Failed to get IDXGIFactory instance.", nullptr, 0);
         return false;
     }
 
