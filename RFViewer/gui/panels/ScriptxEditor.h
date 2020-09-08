@@ -4,13 +4,14 @@
 #include "imnodes.h"
 #include <functional>
 #include <spdlog/fmt/fmt.h>
+#include "Log.h"
 
 static int current_id = 0;
 
 //Todo: Add type checking for input/output attributes
 struct IAttribute
 {
-    int Id;
+    i32 Id;
     virtual void Draw() = 0;
 };
 struct Node
@@ -26,10 +27,11 @@ struct Node
         attribute->Id = current_id++;
         Attributes.push_back(attribute);
     }
-    void SetCustomTitlebarColor(ImVec4 color)
+    Node& SetCustomTitlebarColor(const ImVec4& color)
     {
         UseCustomTitlebarColor = true;
         TitlebarColor = color;
+        return *this;
     }
     void Draw()
     {
@@ -57,6 +59,13 @@ struct Node
             //imnodes::PopColorStyle();
         }
     }
+    i32 GetAttributeId(u32 index)
+    {
+        if (index >= Attributes.size())
+            THROW_EXCEPTION("Invalid index passed to GetAttributeId");
+
+        return Attributes[index]->Id;
+    }
 };
 struct Link
 {
@@ -64,12 +73,15 @@ struct Link
     int start_attr, end_attr;
 };
 
-static std::vector<Node> Nodes;
+//Todo: Free nodes on reload/exit
+//Note: Using Node* here so we can easily have stable refs/ptrs to nodes
+static std::vector<Node*> Nodes;
 static std::vector<Link> Links;
 
 Node& AddNode(const string& title, const std::vector<IAttribute*> attributes)
 {
-    Node& node = Nodes.emplace_back();
+    Nodes.push_back(new Node);
+    Node& node = *Nodes.back();
     node.id = current_id++;
     node.title = title;
 
@@ -77,6 +89,10 @@ Node& AddNode(const string& title, const std::vector<IAttribute*> attributes)
         node.AddAttribute(attribute);
 
     return node;
+}
+void AddLink(i32 start, i32 end)
+{
+    Links.push_back({ current_id++, start, end });
 }
 
 bool IsAttributeLinked(int id)
@@ -99,8 +115,8 @@ struct StaticAttribute_String : IAttribute
     string Value;
 
     StaticAttribute_String(const string& value) : Label("String"), Value(value) {}
-    StaticAttribute_String(const string& value, const string& label) : Value(value), Label(label) {}
-    void Draw()
+    StaticAttribute_String(const string& value, const string& label) : Label(label), Value(value) {}
+    void Draw() override
     {
         imnodes::BeginStaticAttribute(Id);
         ImGui::SetNextItemWidth(200.0f);
@@ -114,7 +130,9 @@ struct InputAttribute_Bool : IAttribute
 {
     bool OverrideValue = false;
 
-    void Draw()
+    InputAttribute_Bool(){}
+    InputAttribute_Bool(bool override) : OverrideValue(override) {}
+    void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
         ImGui::Text("Condition");
@@ -133,7 +151,7 @@ struct InputAttribute_Number : IAttribute
 
     InputAttribute_Number(f32 value) : Label("Number"), Value(value) {}
     InputAttribute_Number(f32 value, const string& label) : Label(label), Value(value) {}
-    void Draw()
+    void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
         ImGui::Text(Label);
@@ -148,7 +166,7 @@ struct InputAttribute_Number : IAttribute
 };
 struct InputAttribute_String : IAttribute
 {
-    void Draw()
+    void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
         ImGui::Text("String");
@@ -162,7 +180,7 @@ struct InputAttribute_Handle : IAttribute
 
     InputAttribute_Handle(){ }
     InputAttribute_Handle(u32 classnameHash, u32 num) : ObjectClass(classnameHash), ObjectNumber(num) {}
-    void Draw()
+    void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
         ImGui::Text("Handle");
@@ -184,7 +202,7 @@ struct InputAttribute_Run : IAttribute
     string Label;
 
     InputAttribute_Run(const string& label = "Run") : Label(label) {}
-    void Draw()
+    void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_TriangleFilled);
         ImGui::Text(Label.c_str());
@@ -196,7 +214,7 @@ struct InputAttribute_Run : IAttribute
 struct OutputAttribute_Bool : IAttribute
 {
     bool Value;
-    void Draw()
+    void Draw() override
     {
         imnodes::BeginOutputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
         static bool flag = true;
@@ -206,7 +224,7 @@ struct OutputAttribute_Bool : IAttribute
 };
 struct OutputAttribute_Handle : IAttribute
 {
-    void Draw()
+    void Draw() override
     {
         imnodes::BeginOutputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
         ImGui::Text("Handle");
@@ -218,7 +236,7 @@ struct OutputAttribute_Run : IAttribute
     string Label;
 
     OutputAttribute_Run(const string& label = "Run") : Label(label) {}
-    void Draw()
+    void Draw() override
     {
         imnodes::BeginOutputAttribute(Id, imnodes::PinShape::PinShape_TriangleFilled);
         ImGui::Text(Label.c_str());
@@ -256,94 +274,100 @@ void ScriptxEditor_Update(GuiState* state)
         const ImVec4 FunctionColor(181, 34, 75, 255); //Red
 
         //Add nodes
-        AddNode("Bool", 
-            {new OutputAttribute_Bool}
-        ).SetCustomTitlebarColor(PrimitiveColor);
-        AddNode("Script",
-            { new StaticAttribute_String("Mission_Start", "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
-        ).SetCustomTitlebarColor(ScriptColor);
-
-
-        AddNode("Bool",
+        auto& scriptCondition = AddNode("Bool",
             { new OutputAttribute_Bool }
         ).SetCustomTitlebarColor(PrimitiveColor);
-        AddNode("hide_hud",
-            { new InputAttribute_Bool, new InputAttribute_Run }
+        auto& scriptRoot = AddNode("Script",
+            { new StaticAttribute_String("Mission_Start", "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
+        ).SetCustomTitlebarColor(ScriptColor);
+        AddLink(scriptCondition.GetAttributeId(0), scriptRoot.GetAttributeId(1));
+
+
+        //AddNode("Bool",
+        //    { new OutputAttribute_Bool }
+        //).SetCustomTitlebarColor(PrimitiveColor);
+        auto& node0 = AddNode("hide_hud",
+            { new InputAttribute_Bool(true), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node0.GetAttributeId(1));
 
 
-        AddNode("player_disable_input",
+        auto& node1 = AddNode("player_disable_input",
             { new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node1.GetAttributeId(0));
 
 
         AddNode("get_player_handle",
             { new OutputAttribute_Handle }
         ).SetCustomTitlebarColor(FunctionColor);
-        AddNode("Bool",
-            { new OutputAttribute_Bool }
-        ).SetCustomTitlebarColor(PrimitiveColor);
-        AddNode("play_animation",
+        //AddNode("Bool",
+        //    { new OutputAttribute_Bool }
+        //).SetCustomTitlebarColor(PrimitiveColor);
+        auto& node2 = AddNode("play_animation",
             //Todo: Have string be a dropdown with all valid animations instead on this action
-            { new InputAttribute_Handle, new StaticAttribute_String("stand talk short", "anim_action"), new InputAttribute_Bool,
+            { new InputAttribute_Handle, new StaticAttribute_String("stand talk short", "anim_action"), new InputAttribute_Bool(true),
               new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node2.GetAttributeId(3));
 
 
-        AddNode("Bool",
-            { new OutputAttribute_Bool }
-        ).SetCustomTitlebarColor(PrimitiveColor);
-        AddNode("npc_set_ambient_vehicles_disabled",
-            { new InputAttribute_Bool, new InputAttribute_Run }
+        //AddNode("Bool",
+        //    { new OutputAttribute_Bool }
+        //).SetCustomTitlebarColor(PrimitiveColor);
+        auto& node3 = AddNode("npc_set_ambient_vehicles_disabled",
+            { new InputAttribute_Bool(true), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node3.GetAttributeId(1));
 
 
-        AddNode("Bool",
-            { new OutputAttribute_Bool }
-        ).SetCustomTitlebarColor(PrimitiveColor);
-        AddNode("player_set_mission_never_die",
-            { new InputAttribute_Bool, new InputAttribute_Run }
+        //AddNode("Bool",
+        //    { new OutputAttribute_Bool }
+        //).SetCustomTitlebarColor(PrimitiveColor);
+        auto& node4 = AddNode("player_set_mission_never_die",
+            { new InputAttribute_Bool(true), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node4.GetAttributeId(1));
 
 
-        AddNode("set_time_of_day",
+        auto& node5 = AddNode("set_time_of_day",
             { new InputAttribute_Number(9), new InputAttribute_Number(0), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node5.GetAttributeId(2));
 
 
-        AddNode("pause_time_of_day",
-            { new InputAttribute_Bool, new InputAttribute_Run }
+        auto& node6 = AddNode("pause_time_of_day",
+            { new InputAttribute_Bool(true), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node6.GetAttributeId(1));
 
 
-        AddNode("reinforcements_disable",
+        auto& node7 = AddNode("reinforcements_disable",
             { new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node7.GetAttributeId(0));
 
 
-        AddNode("music_set_limited_level",
+        auto& node8 = AddNode("music_set_limited_level",
             { new StaticAttribute_String("_Melodic_Ambience", "music_threshold"), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node8.GetAttributeId(1));
 
 
         //Todo: Make object handle reference zone data
-        AddNode("patrol_pause",
+        auto& node9 = AddNode("patrol_pause",
             { new InputAttribute_Handle(0x3C80004E, 140), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
+        AddLink(scriptRoot.GetAttributeId(2), node9.GetAttributeId(1));
 
 
-        AddNode("delay",
+        auto& node10 = AddNode("delay",
             { new InputAttribute_Number(3, "min"), new InputAttribute_Number(3, "max"), new InputAttribute_Run("Start"), new OutputAttribute_Run("Continue") }
         ).SetCustomTitlebarColor(DelayColor);
         AddNode("spawn_squad",
             { new InputAttribute_Handle(0x3C80001F, 39), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-
-        //AddNode("",
-        //    { },
-        //    { },
-        //    { }
-        //);
+        AddLink(scriptRoot.GetAttributeId(2), node10.GetAttributeId(1));
     }
     //Todo: Destroy imnodes context later
 
@@ -354,15 +378,15 @@ void ScriptxEditor_Update(GuiState* state)
     static ImVec2 gridPos = { 25.0f, 25.0f };
     for (auto& node : Nodes)
     {
-        node.Draw();
+        node->Draw();
         if (firstDraw)
         {
-            imnodes::SetNodeGridSpacePos(node.id, gridPos);
-            gridPos.x += imnodes::GetNodeDimensions(node.id).x * 1.2f;
+            imnodes::SetNodeGridSpacePos(node->id, gridPos);
+            gridPos.x += imnodes::GetNodeDimensions(node->id).x * 1.2f;
             if (gridPos.x > 1200.0f)
             {
                 gridPos.x = 25.0f;
-                gridPos.y += imnodes::GetNodeDimensions(node.id).y * 1.5f;
+                gridPos.y += imnodes::GetNodeDimensions(node->id).y * 1.5f;
             }
         }
     }

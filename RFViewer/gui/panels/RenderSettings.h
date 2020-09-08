@@ -48,7 +48,7 @@ void RenderSettings_Update(GuiState* state)
 
     if (state->Renderer->cbPerFrameObject.ShadeMode != 0)
     {
-        ImGui::ColorEdit3("Diffuse", (f32*)&state->Renderer->cbPerFrameObject.DiffuseColor);
+        ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&state->Renderer->cbPerFrameObject.DiffuseColor));
         ImGui::InputFloat("Diffuse intensity", &state->Renderer->cbPerFrameObject.DiffuseIntensity);
         ImGui::InputFloat("Elevation color bias", &state->Renderer->cbPerFrameObject.ElevationFactorBias);
     }
