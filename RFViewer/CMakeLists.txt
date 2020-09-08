@@ -42,6 +42,8 @@ add_executable (RFViewer ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Support/imgui_node_editor.natvis
     # tinyxml2 files
     ${CMAKE_SOURCE_DIR}/dependencies/tinyxml2/tinyxml2.cpp
+    # imnodes files
+    ${CMAKE_SOURCE_DIR}/dependencies/imnodes/imnodes.cpp
     )
 
 # Add include directories
@@ -63,6 +65,7 @@ target_include_directories(RFViewer SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/im3d
     ${CMAKE_SOURCE_DIR}/Dependencies/tinyxml2
     ${CMAKE_SOURCE_DIR}/Dependencies/spdlog/include/
+    ${CMAKE_SOURCE_DIR}/Dependencies/imnodes/
 )
 
 # Copy assets directory to binary dir after builds

@@ -28,3 +28,6 @@
 [submodule "Dependencies/spdlog"]
 	path = Dependencies/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "Dependencies/imnodes"]
+	path = Dependencies/imnodes
+	url = https://github.com/Nelarius/imnodes.git
