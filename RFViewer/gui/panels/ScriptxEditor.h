@@ -1,5 +1,7 @@
 #pragma once
 #include "gui/GuiState.h"
+#include <types/Vec2.h>
+#include <types/Vec4.h>
 #include "render/imgui/ImGuiConfig.h"
 #include "imnodes.h"
 #include <functional>
@@ -9,25 +11,59 @@
 static int current_id = 0;
 
 //Todo: Add type checking for input/output attributes
+struct Node;
 struct IAttribute
 {
     i32 Id;
+    Node* Parent;
     virtual void Draw() = 0;
+};
+struct Link
+{
+    i32 Id; //Link uid
+    i32 Start; //Start attribute uid
+    i32 End; //End attribute uid
+    Node* StartNode; //Node that owns the start attribute
+    Node* EndNode; //Node that owns the end attribute
 };
 struct Node
 {
-    int id;
-    string title;
+    i32 Id;
+    string Title;
+    Vec4 TitlebarColor;
     std::vector<IAttribute*> Attributes = {};
-    ImVec4 TitlebarColor;
     bool UseCustomTitlebarColor = false;
 
+    //Depth in node hierarchy. Used for auto-positioning of nodes
+    u32 Depth = 0;
+    std::vector<Node*> Subnodes = { };
+
+    //Used by auto-layout system
+    bool InitialPosBasedOnParent = false;
+
+    void AddSubnode(Node* subnode)
+    {
+        Subnodes.push_back(subnode);
+    }
+    //Set depth + recursively set depth of subnodes
+    void SetDepth(u32 newDepth)
+    {
+        Depth = newDepth;
+        UpdateSubnodeDepths();
+    }
+    //Recursively update depth of subnodes
+    void UpdateSubnodeDepths()
+    {
+        for (auto& subnode : Subnodes)
+            subnode->SetDepth(Depth + 1);
+    }
     void AddAttribute(IAttribute* attribute)
     {
         attribute->Id = current_id++;
+        attribute->Parent = this;
         Attributes.push_back(attribute);
     }
-    Node& SetCustomTitlebarColor(const ImVec4& color)
+    Node& SetCustomTitlebarColor(const Vec4& color)
     {
         UseCustomTitlebarColor = true;
         TitlebarColor = color;
@@ -43,10 +79,10 @@ struct Node
             //    imnodes::ColorStyle_TitleBarSelected, IM_COL32(TitlebarColor.x + 10, TitlebarColor.y + 10, TitlebarColor.z + 10, TitlebarColor.w));
         }
 
-        imnodes::BeginNode(id);
+        imnodes::BeginNode(Id);
 
         imnodes::BeginNodeTitleBar();
-        ImGui::TextUnformatted(title.c_str());
+        ImGui::TextUnformatted(Title.c_str());
         imnodes::EndNodeTitleBar();
 
         for (auto& attribute : Attributes)
@@ -66,11 +102,23 @@ struct Node
 
         return Attributes[index]->Id;
     }
-};
-struct Link
-{
-    int id;
-    int start_attr, end_attr;
+    IAttribute* GetAttribute(u32 index)
+    {
+        if (index >= Attributes.size())
+            return nullptr;
+
+        return Attributes[index];
+    }
+    void SetPosition(const Vec2& newPos)
+    {
+        imnodes::SetNodeGridSpacePos(Id, ImVec2(newPos.x, newPos.y));
+    }
+    void SetPosition(const ImVec2& newPos)
+    {
+        imnodes::SetNodeGridSpacePos(Id, newPos);
+    }
+
+private:
 };
 
 //Todo: Free nodes on reload/exit
@@ -82,31 +130,53 @@ Node& AddNode(const string& title, const std::vector<IAttribute*> attributes)
 {
     Nodes.push_back(new Node);
     Node& node = *Nodes.back();
-    node.id = current_id++;
-    node.title = title;
+    node.Id = current_id++;
+    node.Title = title;
 
     for (IAttribute* attribute : attributes)
         node.AddAttribute(attribute);
 
     return node;
 }
-void AddLink(i32 start, i32 end)
+void AddLink(IAttribute* start, IAttribute* end)
 {
-    Links.push_back({ current_id++, start, end });
+    Links.push_back({ current_id++, start->Id, end->Id, start->Parent, end->Parent });
+    start->Parent->AddSubnode(end->Parent);
+    start->Parent->UpdateSubnodeDepths();
 }
-
 bool IsAttributeLinked(int id)
 {
     for (auto& link : Links)
     {
-        if (link.start_attr == id || link.end_attr == id)
+        if (link.Start == id || link.End == id)
             return true;
     }
 
     return false;
 }
+Node* FindAttributeOwner(i32 attributeId)
+{
+    for (auto* node : Nodes)
+    {
+        for (auto* attribute : node->Attributes)
+        {
+            if (attribute->Id == attributeId)
+                return node;
+        }
+    }
 
-
+    return nullptr;
+}
+u32 GetHighestNodeDepth()
+{
+    u32 max = 0;
+    for (auto* node : Nodes)
+    {
+        if (node->Depth > max)
+            max = node->Depth;
+    }
+    return max;
+}
 
 //Static attributes
 struct StaticAttribute_String : IAttribute
@@ -267,11 +337,11 @@ void ScriptxEditor_Update(GuiState* state)
         //Todo: Clear imnodes state and free attributes when finished with them
         firstCall = false;
 
-        const ImVec4 DelayColor(130, 129, 27, 255); //Yellow
-        const ImVec4 PrimitiveColor(47, 141, 125, 255); //Light green
-        const ImVec4 ScriptColor(255, 129, 27, 255); //Orange
-        const ImVec4 ActionColor(33, 106, 183, 255); //Blue
-        const ImVec4 FunctionColor(181, 34, 75, 255); //Red
+        const Vec4 DelayColor { 130, 129, 27, 255 }; //Yellow
+        const Vec4 PrimitiveColor {47, 141, 125, 255}; //Light green
+        const Vec4 ScriptColor { 255, 129, 27, 255 }; //Orange
+        const Vec4 ActionColor { 33, 106, 183, 255 }; //Blue
+        const Vec4 FunctionColor {181, 34, 75, 255}; //Red
 
         //Add nodes
         auto& scriptCondition = AddNode("Bool",
@@ -280,7 +350,7 @@ void ScriptxEditor_Update(GuiState* state)
         auto& scriptRoot = AddNode("Script",
             { new StaticAttribute_String("Mission_Start", "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
         ).SetCustomTitlebarColor(ScriptColor);
-        AddLink(scriptCondition.GetAttributeId(0), scriptRoot.GetAttributeId(1));
+        AddLink(scriptCondition.GetAttribute(0), scriptRoot.GetAttribute(1));
 
 
         //AddNode("Bool",
@@ -289,16 +359,16 @@ void ScriptxEditor_Update(GuiState* state)
         auto& node0 = AddNode("hide_hud",
             { new InputAttribute_Bool(true), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node0.GetAttributeId(1));
+        AddLink(scriptRoot.GetAttribute(2), node0.GetAttribute(1));
 
 
         auto& node1 = AddNode("player_disable_input",
             { new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node1.GetAttributeId(0));
+        AddLink(scriptRoot.GetAttribute(2), node1.GetAttribute(0));
 
 
-        AddNode("get_player_handle",
+        auto& getPlayerHandle = AddNode("get_player_handle",
             { new OutputAttribute_Handle }
         ).SetCustomTitlebarColor(FunctionColor);
         //AddNode("Bool",
@@ -309,8 +379,8 @@ void ScriptxEditor_Update(GuiState* state)
             { new InputAttribute_Handle, new StaticAttribute_String("stand talk short", "anim_action"), new InputAttribute_Bool(true),
               new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node2.GetAttributeId(3));
-
+        AddLink(scriptRoot.GetAttribute(2), node2.GetAttribute(3));
+        AddLink(getPlayerHandle.GetAttribute(0), node2.GetAttribute(0));
 
         //AddNode("Bool",
         //    { new OutputAttribute_Bool }
@@ -318,7 +388,7 @@ void ScriptxEditor_Update(GuiState* state)
         auto& node3 = AddNode("npc_set_ambient_vehicles_disabled",
             { new InputAttribute_Bool(true), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node3.GetAttributeId(1));
+        AddLink(scriptRoot.GetAttribute(2), node3.GetAttribute(1));
 
 
         //AddNode("Bool",
@@ -327,73 +397,89 @@ void ScriptxEditor_Update(GuiState* state)
         auto& node4 = AddNode("player_set_mission_never_die",
             { new InputAttribute_Bool(true), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node4.GetAttributeId(1));
+        AddLink(scriptRoot.GetAttribute(2), node4.GetAttribute(1));
 
 
         auto& node5 = AddNode("set_time_of_day",
             { new InputAttribute_Number(9), new InputAttribute_Number(0), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node5.GetAttributeId(2));
+        AddLink(scriptRoot.GetAttribute(2), node5.GetAttribute(2));
 
 
         auto& node6 = AddNode("pause_time_of_day",
             { new InputAttribute_Bool(true), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node6.GetAttributeId(1));
+        AddLink(scriptRoot.GetAttribute(2), node6.GetAttribute(1));
 
 
         auto& node7 = AddNode("reinforcements_disable",
             { new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node7.GetAttributeId(0));
+        AddLink(scriptRoot.GetAttribute(2), node7.GetAttribute(0));
 
 
         auto& node8 = AddNode("music_set_limited_level",
             { new StaticAttribute_String("_Melodic_Ambience", "music_threshold"), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node8.GetAttributeId(1));
+        AddLink(scriptRoot.GetAttribute(2), node8.GetAttribute(1));
 
 
         //Todo: Make object handle reference zone data
         auto& node9 = AddNode("patrol_pause",
             { new InputAttribute_Handle(0x3C80004E, 140), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node9.GetAttributeId(1));
+        AddLink(scriptRoot.GetAttribute(2), node9.GetAttribute(1));
 
 
         auto& node10 = AddNode("delay",
             { new InputAttribute_Number(3, "min"), new InputAttribute_Number(3, "max"), new InputAttribute_Run("Start"), new OutputAttribute_Run("Continue") }
         ).SetCustomTitlebarColor(DelayColor);
-        AddNode("spawn_squad",
+        auto& spawn_squad = AddNode("spawn_squad",
             { new InputAttribute_Handle(0x3C80001F, 39), new InputAttribute_Run }
         ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttributeId(2), node10.GetAttributeId(1));
+        AddLink(scriptRoot.GetAttribute(2), node10.GetAttribute(1));
+        AddLink(node10.GetAttribute(3), spawn_squad.GetAttribute(1));
     }
     //Todo: Destroy imnodes context later
 
+    static bool firstDraw = true;
+    static ImVec2 gridPos = { 25.0f, 25.0f };
+    
     imnodes::BeginNodeEditor();
 
     //Draw nodes
-    static bool firstDraw = true;
-    static ImVec2 gridPos = { 25.0f, 25.0f };
     for (auto& node : Nodes)
     {
         node->Draw();
         if (firstDraw)
         {
-            imnodes::SetNodeGridSpacePos(node->id, gridPos);
-            gridPos.x += imnodes::GetNodeDimensions(node->id).x * 1.2f;
-            if (gridPos.x > 1200.0f)
+            u32 maxDepth = GetHighestNodeDepth();
+            ImVec2 curPos = { 25.0f, 25.0f };
+            for (u32 depth = 0; depth <= maxDepth; depth++)
             {
-                gridPos.x = 25.0f;
-                gridPos.y += imnodes::GetNodeDimensions(node->id).y * 1.5f;
+                f32 widestNodeFound = 0.0f;
+                u32 depthCount = 0;
+                for (auto* node : Nodes)
+                {
+                    if (node->Depth != depth)
+                        continue;
+
+                    depthCount++;
+                    node->SetPosition(curPos);
+                    ImVec2 nodeDimensions = imnodes::GetNodeDimensions(node->Id);
+                    curPos.y += nodeDimensions.y * 1.2f;
+                    if (nodeDimensions.x > widestNodeFound)
+                        widestNodeFound = nodeDimensions.x;
+                }
+                curPos.x += widestNodeFound * 1.5f;
+                curPos.y = 25.0f;
             }
         }
     }
     //Draw links
     for (const Link& link : Links)
     {
-        imnodes::Link(link.id, link.start_attr, link.end_attr);
+        imnodes::Link(link.Id, link.Start, link.End);
     }
     firstDraw = false;
     imnodes::EndNodeEditor();
@@ -401,9 +487,18 @@ void ScriptxEditor_Update(GuiState* state)
     //Add created links to Links
     {
         Link link;
-        if (imnodes::IsLinkCreated(&link.start_attr, &link.end_attr))
+        if (imnodes::IsLinkCreated(&link.Start, &link.End))
         {
-            link.id = ++current_id;
+            Node* startNode = FindAttributeOwner(link.Start);
+            Node* endNode = FindAttributeOwner(link.End);
+            if (!startNode)
+                THROW_EXCEPTION("Link created for attribute with no owner!");
+            if (!endNode)
+                THROW_EXCEPTION("Link created for attribute with no owner!");
+            
+            link.Id = ++current_id;
+            link.StartNode = startNode;
+            link.EndNode = endNode;
             Links.push_back(link);
         }
     }
@@ -414,7 +509,7 @@ void ScriptxEditor_Update(GuiState* state)
         {
             auto iter = std::find_if(
                 Links.begin(), Links.end(), [link_id](const Link& link) -> bool {
-                    return link.id == link_id;
+                    return link.Id == link_id;
                 });
             assert(iter != Links.end());
             Links.erase(iter);
