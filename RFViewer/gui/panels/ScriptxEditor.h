@@ -7,6 +7,7 @@
 #include <functional>
 #include <spdlog/fmt/fmt.h>
 #include "Log.h"
+#include <tinyxml2/tinyxml2.h>
 
 static int current_id = 0;
 
@@ -41,6 +42,7 @@ struct Node
     //Used by auto-layout system
     bool InitialPosBasedOnParent = false;
 
+#pragma region NodeMemberFuncs
     void AddSubnode(Node* subnode)
     {
         Subnodes.push_back(subnode);
@@ -117,6 +119,8 @@ struct Node
     {
         imnodes::SetNodeGridSpacePos(Id, newPos);
     }
+#pragma endregion NodeMemberFuncs
+
 
 private:
 };
@@ -125,6 +129,8 @@ private:
 //Note: Using Node* here so we can easily have stable refs/ptrs to nodes
 static std::vector<Node*> Nodes;
 static std::vector<Link> Links;
+
+#pragma region NodeUtilFuncs
 
 Node& AddNode(const string& title, const std::vector<IAttribute*> attributes)
 {
@@ -177,6 +183,10 @@ u32 GetHighestNodeDepth()
     }
     return max;
 }
+
+#pragma endregion NodeUtilFuncs
+
+#pragma region Attributes
 
 //Static attributes
 struct StaticAttribute_String : IAttribute
@@ -236,19 +246,19 @@ struct InputAttribute_Number : IAttribute
 };
 struct InputAttribute_String : IAttribute
 {
-    void Draw() override
-    {
-        imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
-        ImGui::Text("String");
-        imnodes::EndInputAttribute();
-    }
+void Draw() override
+{
+    imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
+    ImGui::Text("String");
+    imnodes::EndInputAttribute();
+}
 };
 struct InputAttribute_Handle : IAttribute
 {
     u32 ObjectClass = 0;
     u32 ObjectNumber = 0;
 
-    InputAttribute_Handle(){ }
+    InputAttribute_Handle() { }
     InputAttribute_Handle(u32 classnameHash, u32 num) : ObjectClass(classnameHash), ObjectNumber(num) {}
     void Draw() override
     {
@@ -317,6 +327,132 @@ struct OutputAttribute_Run : IAttribute
 #define BOOL_NODE() AddNode("Bool", { new OutputAttribute_Bool }, {}, {});
 #define SCRIPT_NODE(ScriptName) AddNode("Script", { new StaticAttribute_String(ScriptName) }, { new InputAttribute_Bool }, { new OutputAttribute_Run });
 
+#pragma endregion Attributes
+
+const Vec4 DelayColor{ 130, 129, 27, 255 }; //Yellow
+const Vec4 PrimitiveColor{ 47, 141, 125, 255 }; //Light green
+const Vec4 ScriptColor{ 255, 129, 27, 255 }; //Orange
+const Vec4 ActionColor{ 33, 106, 183, 255 }; //Blue
+const Vec4 FunctionColor{ 181, 34, 75, 255 }; //Red
+
+void ScriptxEditor_Cleanup(GuiState* state);
+
+//Load a scriptx file and generate a node graph from it. Clears any existing data/graphs before loading new one
+void LoadScriptxFile(const string& name, GuiState* state)
+{
+    //Clear existing data
+    ScriptxEditor_Cleanup(state);
+
+    //Wait for packfileVFS to be ready for use
+    //Todo: Either move packfileVFS init out of worker thread or move this onto a thread so this doesn't lock the entire program while packfileVFS init is pending
+    while (!state->PackfileVFS->Ready())
+    {
+        Sleep(100);
+    }
+
+    //Find target file
+    auto handles = state->PackfileVFS->GetFiles(name, false, true);
+    if (handles.size() < 1)
+    {
+        Log->info("Failed to load scriptx file {}. Unable to locate.", name);
+        return;
+    }
+
+    //Get scriptx bytes and pass to xml parser
+    auto& handle = handles[0];
+    std::span<u8> scriptxBytes = handle.Get();
+    tinyxml2::XMLDocument* doc = new tinyxml2::XMLDocument;
+    doc->Parse((const char*)scriptxBytes.data(), scriptxBytes.size_bytes());
+
+    //Parse scriptx. First get the root element
+    auto* root = doc->RootElement();
+    if (!root)
+        THROW_EXCEPTION("Failed to find root node in scriptx file \"{}\"", name);
+
+    //Todo: Read version, modified, and vars
+    //Todo: Support blocks other than <managed> and selecting them
+    auto* managed = root->FirstChildElement("managed");
+    if (!managed)
+        return;
+
+    //Todo: Read all script nodes instead of just the first one
+    auto* scriptRootXml = managed->FirstChildElement("script");
+    //Parse script node
+    {
+        //Todo: Support condition node holding actions/functions
+        //Get and read condition node
+        auto* scriptConditionXml = scriptRootXml->FirstChildElement("condition");
+        if (!scriptConditionXml)
+            THROW_EXCEPTION("Failed to get <condition> node from scriptx <script> node \"{}\"", scriptRootXml->Value());
+
+        //Note: Currently assumes the condition is just a true/false flag. Need to be more complex to support all scriptx
+        auto* scriptCondFlagXml = scriptConditionXml->FirstChildElement("flag");
+        if (!scriptCondFlagXml)
+            THROW_EXCEPTION("Assumption that script <condition> block only contains a true/false flag failed! Parsing more complex <condition> blocks not yet supported.");
+
+        //Create condition node on node graph
+        bool scriptCondFlagValue = string(scriptCondFlagXml->GetText()) == "true" ? true : false;
+        auto& scriptCondition = AddNode("Bool",
+            { new OutputAttribute_Bool }
+        ).SetCustomTitlebarColor(PrimitiveColor);
+
+        //Create script node on graph and link to condition node
+        auto& scriptRoot = AddNode("Script",
+            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
+        ).SetCustomTitlebarColor(ScriptColor);
+        AddLink(scriptCondition.GetAttribute(0), scriptRoot.GetAttribute(1));
+
+        //Read <script> contents and generate node graph from them
+        tinyxml2::XMLElement* currentNode = scriptConditionXml;
+        currentNode = currentNode->NextSiblingElement();
+        while (currentNode)
+        {
+            //Todo: Will want to split these into multiple recursive parsing functions since actions can contain actions recursively
+
+            //Parse node
+            string nodeTypeName(currentNode->Value());
+            if (nodeTypeName == "action")
+            {
+                Log->info("Reached <action> node");
+            }
+            else if (nodeTypeName == "variable")
+            {
+                Log->info("Reached <variable> node");
+            }
+            else if (nodeTypeName == "delay")
+            {
+                Log->info("Reached <delay> node");
+            }
+            else
+            {
+                Log->warn("Unknown script node type \"{}\" reached. Skipping.", currentNode->Value());
+            }
+
+
+            //Get next node
+            currentNode = currentNode->NextSiblingElement();
+        }
+    }
+}
+
+//Clear resources created by scriptx editor & node graph
+void ScriptxEditor_Cleanup(GuiState* state)
+{
+    //Free nodes and attributes. They're allocated on the heap so they're pointers are stable
+    for (Node* node : Nodes)
+    {
+        for (IAttribute* attribute : node->Attributes)
+        {
+            delete attribute;
+        }
+        delete node;
+    }
+
+    //Clear node and link vectors
+    Nodes.clear();
+    Links.clear();
+}
+
 void ScriptxEditor_Update(GuiState* state)
 {
     if (!ImGui::Begin("Scriptx editor"))
@@ -337,108 +473,104 @@ void ScriptxEditor_Update(GuiState* state)
         //Todo: Clear imnodes state and free attributes when finished with them
         firstCall = false;
 
-        const Vec4 DelayColor { 130, 129, 27, 255 }; //Yellow
-        const Vec4 PrimitiveColor {47, 141, 125, 255}; //Light green
-        const Vec4 ScriptColor { 255, 129, 27, 255 }; //Orange
-        const Vec4 ActionColor { 33, 106, 183, 255 }; //Blue
-        const Vec4 FunctionColor {181, 34, 75, 255}; //Red
+        LoadScriptxFile("terr01_tutorial.scriptx", state);
 
-        //Add nodes
-        auto& scriptCondition = AddNode("Bool",
-            { new OutputAttribute_Bool }
-        ).SetCustomTitlebarColor(PrimitiveColor);
-        auto& scriptRoot = AddNode("Script",
-            { new StaticAttribute_String("Mission_Start", "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
-        ).SetCustomTitlebarColor(ScriptColor);
-        AddLink(scriptCondition.GetAttribute(0), scriptRoot.GetAttribute(1));
-
-
-        //AddNode("Bool",
+        ////Add nodes
+        //auto& scriptCondition = AddNode("Bool",
         //    { new OutputAttribute_Bool }
         //).SetCustomTitlebarColor(PrimitiveColor);
-        auto& node0 = AddNode("hide_hud",
-            { new InputAttribute_Bool(true), new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node0.GetAttribute(1));
+        //auto& scriptRoot = AddNode("Script",
+        //    { new StaticAttribute_String("Mission_Start", "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
+        //).SetCustomTitlebarColor(ScriptColor);
+        //AddLink(scriptCondition.GetAttribute(0), scriptRoot.GetAttribute(1));
 
 
-        auto& node1 = AddNode("player_disable_input",
-            { new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node1.GetAttribute(0));
+        ////AddNode("Bool",
+        ////    { new OutputAttribute_Bool }
+        ////).SetCustomTitlebarColor(PrimitiveColor);
+        //auto& node0 = AddNode("hide_hud",
+        //    { new InputAttribute_Bool(true), new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node0.GetAttribute(1));
 
 
-        auto& getPlayerHandle = AddNode("get_player_handle",
-            { new OutputAttribute_Handle }
-        ).SetCustomTitlebarColor(FunctionColor);
-        //AddNode("Bool",
-        //    { new OutputAttribute_Bool }
-        //).SetCustomTitlebarColor(PrimitiveColor);
-        auto& node2 = AddNode("play_animation",
-            //Todo: Have string be a dropdown with all valid animations instead on this action
-            { new InputAttribute_Handle, new StaticAttribute_String("stand talk short", "anim_action"), new InputAttribute_Bool(true),
-              new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node2.GetAttribute(3));
-        AddLink(getPlayerHandle.GetAttribute(0), node2.GetAttribute(0));
-
-        //AddNode("Bool",
-        //    { new OutputAttribute_Bool }
-        //).SetCustomTitlebarColor(PrimitiveColor);
-        auto& node3 = AddNode("npc_set_ambient_vehicles_disabled",
-            { new InputAttribute_Bool(true), new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node3.GetAttribute(1));
+        //auto& node1 = AddNode("player_disable_input",
+        //    { new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node1.GetAttribute(0));
 
 
-        //AddNode("Bool",
-        //    { new OutputAttribute_Bool }
-        //).SetCustomTitlebarColor(PrimitiveColor);
-        auto& node4 = AddNode("player_set_mission_never_die",
-            { new InputAttribute_Bool(true), new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node4.GetAttribute(1));
+        //auto& getPlayerHandle = AddNode("get_player_handle",
+        //    { new OutputAttribute_Handle }
+        //).SetCustomTitlebarColor(FunctionColor);
+        ////AddNode("Bool",
+        ////    { new OutputAttribute_Bool }
+        ////).SetCustomTitlebarColor(PrimitiveColor);
+        //auto& node2 = AddNode("play_animation",
+        //    //Todo: Have string be a dropdown with all valid animations instead on this action
+        //    { new InputAttribute_Handle, new StaticAttribute_String("stand talk short", "anim_action"), new InputAttribute_Bool(true),
+        //      new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node2.GetAttribute(3));
+        //AddLink(getPlayerHandle.GetAttribute(0), node2.GetAttribute(0));
+
+        ////AddNode("Bool",
+        ////    { new OutputAttribute_Bool }
+        ////).SetCustomTitlebarColor(PrimitiveColor);
+        //auto& node3 = AddNode("npc_set_ambient_vehicles_disabled",
+        //    { new InputAttribute_Bool(true), new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node3.GetAttribute(1));
 
 
-        auto& node5 = AddNode("set_time_of_day",
-            { new InputAttribute_Number(9), new InputAttribute_Number(0), new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node5.GetAttribute(2));
+        ////AddNode("Bool",
+        ////    { new OutputAttribute_Bool }
+        ////).SetCustomTitlebarColor(PrimitiveColor);
+        //auto& node4 = AddNode("player_set_mission_never_die",
+        //    { new InputAttribute_Bool(true), new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node4.GetAttribute(1));
 
 
-        auto& node6 = AddNode("pause_time_of_day",
-            { new InputAttribute_Bool(true), new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node6.GetAttribute(1));
+        //auto& node5 = AddNode("set_time_of_day",
+        //    { new InputAttribute_Number(9), new InputAttribute_Number(0), new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node5.GetAttribute(2));
 
 
-        auto& node7 = AddNode("reinforcements_disable",
-            { new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node7.GetAttribute(0));
+        //auto& node6 = AddNode("pause_time_of_day",
+        //    { new InputAttribute_Bool(true), new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node6.GetAttribute(1));
 
 
-        auto& node8 = AddNode("music_set_limited_level",
-            { new StaticAttribute_String("_Melodic_Ambience", "music_threshold"), new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node8.GetAttribute(1));
+        //auto& node7 = AddNode("reinforcements_disable",
+        //    { new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node7.GetAttribute(0));
 
 
-        //Todo: Make object handle reference zone data
-        auto& node9 = AddNode("patrol_pause",
-            { new InputAttribute_Handle(0x3C80004E, 140), new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node9.GetAttribute(1));
+        //auto& node8 = AddNode("music_set_limited_level",
+        //    { new StaticAttribute_String("_Melodic_Ambience", "music_threshold"), new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node8.GetAttribute(1));
 
 
-        auto& node10 = AddNode("delay",
-            { new InputAttribute_Number(3, "min"), new InputAttribute_Number(3, "max"), new InputAttribute_Run("Start"), new OutputAttribute_Run("Continue") }
-        ).SetCustomTitlebarColor(DelayColor);
-        auto& spawn_squad = AddNode("spawn_squad",
-            { new InputAttribute_Handle(0x3C80001F, 39), new InputAttribute_Run }
-        ).SetCustomTitlebarColor(ActionColor);
-        AddLink(scriptRoot.GetAttribute(2), node10.GetAttribute(1));
-        AddLink(node10.GetAttribute(3), spawn_squad.GetAttribute(1));
+        ////Todo: Make object handle reference zone data
+        //auto& node9 = AddNode("patrol_pause",
+        //    { new InputAttribute_Handle(0x3C80004E, 140), new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node9.GetAttribute(1));
+
+
+        //auto& node10 = AddNode("delay",
+        //    { new InputAttribute_Number(3, "min"), new InputAttribute_Number(3, "max"), new InputAttribute_Run("Start"), new OutputAttribute_Run("Continue") }
+        //).SetCustomTitlebarColor(DelayColor);
+        //auto& spawn_squad = AddNode("spawn_squad",
+        //    { new InputAttribute_Handle(0x3C80001F, 39), new InputAttribute_Run }
+        //).SetCustomTitlebarColor(ActionColor);
+        //AddLink(scriptRoot.GetAttribute(2), node10.GetAttribute(1));
+        //AddLink(node10.GetAttribute(3), spawn_squad.GetAttribute(1));
     }
     //Todo: Destroy imnodes context later
 
