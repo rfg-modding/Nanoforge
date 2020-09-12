@@ -18,8 +18,6 @@
 #include <imgui/imconfig.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
-#include <DirectXTex.h>
-#include <Dependencies\DirectXTex\DirectXTex\DirectXTexD3D11.cpp>
 #include "render/util/DX11Helpers.h"
 #include "render/backend/Im3dRenderer.h"
 #include <iostream>
@@ -55,8 +53,6 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
     im3dRenderer_->Init(d3d11Device_, d3d11Context_, hwnd_, camera_);
     terrainShaderWriteTime_ = std::filesystem::last_write_time(terrainShaderPath_);
 
-    //Needed by some DirectXTex functions
-    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     //Quick fix for view being distorted before first window resize
     HandleResize();
 

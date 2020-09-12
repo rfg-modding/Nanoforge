@@ -58,8 +58,6 @@ target_include_directories(RFViewer SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui/
     ${CMAKE_SOURCE_DIR}/Dependencies/IconFontCppHeaders/
     ${CMAKE_SOURCE_DIR}/Dependencies/
-    ${CMAKE_SOURCE_DIR}/Dependencies/DirectXTex/DirectXTex/
-    ${CMAKE_SOURCE_DIR}/Dependencies/DirectXTex/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Source/
     ${CMAKE_SOURCE_DIR}/Dependencies/im3d
@@ -78,10 +76,3 @@ add_custom_command(TARGET RFViewer POST_BUILD
 target_link_libraries(RFViewer PRIVATE Common)
 target_link_libraries(RFViewer PRIVATE RfgTools++)
 target_link_libraries(RFViewer PRIVATE spdlog)
-
-# Have to manually link pre-built versions of these for the moment since it wasn't playing nice with cmake add_subdirectory
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_link_libraries(RFViewer PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex_d.lib)
-else()
-    target_link_libraries(RFViewer PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex.lib)
-endif()
