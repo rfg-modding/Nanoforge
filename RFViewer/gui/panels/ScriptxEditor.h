@@ -65,11 +65,11 @@ struct Node
         attribute->Parent = this;
         Attributes.push_back(attribute);
     }
-    Node& SetCustomTitlebarColor(const Vec4& color)
+    Node* SetCustomTitlebarColor(const Vec4& color)
     {
         UseCustomTitlebarColor = true;
         TitlebarColor = color;
-        return *this;
+        return this;
     }
     void Draw()
     {
@@ -132,7 +132,7 @@ static std::vector<Link> Links;
 
 #pragma region NodeUtilFuncs
 
-Node& AddNode(const string& title, const std::vector<IAttribute*> attributes)
+Node* AddNode(const string& title, const std::vector<IAttribute*> attributes)
 {
     Nodes.push_back(new Node);
     Node& node = *Nodes.back();
@@ -142,7 +142,7 @@ Node& AddNode(const string& title, const std::vector<IAttribute*> attributes)
     for (IAttribute* attribute : attributes)
         node.AddAttribute(attribute);
 
-    return node;
+    return &node;
 }
 void AddLink(IAttribute* start, IAttribute* end)
 {
@@ -336,6 +336,7 @@ const Vec4 ActionColor{ 33, 106, 183, 255 }; //Blue
 const Vec4 FunctionColor{ 181, 34, 75, 255 }; //Red
 
 void ScriptxEditor_Cleanup(GuiState* state);
+void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent);
 
 //Load a scriptx file and generate a node graph from it. Clears any existing data/graphs before loading new one
 void LoadScriptxFile(const string& name, GuiState* state)
@@ -392,46 +393,50 @@ void LoadScriptxFile(const string& name, GuiState* state)
 
         //Create condition node on node graph
         bool scriptCondFlagValue = string(scriptCondFlagXml->GetText()) == "true" ? true : false;
-        auto& scriptCondition = AddNode("Bool",
+        auto* scriptCondition = AddNode("Bool",
             { new OutputAttribute_Bool }
-        ).SetCustomTitlebarColor(PrimitiveColor);
+        )->SetCustomTitlebarColor(PrimitiveColor);
 
         //Create script node on graph and link to condition node
-        auto& scriptRoot = AddNode("Script",
+        auto* scriptRoot = AddNode("Script",
             { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
-        ).SetCustomTitlebarColor(ScriptColor);
-        AddLink(scriptCondition.GetAttribute(0), scriptRoot.GetAttribute(1));
+        )->SetCustomTitlebarColor(ScriptColor);
+        AddLink(scriptCondition->GetAttribute(0), scriptRoot->GetAttribute(1));
 
         //Read <script> contents and generate node graph from them
         tinyxml2::XMLElement* currentNode = scriptConditionXml;
         currentNode = currentNode->NextSiblingElement();
+        Node* currentGraphNode = scriptRoot;
         while (currentNode)
         {
-            //Todo: Will want to split these into multiple recursive parsing functions since actions can contain actions recursively
-
-            //Parse node
-            string nodeTypeName(currentNode->Value());
-            if (nodeTypeName == "action")
-            {
-                Log->info("Reached <action> node");
-            }
-            else if (nodeTypeName == "variable")
-            {
-                Log->info("Reached <variable> node");
-            }
-            else if (nodeTypeName == "delay")
-            {
-                Log->info("Reached <delay> node");
-            }
-            else
-            {
-                Log->warn("Unknown script node type \"{}\" reached. Skipping.", currentNode->Value());
-            }
-
-
-            //Get next node
+            //Parse scriptx node and move to next sibling
+            ParseScriptxNode(currentNode, currentGraphNode);
             currentNode = currentNode->NextSiblingElement();
         }
+    }
+}
+
+void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
+{
+    //Todo: Run ParseScriptxNode() on children because they can possibly be actions, funtions, variables, or delays
+    
+    //Parse node
+    string nodeTypeName(xmlNode->Value());
+    if (nodeTypeName == "action")
+    {
+        Log->info("Reached <action> node");
+    }
+    else if (nodeTypeName == "variable")
+    {
+        Log->info("Reached <variable> node");
+    }
+    else if (nodeTypeName == "delay")
+    {
+        Log->info("Reached <delay> node");
+    }
+    else
+    {
+        Log->warn("Unknown script node type \"{}\" reached. Skipping.", xmlNode->Value());
     }
 }
 
