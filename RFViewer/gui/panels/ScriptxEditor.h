@@ -223,13 +223,14 @@ struct StaticAttribute_String : IAttribute
 struct InputAttribute_Bool : IAttribute
 {
     bool OverrideValue = false;
+    string Label = "Flag";
 
     InputAttribute_Bool() { Type = Input; }
-    InputAttribute_Bool(bool override) : OverrideValue(override) { Type = Input; }
+    InputAttribute_Bool(bool override, const string& label) : OverrideValue(override), Label(label) { Type = Input; }
     void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
-        ImGui::Text("Condition");
+        ImGui::Text(Label);
         if (!IsAttributeLinked(Id))
         {
             ImGui::SameLine();
@@ -356,6 +357,7 @@ const Vec4 FunctionColor{ 181, 34, 75, 255 }; //Red
 void ScriptxEditor_Cleanup(GuiState* state);
 void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent);
 
+//Todo: Move attributes into their own files + move most scriptx parsing stuff into a class + organize it better. Currently a mess. Will do once it's most working.
 //Load a scriptx file and generate a node graph from it. Clears any existing data/graphs before loading new one
 void LoadScriptxFile(const string& name, GuiState* state)
 {
@@ -398,6 +400,7 @@ void LoadScriptxFile(const string& name, GuiState* state)
     auto* scriptRootXml = managed->FirstChildElement("script");
     //Parse script node
     {
+        //Todo: NEED FUNCTION/ACTION DEFINITION LIST FOR THIS TO BE POSSIBLE (allows for dynamic input attribute node creation (varying types))
         //Todo: Support condition node holding actions/functions
         //Get and read condition node
         auto* scriptConditionXml = scriptRootXml->FirstChildElement("condition");
@@ -417,7 +420,7 @@ void LoadScriptxFile(const string& name, GuiState* state)
 
         //Create script node on graph and link to condition node
         auto* scriptRoot = AddNode("Script",
-            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run, new InputAttribute_Bool }
+            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run, new InputAttribute_Bool(true, "Condition") }
         )->SetCustomTitlebarColor(ScriptColor);
         AddLink(scriptCondition->GetAttribute(0), scriptRoot->GetAttribute(2));
 
@@ -443,9 +446,22 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
     //Parse node
     string nodeTypeName(xmlNode->Value());
     string nodeText(xmlNode->GetText() ? xmlNode->GetText() : "Invalid");
-    size_t newlinePos = nodeText.find('\n');
-    if(newlinePos != string::npos) //Clear extra data like tabs after newline
+
+    //Todo: Add helper for this. Repeated several times
+    size_t newlinePos = nodeTypeName.find('\n');
+    if(newlinePos != string::npos && newlinePos != nodeTypeName.size() - 1) //Clear extra data like tabs after newline
+        nodeTypeName = nodeTypeName.erase(newlinePos);
+
+    newlinePos = nodeText.find('\n');
+    if (newlinePos != string::npos && newlinePos != nodeText.size() - 1) //Clear extra data like tabs after newline
         nodeText = nodeText.erase(newlinePos);
+
+    ////Todo: Fix this in a less dumb way
+    ////Dumb fix for strings being invalid
+    //if (nodeTypeName.back() != '\n')
+    //    nodeTypeName += '\n';
+    //if (nodeText.back() != '\n')
+    //    nodeText += '\n';
     
     //Todo: Have list of function + action definitions + their inputs and outputs + io names that'll be used here instead of just trusting the scriptx file
     if (nodeTypeName == "action")
@@ -463,13 +479,15 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
             xmlNodeChild = xmlNodeChild->NextSiblingElement();
         }
     }
-    else if (nodeTypeName == "function")
-    {
-        Log->info("Reached <function> node");
-    }
     else if (nodeTypeName == "variable")
     {
+        //Todo: Add support for these
         Log->info("Reached <variable> node");
+    }
+    else if (nodeTypeName == "variable_ref")
+    {
+        //Todo: Add support for these
+        Log->info("Reached <variable_ref> node");
     }
     else if (nodeTypeName == "delay")
     {
@@ -489,7 +507,7 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
     if (nodeTypeName == "flag")
     {
         bool value = nodeText == "true" ? true : false;
-        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Bool(value));
+        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Bool(value, "Flag"));
         //Todo: Add option to prefer separate nodes for flags or to prefer inline. For now just do inline by default for bools
         /*Node* childNode = AddNode("Flag", { new OutputAttribute_Bool });
         AddLink(childNode->GetAttribute(0), newAttribute);*/
@@ -506,6 +524,14 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
         //Create new input attribute to take the function input
         auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle);
         AddLink(newFunctionNode->GetAttribute(0), newAttribute);
+
+        //Parse child nodes and add attributes / other nodes based on them
+        tinyxml2::XMLElement* xmlNodeChild = xmlNode->FirstChildElement();
+        while (xmlNodeChild)
+        {
+            ParseScriptxNode(xmlNodeChild, newFunctionNode);
+            xmlNodeChild = xmlNodeChild->NextSiblingElement();
+        }
     }
     else if (nodeTypeName == "anim_action")
     {
@@ -516,6 +542,15 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
     {
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
         auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "music_threshold"));
+    }
+    else if (nodeTypeName == "voice_line")
+    {
+        //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
+        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "voice_line"));
+    }
+    else if (nodeTypeName == "object_list")
+    {
+        //Todo: Support
     }
     else if (nodeTypeName == "number" || nodeTypeName == "min" || nodeTypeName == "max")
     {
@@ -585,103 +620,6 @@ void ScriptxEditor_Update(GuiState* state)
         firstCall = false;
 
         LoadScriptxFile("terr01_tutorial.scriptx", state);
-
-        ////Add nodes
-        //auto& scriptCondition = AddNode("Bool",
-        //    { new OutputAttribute_Bool }
-        //).SetCustomTitlebarColor(PrimitiveColor);
-        //auto& scriptRoot = AddNode("Script",
-        //    { new StaticAttribute_String("Mission_Start", "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
-        //).SetCustomTitlebarColor(ScriptColor);
-        //AddLink(scriptCondition.GetAttribute(0), scriptRoot.GetAttribute(1));
-
-
-        ////AddNode("Bool",
-        ////    { new OutputAttribute_Bool }
-        ////).SetCustomTitlebarColor(PrimitiveColor);
-        //auto& node0 = AddNode("hide_hud",
-        //    { new InputAttribute_Bool(true), new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node0.GetAttribute(1));
-
-
-        //auto& node1 = AddNode("player_disable_input",
-        //    { new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node1.GetAttribute(0));
-
-
-        //auto& getPlayerHandle = AddNode("get_player_handle",
-        //    { new OutputAttribute_Handle }
-        //).SetCustomTitlebarColor(FunctionColor);
-        ////AddNode("Bool",
-        ////    { new OutputAttribute_Bool }
-        ////).SetCustomTitlebarColor(PrimitiveColor);
-        //auto& node2 = AddNode("play_animation",
-        //    //Todo: Have string be a dropdown with all valid animations instead on this action
-        //    { new InputAttribute_Handle, new StaticAttribute_String("stand talk short", "anim_action"), new InputAttribute_Bool(true),
-        //      new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node2.GetAttribute(3));
-        //AddLink(getPlayerHandle.GetAttribute(0), node2.GetAttribute(0));
-
-        ////AddNode("Bool",
-        ////    { new OutputAttribute_Bool }
-        ////).SetCustomTitlebarColor(PrimitiveColor);
-        //auto& node3 = AddNode("npc_set_ambient_vehicles_disabled",
-        //    { new InputAttribute_Bool(true), new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node3.GetAttribute(1));
-
-
-        ////AddNode("Bool",
-        ////    { new OutputAttribute_Bool }
-        ////).SetCustomTitlebarColor(PrimitiveColor);
-        //auto& node4 = AddNode("player_set_mission_never_die",
-        //    { new InputAttribute_Bool(true), new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node4.GetAttribute(1));
-
-
-        //auto& node5 = AddNode("set_time_of_day",
-        //    { new InputAttribute_Number(9), new InputAttribute_Number(0), new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node5.GetAttribute(2));
-
-
-        //auto& node6 = AddNode("pause_time_of_day",
-        //    { new InputAttribute_Bool(true), new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node6.GetAttribute(1));
-
-
-        //auto& node7 = AddNode("reinforcements_disable",
-        //    { new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node7.GetAttribute(0));
-
-
-        //auto& node8 = AddNode("music_set_limited_level",
-        //    { new StaticAttribute_String("_Melodic_Ambience", "music_threshold"), new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node8.GetAttribute(1));
-
-
-        ////Todo: Make object handle reference zone data
-        //auto& node9 = AddNode("patrol_pause",
-        //    { new InputAttribute_Handle(0x3C80004E, 140), new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node9.GetAttribute(1));
-
-
-        //auto& node10 = AddNode("delay",
-        //    { new InputAttribute_Number(3, "min"), new InputAttribute_Number(3, "max"), new InputAttribute_Run("Start"), new OutputAttribute_Run("Continue") }
-        //).SetCustomTitlebarColor(DelayColor);
-        //auto& spawn_squad = AddNode("spawn_squad",
-        //    { new InputAttribute_Handle(0x3C80001F, 39), new InputAttribute_Run }
-        //).SetCustomTitlebarColor(ActionColor);
-        //AddLink(scriptRoot.GetAttribute(2), node10.GetAttribute(1));
-        //AddLink(node10.GetAttribute(3), spawn_squad.GetAttribute(1));
     }
     //Todo: Destroy imnodes context later
 
@@ -714,7 +652,7 @@ void ScriptxEditor_Update(GuiState* state)
                     if (nodeDimensions.x > widestNodeFound)
                         widestNodeFound = nodeDimensions.x;
                 }
-                curPos.x += widestNodeFound * 1.5f;
+                curPos.x += widestNodeFound * 2.0f;
                 curPos.y = 25.0f;
             }
         }
