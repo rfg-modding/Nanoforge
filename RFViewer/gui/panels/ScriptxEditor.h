@@ -362,8 +362,8 @@ string ScriptList = "";
 u32 TargetScriptIndex = 0;
 void SetTargetScript(u32 newTargetIndex)
 {
-    if (newTargetIndex >= ScriptList.size())
-        return;
+    //if (newTargetIndex >= ScriptList.size())
+    //    return;
 
     TargetScriptIndex = newTargetIndex;
 }
@@ -657,13 +657,27 @@ void ScriptxEditor_Update(GuiState* state)
 
     static bool firstCall = true;
     static bool needAutoLayout = false;
+    static string targetScriptx = "terr01_tutorial.scriptx";
+    static string targetScriptxBuffer = targetScriptx;
+    //Todo: Have list of valid scriptx files here instead of a text input
+    ImGui::InputText("Scriptx", &targetScriptxBuffer);
+    ImGui::SameLine();
+    if (ImGui::Button("Reload##ReloadTargetScriptx"))
+    {
+        SetTargetScript(0);
+        ScriptxEditor_Cleanup(state);
+        targetScriptx = targetScriptxBuffer;
+        LoadScriptxFile(targetScriptx, state);
+        needAutoLayout = true;
+    }
+
     if (firstCall)
     {
         imnodes::Initialize();
         //Todo: Clear imnodes state and free attributes when finished with them
         firstCall = false;
 
-        LoadScriptxFile("terr01_tutorial.scriptx", state);
+        LoadScriptxFile(targetScriptx, state);
     }
     //Todo: Destroy imnodes context later
 
@@ -675,7 +689,7 @@ void ScriptxEditor_Update(GuiState* state)
     {
         SetTargetScript(currentItem);
         ScriptxEditor_Cleanup(state);
-        LoadScriptxFile("terr01_tutorial.scriptx", state);
+        LoadScriptxFile(targetScriptx, state);
         needAutoLayout = true;
     }
     ImGui::Separator();
