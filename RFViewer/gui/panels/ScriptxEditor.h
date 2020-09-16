@@ -11,12 +11,20 @@
 
 static int current_id = 0;
 
+enum AttributeType
+{
+    Input,
+    Output,
+    Static
+};
+
 //Todo: Add type checking for input/output attributes
 struct Node;
 struct IAttribute
 {
     i32 Id;
     Node* Parent;
+    AttributeType Type = Static;
     virtual void Draw() = 0;
 };
 struct Link
@@ -59,11 +67,12 @@ struct Node
         for (auto& subnode : Subnodes)
             subnode->SetDepth(Depth + 1);
     }
-    void AddAttribute(IAttribute* attribute)
+    IAttribute* AddAttribute(IAttribute* attribute)
     {
         attribute->Id = current_id++;
         attribute->Parent = this;
         Attributes.push_back(attribute);
+        return Attributes.back();
     }
     Node* SetCustomTitlebarColor(const Vec4& color)
     {
@@ -148,6 +157,11 @@ void AddLink(IAttribute* start, IAttribute* end)
 {
     Links.push_back({ current_id++, start->Id, end->Id, start->Parent, end->Parent });
     start->Parent->AddSubnode(end->Parent);
+
+    //If node already has a depth it creates better looking graphs to just walk starts depth back one from end rather than set it to 0
+    if (end->Parent->Depth != 0)
+        start->Parent->Depth = end->Parent->Depth - 1;
+
     start->Parent->UpdateSubnodeDepths();
 }
 bool IsAttributeLinked(int id)
@@ -194,8 +208,8 @@ struct StaticAttribute_String : IAttribute
     string Label;
     string Value;
 
-    StaticAttribute_String(const string& value) : Label("String"), Value(value) {}
-    StaticAttribute_String(const string& value, const string& label) : Label(label), Value(value) {}
+    StaticAttribute_String(const string& value) : Label("String"), Value(value) { Type = Static; }
+    StaticAttribute_String(const string& value, const string& label) : Label(label), Value(value) { Type = Static; }
     void Draw() override
     {
         imnodes::BeginStaticAttribute(Id);
@@ -210,8 +224,8 @@ struct InputAttribute_Bool : IAttribute
 {
     bool OverrideValue = false;
 
-    InputAttribute_Bool(){}
-    InputAttribute_Bool(bool override) : OverrideValue(override) {}
+    InputAttribute_Bool() { Type = Input; }
+    InputAttribute_Bool(bool override) : OverrideValue(override) { Type = Input; }
     void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
@@ -229,8 +243,8 @@ struct InputAttribute_Number : IAttribute
     string Label;
     f32 Value;
 
-    InputAttribute_Number(f32 value) : Label("Number"), Value(value) {}
-    InputAttribute_Number(f32 value, const string& label) : Label(label), Value(value) {}
+    InputAttribute_Number(f32 value) : Label("Number"), Value(value) { Type = Input; }
+    InputAttribute_Number(f32 value, const string& label) : Label(label), Value(value) { Type = Input; }
     void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
@@ -246,20 +260,21 @@ struct InputAttribute_Number : IAttribute
 };
 struct InputAttribute_String : IAttribute
 {
-void Draw() override
-{
-    imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
-    ImGui::Text("String");
-    imnodes::EndInputAttribute();
-}
+    InputAttribute_String() { Type = Input; }
+    void Draw() override
+    {
+        imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
+        ImGui::Text("String");
+        imnodes::EndInputAttribute();
+    }
 };
 struct InputAttribute_Handle : IAttribute
 {
     u32 ObjectClass = 0;
     u32 ObjectNumber = 0;
 
-    InputAttribute_Handle() { }
-    InputAttribute_Handle(u32 classnameHash, u32 num) : ObjectClass(classnameHash), ObjectNumber(num) {}
+    InputAttribute_Handle() { Type = Input; }
+    InputAttribute_Handle(u32 classnameHash, u32 num) : ObjectClass(classnameHash), ObjectNumber(num) { Type = Input; }
     void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
@@ -281,7 +296,7 @@ struct InputAttribute_Run : IAttribute
 {
     string Label;
 
-    InputAttribute_Run(const string& label = "Run") : Label(label) {}
+    InputAttribute_Run(const string& label = "Run") : Label(label) { Type = Input; }
     void Draw() override
     {
         imnodes::BeginInputAttribute(Id, imnodes::PinShape::PinShape_TriangleFilled);
@@ -294,16 +309,19 @@ struct InputAttribute_Run : IAttribute
 struct OutputAttribute_Bool : IAttribute
 {
     bool Value;
+
+    OutputAttribute_Bool() { Type = Output; }
     void Draw() override
     {
         imnodes::BeginOutputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
         static bool flag = true;
-        ImGui::Checkbox("Value", &flag);
+        ImGui::Checkbox(fmt::format("Value##{}", Id).c_str(), &flag);
         imnodes::EndOutputAttribute();
     }
 };
 struct OutputAttribute_Handle : IAttribute
 {
+    OutputAttribute_Handle() { Type = Output; }
     void Draw() override
     {
         imnodes::BeginOutputAttribute(Id, imnodes::PinShape::PinShape_CircleFilled);
@@ -315,7 +333,7 @@ struct OutputAttribute_Run : IAttribute
 {
     string Label;
 
-    OutputAttribute_Run(const string& label = "Run") : Label(label) {}
+    OutputAttribute_Run(const string& label = "Run") : Label(label) { Type = Output; }
     void Draw() override
     {
         imnodes::BeginOutputAttribute(Id, imnodes::PinShape::PinShape_TriangleFilled);
@@ -388,7 +406,7 @@ void LoadScriptxFile(const string& name, GuiState* state)
 
         //Note: Currently assumes the condition is just a true/false flag. Need to be more complex to support all scriptx
         auto* scriptCondFlagXml = scriptConditionXml->FirstChildElement("flag");
-        if (!scriptCondFlagXml)
+        if (!scriptCondFlagXml) //Todo: Change this error message once full <condition> parsing is supported
             THROW_EXCEPTION("Assumption that script <condition> block only contains a true/false flag failed! Parsing more complex <condition> blocks not yet supported.");
 
         //Create condition node on node graph
@@ -399,9 +417,9 @@ void LoadScriptxFile(const string& name, GuiState* state)
 
         //Create script node on graph and link to condition node
         auto* scriptRoot = AddNode("Script",
-            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new InputAttribute_Bool, new OutputAttribute_Run }
+            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run, new InputAttribute_Bool }
         )->SetCustomTitlebarColor(ScriptColor);
-        AddLink(scriptCondition->GetAttribute(0), scriptRoot->GetAttribute(1));
+        AddLink(scriptCondition->GetAttribute(0), scriptRoot->GetAttribute(2));
 
         //Read <script> contents and generate node graph from them
         tinyxml2::XMLElement* currentNode = scriptConditionXml;
@@ -414,6 +432,8 @@ void LoadScriptxFile(const string& name, GuiState* state)
             currentNode = currentNode->NextSiblingElement();
         }
     }
+
+    //Todo: Sort all nodes so their run attributes are first and their continue attributes are last
 }
 
 void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
@@ -422,9 +442,30 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
     
     //Parse node
     string nodeTypeName(xmlNode->Value());
+    string nodeText(xmlNode->GetText() ? xmlNode->GetText() : "Invalid");
+    size_t newlinePos = nodeText.find('\n');
+    if(newlinePos != string::npos) //Clear extra data like tabs after newline
+        nodeText = nodeText.erase(newlinePos);
+    
+    //Todo: Have list of function + action definitions + their inputs and outputs + io names that'll be used here instead of just trusting the scriptx file
     if (nodeTypeName == "action")
     {
         Log->info("Reached <action> node");
+        auto* newNode = AddNode(nodeText, { new InputAttribute_Run, new OutputAttribute_Run("Continue") });
+        auto* newNodeInRunAttribute = newNode->GetAttribute(0);
+        AddLink(graphParent->GetAttribute(1), newNodeInRunAttribute);
+
+        //Parse child nodes and add attributes / other nodes based on them
+        tinyxml2::XMLElement* xmlNodeChild = xmlNode->FirstChildElement();
+        while (xmlNodeChild)
+        {
+            ParseScriptxNode(xmlNodeChild, newNode);
+            xmlNodeChild = xmlNodeChild->NextSiblingElement();
+        }
+    }
+    else if (nodeTypeName == "function")
+    {
+        Log->info("Reached <function> node");
     }
     else if (nodeTypeName == "variable")
     {
@@ -433,11 +474,76 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
     else if (nodeTypeName == "delay")
     {
         Log->info("Reached <delay> node");
+        auto* newNode = AddNode("delay", { new InputAttribute_Run, new OutputAttribute_Run("Continue") })->SetCustomTitlebarColor(DelayColor);
+        auto* newNodeInRunAttribute = newNode->GetAttribute(0);
+        AddLink(graphParent->GetAttribute(1), newNodeInRunAttribute);
+
+        //Parse child nodes and add attributes / other nodes based on them
+        tinyxml2::XMLElement* xmlNodeChild = xmlNode->FirstChildElement();
+        while (xmlNodeChild)
+        {
+            ParseScriptxNode(xmlNodeChild, newNode);
+            xmlNodeChild = xmlNodeChild->NextSiblingElement();
+        }
+    }
+    if (nodeTypeName == "flag")
+    {
+        bool value = nodeText == "true" ? true : false;
+        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Bool(value));
+        //Todo: Add option to prefer separate nodes for flags or to prefer inline. For now just do inline by default for bools
+        /*Node* childNode = AddNode("Flag", { new OutputAttribute_Bool });
+        AddLink(childNode->GetAttribute(0), newAttribute);*/
+    }
+    else if (nodeTypeName == "function")
+    {
+        //Todo: Support other function types. Right now it assumes they all return a handle as a dumb filler for initial testing
+        //Create function node
+        auto* newFunctionNode = AddNode(nodeText,
+            { new OutputAttribute_Handle }
+        )->SetCustomTitlebarColor(FunctionColor);
+
+        //Todo: Support types other than object handle here. Use function definitions list
+        //Create new input attribute to take the function input
+        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle);
+        AddLink(newFunctionNode->GetAttribute(0), newAttribute);
+    }
+    else if (nodeTypeName == "anim_action")
+    {
+        //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
+        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "anim_action"));
+    }
+    else if (nodeTypeName == "music_threshold")
+    {
+        //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
+        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "music_threshold"));
+    }
+    else if (nodeTypeName == "number" || nodeTypeName == "min" || nodeTypeName == "max")
+    {
+        //Todo: Use action/function definitions list to attempt to set name of argument here
+        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Number(std::stoi(nodeText), nodeTypeName));
+    }
+    else if (nodeTypeName == "object")
+    {
+        //Attempt to object_number node from within object node
+        tinyxml2::XMLElement* objectNumberNode = xmlNode->FirstChildElement();
+        string objectNumberNodeTypeName(objectNumberNode->Value());
+        string objectNumberNodeText(objectNumberNode->GetText() ? objectNumberNode->GetText() : "Invalid");
+
+        //Todo: Make a helper function for this. Being repeated all over
+        size_t newlinePosObjectNumber = objectNumberNodeText.find('\n');
+        if (newlinePosObjectNumber != string::npos) //Clear extra data like tabs after newline
+            objectNumberNodeText = objectNumberNodeText.erase(newlinePosObjectNumber);
+
+        if (objectNumberNodeTypeName == "object_number")
+        {
+            auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle(std::stoi(nodeText), std::stoi(objectNumberNodeText)));
+        }
     }
     else
     {
         Log->warn("Unknown script node type \"{}\" reached. Skipping.", xmlNode->Value());
     }
+
 }
 
 //Clear resources created by scriptx editor & node graph
