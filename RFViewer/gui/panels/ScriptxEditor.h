@@ -357,6 +357,17 @@ const Vec4 FunctionColor{ 181, 34, 75, 255 }; //Red
 void ScriptxEditor_Cleanup(GuiState* state);
 void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent);
 
+//std::vector<const char*> ScriptList = {};
+string ScriptList = "";
+u32 TargetScriptIndex = 0;
+void SetTargetScript(u32 newTargetIndex)
+{
+    if (newTargetIndex >= ScriptList.size())
+        return;
+
+    TargetScriptIndex = newTargetIndex;
+}
+
 //Todo: Move attributes into their own files + move most scriptx parsing stuff into a class + organize it better. Currently a mess. Will do once it's most working.
 //Load a scriptx file and generate a node graph from it. Clears any existing data/graphs before loading new one
 void LoadScriptxFile(const string& name, GuiState* state)
@@ -382,6 +393,7 @@ void LoadScriptxFile(const string& name, GuiState* state)
     //Get scriptx bytes and pass to xml parser
     auto& handle = handles[0];
     std::span<u8> scriptxBytes = handle.Get();
+    //Todo: Free this memory once done with it
     tinyxml2::XMLDocument* doc = new tinyxml2::XMLDocument;
     doc->Parse((const char*)scriptxBytes.data(), scriptxBytes.size_bytes());
 
@@ -398,8 +410,36 @@ void LoadScriptxFile(const string& name, GuiState* state)
 
     //Todo: Read all script nodes instead of just the first one
     auto* scriptRootXml = managed->FirstChildElement("script");
-    //Parse script node
+    
+    //Fill script list on first run. It's a string with each name separated by \0 as ImGui::Combo expects as input
+    if (ScriptList == "")
     {
+        auto* curScript = scriptRootXml;
+        while (curScript)
+        {
+            string scriptName(curScript->GetText());
+            size_t newlinePos = scriptName.find('\n');
+            if (newlinePos != string::npos && newlinePos != scriptName.size() - 1) //Clear extra data like tabs after newline
+                scriptName = scriptName.erase(newlinePos);
+            //else if(newlinePos != string::npos)
+            //    scriptName = scriptName.erase(newlinePos - 1);
+
+            ScriptList += scriptName + '\0';
+            curScript = curScript->NextSiblingElement();
+        }
+    }
+    
+    //Parse script node
+    u32 index = 0;
+    while(scriptRootXml)
+    {
+        if (index != TargetScriptIndex)
+        {
+            index++;
+            scriptRootXml = scriptRootXml->NextSiblingElement();
+            continue;
+        }
+        
         //Todo: NEED FUNCTION/ACTION DEFINITION LIST FOR THIS TO BE POSSIBLE (allows for dynamic input attribute node creation (varying types))
         //Todo: Support condition node holding actions/functions
         //Get and read condition node
@@ -409,11 +449,11 @@ void LoadScriptxFile(const string& name, GuiState* state)
 
         //Note: Currently assumes the condition is just a true/false flag. Need to be more complex to support all scriptx
         auto* scriptCondFlagXml = scriptConditionXml->FirstChildElement("flag");
-        if (!scriptCondFlagXml) //Todo: Change this error message once full <condition> parsing is supported
-            THROW_EXCEPTION("Assumption that script <condition> block only contains a true/false flag failed! Parsing more complex <condition> blocks not yet supported.");
+        if (scriptCondFlagXml) //Todo: Change this error message once full <condition> parsing is supported
+            Log->error("Assumption that script <condition> block only contains a true/false flag failed! Parsing more complex <condition> blocks not yet supported.");
 
         //Create condition node on node graph
-        bool scriptCondFlagValue = string(scriptCondFlagXml->GetText()) == "true" ? true : false;
+        //bool scriptCondFlagValue = string(scriptCondFlagXml->GetText()) == "true" ? true : false;
         auto* scriptCondition = AddNode("Bool",
             { new OutputAttribute_Bool }
         )->SetCustomTitlebarColor(PrimitiveColor);
@@ -434,6 +474,9 @@ void LoadScriptxFile(const string& name, GuiState* state)
             ParseScriptxNode(currentNode, currentGraphNode);
             currentNode = currentNode->NextSiblingElement();
         }
+
+        index++;
+        scriptRootXml = scriptRootXml->NextSiblingElement();
     }
 
     //Todo: Sort all nodes so their run attributes are first and their continue attributes are last
@@ -613,6 +656,7 @@ void ScriptxEditor_Update(GuiState* state)
     ImGui::Separator();
 
     static bool firstCall = true;
+    static bool needAutoLayout = false;
     if (firstCall)
     {
         imnodes::Initialize();
@@ -625,6 +669,16 @@ void ScriptxEditor_Update(GuiState* state)
 
     static bool firstDraw = true;
     static ImVec2 gridPos = { 25.0f, 25.0f };
+
+    static int currentItem = 0;
+    if (ImGui::Combo("Script", &currentItem, (const char*)ScriptList.data()))
+    {
+        SetTargetScript(currentItem);
+        ScriptxEditor_Cleanup(state);
+        LoadScriptxFile("terr01_tutorial.scriptx", state);
+        needAutoLayout = true;
+    }
+    ImGui::Separator();
     
     imnodes::BeginNodeEditor();
 
@@ -632,7 +686,7 @@ void ScriptxEditor_Update(GuiState* state)
     for (auto& node : Nodes)
     {
         node->Draw();
-        if (firstDraw)
+        if (firstDraw || needAutoLayout)
         {
             u32 maxDepth = GetHighestNodeDepth();
             ImVec2 curPos = { 25.0f, 25.0f };
@@ -663,6 +717,7 @@ void ScriptxEditor_Update(GuiState* state)
         imnodes::Link(link.Id, link.Start, link.End);
     }
     firstDraw = false;
+    needAutoLayout = false;
     imnodes::EndNodeEditor();
 
     //Add created links to Links
