@@ -747,6 +747,7 @@ void ScriptxEditor_Update(GuiState* state)
         SetTargetScript(0);
         ScriptxEditor_Cleanup(state);
         targetScriptx = targetScriptxBuffer;
+        ScriptList = "";
         LoadScriptxFile(targetScriptx, state);
         needAutoLayout = true;
     }
