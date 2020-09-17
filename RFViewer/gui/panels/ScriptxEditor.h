@@ -409,6 +409,10 @@ void LoadScriptxFile(const string& name, GuiState* state)
     if (!managed)
         return;
 
+    auto* group = root->FirstChildElement("group");
+    if (!group)
+        return;
+
     //Todo: Read all script nodes instead of just the first one
     auto* scriptRootXml = managed->FirstChildElement("script");
     
@@ -416,6 +420,21 @@ void LoadScriptxFile(const string& name, GuiState* state)
     if (ScriptList == "")
     {
         auto* curScript = scriptRootXml;
+        while (curScript)
+        {
+            string scriptName(curScript->GetText());
+            size_t newlinePos = scriptName.find('\n');
+            if (newlinePos != string::npos && newlinePos != scriptName.size() - 1) //Clear extra data like tabs after newline
+                scriptName = scriptName.erase(newlinePos);
+            //else if(newlinePos != string::npos)
+            //    scriptName = scriptName.erase(newlinePos - 1);
+
+            ScriptList += scriptName + '\0';
+            curScript = curScript->NextSiblingElement();
+        }
+
+        //Todo: Move into function to reduce code duplication
+        curScript = group->FirstChildElement("script");
         while (curScript)
         {
             string scriptName(curScript->GetText());
@@ -441,6 +460,42 @@ void LoadScriptxFile(const string& name, GuiState* state)
             continue;
         }
         
+        //Get and read condition node
+        auto* scriptConditionXml = scriptRootXml->FirstChildElement("condition");
+        if (!scriptConditionXml)
+            THROW_EXCEPTION("Failed to get <condition> node from scriptx <script> node \"{}\"", scriptRootXml->Value());
+
+        //Create script node on graph and link to condition node
+        auto* scriptRoot = AddNode("Script",
+            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run }
+        )->SetCustomTitlebarColor(ScriptColor);
+
+        //Read <script> contents and generate node graph from them
+        tinyxml2::XMLElement* currentNode = scriptConditionXml;
+        Node* currentGraphNode = scriptRoot;
+        while (currentNode)
+        {
+            //Parse scriptx node and move to next sibling
+            ParseScriptxNode(currentNode, currentGraphNode);
+            currentNode = currentNode->NextSiblingElement();
+        }
+
+        index++;
+        scriptRootXml = scriptRootXml->NextSiblingElement();
+    }
+
+    //Todo: Move into function to reduce code duplication
+    //Now do <group> scripts
+    scriptRootXml = group->FirstChildElement("script");
+    while (scriptRootXml)
+    {
+        if (index != TargetScriptIndex)
+        {
+            index++;
+            scriptRootXml = scriptRootXml->NextSiblingElement();
+            continue;
+        }
+
         //Get and read condition node
         auto* scriptConditionXml = scriptRootXml->FirstChildElement("condition");
         if (!scriptConditionXml)
@@ -529,7 +584,7 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
     else if (nodeTypeName == "delay")
     {
         Log->info("Reached <delay> node");
-        auto* newNode = AddNode("delay", { new InputAttribute_Run, new OutputAttribute_Run("Continue") })->SetCustomTitlebarColor(DelayColor);
+        auto* newNode = AddNode("Delay", { new InputAttribute_Run, new OutputAttribute_Run("Continue") })->SetCustomTitlebarColor(DelayColor);
         auto* newNodeInRunAttribute = newNode->GetAttribute(0);
         AddLink(graphParent->GetAttribute(1), newNodeInRunAttribute);
 
@@ -601,6 +656,11 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
         auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "String"));
     }
+    else if (nodeTypeName == "mission_handle")
+    {
+        //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
+        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "Mission handle"));
+    }
     else if (nodeTypeName == "music_threshold")
     {
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
@@ -618,7 +678,7 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
     else if (nodeTypeName == "number" || nodeTypeName == "min" || nodeTypeName == "max")
     {
         //Todo: Use action/function definitions list to attempt to set name of argument here
-        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Number(std::stoi(nodeText), nodeTypeName));
+        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Number(std::stof(nodeText), nodeTypeName));
     }
     else if (nodeTypeName == "object")
     {
@@ -634,7 +694,7 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
 
         if (objectNumberNodeTypeName == "object_number")
         {
-            auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle(std::stoi(nodeText), std::stoi(objectNumberNodeText)));
+            auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle(std::stof(nodeText), std::stof(objectNumberNodeText)));
         }
     }
     else
