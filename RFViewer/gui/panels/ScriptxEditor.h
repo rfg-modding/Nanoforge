@@ -360,7 +360,7 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent);
 
 //std::vector<const char*> ScriptList = {};
 string ScriptList = "";
-u32 TargetScriptIndex = 1;
+u32 TargetScriptIndex = 0;
 void SetTargetScript(u32 newTargetIndex)
 {
     //if (newTargetIndex >= ScriptList.size())
@@ -449,6 +449,8 @@ void LoadScriptxFile(const string& name, GuiState* state)
         }
     }
     
+    //TODO: Support multiple <group> and <managed> blocks. Some scripts have many
+    //Todo: Add ui selector for different group/managed blocks or draw labels around them and draw all nodes at once
     //Parse script node
     u32 index = 0;
     while(scriptRootXml)
