@@ -596,6 +596,11 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
         auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "anim_action"));
     }
+    else if (nodeTypeName == "string")
+    {
+        //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
+        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "String"));
+    }
     else if (nodeTypeName == "music_threshold")
     {
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
