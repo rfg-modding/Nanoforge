@@ -353,13 +353,14 @@ const Vec4 PrimitiveColor{ 47, 141, 125, 255 }; //Light green
 const Vec4 ScriptColor{ 255, 129, 27, 255 }; //Orange
 const Vec4 ActionColor{ 33, 106, 183, 255 }; //Blue
 const Vec4 FunctionColor{ 181, 34, 75, 255 }; //Red
+const Vec4 EventColor{ 97, 47, 140, 255 }; //Purple
 
 void ScriptxEditor_Cleanup(GuiState* state);
 void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent);
 
 //std::vector<const char*> ScriptList = {};
 string ScriptList = "";
-u32 TargetScriptIndex = 0;
+u32 TargetScriptIndex = 1;
 void SetTargetScript(u32 newTargetIndex)
 {
     //if (newTargetIndex >= ScriptList.size())
@@ -440,33 +441,18 @@ void LoadScriptxFile(const string& name, GuiState* state)
             continue;
         }
         
-        //Todo: NEED FUNCTION/ACTION DEFINITION LIST FOR THIS TO BE POSSIBLE (allows for dynamic input attribute node creation (varying types))
-        //Todo: Support condition node holding actions/functions
         //Get and read condition node
         auto* scriptConditionXml = scriptRootXml->FirstChildElement("condition");
         if (!scriptConditionXml)
             THROW_EXCEPTION("Failed to get <condition> node from scriptx <script> node \"{}\"", scriptRootXml->Value());
 
-        //Note: Currently assumes the condition is just a true/false flag. Need to be more complex to support all scriptx
-        auto* scriptCondFlagXml = scriptConditionXml->FirstChildElement("flag");
-        if (scriptCondFlagXml) //Todo: Change this error message once full <condition> parsing is supported
-            Log->error("Assumption that script <condition> block only contains a true/false flag failed! Parsing more complex <condition> blocks not yet supported.");
-
-        //Create condition node on node graph
-        //bool scriptCondFlagValue = string(scriptCondFlagXml->GetText()) == "true" ? true : false;
-        auto* scriptCondition = AddNode("Bool",
-            { new OutputAttribute_Bool }
-        )->SetCustomTitlebarColor(PrimitiveColor);
-
         //Create script node on graph and link to condition node
         auto* scriptRoot = AddNode("Script",
-            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run, new InputAttribute_Bool(true, "Condition") }
+            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run }
         )->SetCustomTitlebarColor(ScriptColor);
-        AddLink(scriptCondition->GetAttribute(0), scriptRoot->GetAttribute(2));
 
         //Read <script> contents and generate node graph from them
         tinyxml2::XMLElement* currentNode = scriptConditionXml;
-        currentNode = currentNode->NextSiblingElement();
         Node* currentGraphNode = scriptRoot;
         while (currentNode)
         {
@@ -484,8 +470,6 @@ void LoadScriptxFile(const string& name, GuiState* state)
 
 void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
 {
-    //Todo: Run ParseScriptxNode() on children because they can possibly be actions, funtions, variables, or delays
-    
     //Parse node
     string nodeTypeName(xmlNode->Value());
     string nodeText(xmlNode->GetText() ? xmlNode->GetText() : "Invalid");
@@ -519,6 +503,16 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
         while (xmlNodeChild)
         {
             ParseScriptxNode(xmlNodeChild, newNode);
+            xmlNodeChild = xmlNodeChild->NextSiblingElement();
+        }
+    }
+    else if (nodeTypeName == "condition")
+    {
+        //Parse child nodes and add attributes / other nodes based on them
+        tinyxml2::XMLElement* xmlNodeChild = xmlNode->FirstChildElement();
+        while (xmlNodeChild)
+        {
+            ParseScriptxNode(xmlNodeChild, graphParent);
             xmlNodeChild = xmlNodeChild->NextSiblingElement();
         }
     }
@@ -562,6 +556,27 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
         auto* newFunctionNode = AddNode(nodeText,
             { new OutputAttribute_Handle }
         )->SetCustomTitlebarColor(FunctionColor);
+
+        //Todo: Support types other than object handle here. Use function definitions list
+        //Create new input attribute to take the function input
+        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle);
+        AddLink(newFunctionNode->GetAttribute(0), newAttribute);
+
+        //Parse child nodes and add attributes / other nodes based on them
+        tinyxml2::XMLElement* xmlNodeChild = xmlNode->FirstChildElement();
+        while (xmlNodeChild)
+        {
+            ParseScriptxNode(xmlNodeChild, newFunctionNode);
+            xmlNodeChild = xmlNodeChild->NextSiblingElement();
+        }
+    }
+    else if (nodeTypeName == "event")
+    {
+        //Todo: Support other function types. Right now it assumes they all return a handle as a dumb filler for initial testing
+        //Create function node
+        auto* newFunctionNode = AddNode(nodeText,
+            { new OutputAttribute_Handle }
+        )->SetCustomTitlebarColor(EventColor);
 
         //Todo: Support types other than object handle here. Use function definitions list
         //Create new input attribute to take the function input
