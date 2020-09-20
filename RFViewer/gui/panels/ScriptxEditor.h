@@ -404,124 +404,73 @@ void LoadScriptxFile(const string& name, GuiState* state)
         THROW_EXCEPTION("Failed to find root node in scriptx file \"{}\"", name);
 
     //Todo: Read version, modified, and vars
-    //Todo: Support blocks other than <managed> and selecting them
-    auto* managed = root->FirstChildElement("managed");
-    if (!managed)
-        return;
-
-    auto* group = root->FirstChildElement("group");
-    if (!group)
-        return;
-
-    //Todo: Read all script nodes instead of just the first one
-    auto* scriptRootXml = managed->FirstChildElement("script");
-    
-    //Fill script list on first run. It's a string with each name separated by \0 as ImGui::Combo expects as input
-    if (ScriptList == "")
+    //Find all <managed> and <group> blocks. Parse <script> blocks within them.
+    auto* curGroup = root->FirstChildElement();
+    bool generateScriptList = ScriptList == ""; //Only gen script list if it's empty
+    u32 index = 0; //Todo: Rename to scriptIndex
+    while (curGroup)
     {
-        auto* curScript = scriptRootXml;
-        while (curScript)
+        string groupNodeType(curGroup->Value());
+        //Skip nodes that aren't <managed> or <group>. All <script> blocks should be inside one of those
+        if (groupNodeType != "managed" && groupNodeType != "group")
         {
-            string scriptName(curScript->GetText());
-            size_t newlinePos = scriptName.find('\n');
-            if (newlinePos != string::npos && newlinePos != scriptName.size() - 1) //Clear extra data like tabs after newline
-                scriptName = scriptName.erase(newlinePos);
-            //else if(newlinePos != string::npos)
-            //    scriptName = scriptName.erase(newlinePos - 1);
-
-            ScriptList += scriptName + '\0';
-            curScript = curScript->NextSiblingElement();
+            curGroup = curGroup->NextSiblingElement();
+            continue;
         }
 
-        //Todo: Move into function to reduce code duplication
-        curScript = group->FirstChildElement("script");
-        while (curScript)
+        //Todo: Update script name list in this loop somewhere
+        //Parse all scripts inside group
+        auto* scriptRootXml = curGroup->FirstChildElement("script");
+        while (scriptRootXml)
         {
-            string scriptName(curScript->GetText());
-            size_t newlinePos = scriptName.find('\n');
-            if (newlinePos != string::npos && newlinePos != scriptName.size() - 1) //Clear extra data like tabs after newline
-                scriptName = scriptName.erase(newlinePos);
-            //else if(newlinePos != string::npos)
-            //    scriptName = scriptName.erase(newlinePos - 1);
+            //Add script name to script list if we're generating it this run
+            if (generateScriptList)
+            {
+                //Get script name and strip extraneous newlines and tabs
+                string scriptName(scriptRootXml->GetText());
+                size_t newlinePos = scriptName.find('\n');
+                if (newlinePos != string::npos && newlinePos != scriptName.size() - 1) //Clear extra data like tabs after newline
+                    scriptName = scriptName.erase(newlinePos);
 
-            ScriptList += scriptName + '\0';
-            curScript = curScript->NextSiblingElement();
+                ScriptList += scriptName + '\0';
+            }
+            //Only parse the target script selected by the user
+            if (index != TargetScriptIndex)
+            {
+                index++;
+                scriptRootXml = scriptRootXml->NextSiblingElement();
+                continue;
+            }
+
+            //Get and read condition node
+            auto* scriptConditionXml = scriptRootXml->FirstChildElement("condition");
+            if (!scriptConditionXml)
+                THROW_EXCEPTION("Failed to get <condition> node from scriptx <script> node \"{}\"", scriptRootXml->Value());
+
+            //Create script node on graph and link to condition node
+            auto* scriptRoot = AddNode("Script",
+                { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run }
+            )->SetCustomTitlebarColor(ScriptColor);
+
+            //Read <script> contents and generate node graph from them
+            tinyxml2::XMLElement* currentNode = scriptConditionXml;
+            Node* currentGraphNode = scriptRoot;
+            while (currentNode)
+            {
+                //Parse scriptx node and move to next sibling
+                ParseScriptxNode(currentNode, currentGraphNode);
+                currentNode = currentNode->NextSiblingElement();
+            }
+
+            index++;
+            scriptRootXml = scriptRootXml->NextSiblingElement();
         }
+
+        //Go to next group/managed block
+        curGroup = curGroup->NextSiblingElement();
     }
-    
-    //TODO: Support multiple <group> and <managed> blocks. Some scripts have many
+
     //Todo: Add ui selector for different group/managed blocks or draw labels around them and draw all nodes at once
-    //Parse script node
-    u32 index = 0;
-    while(scriptRootXml)
-    {
-        if (index != TargetScriptIndex)
-        {
-            index++;
-            scriptRootXml = scriptRootXml->NextSiblingElement();
-            continue;
-        }
-        
-        //Get and read condition node
-        auto* scriptConditionXml = scriptRootXml->FirstChildElement("condition");
-        if (!scriptConditionXml)
-            THROW_EXCEPTION("Failed to get <condition> node from scriptx <script> node \"{}\"", scriptRootXml->Value());
-
-        //Create script node on graph and link to condition node
-        auto* scriptRoot = AddNode("Script",
-            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run }
-        )->SetCustomTitlebarColor(ScriptColor);
-
-        //Read <script> contents and generate node graph from them
-        tinyxml2::XMLElement* currentNode = scriptConditionXml;
-        Node* currentGraphNode = scriptRoot;
-        while (currentNode)
-        {
-            //Parse scriptx node and move to next sibling
-            ParseScriptxNode(currentNode, currentGraphNode);
-            currentNode = currentNode->NextSiblingElement();
-        }
-
-        index++;
-        scriptRootXml = scriptRootXml->NextSiblingElement();
-    }
-
-    //Todo: Move into function to reduce code duplication
-    //Now do <group> scripts
-    scriptRootXml = group->FirstChildElement("script");
-    while (scriptRootXml)
-    {
-        if (index != TargetScriptIndex)
-        {
-            index++;
-            scriptRootXml = scriptRootXml->NextSiblingElement();
-            continue;
-        }
-
-        //Get and read condition node
-        auto* scriptConditionXml = scriptRootXml->FirstChildElement("condition");
-        if (!scriptConditionXml)
-            THROW_EXCEPTION("Failed to get <condition> node from scriptx <script> node \"{}\"", scriptRootXml->Value());
-
-        //Create script node on graph and link to condition node
-        auto* scriptRoot = AddNode("Script",
-            { new StaticAttribute_String(scriptRootXml->GetText(), "Name"), new OutputAttribute_Run }
-        )->SetCustomTitlebarColor(ScriptColor);
-
-        //Read <script> contents and generate node graph from them
-        tinyxml2::XMLElement* currentNode = scriptConditionXml;
-        Node* currentGraphNode = scriptRoot;
-        while (currentNode)
-        {
-            //Parse scriptx node and move to next sibling
-            ParseScriptxNode(currentNode, currentGraphNode);
-            currentNode = currentNode->NextSiblingElement();
-        }
-
-        index++;
-        scriptRootXml = scriptRootXml->NextSiblingElement();
-    }
-
     //Todo: Sort all nodes so their run attributes are first and their continue attributes are last
 }
 
