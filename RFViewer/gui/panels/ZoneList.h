@@ -74,7 +74,7 @@ void ZoneList_Update(GuiState* state)
     ImGui::Separator();
 
     static int currentTerritory = 0;
-    ImGui::Combo("Territory", &currentTerritory, TerritoryList.data(), TerritoryList.size());
+    ImGui::Combo("Territory", &currentTerritory, TerritoryList.data(), (int)TerritoryList.size());
     ImGui::SameLine();
     if (ImGui::Button("Set##SetTerritory"))
     {

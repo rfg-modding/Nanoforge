@@ -209,7 +209,7 @@ void DX11Renderer::HandleResize()
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
     camera_->HandleResize( { (f32)sceneViewWidth_, (f32)sceneViewHeight_} );
-    im3dRenderer_->HandleResize((f32)sceneViewWidth_, (f32)sceneViewHeight_);
+    im3dRenderer_->HandleResize((i32)sceneViewWidth_, (i32)sceneViewHeight_);
 }
 
 void DX11Renderer::ResetTerritoryData()
@@ -398,10 +398,13 @@ void DX11Renderer::ViewportsDoFrame()
     {
         sceneViewWidth_ = (u32)contentAreaSize.x;
         sceneViewHeight_ = (u32)contentAreaSize.y;
-        InitScene();
+        if (!InitScene())
+            THROW_EXCEPTION("InitScene() failed in DX11Renderer::ViewportsDoFrame() when resizing a viewport.");
 
         //Recreate depth buffer
-        CreateDepthBuffer(false);
+        if (!CreateDepthBuffer(false))
+            THROW_EXCEPTION("CreateDepthBuffer() failed in DX11Renderer::ViewportsDoFrame() when resizing a viewport.");
+
         sceneViewport_.TopLeftX = 0.0f;
         sceneViewport_.TopLeftY = 0.0f;
         sceneViewport_.Width = (f32)sceneViewWidth_;
@@ -409,7 +412,7 @@ void DX11Renderer::ViewportsDoFrame()
         sceneViewport_.MinDepth = 0.0f;
         sceneViewport_.MaxDepth = 1.0f;
         camera_->HandleResize({ (f32)sceneViewWidth_, (f32)sceneViewHeight_ });
-        im3dRenderer_->HandleResize((f32)sceneViewWidth_, (f32)sceneViewHeight_);
+        im3dRenderer_->HandleResize((i32)sceneViewWidth_, (i32)sceneViewHeight_);
     }
 
     //Render scene texture
@@ -495,8 +498,8 @@ bool DX11Renderer::InitSwapchainAndResources()
 
     viewport.TopLeftX = 0.0f;
     viewport.TopLeftY = 0.0f;
-    viewport.Width = windowWidth_;
-    viewport.Height = windowHeight_;
+    viewport.Width = static_cast<FLOAT>(windowWidth_);
+    viewport.Height = static_cast<FLOAT>(windowHeight_);
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
 
@@ -580,7 +583,7 @@ bool DX11Renderer::InitImGui()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); 
-    io.DisplaySize = ImVec2(windowWidth_, windowHeight_);
+    io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
@@ -811,7 +814,6 @@ bool DX11Renderer::AcquireDxgiFactoryInstance()
 
 void DX11Renderer::UpdateWindowDimensions()
 {
-    RECT rect;
     RECT usableRect;
 
     if (GetClientRect(hwnd_, &usableRect))

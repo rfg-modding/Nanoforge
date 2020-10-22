@@ -208,7 +208,7 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
         //Read mesh data block. Contains info on vertex + index layout + size + format
         MeshDataBlock meshData;
         meshData.Read(cpuFile);
-        cpuFileIndex += (cpuFile.Position() - meshDataBlockStart) / 4;
+        cpuFileIndex += static_cast<u32>(cpuFile.Position() - meshDataBlockStart) / 4;
 
         terrain.Meshes.push_back(meshData);
 

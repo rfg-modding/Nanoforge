@@ -59,7 +59,7 @@ void ZoneManager::LoadZoneData()
     for (auto& zone : ZoneFiles)
     {
         if (zone.ShortName.length() > longest)
-            longest = zone.ShortName.length();
+            longest = (u32)zone.ShortName.length();
     }
     LongestZoneName = longest;
 
@@ -207,7 +207,9 @@ ZoneObjectClass& ZoneManager::GetObjectClass(u32 classnameHash)
         if (objectClass.Hash == classnameHash)
             return objectClass;
     }
+
     //Todo: Handle case of invalid hash. Returning std::optional would work
+    THROW_EXCEPTION("Failed to find object class with classname hash {}", classnameHash);
 }
 
 void ZoneManager::SetZoneShortName(ZoneFile& zone)

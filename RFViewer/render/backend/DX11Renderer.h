@@ -44,7 +44,7 @@ public:
     ID3D11Buffer* cbPerFrameBuffer = nullptr;
     struct cbPerFrame
     {
-        DirectX::XMVECTOR ViewPos;
+        DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
         DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
         f32 DiffuseIntensity = 0.65f;
         f32 ElevationFactorBias = 0.8f;
@@ -99,20 +99,10 @@ private:
     Camera* camera_ = nullptr;
     Im3dRenderer* im3dRenderer_ = nullptr;
 
-    D3D_FEATURE_LEVEL featureLevel_;
-
     DirectX::XMFLOAT4 clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
     //Todo: Move camera values out into camera class
     DirectX::XMMATRIX WVP;
-
-    DirectX::XMMATRIX cube1World;
-    DirectX::XMMATRIX cube2World;
-
-    DirectX::XMMATRIX Rotation;
-    DirectX::XMMATRIX Scale;
-    DirectX::XMMATRIX Translation;
-    float rot = 0.01f;
 
     ID3D11Buffer* cbPerObjectBuffer = nullptr;
     struct cbPerObject
