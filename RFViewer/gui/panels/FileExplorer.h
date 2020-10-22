@@ -20,7 +20,7 @@ void FileExplorer_Update(GuiState* state)
 
         packfileNodeLabel += "]";
 
-        if (ImGui::TreeNode(packfileNodeLabel.c_str()))
+        if (ImGui::TreeNodeEx(packfileNodeLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth))
         {
             for (u32 i = 0; i < packfile.Entries.size(); i++)
             {
