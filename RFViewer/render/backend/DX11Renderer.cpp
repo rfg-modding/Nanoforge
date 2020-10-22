@@ -186,6 +186,8 @@ void DX11Renderer::DoFrame(f32 deltaTime)
 
     //Present the backbuffer to the screen
     SwapChain_->Present(0, 0);
+
+    ImGui::EndFrame();
 }
 
 void DX11Renderer::HandleResize()
@@ -392,7 +394,7 @@ void DX11Renderer::ViewportsDoFrame()
     contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
 
-    if (contentAreaSize.x != sceneViewWidth_ || contentAreaSize.y != sceneViewHeight_)
+    if ((u32)contentAreaSize.x != sceneViewWidth_ || (u32)contentAreaSize.y != sceneViewHeight_)
     {
         sceneViewWidth_ = (u32)contentAreaSize.x;
         sceneViewHeight_ = (u32)contentAreaSize.y;
@@ -514,6 +516,8 @@ bool DX11Renderer::InitScene()
         ReleaseCOM(sceneViewRenderTarget_);
     if (sceneViewTexture_)
         ReleaseCOM(sceneViewTexture_);
+    if (cbPerFrameBuffer)
+        ReleaseCOM(cbPerFrameBuffer);
 
     //Create texture the view is rendered to
     D3D11_TEXTURE2D_DESC textureDesc;
