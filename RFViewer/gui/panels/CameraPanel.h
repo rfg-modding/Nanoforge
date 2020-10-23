@@ -1,9 +1,9 @@
 #pragma once
 #include "gui/GuiState.h"
 
-void CameraPanel_Update(GuiState* state)
+void CameraPanel_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Camera", &state->Visible))
+    if (!ImGui::Begin("Camera", open))
     {
         ImGui::End();
         return;

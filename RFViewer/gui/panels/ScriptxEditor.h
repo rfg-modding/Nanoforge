@@ -673,9 +673,9 @@ void ScriptxEditor_Cleanup(GuiState* state)
     Links.clear();
 }
 
-void ScriptxEditor_Update(GuiState* state)
+void ScriptxEditor_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Scriptx editor"))
+    if (!ImGui::Begin("Scriptx editor", open))
     {
         ImGui::End();
         return;

@@ -3,9 +3,9 @@
 #include "render/imgui/ImGuiConfig.h"
 
 //Todo: May want to move this to be under each zone in the zone window list since we'll have a third panel for per-object properties
-void ZoneObjectsList_Update(GuiState* state)
+void ZoneObjectsList_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Zone objects", &state->Visible))
+    if (!ImGui::Begin("Zone objects", open))
     {
         ImGui::End();
         return;

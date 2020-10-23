@@ -13,9 +13,9 @@
 #include "RfgTools++/formats/zones/properties/compound/ListProperty.h"
 #include "RfgTools++/formats/zones/properties/special/NavpointDataProperty.h"
 
-void PropertyList_Update(GuiState* state)
+void PropertyList_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Properties", &state->Visible))
+    if (!ImGui::Begin("Properties", open))
     {
         ImGui::End();
         return;

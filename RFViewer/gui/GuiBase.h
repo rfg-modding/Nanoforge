@@ -7,10 +7,12 @@
 */
 
 //Function signature for gui update functions
-using GuiUpdateFunc = void(GuiState* state);
+using GuiUpdateFunc = void(GuiState* state, bool* open);
 
 class GuiPanel
 {
 public:
     GuiUpdateFunc* Update = nullptr;
+    string MenuPos;
+    bool Open = false;
 };

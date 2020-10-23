@@ -2,9 +2,9 @@
 #include "gui/GuiState.h"
 #include "render/backend/DX11Renderer.h"
 
-void RenderSettings_Update(GuiState* state)
+void RenderSettings_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Render settings", &state->Visible))
+    if (!ImGui::Begin("Render settings", open))
     {
         ImGui::End();
         return;

@@ -1,9 +1,13 @@
 #pragma once
 #include "gui/GuiState.h"
 
-void FileExplorer_Update(GuiState* state)
+void FileExplorer_Update(GuiState* state, bool* open)
 {
-    ImGui::Begin("File explorer");
+    if (!ImGui::Begin("File explorer", open))
+    {
+        ImGui::End();
+        return;
+    }
 
     state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_ARCHIVE " Packfiles");

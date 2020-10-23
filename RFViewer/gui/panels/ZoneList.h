@@ -59,9 +59,9 @@ static std::vector<const char*> TerritoryList =
     "wcdlc9"
 };
 
-void ZoneList_Update(GuiState* state)
+void ZoneList_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Zones", &state->Visible))
+    if (!ImGui::Begin("Zones", open))
     {
         ImGui::End();
         return;

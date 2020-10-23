@@ -32,21 +32,23 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Came
     //Register all gui panels
     panels_ =
     {
-        GuiPanel{&FileExplorer_Update},
-        GuiPanel{&CameraPanel_Update},
-        GuiPanel{&RenderSettings_Update},
-        GuiPanel{&StatusBar_Update},
-        GuiPanel{&ZoneObjectsList_Update},
-        GuiPanel{&PropertyList_Update},
-        GuiPanel{&ZoneRender_Update},
-        GuiPanel{&LogPanel_Update},
+        GuiPanel{&FileExplorer_Update, "Tools/File explorer", false},
+        GuiPanel{&CameraPanel_Update, "Tools/Camera", false},
+        GuiPanel{&RenderSettings_Update, "Tools/Render settings", false},
+        GuiPanel{&StatusBar_Update, "", false},
+        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", false},
+        GuiPanel{&PropertyList_Update, "Tools/Properties", false},
+        GuiPanel{&ZoneRender_Update, "", false},
+        GuiPanel{&LogPanel_Update, "Tools/Log", false},
+        GuiPanel{&ZoneList_Update, "Tools/Zone list", false},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD
-        GuiPanel{&ScriptxEditor_Update},
+        GuiPanel{&ScriptxEditor_Update, "Tools/Scriptx editor", false},
 #endif
-        GuiPanel{&ZoneList_Update},
     };
+
+    GenerateMenus();
 }
 
 void MainGui::Update(f32 deltaTime)
@@ -65,7 +67,10 @@ void MainGui::Update(f32 deltaTime)
             THROW_EXCEPTION("Error! Update function pointer for panel was nullptr.");
 #endif
 
-        panel.Update(&State);
+        if (!panel.Open)
+            continue;
+
+        panel.Update(&State, &panel.Open);
     }
 }
 
@@ -83,12 +88,16 @@ void MainGui::DrawMainMenuBar()
             ImGuiMenuItemShort("Open file", )
             ImGuiMenuItemShort("Save file", )
             ImGuiMenuItemShort("Exit", )
-        )
+        );
+        for (auto& menuItem : menuItems_)
+        {
+            menuItem.Draw();
+        }
         ImGuiMenu("Help",
             ImGuiMenuItemShort("Welcome", )
             ImGuiMenuItemShort("Metrics", )
             ImGuiMenuItemShort("About", )
-        )
+        );
 
         //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements
         auto* drawList = ImGui::GetWindowDrawList();
@@ -133,4 +142,70 @@ void MainGui::DrawDockspace()
     }
     
     ImGui::End();
+}
+
+std::vector<string> split(const string& str, const string& delim)
+{
+    std::vector<string> tokens;
+    size_t prev = 0, pos = 0;
+    do
+    {
+        pos = str.find(delim, prev);
+        if (pos == string::npos) pos = str.length();
+        string token = str.substr(prev, pos - prev);
+        if (!token.empty()) tokens.push_back(token);
+        prev = pos + delim.length();
+    } while (pos < str.length() && prev < str.length());
+    return tokens;
+}
+
+void MainGui::GenerateMenus()
+{
+    for (auto& panel : panels_)
+    {
+        //If empty then the panel is always open and doesn't have a menu entry
+        if (panel.MenuPos == "")
+        {
+            panel.Open = true;
+            continue;
+        }
+
+        //Split menu path into components
+        std::vector<string> menuParts = split(panel.MenuPos, "/");
+        string menuName = menuParts[0];
+
+        //Get or create menu
+        MenuItem* curMenuItem = GetMenu(menuName);
+        if (!curMenuItem)
+        {
+            menuItems_.push_back(MenuItem{ menuName, {} });
+            curMenuItem = &menuItems_.back();
+        }
+
+        
+        for (int i = 1; i < menuParts.size(); i++)
+        {
+            string nextPart = menuParts[i];
+            MenuItem* nextItem = curMenuItem->GetItem(nextPart);
+            if (!nextItem)
+            {
+                curMenuItem->Items.push_back(MenuItem{ nextPart, {} });
+                nextItem = &curMenuItem->Items.back();
+            }
+
+            curMenuItem = nextItem;
+        }
+
+        curMenuItem->panel = &panel;
+    }
+}
+
+MenuItem* MainGui::GetMenu(const string& text)
+{
+    for (auto& item : menuItems_)
+    {
+        if (item.Text == text)
+            return &item;
+    }
+    return nullptr;
 }

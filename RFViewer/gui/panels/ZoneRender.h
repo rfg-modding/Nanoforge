@@ -4,7 +4,7 @@
 
 f32 ScaleTextSizeToDistance(f32 minSize, f32 maxSize, const Vec3& textPos, Camera* camera);
 
-void ZoneRender_Update(GuiState* state)
+void ZoneRender_Update(GuiState* state, bool* open)
 {
     Im3d::PushDrawState();
     Im3d::SetSize(state->BoundingBoxThickness);

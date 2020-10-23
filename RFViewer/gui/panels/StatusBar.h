@@ -1,7 +1,7 @@
 #pragma once
 #include "gui/GuiState.h"
 
-void StatusBar_Update(GuiState* state)
+void StatusBar_Update(GuiState* state, bool* open)
 {
     //Parent window flags
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
@@ -38,7 +38,7 @@ void StatusBar_Update(GuiState* state)
         throw std::out_of_range("Error! Status enum in MainGui has an invalid value!");
     }
 
-    ImGui::Begin("Status bar window", &state->Visible, window_flags);
+    ImGui::Begin("Status bar window", open, window_flags);
     ImGui::PopStyleColor();
     ImGui::PopStyleVar(2);
 

@@ -3,9 +3,9 @@
 #include "Log.h"
 #include <spdlog/sinks/ringbuffer_sink.h>
 
-void LogPanel_Update(GuiState* state)
+void LogPanel_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Output", &state->Visible))
+    if (!ImGui::Begin("Output", open))
     {
         ImGui::End();
         return;
