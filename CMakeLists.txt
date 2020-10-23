@@ -3,14 +3,6 @@
 cmake_minimum_required (VERSION 3.8)
 project ("RFViewer")
 
-## Update git submodules
-#include("GitSubmodule.cmake")
-#
-## Error if submodules not loaded. Just check one of them for now
-#if(NOT EXISTS "${PROJECT_SOURCE_DIR}/dependencies/RfgToolsPlusPlus/CMakeLists.txt")
-#    message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
-#endif()
-
 set(CMAKE_CXX_STANDARD           20)
 set(CMAKE_CXX_STANDARD_REQUIRED  ON)
 set(CMAKE_CXX_EXTENSIONS         OFF)
