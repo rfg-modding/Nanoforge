@@ -145,7 +145,7 @@ private:
 
     //Todo: Add build path variable for each contributor to set
 #ifdef DEBUG_BUILD
-    string terrainShaderPath_ = "C:/Users/Luke/source/repos/RF-Viewer/Assets/shaders/Terrain.fx";
+    string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
 #else
     string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
 #endif

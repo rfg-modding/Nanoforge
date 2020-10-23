@@ -157,11 +157,11 @@ void DX11Renderer::DoFrame(f32 deltaTime)
             d3d11Context_->VSSetShader(terrainVertexShader_, nullptr, 0);
             d3d11Context_->PSSetShader(terrainPixelShader_, nullptr, 0);
             
-            XMVECTOR rotaxis = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-            XMMATRIX rotation = XMMatrixRotationAxis(rotaxis, 0.0f);
-            XMMATRIX translation = XMMatrixTranslation(renderInstance.Position.x, renderInstance.Position.y, renderInstance.Position.z);
+            DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+            DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
+            DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(renderInstance.Position.x, renderInstance.Position.y, renderInstance.Position.z);
 
-            terrainModelMatrices_[i] = XMMatrixIdentity();
+            terrainModelMatrices_[i] = DirectX::XMMatrixIdentity();
             terrainModelMatrices_[i] = translation * rotation;
 
             WVP = terrainModelMatrices_[i] * camera_->camView * camera_->camProjection;
@@ -292,7 +292,7 @@ void DX11Renderer::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstan
             renderInstance.terrainIndexBuffers_[i] = terrainIndexBuffer;
             renderInstance.terrainVertexBuffers_[i] = terrainVertexBuffer;
             renderInstance.MeshIndexCounts_[i] = static_cast<u32>(instance.Indices[i].size());
-            terrainModelMatrices_.push_back(XMMATRIX());
+            terrainModelMatrices_.push_back(DirectX::XMMATRIX());
         }
 
         //Set bool so the instance isn't initialized more than once
