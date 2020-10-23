@@ -12,11 +12,14 @@ class Camera;
 class ZoneManager;
 class DX11Renderer;
 
+//Maximum gui panels. Gui list is preallocated so we can have stable pointers to the panels
+const u32 MaxGuiPanels = 256;
+
 struct MenuItem
 {
     string Text;
     std::vector<MenuItem> Items = {};
-    //Todo: Must update if we start adding panels after init. Currently do not do this
+    //Todo: Must update if we resize MainGui::panels_. Currently do not do this
     GuiPanel* panel = nullptr;
 
     MenuItem* GetItem(const string& text)
@@ -64,7 +67,9 @@ private:
     void DrawDockspace();
     void GenerateMenus();
     MenuItem* GetMenu(const string& text);
+    void CheckGuiListResize();
 
+    //Size is pre-allocated with MaxGuiPanels elements. Crashes if it resizes beyond this
     std::vector<GuiPanel> panels_ = {};
     std::vector<MenuItem> menuItems_ = {};
 };

@@ -29,6 +29,9 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Came
     //Create node editor library context
     State.NodeEditor = node::CreateEditor();
 
+    //Pre-allocate gui list so we can have stable pointers to the gui
+    panels_.resize(MaxGuiPanels);
+
     //Register all gui panels
     panels_ =
     {
@@ -48,6 +51,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Came
 #endif
     };
 
+    CheckGuiListResize();
     GenerateMenus();
 }
 
@@ -208,4 +212,10 @@ MenuItem* MainGui::GetMenu(const string& text)
             return &item;
     }
     return nullptr;
+}
+
+void MainGui::CheckGuiListResize()
+{
+    if (panels_.capacity() != MaxGuiPanels)
+        THROW_EXCEPTION("MainGui::panels_ resized! This is enforced to keep stable pointers to the gui panels. Please change MaxGuiPanels and recompile.")
 }
