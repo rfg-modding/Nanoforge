@@ -70,7 +70,7 @@ void ZoneObjectsList_Update(GuiState* state)
                 continue;
 
             //Todo: Use a formatting lib/func here. This is bad
-            if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(index)).c_str(),
+            if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(index)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | 
                 (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
             {
                 //Update selection state
@@ -87,7 +87,7 @@ void ZoneObjectsList_Update(GuiState* state)
                     if (!childObjectClass.Show)
                         continue;
 
-                    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + childObject.Self->Classname + "##" + std::to_string(index)).c_str(),
+                    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + childObject.Self->Classname + "##" + std::to_string(index)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | 
                         (childObject.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (childObject.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
                     {
                         //Update selection state

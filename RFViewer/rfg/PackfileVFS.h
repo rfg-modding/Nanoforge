@@ -31,6 +31,8 @@ public:
     //Todo: Ensure these stay valid if we start changing packfiles_ after init. May want some handle class that can return packfiles
     //Attempt to get a packfile. Returns nullptr if it fails to find the packfile
     Packfile3* GetPackfile(const string& name);
+    //If true this class is ready for use by guis / other code
+    bool Ready() const { return ready_; }
 
     std::vector<Packfile3> packfiles_ = {};
 
@@ -40,5 +42,6 @@ private:
 
     //Todo: Make externally configurable
     std::string packfileFolderPath_;
-
+    //If true this class is ready for use by guis / other code
+    bool ready_ = false;
 };

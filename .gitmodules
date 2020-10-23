@@ -1,21 +1,12 @@
 [submodule "Dependencies/RfgToolsPlusPlus"]
 	path = Dependencies/RfgToolsPlusPlus
 	url = https://github.com/Moneyl/RfgToolsPlusPlus.git
-[submodule "Dependencies/DirectXTK"]
-	path = Dependencies/DirectXTK
-	url = https://github.com/microsoft/DirectXTK.git
 [submodule "Dependencies/imgui"]
 	path = Dependencies/imgui
 	url = https://github.com/ocornut/imgui.git
 [submodule "Dependencies/IconFontCppHeaders"]
 	path = Dependencies/IconFontCppHeaders
 	url = https://github.com/juliettef/IconFontCppHeaders.git
-[submodule "Dependencies/DirectXTex"]
-	path = Dependencies/DirectXTex
-	url = https://github.com/microsoft/DirectXTex.git
-[submodule "lib"]
-	path = lib
-	url = https://github.com/Moneyl/RF-Viewer-Lib.git
 [submodule "Dependencies/im3d"]
 	path = Dependencies/im3d
 	url = https://github.com/john-chapman/im3d.git
@@ -28,3 +19,6 @@
 [submodule "Dependencies/spdlog"]
 	path = Dependencies/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "Dependencies/imnodes"]
+	path = Dependencies/imnodes
+	url = https://github.com/Nelarius/imnodes.git

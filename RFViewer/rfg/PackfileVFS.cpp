@@ -35,6 +35,7 @@ void PackfileVFS::ScanPackfiles()
             }
         }
     }
+    ready_ = true;
 }
 
 std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchFilters, bool recursive, bool oneResultPerFilter)

@@ -208,7 +208,7 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
         //Read mesh data block. Contains info on vertex + index layout + size + format
         MeshDataBlock meshData;
         meshData.Read(cpuFile);
-        cpuFileIndex += (cpuFile.Position() - meshDataBlockStart) / 4;
+        cpuFileIndex += static_cast<u32>(cpuFile.Position() - meshDataBlockStart) / 4;
 
         terrain.Meshes.push_back(meshData);
 
@@ -217,7 +217,7 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
         u32 indicesSize = meshData.NumIndices * meshData.IndexSize;
         u8* indexBuffer = new u8[indicesSize];
         gpuFile.ReadToMemory(indexBuffer, indicesSize);
-        terrain.Indices.push_back(std::span<u16>{ (u16*)indexBuffer, indicesSize / 2 });
+        terrain.Indices.push_back(std::span<u16>{ (u16*)indexBuffer, indicesSize / meshData.IndexSize });
 
         //Read vertex data
         gpuFile.Align(16);
@@ -227,8 +227,8 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
 
         std::span<LowLodTerrainVertex> verticesWithNormals = GenerateTerrainNormals
         (
-            std::span<ShortVec4>{ (ShortVec4*)vertexBuffer, verticesSize / 8},
-            std::span<u16>{ (u16*)indexBuffer, indicesSize / 2 }
+            std::span<ShortVec4>{ (ShortVec4*)vertexBuffer, verticesSize / meshData.VertexStride0},
+            std::span<u16>{ (u16*)indexBuffer, indicesSize / meshData.IndexSize }
         );
         terrain.Vertices.push_back(verticesWithNormals);
 

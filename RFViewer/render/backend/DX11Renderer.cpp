@@ -18,8 +18,6 @@
 #include <imgui/imconfig.h>
 #include <imgui/examples/imgui_impl_win32.h>
 #include <imgui/examples/imgui_impl_dx11.h>
-#include <DirectXTex.h>
-#include <Dependencies\DirectXTex\DirectXTex\DirectXTexD3D11.cpp>
 #include "render/util/DX11Helpers.h"
 #include "render/backend/Im3dRenderer.h"
 #include <iostream>
@@ -54,11 +52,6 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
 
     im3dRenderer_->Init(d3d11Device_, d3d11Context_, hwnd_, camera_);
     terrainShaderWriteTime_ = std::filesystem::last_write_time(terrainShaderPath_);
-
-    //Needed by some DirectXTex functions
-    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (hr != S_OK)
-        THROW_EXCEPTION("CoInitializeEx failed and returned {}", hr);
 
     //Quick fix for view being distorted before first window resize
     HandleResize();
@@ -193,6 +186,8 @@ void DX11Renderer::DoFrame(f32 deltaTime)
 
     //Present the backbuffer to the screen
     SwapChain_->Present(0, 0);
+
+    ImGui::EndFrame();
 }
 
 void DX11Renderer::HandleResize()
@@ -212,9 +207,9 @@ void DX11Renderer::HandleResize()
         THROW_EXCEPTION("DX11Renderer::InitSwapchainAndResources() failed in DX11Renderer::HandleResize()!");
 
     ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(static_cast<f32>(windowWidth_), static_cast<f32>(windowHeight_));
-    camera_->HandleResize( { static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_)} );
-    im3dRenderer_->HandleResize(static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_));
+    io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
+    camera_->HandleResize( { (f32)sceneViewWidth_, (f32)sceneViewHeight_} );
+    im3dRenderer_->HandleResize((i32)sceneViewWidth_, (i32)sceneViewHeight_);
 }
 
 void DX11Renderer::ResetTerritoryData()
@@ -399,16 +394,16 @@ void DX11Renderer::ViewportsDoFrame()
     contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
 
-    if (contentAreaSize.x != sceneViewWidth_ || contentAreaSize.y != sceneViewHeight_)
+    if ((u32)contentAreaSize.x != sceneViewWidth_ || (u32)contentAreaSize.y != sceneViewHeight_)
     {
-        sceneViewWidth_ = static_cast<u32>(contentAreaSize.x);
-        sceneViewHeight_ = static_cast<u32>(contentAreaSize.y);
+        sceneViewWidth_ = (u32)contentAreaSize.x;
+        sceneViewHeight_ = (u32)contentAreaSize.y;
         if (!InitScene())
-            THROW_EXCEPTION("DX11Renderer::InitScene() call failed in DX11Renderer::ViewportsDoFrame()!");
+            THROW_EXCEPTION("InitScene() failed in DX11Renderer::ViewportsDoFrame() when resizing a viewport.");
 
         //Recreate depth buffer
         if (!CreateDepthBuffer(false))
-            THROW_EXCEPTION("DX11Renderer::CreateDepthBuffer() call failed in DX11Renderer::ViewportsDoFrame()");
+            THROW_EXCEPTION("CreateDepthBuffer() failed in DX11Renderer::ViewportsDoFrame() when resizing a viewport.");
 
         sceneViewport_.TopLeftX = 0.0f;
         sceneViewport_.TopLeftY = 0.0f;
@@ -416,8 +411,8 @@ void DX11Renderer::ViewportsDoFrame()
         sceneViewport_.Height = static_cast<f32>(sceneViewHeight_);
         sceneViewport_.MinDepth = 0.0f;
         sceneViewport_.MaxDepth = 1.0f;
-        camera_->HandleResize({ static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_) });
-        im3dRenderer_->HandleResize(static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_));
+        camera_->HandleResize({ (f32)sceneViewWidth_, (f32)sceneViewHeight_ });
+        im3dRenderer_->HandleResize((i32)sceneViewWidth_, (i32)sceneViewHeight_);
     }
 
     //Render scene texture
@@ -503,8 +498,8 @@ bool DX11Renderer::InitSwapchainAndResources()
 
     viewport.TopLeftX = 0.0f;
     viewport.TopLeftY = 0.0f;
-    viewport.Width = windowWidth_;
-    viewport.Height = windowHeight_;
+    viewport.Width = static_cast<FLOAT>(windowWidth_);
+    viewport.Height = static_cast<FLOAT>(windowHeight_);
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
 
@@ -524,6 +519,8 @@ bool DX11Renderer::InitScene()
         ReleaseCOM(sceneViewRenderTarget_);
     if (sceneViewTexture_)
         ReleaseCOM(sceneViewTexture_);
+    if (cbPerFrameBuffer)
+        ReleaseCOM(cbPerFrameBuffer);
 
     //Create texture the view is rendered to
     D3D11_TEXTURE2D_DESC textureDesc;
@@ -588,7 +585,7 @@ bool DX11Renderer::InitImGui() const
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); 
-    io.DisplaySize = ImVec2(static_cast<f32>(windowWidth_), static_cast<f32>(windowHeight_));
+    io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
@@ -821,7 +818,6 @@ bool DX11Renderer::AcquireDxgiFactoryInstance()
 
 void DX11Renderer::UpdateWindowDimensions()
 {
-    RECT rect;
     RECT usableRect;
 
     if (GetClientRect(hwnd_, &usableRect))
