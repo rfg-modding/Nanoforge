@@ -20,10 +20,10 @@ public:
 
     void Run();
     void HandleResize();
+    void HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     bool Paused = false;
     Timer FrameTimer;
-    Camera Camera;
     MainGui Gui;
 
 private:

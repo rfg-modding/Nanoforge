@@ -69,7 +69,8 @@ void WorkerThread(GuiState* state, bool reload)
             newCamPos.x += 100.0f;
             newCamPos.y += 500.0f;
             newCamPos.z += 100.0f;
-            state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+            //Todo: Add support to scene system
+            //state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
         }
     }
 

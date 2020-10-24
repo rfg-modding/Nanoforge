@@ -21,8 +21,7 @@ class GuiState
 {
 public:
     ImGuiFontManager* FontManager = nullptr;
-    PackfileVFS* PackfileVFS = nullptr; 
-    Camera* Camera = nullptr;
+    PackfileVFS* PackfileVFS = nullptr;
     ZoneManager* ZoneManager = nullptr;
     //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;

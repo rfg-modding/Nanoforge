@@ -56,7 +56,7 @@ class MainGui
 public:
     ~MainGui();
 
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, ZoneManager* zoneManager, DX11Renderer* renderer);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer);
     void Update(f32 deltaTime);
     void HandleResize();
 

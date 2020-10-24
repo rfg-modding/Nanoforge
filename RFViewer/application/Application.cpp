@@ -39,11 +39,11 @@ Application::Application(HINSTANCE hInstance)
     appInstance = this;
     hInstance_ = hInstance;
     packfileVFS_.Init(packfileFolderPath_);
-    Camera.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
+    //Camera.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
     //Setup gui
-    Gui.Init(&fontManager_, &packfileVFS_, &Camera, &zoneManager_, &renderer_);
+    Gui.Init(&fontManager_, &packfileVFS_, &zoneManager_, &renderer_);
     //Set initial territory name
     Gui.State.SetTerritory(territoryFilename_, true);
     zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName, Gui.State.CurrentTerritoryShortname);
@@ -82,7 +82,10 @@ void Application::Run()
         if (Gui.State.ReloadNeeded)
             Reload();
 
-        Camera.DoFrame(deltaTime_);
+        //Update cameras
+        for (auto& scene : renderer_.Scenes)
+            scene.Cam.DoFrame(deltaTime_);
+
         NewFrame();
         UpdateGui();
 
@@ -93,7 +96,8 @@ void Application::Run()
             std::lock_guard<std::mutex> lock(ResourceLock);
             NewTerrainInstanceAdded = false;
             //The renderer will upload the vertex and index buffers of the new instances to the gpu
-            renderer_.InitTerrainMeshes(&TerrainInstances);
+            //Todo: Update to support new scene system
+            //renderer_.InitTerrainMeshes(&TerrainInstances);
 
             //If the worker is done clear it's temporary data
             if (WorkerDone)
@@ -113,9 +117,15 @@ void Application::HandleResize()
     Gui.HandleResize();
 }
 
+void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    for (auto& scene : renderer_.Scenes)
+        scene.Cam.HandleInput(hwnd, msg, wParam, lParam);
+}
+
 void Application::InitRenderer()
 {
-    renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_, &Camera);
+    renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_);
 }
 
 void Application::NewFrame()
@@ -186,7 +196,8 @@ void Application::Reload()
     Log->info("Clearing old territory data.");
 
     //Clear old territory data
-    renderer_.ResetTerritoryData();
+    //Todo: Update to support new scene system
+    //renderer_.ResetTerritoryData();
     zoneManager_.ResetTerritoryData();
     zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName, Gui.State.CurrentTerritoryShortname);
     WorkerThread_ClearData();
@@ -204,7 +215,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
         return true;
 
-    appInstance->Camera.HandleInput(hwnd, msg, wParam, lParam);
+    appInstance->HandleCameraInput(hwnd, msg, wParam, lParam);
 
     switch (msg)
     {

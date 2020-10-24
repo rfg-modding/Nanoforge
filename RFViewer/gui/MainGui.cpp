@@ -22,9 +22,9 @@ MainGui::~MainGui()
     node::DestroyEditor(State.NodeEditor);
 }
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, ZoneManager* zoneManager, DX11Renderer* renderer)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer)
 {
-    State = GuiState{ fontManager, packfileVFS, camera, zoneManager, renderer };
+    State = GuiState{ fontManager, packfileVFS, zoneManager, renderer };
 
     //Create node editor library context
     State.NodeEditor = node::CreateEditor();
@@ -35,19 +35,19 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Came
     //Register all gui panels
     panels_ =
     {
-        GuiPanel{&FileExplorer_Update, "Tools/File explorer", false},
-        GuiPanel{&CameraPanel_Update, "Tools/Camera", false},
-        GuiPanel{&RenderSettings_Update, "Tools/Render settings", false},
-        GuiPanel{&StatusBar_Update, "", false},
-        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", false},
-        GuiPanel{&PropertyList_Update, "Tools/Properties", false},
-        GuiPanel{&ZoneRender_Update, "", false},
-        GuiPanel{&LogPanel_Update, "Tools/Log", false},
-        GuiPanel{&ZoneList_Update, "Tools/Zone list", false},
+        GuiPanel{&FileExplorer_Update, "Tools/File explorer", true},
+        GuiPanel{&CameraPanel_Update, "Tools/Camera", true},
+        GuiPanel{&RenderSettings_Update, "Tools/Render settings", true},
+        GuiPanel{&StatusBar_Update, "", true},
+        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", true},
+        GuiPanel{&PropertyList_Update, "Tools/Properties", true},
+        GuiPanel{&ZoneRender_Update, "", true},
+        GuiPanel{&LogPanel_Update, "Tools/Log", true},
+        GuiPanel{&ZoneList_Update, "Tools/Zone list", true},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD
-        GuiPanel{&ScriptxEditor_Update, "Tools/Scriptx editor", false},
+        GuiPanel{&ScriptxEditor_Update, "Tools/Scriptx editor", true},
 #endif
     };
 
@@ -55,12 +55,34 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Came
     GenerateMenus();
 }
 
+//TODO: Add scene views
+//void DX11Renderer::ViewportsDoFrame()
+//{
+//    ////On first ever draw set the viewport size to the default one. Only happens if the viewport window doesn't have a .ini entry
+//    //if (!ImGui::Begin("Scene view"))
+//    //{
+//    //    ImGui::End();
+//    //}
+//    //
+//    //ImVec2 contentAreaSize;
+//    //contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
+//    //contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
+//    //ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
+//
+//    //Scene->Resize(contentAreaSize.x, contentAreaSize.y);
+//
+//    ////Render scene texture
+//    //ImGui::Image(sceneViewShaderResource_, ImVec2(static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_)));
+//    //ImGui::PopStyleColor();
+//
+//    //ImGui::End();
+//}
+
 void MainGui::Update(f32 deltaTime)
 {
     //Draw built in / special gui elements
     DrawMainMenuBar();
     DrawDockspace();
-    ImGui::ShowDemoWindow();
 
     //Draw the rest of the gui code
     for (auto& panel : panels_)

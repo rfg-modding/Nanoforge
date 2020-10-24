@@ -149,7 +149,8 @@ void ZoneList_Update(GuiState* state, bool* open)
                 newCamPos.x += 50.0f;
                 newCamPos.y += 100.0f;
                 newCamPos.z += 50.0f;
-                state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+                //Todo: Add support to scene system
+                //state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
             }
         }
         ImGui::SameLine();
