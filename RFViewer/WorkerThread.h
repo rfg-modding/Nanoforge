@@ -45,10 +45,13 @@ void WorkerThread(GuiState* state, bool reload)
     //We only need to scan the packfiles once. Packfile data is independent from our current territory
     if (!reload)
     {
+        state->FileTreeLocked = true;
+        state->FileTreeNeedsRegen = true;
         //Scan contents of packfiles
         state->SetStatus(ICON_FA_SYNC " Scanning packfiles", Working);
         state->PackfileVFS->ScanPackfiles();
         Log->info("Loaded {} packfiles", state->PackfileVFS->packfiles_.size());
+        state->FileTreeLocked = false;
     }
 
     //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory

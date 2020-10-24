@@ -54,6 +54,11 @@ public:
     string CurrentTerritoryName;
     string CurrentTerritoryShortname;
 
+    //If true the file explorer will regenerate it's tree
+    bool FileTreeNeedsRegen = true;
+    //If true the file tree won't access packfileVFS. Used to defer tree generation until all packfiles have been scanned to reduce unecessary tree regen at startup
+    bool FileTreeLocked = true;
+
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
     {
