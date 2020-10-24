@@ -2,6 +2,7 @@
 #include "gui/GuiState.h"
 #include "common/filesystem/Path.h"
 #include "Log.h"
+#include "common/timing/Timer.h"
 
 enum FileNodeType
 {
@@ -12,7 +13,7 @@ enum FileNodeType
 };
 struct FileNode
 {
-    FileNode(string text, FileNodeType type) : Text(text), Type(type)
+    FileNode(string text, FileNodeType type, string filename, string parentName) : Text(text), Type(type), Filename(filename), ParentName(parentName)
     {
         Children = {};
         Selected = false;
@@ -22,6 +23,10 @@ struct FileNode
     std::vector<FileNode> Children = {};
     FileNodeType Type = Packfile;
     bool Selected = false;
+
+    //Data used to access the file when it's opened via the file explorer
+    string Filename;
+    string ParentName;
 };
 std::vector<FileNode> FileTree = {};
 FileNode* SelectedNode = nullptr;
@@ -31,6 +36,8 @@ FileNode* SelectedNode = nullptr;
 void FileExplorer_GenerateFileTree(GuiState* state);
 //Draws and imgui tree node for the provided FileNode
 void FileExplorer_DrawFileNode(GuiState* state, FileNode& node);
+//Called when a file is double clicked in the file explorer. Attempts to open a tool/viewer for the provided file
+void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node);
 
 void FileExplorer_Update(GuiState* state, bool* open)
 {
@@ -74,15 +81,15 @@ void FileExplorer_GenerateFileTree(GuiState* state)
     //Loop through each top level packfile (.vpp_pc file)
     for (auto& packfile : state->PackfileVFS->packfiles_)
     {
-        string packfileNodeLabel = packfile.Name() + " [" + std::to_string(packfile.Header.NumberOfSubfiles) + " subfiles";
+        string packfileNodeText = packfile.Name() + " [" + std::to_string(packfile.Header.NumberOfSubfiles) + " subfiles";
         if (packfile.Compressed)
-            packfileNodeLabel += ", Compressed";
+            packfileNodeText += ", Compressed";
         if (packfile.Condensed)
-            packfileNodeLabel += ", Condensed";
+            packfileNodeText += ", Condensed";
 
-        packfileNodeLabel += "]";
+        packfileNodeText += "]";
 
-        FileNode& packfileNode = FileTree.emplace_back(packfileNodeLabel, Packfile);
+        FileNode& packfileNode = FileTree.emplace_back(packfileNodeText, Packfile, packfile.Name(), "");
 
         //Loop through each asm_pc file in the packfile
         //These are done separate from other files so str2_pc files and their asm_pc files are readily accessible. Important since game streams str2_pc files based on asm_pc contents
@@ -91,19 +98,19 @@ void FileExplorer_GenerateFileTree(GuiState* state)
             //Loop through each container (.str2_pc file) represented by the asm_pc file
             for (auto& container : asmFile.Containers)
             {
-                string containerName = container.Name + ".str2_pc" + "##" + std::to_string(index);
-                FileNode& containerNode = packfileNode.Children.emplace_back(containerName, Container);
+                string containerNodeText = container.Name + ".str2_pc" + "##" + std::to_string(index);
+                FileNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, container.Name, packfile.Name());
                 for (auto& primitive : container.Primitives)
                 {
-                    string primitiveName = primitive.Name + "##" + std::to_string(index);
-                    containerNode.Children.emplace_back(primitiveName, Primitive);
+                    string primitiveNodeText = primitive.Name + "##" + std::to_string(index);
+                    containerNode.Children.emplace_back(primitiveNodeText, Primitive, primitive.Name, packfile.Name());
                     index++;
                 }
                 index++;
             }
         }
 
-        //Loop through other contents of the vpp_pc that aren't in str2_pc files
+        //Loop through other contents of the vpp_pc that aren't in str2_pc files aka loose files
         for (u32 i = 0; i < packfile.Entries.size(); i++)
         {
             const char* entryName = packfile.EntryNames[i];
@@ -112,8 +119,8 @@ void FileExplorer_GenerateFileTree(GuiState* state)
             if (Path::GetExtension(entryName) == ".str2_pc")
                 continue;
 
-            string looseFileName = string(entryName) + "##" + std::to_string(index);
-            packfileNode.Children.emplace_back(looseFileName, Loose);
+            string looseFileNodeText = string(entryName) + "##" + std::to_string(index);
+            packfileNode.Children.emplace_back(looseFileNodeText, Loose, string(entryName), packfile.Name());
             index++;
         }
         index++;
@@ -124,6 +131,9 @@ void FileExplorer_GenerateFileTree(GuiState* state)
 
 void FileExplorer_DrawFileNode(GuiState* state, FileNode& node)
 {
+    static u32 maxDoubleClickTime = 500; //Max ms between 2 clicks on one item to count as a double click
+    static Timer clickTimer; //Measures times between consecutive clicks on the same node. Used to determine if a double click occurred
+
     //Draw node
     bool nodeOpen = ImGui::TreeNodeEx(node.Text.c_str(), 
                                      //Make full node width clickable
@@ -133,10 +143,23 @@ void FileExplorer_DrawFileNode(GuiState* state, FileNode& node)
                                      //Highlight the node if it's the currently selected node (the last node that was clicked)
                                      | (&node == SelectedNode ? ImGuiTreeNodeFlags_Selected : 0));
 
-    //Check if the node was clicked. Set SelectedNode to most recently selected node
+    //Check if the node was clicked and detect double clicks
     if (ImGui::IsItemClicked())
-        SelectedNode = &node;
+    {
+        //Behavior for double clicking a file
+        if (SelectedNode == &node)
+        {
+            //If time between clicks less than maxDoubleClickTime then a double click occurred
+            if (clickTimer.ElapsedMilliseconds() < maxDoubleClickTime)
+                FileExplorer_DoubleClickedFile(state, node);
 
+            clickTimer.Reset();
+        }
+        
+        //Set SelectedNode to most recently selected node
+        SelectedNode = &node;
+        clickTimer.Reset();
+    }
     //If the node is open draw it's child nodes
     if (nodeOpen)
     {
@@ -146,4 +169,9 @@ void FileExplorer_DrawFileNode(GuiState* state, FileNode& node)
         }
         ImGui::TreePop();
     }
+}
+
+void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node)
+{
+    //Log->info("In FileExplorer_DoubleClickedFile. Filename: {}, ParentName: {}", node.Filename, node.ParentName);
 }
