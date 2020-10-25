@@ -67,7 +67,6 @@ void ZoneList_Update(GuiState* state, bool* open)
         return;
     }
 
-    ImGui::Separator();
     state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_MAP " Zones");
     state->FontManager->FontL.Pop();

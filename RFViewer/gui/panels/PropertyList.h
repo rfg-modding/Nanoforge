@@ -21,10 +21,10 @@ void PropertyList_Update(GuiState* state, bool* open)
         return;
     }
 
-    ImGui::Separator();
     state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_WRENCH " Properties");
     state->FontManager->FontL.Pop();
+    ImGui::Separator();
 
     if (state->PropertyPanelContentFuncPtr)
     {
@@ -32,7 +32,7 @@ void PropertyList_Update(GuiState* state, bool* open)
     }
     else
     {
-        ImGui::Text("%s Click a file in the file explorer or another panel to see it's properties here.", ICON_FA_EXCLAMATION_CIRCLE);
+        ImGui::TextWrapped("%s Click a file in the file explorer or another panel to see it's properties here.", ICON_FA_EXCLAMATION_CIRCLE);
     }
 
     ImGui::End();
