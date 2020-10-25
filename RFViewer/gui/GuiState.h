@@ -3,6 +3,7 @@
 #include "rfg/PackfileVFS.h"
 #include "rfg/ZoneManager.h"
 #include "render/camera/Camera.h"
+#include "documents/Document.h"
 #include <imgui_node_editor.h>
 
 class DX11Renderer;
@@ -66,6 +67,9 @@ public:
     //Content func for property panel
     PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
+    //Documents that are currently open
+    std::vector<Document> Documents = {};
+
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
     {
@@ -113,5 +117,24 @@ public:
         CurrentTerritoryShortname = newTerritory;
         if (!firstLoad)
             ReloadNeeded = true;
+    }
+    //Create and init a document
+    void CreateDocument(Document&& document)
+    {
+        //Make sure document with same title doesn't already exist
+        for (auto& doc : Documents)
+        {
+            if (doc.Title == document.Title)
+            {
+                if (document.Data)
+                    delete document.Data;
+
+                return;
+            }
+        }
+
+        //Create document
+        Documents.push_back(document);
+        Documents.back().Init(this, Documents.back());
     }
 };

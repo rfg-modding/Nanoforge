@@ -1,5 +1,6 @@
 #include "FileExplorer.h"
 #include "property_panel/PropertyPanelContent.h"
+#include "gui/documents/TextureDocument.h"
 
 std::vector<FileNode> FileExplorer_FileTree = {};
 FileNode* FileExplorer_SelectedNode = nullptr;
@@ -174,5 +175,13 @@ void FileExplorer_SingleClickedFile(GuiState* state, FileNode& node)
 
 void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node)
 {
-    //Log->info("In FileExplorer_DoubleClickedFile. Filename: {}, ParentName: {}", node.Filename, node.ParentName);
+    string extension = Path::GetExtension(node.Filename);
+    if (extension == ".cpeg_pc" || extension == ".cvbm_pc")
+    {
+        state->CreateDocument(Document(node.Filename, TextureDocument_Init, TextureDocument_Update, new TextureDocumentData
+        {
+            .Filename = node.Filename,
+            .ParentName = node.ParentName
+        }));
+    }
 }

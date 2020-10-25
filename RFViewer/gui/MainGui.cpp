@@ -36,18 +36,18 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Zone
     panels_ =
     {
         GuiPanel{&FileExplorer_Update, "Tools/File explorer", true},
-        GuiPanel{&CameraPanel_Update, "Tools/Camera", true},
-        GuiPanel{&RenderSettings_Update, "Tools/Render settings", true},
+        GuiPanel{&CameraPanel_Update, "Tools/Camera", false},
+        GuiPanel{&RenderSettings_Update, "Tools/Render settings", false},
         GuiPanel{&StatusBar_Update, "", true},
-        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", true},
+        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", false},
         GuiPanel{&PropertyList_Update, "Tools/Properties", true},
-        GuiPanel{&ZoneRender_Update, "", true},
+        GuiPanel{&ZoneRender_Update, "", false},
         GuiPanel{&LogPanel_Update, "Tools/Log", true},
-        GuiPanel{&ZoneList_Update, "Tools/Zone list", true},
+        GuiPanel{&ZoneList_Update, "Tools/Zone list", false},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD
-        GuiPanel{&ScriptxEditor_Update, "Tools/Scriptx editor", true},
+        GuiPanel{&ScriptxEditor_Update, "Tools/Scriptx editor", false},
 #endif
     };
 
@@ -84,6 +84,7 @@ void MainGui::Update(f32 deltaTime)
     //Draw built in / special gui elements
     DrawMainMenuBar();
     DrawDockspace();
+    ImGui::ShowDemoWindow();
 
     //Draw the rest of the gui code
     for (auto& panel : panels_)
@@ -98,6 +99,27 @@ void MainGui::Update(f32 deltaTime)
             continue;
 
         panel.Update(&State, &panel.Open);
+    }
+
+    //Draw documents
+    u32 counter = 0;
+    auto document = State.Documents.begin();
+    while (document != State.Documents.end())
+    {
+        //If document is no longer open, erase it
+        if (!document->Open)
+        {
+            if(document->Data)
+                delete document->Data;
+            
+            document = State.Documents.erase(document);
+            continue;
+        }
+        
+        //Draw the document if it's still open
+        document->Update(&State, *document);
+        document++;
+        counter++;
     }
 }
 
