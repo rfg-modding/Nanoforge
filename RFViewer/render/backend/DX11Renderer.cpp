@@ -16,8 +16,8 @@
 #include <directxcolors.h>
 #include <imgui/imgui.h>
 #include <imgui/imconfig.h>
-#include <imgui/examples/imgui_impl_win32.h>
-#include <imgui/examples/imgui_impl_dx11.h>
+#include <imgui/backends/imgui_impl_win32.h>
+#include <imgui/backends/imgui_impl_dx11.h>
 #include "render/util/DX11Helpers.h"
 #include "Log.h"
 
@@ -104,6 +104,56 @@ void DX11Renderer::HandleResize()
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
+}
+
+ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT format, u32 width, u32 height)
+{
+    ID3D11Texture2D* texture = nullptr;
+    D3D11_TEXTURE2D_DESC textureDesc;
+    D3D11_SUBRESOURCE_DATA textureData;
+    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+    ID3D11ShaderResourceView* shaderResourceView = nullptr;
+
+    //Setup texture data subresource
+    textureData.pSysMem = data.data();
+    textureData.SysMemSlicePitch = 0;
+    if (format == DXGI_FORMAT_BC1_UNORM) //DXT1
+        textureData.SysMemPitch = 8 * (width / 4);
+    else if (format == DXGI_FORMAT_BC2_UNORM) //DXT2/3
+        textureData.SysMemPitch = 16 * (width / 4);
+    else if (format == DXGI_FORMAT_BC3_UNORM) //DXT4/5
+        textureData.SysMemPitch = 16 * (width / 4);
+    
+    //Set texture description and create texture
+    ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
+    textureDesc.Width = width;
+    textureDesc.Height = height;
+    textureDesc.MipLevels = 1;
+    textureDesc.ArraySize = 1;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Usage = D3D11_USAGE_DEFAULT;
+    textureDesc.Format = format;
+    textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    textureDesc.CPUAccessFlags = 0;
+    textureDesc.MiscFlags = 0;
+    if (FAILED(d3d11Device_->CreateTexture2D(&textureDesc, &textureData, &texture)))
+        return nullptr;
+
+    //Create shader resource view for texture and return it if sucessful
+    ZeroMemory(&shaderResourceViewDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+    shaderResourceViewDesc.Format = format;
+    shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shaderResourceViewDesc.Texture2D.MipLevels = 1;
+    shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+    if (FAILED(d3d11Device_->CreateShaderResourceView(texture, &shaderResourceViewDesc, &shaderResourceView)))
+    {
+        texture->Release();
+        return nullptr;
+    }
+    texture->Release();
+
+    return shaderResourceView;
 }
 
 void DX11Renderer::ImGuiDoFrame()

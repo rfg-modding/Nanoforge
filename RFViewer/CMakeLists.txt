@@ -21,8 +21,8 @@ add_executable (RFViewer ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_demo.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_draw.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_win32.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_dx11.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/backends/imgui_impl_win32.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/backends/imgui_impl_dx11.cpp
     #Do the same with im3d
     ${CMAKE_SOURCE_DIR}/Dependencies/im3d/im3d.cpp
     #List imgui-node-editor files

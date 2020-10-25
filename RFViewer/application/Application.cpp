@@ -11,8 +11,8 @@
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <tinyxml2/tinyxml2.h>
 #include <imgui/imgui.h>
-#include <imgui/examples/imgui_impl_win32.h>
-#include <imgui/examples/imgui_impl_dx11.h>
+#include <imgui/backends/imgui_impl_win32.h>
+#include <imgui/backends/imgui_impl_dx11.h>
 #include <filesystem>
 #include <future>
 

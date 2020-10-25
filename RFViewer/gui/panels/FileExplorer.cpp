@@ -81,7 +81,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
                 for (auto& primitive : container.Primitives)
                 {
                     string primitiveNodeText = primitive.Name + "##" + std::to_string(index);
-                    containerNode.Children.emplace_back(primitiveNodeText, Primitive, primitive.Name, packfile.Name());
+                    containerNode.Children.emplace_back(primitiveNodeText, Primitive, primitive.Name, container.Name + ".str2_pc");
                     index++;
                 }
                 index++;

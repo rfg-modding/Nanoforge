@@ -8,9 +8,11 @@
 #include <d3dcompiler.h>
 #include <array>
 #include <filesystem>
+#include <span>
 
 class ImGuiFontManager;
 class Camera;
+using ImTextureID = void*;
 
 struct Vertex
 {
@@ -29,6 +31,9 @@ public:
     void HandleResize();
     HWND GetSystemWindowHandle() { return hwnd_; }
     
+    //Creates a shader resource view from the provided input and returns it. Up to user to free it once they're done
+    ImTextureID TextureDataToHandle(std::span<u8> data, DXGI_FORMAT format, u32 width, u32 height);
+
     std::vector<Scene> Scenes = {};
 
 private:
