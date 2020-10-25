@@ -15,6 +15,7 @@ void FileExplorer_SingleClickedFile(GuiState* state, FileNode& node);
 //Called when a file is double clicked in the file explorer. Attempts to open a tool/viewer for the provided file
 void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node);
 
+string FileExplorer_VppName;
 void FileExplorer_Update(GuiState* state, bool* open)
 {
     //Regen node tree if necessary
@@ -36,6 +37,7 @@ void FileExplorer_Update(GuiState* state, bool* open)
     ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
     for (auto& node : FileExplorer_FileTree)
     {
+        FileExplorer_VppName = node.Filename;
         FileExplorer_DrawFileNode(state, node);
     }
     ImGui::PopStyleVar();
@@ -181,7 +183,9 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node)
         state->CreateDocument(Document(node.Filename, TextureDocument_Init, TextureDocument_Update, new TextureDocumentData
         {
             .Filename = node.Filename,
-            .ParentName = node.ParentName
+            .ParentName = node.ParentName,
+            .VppName = FileExplorer_VppName,
+            .InContainer = node.Type == Primitive ? true : false
         }));
     }
 }
