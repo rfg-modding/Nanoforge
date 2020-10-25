@@ -2,6 +2,7 @@
 #include "common/Typedefs.h"
 #include "GuiState.h"
 #include "GuiBase.h"
+#include "MenuItem.h"
 #include <ext/WindowsWrapper.h>
 #include <vector>
 #include <mutex>
@@ -14,41 +15,6 @@ class DX11Renderer;
 
 //Maximum gui panels. Gui list is preallocated so we can have stable pointers to the panels
 const u32 MaxGuiPanels = 256;
-
-struct MenuItem
-{
-    string Text;
-    std::vector<MenuItem> Items = {};
-    //Todo: Must update if we resize MainGui::panels_. Currently do not do this
-    GuiPanel* panel = nullptr;
-
-    MenuItem* GetItem(const string& text)
-    {
-        for (auto& item : Items)
-        {
-            if (item.Text == text)
-                return &item;
-        }
-        return nullptr;
-    }
-    void Draw()
-    {
-        if (panel)
-        {
-            ImGui::MenuItem(Text.c_str(), "", &panel->Open);
-            return;
-        }
-        
-        if (ImGui::BeginMenu(Text.c_str()))
-        {
-            for (auto& item : Items)
-            {
-                item.Draw();
-            }
-            ImGui::EndMenu();
-        }
-    }
-};
 
 enum ThemePreset
 {

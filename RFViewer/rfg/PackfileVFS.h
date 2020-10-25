@@ -31,6 +31,8 @@ public:
     //Todo: Ensure these stay valid if we start changing packfiles_ after init. May want some handle class that can return packfiles
     //Attempt to get a packfile. Returns nullptr if it fails to find the packfile
     Packfile3* GetPackfile(const string& name);
+    //Get a container packfile (a .str2_pc file that's inside a .vpp_pc). Note: Caller must call container Cleanup() function and free it themselves
+    Packfile3* GetContainer(const string& name, const string& parentName);
     //If true this class is ready for use by guis / other code
     bool Ready() const { return ready_; }
 

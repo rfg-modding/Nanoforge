@@ -17,6 +17,10 @@ enum GuiStatus
     None //Used for default function arguments
 };
 
+class GuiState;
+//Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
+using PropertyPanelContentFunc = void(GuiState* state);
+
 class GuiState
 {
 public:
@@ -58,6 +62,9 @@ public:
     bool FileTreeNeedsRegen = true;
     //If true the file tree won't access packfileVFS. Used to defer tree generation until all packfiles have been scanned to reduce unecessary tree regen at startup
     bool FileTreeLocked = true;
+
+    //Content func for property panel
+    PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)

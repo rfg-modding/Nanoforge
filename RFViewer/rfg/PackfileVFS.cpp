@@ -127,6 +127,24 @@ Packfile3* PackfileVFS::GetPackfile(const string& name)
     return nullptr;
 }
 
+Packfile3* PackfileVFS::GetContainer(const string& name, const string& parentName)
+{
+    Packfile3* packfile = GetPackfile(parentName);
+    if (!packfile)
+        return nullptr;
+
+    //Find container
+    auto containerBytes = packfile->ExtractSingleFile(name, false);
+    //Parse container and get file byte buffer
+    Packfile3* container = new Packfile3(containerBytes.value());
+    if (!container)
+        return nullptr;
+
+    container->ReadMetadata();
+    container->SetName(name);
+    return container;
+}
+
 bool PackfileVFS::CheckSearchMatch(s_view target, s_view filter, SearchType searchType)
 {
     switch (searchType)
