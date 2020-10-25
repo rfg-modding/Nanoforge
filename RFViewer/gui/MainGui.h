@@ -50,6 +50,12 @@ struct MenuItem
     }
 };
 
+enum ThemePreset
+{
+    Dark,
+    Blue
+};
+
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
 {
@@ -68,6 +74,8 @@ private:
     void GenerateMenus();
     MenuItem* GetMenu(const string& text);
     void CheckGuiListResize();
+
+    void SetThemePreset(ThemePreset preset);
 
     //Size is pre-allocated with MaxGuiPanels elements. Crashes if it resizes beyond this
     std::vector<GuiPanel> panels_ = {};

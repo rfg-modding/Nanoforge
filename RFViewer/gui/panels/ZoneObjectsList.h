@@ -56,7 +56,6 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
 
         //Object list
         auto& zone = state->ZoneManager->ZoneFiles[state->SelectedZone].Zone;
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
         ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
 
         u32 index = 0;
@@ -107,7 +106,6 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
         ImGui::PopStyleVar();
 
         ImGui::EndChild();
-        ImGui::PopStyleColor();
     }
 
     ImGui::End();
