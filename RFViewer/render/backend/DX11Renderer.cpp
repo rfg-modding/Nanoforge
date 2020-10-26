@@ -123,6 +123,8 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
         textureData.SysMemPitch = 16 * (width / 4);
     else if (format == DXGI_FORMAT_BC3_UNORM) //DXT4/5
         textureData.SysMemPitch = 16 * (width / 4);
+    else if (format == DXGI_FORMAT_R8G8B8A8_UNORM)
+        textureData.SysMemPitch = 4 * width;
     
     //Set texture description and create texture
     ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));

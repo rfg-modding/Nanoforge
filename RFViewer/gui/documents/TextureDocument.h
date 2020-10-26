@@ -163,17 +163,18 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     }
     ImGui::PopStyleColor();
 
-    //Todo: Add PC_8888 support (basically the only other pixel format the game uses other than DXT1/3/5 that i've seen the vanilla files)
-    //Todo: Open new documents docked
-    //Todo: Make sure cvbms work
-    //Todo: Display texture info to properties panel
-    //Todo: Texture export
-    //Todo: File caching system like what OGE has. Make global cache. Equivalent purpose of OGE CacheManager (call this version Cache or something, manager isn't accurate name)
-    //Todo: Project system. Tracks changes and has it's own cache which is preferred over the global cache, holds edited files
-    //Todo: Texture import + saving
-    //Todo: Auto update .str2_pc which holds edited textures
-    //Todo: Auto update .asm_pc files when .str2_pc files edited
-    //Todo: Generate modinfo from changes. Put modinfo.xml and any files the mod needs in a folder ready for use with the MM
+    //Todo: General:
+        //Todo: Open new documents docked
+        //Todo: Display texture info to properties panel
+        //Todo: Texture export
+
+    //Todo: Editing pipeline:
+        //Todo: File caching system like what OGE has. Make global cache. Equivalent purpose of OGE CacheManager (call this version Cache or something, manager isn't accurate name)
+        //Todo: Project system. Tracks changes and has it's own cache which is preferred over the global cache, holds edited files
+        //Todo: Texture import + saving
+        //Todo: Auto update .str2_pc which holds edited textures
+        //Todo: Auto update .asm_pc files when .str2_pc files edited
+        //Todo: Generate modinfo from changes. Put modinfo.xml and any files the mod needs in a folder ready for use with the MM
 
     ImGui::Columns(1);
     ImGui::End();
@@ -212,6 +213,8 @@ DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input)
         return DXGI_FORMAT_BC2_UNORM; //DXT2/3
     else if (input == PegFormat::PC_DXT5)
         return DXGI_FORMAT_BC3_UNORM; //DXT4/5
+    else if (input == PegFormat::PC_8888)
+        return DXGI_FORMAT_R8G8B8A8_UNORM;
     else
         THROW_EXCEPTION("Unknown or unsupported format '{}' passed to PegFormatToDxgiFormat()", input);
 }
