@@ -62,15 +62,32 @@ void MainGui::Update(f32 deltaTime)
     DrawMainMenuBar();
     DrawDockspace();
     ImGui::ShowDemoWindow();
+    static bool firstDraw = true;
 
     //Draw the rest of the gui code
     for (auto& panel : panels_)
     {
-#ifdef DEBUG_BUILD
-        //Todo: Add panel name to the error
-        if (!panel.Update)
-            THROW_EXCEPTION("Error! Update function pointer for panel was nullptr.");
-#endif
+        if (firstDraw)
+        {
+            ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.20f, nullptr, &dockspaceId);
+            ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.20f, nullptr, &dockspaceId);
+            ImGuiID dockCentralId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
+            ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockCentralId, ImGuiDir_Down, 0.20f, nullptr, &dockCentralId);
+
+            //Todo: Tie titles to these calls so both copies don't need to be updated every time they change
+            ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
+            ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
+            ImGui::DockBuilderDockWindow("Zones", dockLeftId);
+            ImGui::DockBuilderDockWindow("Zone objects", dockLeftId);
+            ImGui::DockBuilderDockWindow("Properties", dockRightId);
+            ImGui::DockBuilderDockWindow("Render settings", dockRightId);
+            ImGui::DockBuilderDockWindow("Scriptx editor", dockCentralId);
+            ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
+
+            ImGui::DockBuilderFinish(dockspaceId);
+            
+            firstDraw = false;
+        }
 
         if (!panel.Open)
             continue;
@@ -93,8 +110,16 @@ void MainGui::Update(f32 deltaTime)
             continue;
         }
         
+        if (document->FirstDraw)
+        {
+            //ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderDockWindow(document->Title.c_str(), ImGui::DockBuilderGetCentralNode(dockspaceId)->ID);
+            ImGui::DockBuilderFinish(dockspaceId);
+        }
+
         //Draw the document if it's still open
         document->Update(&State, *document);
+        document->FirstDraw = false;
         document++;
         counter++;
     }
@@ -163,12 +188,19 @@ void MainGui::DrawDockspace()
     ImGui::Begin("DockSpace parent window", &State.Visible, window_flags);
     ImGui::PopStyleVar(3);
     
-    // DockSpace
+    //DockSpace
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
     {
-        ImGuiID dockspace_id = ImGui::GetID("Editor dockspace");
-        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+        bool firstDraw = dockspaceId == 0;
+        dockspaceId = ImGui::GetID("Editor dockspace");
+        if (firstDraw)
+        {
+            ImGui::DockBuilderRemoveNode(dockspaceId);
+            ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderFinish(dockspaceId);
+        }
+        ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
     
     ImGui::End();

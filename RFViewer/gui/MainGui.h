@@ -46,4 +46,7 @@ private:
     //Size is pre-allocated with MaxGuiPanels elements. Crashes if it resizes beyond this
     std::vector<GuiPanel> panels_ = {};
     std::vector<MenuItem> menuItems_ = {};
+
+    //Docking data
+    ImGuiID dockspaceId = 0;
 };

@@ -21,4 +21,5 @@ struct Document
     //Any data the document instance might need. Usually a heap allocated struct.
     void* Data = nullptr;
     bool Open = true;
+    bool FirstDraw = true;
 };

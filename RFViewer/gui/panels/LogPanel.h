@@ -5,7 +5,7 @@
 
 void LogPanel_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Output", open))
+    if (!ImGui::Begin("Log", open))
     {
         ImGui::End();
         return;
