@@ -5,6 +5,7 @@
 #include "RfgTools++/formats/textures/PegFile10.h"
 #include "render/backend/DX11Renderer.h"
 #include "common/string/String.h"
+#include <span>
 
 struct TextureDocumentData
 {
@@ -162,15 +163,45 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     }
     ImGui::PopStyleColor();
 
-    //Todo: Display selected texture info in properties panel or in the document
-    //Todo: Add TextureDocument_OnClose. Should do:
-    //Todo: - Free shader resource views for any textures we viewed (ImTextureID)
-    //Todo: - Free cpu and gpu file buffers plus run Cleanup() on textures
-    //Todo: - Free anything else I'm forgetting...
-    //Todo: - Free parent if it's a container
+    //Todo: Add PC_8888 support (basically the only other pixel format the game uses other than DXT1/3/5 that i've seen the vanilla files)
+    //Todo: Open new documents docked
+    //Todo: Make sure cvbms work
+    //Todo: Display texture info to properties panel
+    //Todo: Texture export
+    //Todo: File caching system like what OGE has. Make global cache. Equivalent purpose of OGE CacheManager (call this version Cache or something, manager isn't accurate name)
+    //Todo: Project system. Tracks changes and has it's own cache which is preferred over the global cache, holds edited files
+    //Todo: Texture import + saving
+    //Todo: Auto update .str2_pc which holds edited textures
+    //Todo: Auto update .asm_pc files when .str2_pc files edited
+    //Todo: Generate modinfo from changes. Put modinfo.xml and any files the mod needs in a folder ready for use with the MM
 
     ImGui::Columns(1);
     ImGui::End();
+}
+
+void TextureDocument_OnClose(GuiState* state, Document& doc)
+{
+    TextureDocumentData* data = (TextureDocumentData*)doc.Data;
+
+    //Release DX11 resource views
+    for (void* imageHandle : data->ImageTextures)
+    {
+        if (!imageHandle)
+            continue;
+
+        ID3D11ShaderResourceView* asSrv = (ID3D11ShaderResourceView*)imageHandle;
+        asSrv->Release();
+    }
+
+    //Cleanup peg resources
+    data->Peg.Cleanup();
+
+    //Free cached cpu and gpu file bytes (these are the entire files so possibly quite large)
+    delete data->CpuFileBytes.data();
+    delete data->GpuFileBytes.data();
+
+    //Free document data
+    delete data;
 }
 
 DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input)

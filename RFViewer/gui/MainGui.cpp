@@ -56,29 +56,6 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Zone
     SetThemePreset(Dark);
 }
 
-//TODO: Add scene views
-//void DX11Renderer::ViewportsDoFrame()
-//{
-//    ////On first ever draw set the viewport size to the default one. Only happens if the viewport window doesn't have a .ini entry
-//    //if (!ImGui::Begin("Scene view"))
-//    //{
-//    //    ImGui::End();
-//    //}
-//    //
-//    //ImVec2 contentAreaSize;
-//    //contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
-//    //contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
-//    //ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(clearColor.x, clearColor.y, clearColor.z, clearColor.w));
-//
-//    //Scene->Resize(contentAreaSize.x, contentAreaSize.y);
-//
-//    ////Render scene texture
-//    //ImGui::Image(sceneViewShaderResource_, ImVec2(static_cast<f32>(sceneViewWidth_), static_cast<f32>(sceneViewHeight_)));
-//    //ImGui::PopStyleColor();
-//
-//    //ImGui::End();
-//}
-
 void MainGui::Update(f32 deltaTime)
 {
     //Draw built in / special gui elements
@@ -109,8 +86,8 @@ void MainGui::Update(f32 deltaTime)
         //If document is no longer open, erase it
         if (!document->Open)
         {
-            if(document->Data)
-                delete document->Data;
+            if (document->OnClose)
+                document->OnClose(&State, *document);
             
             document = State.Documents.erase(document);
             continue;

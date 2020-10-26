@@ -176,7 +176,7 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node)
     string extension = Path::GetExtension(node.Filename);
     if (extension == ".cpeg_pc" || extension == ".cvbm_pc")
     {
-        state->CreateDocument(Document(node.Filename, TextureDocument_Init, TextureDocument_Update, new TextureDocumentData
+        state->CreateDocument(Document(node.Filename, &TextureDocument_Init, &TextureDocument_Update, &TextureDocument_OnClose, new TextureDocumentData
         {
             .Filename = node.Filename,
             .ParentName = node.ParentName,
