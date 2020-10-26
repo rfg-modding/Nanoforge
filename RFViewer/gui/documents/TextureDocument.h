@@ -99,7 +99,7 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     TextureDocumentData* data = (TextureDocumentData*)doc.Data;
     
     //Controls max size of selected image in gui relative to the size of it's column
-    static f32 imageViewSizeMultiplier = 0.75f;
+    static f32 imageViewSizeMultiplier = 0.85f;
     //ImGui::SliderFloat("Image view multiplier", &imageViewSizeMultiplier, 0.05f, 1.0f);
 
     ImGui::Columns(2);
@@ -164,7 +164,6 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     ImGui::PopStyleColor();
 
     //Todo: General:
-        //Todo: Open new documents docked
         //Todo: Display texture info to properties panel
         //Todo: Texture export
 
