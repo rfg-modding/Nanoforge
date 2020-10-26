@@ -67,7 +67,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
 
         packfileNodeText += "]";
 
-        FileNode& packfileNode = FileExplorer_FileTree.emplace_back(packfileNodeText, Packfile, packfile.Name(), "");
+        FileNode& packfileNode = FileExplorer_FileTree.emplace_back(packfileNodeText, Packfile, false, packfile.Name(), "");
 
         //Loop through each asm_pc file in the packfile
         //These are done separate from other files so str2_pc files and their asm_pc files are readily accessible. Important since game streams str2_pc files based on asm_pc contents
@@ -77,18 +77,18 @@ void FileExplorer_GenerateFileTree(GuiState* state)
             for (auto& container : asmFile.Containers)
             {
                 string containerNodeText = container.Name + ".str2_pc" + "##" + std::to_string(index);
-                FileNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, container.Name, packfile.Name());
+                FileNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, false, container.Name, packfile.Name());
                 for (auto& primitive : container.Primitives)
                 {
                     string primitiveNodeText = primitive.Name + "##" + std::to_string(index);
-                    containerNode.Children.emplace_back(primitiveNodeText, Primitive, primitive.Name, container.Name + ".str2_pc");
+                    containerNode.Children.emplace_back(primitiveNodeText, Primitive, true, primitive.Name, container.Name + ".str2_pc");
                     index++;
                 }
                 index++;
             }
         }
 
-        //Loop through other contents of the vpp_pc that aren't in str2_pc files aka loose files
+        //Loop through other contents of the vpp_pc that aren't in str2_pc files
         for (u32 i = 0; i < packfile.Entries.size(); i++)
         {
             const char* entryName = packfile.EntryNames[i];
@@ -98,7 +98,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
                 continue;
 
             string looseFileNodeText = string(entryName) + "##" + std::to_string(index);
-            packfileNode.Children.emplace_back(looseFileNodeText, Loose, string(entryName), packfile.Name());
+            packfileNode.Children.emplace_back(looseFileNodeText, Primitive, false, string(entryName), packfile.Name());
             index++;
         }
         index++;
@@ -165,10 +165,6 @@ void FileExplorer_SingleClickedFile(GuiState* state, FileNode& node)
     {
         state->PropertyPanelContentFuncPtr = nullptr;
     }
-    else if (node.Type == Loose)
-    {
-        state->PropertyPanelContentFuncPtr = nullptr;
-    }
     else
     {
         state->PropertyPanelContentFuncPtr = nullptr;
@@ -185,7 +181,7 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node)
             .Filename = node.Filename,
             .ParentName = node.ParentName,
             .VppName = FileExplorer_VppName,
-            .InContainer = node.Type == Primitive ? true : false
+            .InContainer = node.InContainer
         }));
     }
 }
