@@ -1,9 +1,26 @@
 #include "FileExplorer.h"
 #include "property_panel/PropertyPanelContent.h"
 #include "gui/documents/TextureDocument.h"
+#include "render/imgui/imgui_ext.h"
+#include "common/string/String.h"
 
 std::vector<FileNode> FileExplorer_FileTree = {};
 FileNode* FileExplorer_SelectedNode = nullptr;
+
+//Data used for file tree searches
+//Buffer used by search text bar
+string FileExplorer_SearchTerm = "";
+//Search string that's passed directly to string comparison functions. Had * at start or end of search term removed
+string FileExplorer_SearchTermPatched = "";
+//If true, search term changed and need to recheck all nodes for search match
+bool FileExplorer_SearchChanged = false;
+enum FileSearchType
+{
+    Match,
+    MatchStart,
+    MatchEnd
+};
+FileSearchType FileExplorer_SearchType = Match;
 
 //Generates file tree. Done once at startup and when files are added/removed (very rare)
 //Pre-generating data like this makes rendering and interacting with the file tree simpler
@@ -28,10 +45,34 @@ void FileExplorer_Update(GuiState* state, bool* open)
         return;
     }
 
-    state->FontManager->FontL.Push();
-    ImGui::Text(ICON_FA_ARCHIVE " Packfiles");
-    state->FontManager->FontL.Pop();
+    if (ImGui::InputText("Search", &FileExplorer_SearchTerm))
+        FileExplorer_SearchChanged = true;
+
     ImGui::Separator();
+
+    //Update search term
+    if (FileExplorer_SearchTerm != "" && FileExplorer_SearchChanged)
+    {
+        if (FileExplorer_SearchTerm[0] == '*')
+        {
+            FileExplorer_SearchType = MatchEnd;
+            FileExplorer_SearchTermPatched = FileExplorer_SearchTerm.substr(1);
+        }
+        else if (FileExplorer_SearchTerm.back() == '*')
+        {
+            FileExplorer_SearchType = MatchStart;
+            FileExplorer_SearchTermPatched = FileExplorer_SearchTerm.substr(0, FileExplorer_SearchTerm.size() - 1);
+        }
+        else
+        {
+            FileExplorer_SearchType = Match;
+            FileExplorer_SearchTermPatched = FileExplorer_SearchTerm;
+        }
+    }
+    else if(FileExplorer_SearchChanged)
+    {
+        FileExplorer_SearchTermPatched = "";
+    }
 
     //Draw nodes
     ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
@@ -41,6 +82,7 @@ void FileExplorer_Update(GuiState* state, bool* open)
         FileExplorer_DrawFileNode(state, node);
     }
     ImGui::PopStyleVar();
+    FileExplorer_SearchChanged = false;
 
     ImGui::End();
 }
@@ -59,14 +101,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
     //Loop through each top level packfile (.vpp_pc file)
     for (auto& packfile : state->PackfileVFS->packfiles_)
     {
-        string packfileNodeText = packfile.Name() + " [" + std::to_string(packfile.Header.NumberOfSubfiles) + " subfiles";
-        if (packfile.Compressed)
-            packfileNodeText += ", Compressed";
-        if (packfile.Condensed)
-            packfileNodeText += ", Condensed";
-
-        packfileNodeText += "]";
-
+        string packfileNodeText = packfile.Name();
         FileNode& packfileNode = FileExplorer_FileTree.emplace_back(packfileNodeText, Packfile, false, packfile.Name(), "");
 
         //Loop through each asm_pc file in the packfile
@@ -107,17 +142,63 @@ void FileExplorer_GenerateFileTree(GuiState* state)
     state->FileTreeNeedsRegen = false;
 }
 
+bool DoesNodeFitSearch(FileNode& node)
+{
+    if (FileExplorer_SearchType == Match && !String::Contains(node.Text, FileExplorer_SearchTermPatched))
+        return false;
+    else if (FileExplorer_SearchType == MatchStart && !String::StartsWith(node.Text, FileExplorer_SearchTermPatched))
+        return false;
+    else if (FileExplorer_SearchType == MatchEnd)
+    {
+        //All non .vpp_pc FileNode names are postfixed with "##i", where i is they're node id. This an imgui label, used to avoid weirdness in case two files have the same name
+        //We must strip that from the end of the string when doing MatchEnd searches so they're work properly
+        size_t labelLocation = node.Text.find("##");
+        string realName = node.Text;
+        if (labelLocation != string::npos)
+            realName = realName.substr(0, labelLocation);
+
+        return String::EndsWith(realName, FileExplorer_SearchTermPatched);
+    }
+    else
+        return true;
+}
+
+bool AnyChildNodesFitSearch(FileNode& node)
+{
+    for (auto& childNode : node.Children)
+    {
+        if (DoesNodeFitSearch(childNode))
+            return true;
+    }
+    return false;
+}
+
+void UpdateNodeSearchResultsRecursive(FileNode& node)
+{
+    node.MatchesSearchTerm = DoesNodeFitSearch(node);
+    node.AnyChildNodeMatchesSearchTerm = AnyChildNodesFitSearch(node);
+    for (auto& childNode : node.Children)
+        UpdateNodeSearchResultsRecursive(childNode);
+}
+
 void FileExplorer_DrawFileNode(GuiState* state, FileNode& node)
 {
     static u32 maxDoubleClickTime = 500; //Max ms between 2 clicks on one item to count as a double click
     static Timer clickTimer; //Measures times between consecutive clicks on the same node. Used to determine if a double click occurred
+
+    //If the search term changed then update cached search checks. They're cached to avoid checking the search term every frame
+    if (FileExplorer_SearchChanged)
+        UpdateNodeSearchResultsRecursive(node);
+    //Make sure node fits search term
+    if (!node.MatchesSearchTerm && !node.AnyChildNodeMatchesSearchTerm)
+        return;
 
     //Draw node
     bool nodeOpen = ImGui::TreeNodeEx(node.Text.c_str(),
         //Make full node width clickable
         ImGuiTreeNodeFlags_SpanAvailWidth
         //If the node has no children make it a leaf node (a node which can't be expanded)
-        | (node.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)
+        | (node.Children.size() == 0 || !node.AnyChildNodeMatchesSearchTerm ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)
         //Highlight the node if it's the currently selected node (the last node that was clicked)
         | (&node == FileExplorer_SelectedNode ? ImGuiTreeNodeFlags_Selected : 0));
 
@@ -139,9 +220,18 @@ void FileExplorer_DrawFileNode(GuiState* state, FileNode& node)
         FileExplorer_SingleClickedFile(state, node);
         clickTimer.Reset();
     }
+
     //If the node is open draw it's child nodes
     if (nodeOpen)
     {
+        //Dont bother drawing child nodes if none of them match the search term
+        if (!node.AnyChildNodeMatchesSearchTerm)
+        {
+            ImGui::TreePop();
+            return;
+        }
+
+        //Draw child nodes if at least one matches search term
         for (auto& childNode : node.Children)
         {
             FileExplorer_DrawFileNode(state, childNode);

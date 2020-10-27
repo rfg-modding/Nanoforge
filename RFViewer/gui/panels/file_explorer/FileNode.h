@@ -20,6 +20,10 @@ struct FileNode
     FileNodeType Type = Packfile;
     bool InContainer = false;
     bool Selected = false;
+    //If true ::Text matches the most recent search term
+    bool MatchesSearchTerm = true;
+    //If true ::Text for at least one child node matches the most recent search term
+    bool AnyChildNodeMatchesSearchTerm = true;
 
     //Data used to access the file when it's opened via the file explorer
     string Filename;
