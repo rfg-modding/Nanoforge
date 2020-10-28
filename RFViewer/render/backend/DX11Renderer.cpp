@@ -18,6 +18,8 @@
 #include <imgui/imconfig.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx11.h>
+#include <DirectXTex.h>
+#include <Dependencies\DirectXTex\DirectXTex\DirectXTexD3D11.cpp>
 #include "render/util/DX11Helpers.h"
 #include "Log.h"
 
@@ -36,6 +38,9 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
         THROW_EXCEPTION("Failed to init DX11! Exiting.");
     if (!InitImGui())
         THROW_EXCEPTION("Failed to dear imgui! Exiting.");
+
+    //Needed by some DirectXTex functions
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     //Quick fix for view being distorted before first window resize
     HandleResize();

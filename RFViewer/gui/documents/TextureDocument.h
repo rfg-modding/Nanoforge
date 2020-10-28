@@ -31,6 +31,8 @@ struct TextureDocumentData
 //Todo: Move into some util class/file
 //Convert peg format to dxgi format
 DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input);
+//Convert PegFormat enum to string
+string PegFormatToString(PegFormat input);
 
 void TextureDocument_Init(GuiState* state, Document& doc)
 {
@@ -102,12 +104,25 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     static f32 imageViewSizeMultiplier = 0.85f;
     //ImGui::SliderFloat("Image view multiplier", &imageViewSizeMultiplier, 0.05f, 1.0f);
 
+    const f32 columnZeroWidth = 300.0f;
     ImGui::Columns(2);
     ImGui::ColorEdit4("Background color", (float*)&data->imageBackground, ImGuiColorEditFlags_NoInputs);
     ImGui::Separator();
-    ImGui::SetColumnWidth(0, 300.0f);
+    ImGui::SetColumnWidth(0, columnZeroWidth);
+
     //Texture entry list
-    if (ImGui::BeginChild("##EntryList"))
+
+    //Save cursor y at start of list so we can align the image column to it
+    f32 baseY = ImGui::GetCursorPosY();
+    //Calculate total height of texture list. Used if less than the limit to avoid having a bunch of empty space
+    f32 entryHeight = ImGui::GetFontSize() + (ImGui::GetStyle().FramePadding.y * 2.0f);
+    f32 listHeightTotal = data->Peg.Entries.size() * entryHeight;
+
+    state->FontManager->FontL.Push();
+    ImGui::Text(ICON_FA_IMAGES " Textures");
+    state->FontManager->FontL.Pop();
+    ImGui::Separator();
+    if (ImGui::BeginChild("##EntryList", ImVec2(columnZeroWidth, std::min(listHeightTotal, ImGui::GetWindowHeight() / 2.0f))))
     {
         for (u32 i = 0; i < data->Peg.Entries.size(); i++)
         {
@@ -122,8 +137,54 @@ void TextureDocument_Update(GuiState* state, Document& doc)
         ImGui::EndChild();
     }
 
-    //Selected image display display
+    //Info about the selected texture
+    ImGui::Separator();
+    state->FontManager->FontL.Push();
+    ImGui::Text(ICON_FA_INFO_CIRCLE " Texture info");
+    state->FontManager->FontL.Pop();
+    ImGui::Separator();
+    if (data->selectedIndex < data->Peg.Entries.size())
+    {
+        PegEntry10& entry = data->Peg.Entries[data->selectedIndex];
+        gui::LabelAndValue("Name:", entry.Name);
+        gui::LabelAndValue("Data offset:", std::to_string(entry.DataOffset));
+        gui::LabelAndValue("Width:", std::to_string(entry.Width));
+        gui::LabelAndValue("Height:", std::to_string(entry.Height));
+        gui::LabelAndValue("Bitmap format:", PegFormatToString(entry.BitmapFormat));
+        gui::LabelAndValue("Source width:", std::to_string(entry.SourceWidth));
+        gui::LabelAndValue("Anim tiles width:", std::to_string(entry.AnimTilesWidth));
+        gui::LabelAndValue("Anim tiles height:", std::to_string(entry.AnimTilesHeight));
+        gui::LabelAndValue("Num frames:", std::to_string(entry.NumFrames));
+        gui::LabelAndValue("Flags:", std::to_string((int)entry.Flags));
+        gui::LabelAndValue("Filename offset:", std::to_string(entry.FilenameOffset));
+        gui::LabelAndValue("Source height:", std::to_string(entry.SourceHeight));
+        gui::LabelAndValue("Frame size:", std::to_string(entry.FrameSize));
+    }
+    else
+    {
+        ImGui::TextWrapped("%s No sub-texture selected. Click a texture in the above list to see info about it.", ICON_FA_EXCLAMATION_CIRCLE);
+    }
+
+    //Header info
+    ImGui::Separator();
+    state->FontManager->FontL.Push();
+    ImGui::Text(ICON_FA_FILE_INVOICE " Header info");
+    state->FontManager->FontL.Pop();
+    ImGui::Separator();
+    gui::LabelAndValue("Signature:", std::to_string(data->Peg.Signature));
+    gui::LabelAndValue("Version:", std::to_string(data->Peg.Version));
+    gui::LabelAndValue("Platform:", std::to_string(data->Peg.Platform));
+    gui::LabelAndValue("Directory block size:", std::to_string(data->Peg.DirectoryBlockSize));
+    gui::LabelAndValue("Data block size:", std::to_string(data->Peg.DataBlockSize));
+    gui::LabelAndValue("Num bitmaps", std::to_string(data->Peg.NumberOfBitmaps));
+    gui::LabelAndValue("Flags:", std::to_string(data->Peg.Flags));
+    gui::LabelAndValue("Total entries:", std::to_string(data->Peg.TotalEntries));
+    gui::LabelAndValue("Align value:", std::to_string(data->Peg.AlignValue));
+
+
+    //Draw the selected image in column 1 (to the right of the texture list and info)
     ImGui::NextColumn();
+    ImGui::SetCursorPosY(baseY);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, data->imageBackground);
     if (data->Peg.Entries.size() != 0 && ImGui::BeginChild("##ImageView", ImVec2(ImGui::GetColumnWidth(), ImGui::GetWindowHeight())))
     {
@@ -163,8 +224,8 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     }
     ImGui::PopStyleColor();
 
+
     //Todo: General:
-        //Todo: Display texture info to properties panel
         //Todo: Texture export
 
     //Todo: Editing pipeline:
@@ -216,4 +277,59 @@ DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input)
         return DXGI_FORMAT_R8G8B8A8_UNORM;
     else
         THROW_EXCEPTION("Unknown or unsupported format '{}' passed to PegFormatToDxgiFormat()", input);
+}
+
+string PegFormatToString(PegFormat input)
+{
+    switch (input)
+    {
+    case PegFormat::None:
+        return "None";
+    case PegFormat::BM_1555:
+        return "BM_1555";
+    case PegFormat::BM_888:
+        return "BM_888";
+    case PegFormat::BM_8888:
+        return "BM_8888";
+    case PegFormat::PS2_PAL4:
+        return "PS2_PAL4";
+    case PegFormat::PS2_PAL8:
+        return "PS2_PAL8";
+    case PegFormat::PS2_MPEG32:
+        return "PS2_MPEG32";
+    case PegFormat::PC_DXT1:
+        return "PC_DXT1";
+    case PegFormat::PC_DXT3:
+        return "PC_DXT3";
+    case PegFormat::PC_DXT5:
+        return "PC_DXT5";
+    case PegFormat::PC_565:
+        return "PC_565";
+    case PegFormat::PC_1555:
+        return "PC_1555";
+    case PegFormat::PC_4444:
+        return "PC_4444";
+    case PegFormat::PC_888:
+        return "PC_888";
+    case PegFormat::PC_8888:
+        return "PC_8888";
+    case PegFormat::PC_16_DUDV:
+        return "PC_16_DUDV";
+    case PegFormat::PC_16_DOT3_COMPRESSED:
+        return "PC_16_DOT3_COMPRESSED";
+    case PegFormat::PC_A8:
+        return "PC_A8";
+    case PegFormat::XBOX2_DXN:
+        return "XBOX2_DXN";
+    case PegFormat::XBOX2_DXT3A:
+        return "XBOX2_DXT3A";
+    case PegFormat::XBOX2_DXT5A:
+        return "XBOX2_DXT5A";
+    case PegFormat::XBOX2_CTX1:
+        return "XBOX2_CTX1";
+    case PegFormat::PS3_DXT5N:
+        return "PS3_DXT5N";
+    default:
+        return "Invalid peg format code";
+    }
 }

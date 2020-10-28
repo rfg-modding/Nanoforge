@@ -142,6 +142,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
     state->FileTreeNeedsRegen = false;
 }
 
+//Returns true if the node text matches the current search term
 bool DoesNodeFitSearch(FileNode& node)
 {
     if (FileExplorer_SearchType == Match && !String::Contains(node.Text, FileExplorer_SearchTermPatched))
@@ -163,6 +164,7 @@ bool DoesNodeFitSearch(FileNode& node)
         return true;
 }
 
+//Returns true if any of the child nodes of node match the current search term
 bool AnyChildNodesFitSearch(FileNode& node)
 {
     for (auto& childNode : node.Children)
@@ -173,6 +175,7 @@ bool AnyChildNodesFitSearch(FileNode& node)
     return false;
 }
 
+//Updates node search results. Stores result in FileNode::MatchesSearchTerm and FileNode::AnyChildNodeMatchesSearchTerm
 void UpdateNodeSearchResultsRecursive(FileNode& node)
 {
     node.MatchesSearchTerm = DoesNodeFitSearch(node);
