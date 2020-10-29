@@ -304,7 +304,7 @@ void MainGui::SetThemePreset(ThemePreset preset)
         style->ChildRounding = 0.0f;
         style->PopupRounding = 0.0f;
 
-        style->WindowBorderSize = 0.0f;
+        style->WindowBorderSize = 1.0f;
         style->FrameBorderSize = 1.0f;
         style->PopupBorderSize = 1.0f;
 
