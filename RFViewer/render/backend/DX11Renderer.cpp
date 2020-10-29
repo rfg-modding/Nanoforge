@@ -22,6 +22,7 @@
 #include <Dependencies\DirectXTex\DirectXTex\DirectXTexD3D11.cpp>
 #include "render/util/DX11Helpers.h"
 #include "Log.h"
+#include "gui/documents/PegHelpers.h"
 
 void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager)
 {
@@ -41,6 +42,8 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, i
 
     //Needed by some DirectXTex functions
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(hr))
+        THROW_EXCEPTION("CoInitializeEx() failed in DX11Renderer::Init(). Required for image/export code.");
 
     //Quick fix for view being distorted before first window resize
     HandleResize();
@@ -122,14 +125,7 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
     //Setup texture data subresource
     textureData.pSysMem = data.data();
     textureData.SysMemSlicePitch = 0;
-    if (format == DXGI_FORMAT_BC1_UNORM) //DXT1
-        textureData.SysMemPitch = 8 * (width / 4);
-    else if (format == DXGI_FORMAT_BC2_UNORM) //DXT2/3
-        textureData.SysMemPitch = 16 * (width / 4);
-    else if (format == DXGI_FORMAT_BC3_UNORM) //DXT4/5
-        textureData.SysMemPitch = 16 * (width / 4);
-    else if (format == DXGI_FORMAT_R8G8B8A8_UNORM)
-        textureData.SysMemPitch = 4 * width;
+    textureData.SysMemPitch = PegHelpers::CalcRowPitch(format, width, height);
     
     //Set texture description and create texture
     ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));

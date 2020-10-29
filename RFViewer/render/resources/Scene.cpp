@@ -2,24 +2,13 @@
 #include "render/util/DX11Helpers.h"
 #include <filesystem>
 #include "Log.h"
+#include "util/StringHelpers.h"
 
 //Todo: Stick this in a debug namespace
 void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
 {
     if (child != nullptr)
         child->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<u32>(name.size()), name.c_str());
-}
-
-//Todo: Toss this in a utility file somewhere
-//Todo: Give better name like WidenCString
-//Convert const char* to wchar_t*. Source: https://stackoverflow.com/a/8032108
-const wchar_t* GetWC(const char* c)
-{
-    const size_t cSize = strlen(c) + 1;
-    wchar_t* wc = new wchar_t[cSize];
-    mbstowcs(wc, c, cSize);
-
-    return wc;
 }
 
 void Scene::Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context)
@@ -271,26 +260,32 @@ void Scene::LoadTerrainShaders(bool reload)
     ID3DBlob* pVSBlob = nullptr;
     ID3DBlob* pPSBlob = nullptr;
 
+    const wchar_t* terrainShaderPathWide = WidenCString(terrainShaderPath_.c_str());
     //Compile the vertex shader
-    if (FAILED(CompileShaderFromFile(GetWC(terrainShaderPath_.c_str()), "VS", "vs_4_0", &pVSBlob)))
+    if (FAILED(CompileShaderFromFile(terrainShaderPathWide, "VS", "vs_4_0", &pVSBlob)))
     {
+        delete terrainShaderPathWide;
         THROW_EXCEPTION("Failed to compile terrain vertex shader!");
     }
     if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &terrainVertexShader_)))
     {
+        delete terrainShaderPathWide;
         pVSBlob->Release();
         THROW_EXCEPTION("Failed to create terrain vertex shader!");
     }
     //Compile the pixel shader
-    if (FAILED(CompileShaderFromFile(GetWC(terrainShaderPath_.c_str()), "PS", "ps_4_0", &pPSBlob)))
+    if (FAILED(CompileShaderFromFile(terrainShaderPathWide, "PS", "ps_4_0", &pPSBlob)))
     {
+        delete terrainShaderPathWide;
         THROW_EXCEPTION("Failed to compile terrain pixel shader!");
     }
     if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &terrainPixelShader_)))
     {
+        delete terrainShaderPathWide;
         pPSBlob->Release();
         THROW_EXCEPTION("Failed to create terrain pixel shader!");
     }
+    delete terrainShaderPathWide;
 
     //Create terrain vertex input layout
     D3D11_INPUT_ELEMENT_DESC layout[] =
