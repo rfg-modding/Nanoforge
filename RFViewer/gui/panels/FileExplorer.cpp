@@ -306,11 +306,20 @@ void FileExplorer_SingleClickedFile(GuiState* state, FileNode& node)
 void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node)
 {
     string extension = Path::GetExtension(node.Filename);
-    if (extension == ".cpeg_pc" || extension == ".cvbm_pc")
+    if (extension == ".cpeg_pc" || extension == ".cvbm_pc" || extension == ".gpeg_pc" || extension == ".gvbm_pc")
     {
-        state->CreateDocument(Document(node.Filename, &TextureDocument_Init, &TextureDocument_Update, &TextureDocument_OnClose, new TextureDocumentData
+        //Convert gpu filenames to cpu filename if necessary. TextureDocument expects a cpu file name as input
+        string filename;
+        if (extension == ".cpeg_pc" || extension == ".cvbm_pc")
+            filename = node.Filename;
+        else if (extension == ".gpeg_pc")
+            filename = Path::GetFileNameNoExtension(node.Filename) + ".cpeg_pc";
+        else if(extension == ".gvbm_pc")
+            filename = Path::GetFileNameNoExtension(node.Filename) + ".cvbm_pc";
+
+        state->CreateDocument(Document(filename, &TextureDocument_Init, &TextureDocument_Update, &TextureDocument_OnClose, new TextureDocumentData
         {
-            .Filename = node.Filename,
+            .Filename = filename,
             .ParentName = node.ParentName,
             .VppName = FileExplorer_VppName,
             .InContainer = node.InContainer
