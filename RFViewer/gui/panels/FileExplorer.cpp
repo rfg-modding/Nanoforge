@@ -87,6 +87,54 @@ void FileExplorer_Update(GuiState* state, bool* open)
     ImGui::End();
 }
 
+//Get icon for node based on node type and extension
+string GetNodeIcon(const string& filename)
+{
+    string ext = Path::GetExtension(filename);
+    if (ext == ".asm_pc")
+        return ICON_FA_DATABASE " ";
+    else if (ext == ".cpeg_pc" || ext == ".cvbm_pc" || ext == ".gpeg_pc" || ext == ".gvbm_pc")
+        return ICON_FA_IMAGE " ";
+    else if (ext == ".xtbl" || ext == ".mtbl" || ext == ".dtodx" || ext == ".gtodx" || ext == ".scriptx" || ext == ".vint_proj" || ext == ".lua")
+        return ICON_FA_CODE " ";
+    else if (ext == ".rfgzone_pc" || ext == ".layer_pc")
+        return ICON_FA_MAP " ";
+    else if (ext == ".csmesh_pc" || ext == ".gsmesh_pc" || ext == ".ccmesh_pc" || ext == ".gcmesh_pc")
+        return ICON_FA_CUBE " ";
+    else if (ext == ".ctmesh_pc" || ext == ".gtmesh_pc" || ext == ".cterrain_pc" || ext == ".gterrain_pc" || ext == ".cstch_pc" || ext == ".gstch_pc" || ext == ".cfmesh_pc")
+        return ICON_FA_MOUNTAIN " ";
+    else if (ext == ".rig_pc")
+        return ICON_FA_MALE " ";
+    else if (ext == ".rfglocatext" || ext == ".le_strings")
+        return ICON_FA_LANGUAGE " ";
+    else if (ext == ".fxo_kg")
+        return ICON_FA_PAINT_BRUSH " ";
+    else if (ext == ".ccar_pc" || ext == ".gcar_pc")
+        return ICON_FA_CAR_SIDE " ";
+    else if (ext == ".vint_doc")
+        return ICON_FA_FILE_INVOICE " ";
+    else if (ext == ".anim_pc")
+        return ICON_FA_RUNNING " ";
+    else if (ext == ".sim_pc")
+        return ICON_FA_TSHIRT " ";
+    else if (ext == ".cchk_pc" || ext == ".gchk_pc")
+        return ICON_FA_HOME " ";
+    else if (ext == ".fsmib")
+        return ICON_FA_MAP_PIN " ";
+    else if (ext == ".cefct_pc")
+        return ICON_FA_FIRE " ";
+    else if (ext == ".mat_pc")
+        return ICON_FA_PALETTE " ";
+    else if (ext == ".morph_pc")
+        return ICON_FA_GRIN " ";
+    else if (ext == ".xwb_pc" || ext == ".xsb_pc" || ext == ".xgs_pc" || ext == ".aud_pc" || ext == ".vfdvp_pc" || ext == ".rfgvp_pc")
+        return ICON_FA_VOLUME_UP " ";
+    else if (ext == ".vf3_pc")
+        return ICON_FA_FONT " ";
+    else
+        return ICON_FA_FILE " ";
+}
+
 void FileExplorer_GenerateFileTree(GuiState* state)
 {
     if (state->FileTreeLocked)
@@ -101,7 +149,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
     //Loop through each top level packfile (.vpp_pc file)
     for (auto& packfile : state->PackfileVFS->packfiles_)
     {
-        string packfileNodeText = packfile.Name();
+        string packfileNodeText = ICON_FA_ARCHIVE " " + packfile.Name();
         FileNode& packfileNode = FileExplorer_FileTree.emplace_back(packfileNodeText, Packfile, false, packfile.Name(), "");
 
         //Loop through each asm_pc file in the packfile
@@ -111,11 +159,11 @@ void FileExplorer_GenerateFileTree(GuiState* state)
             //Loop through each container (.str2_pc file) represented by the asm_pc file
             for (auto& container : asmFile.Containers)
             {
-                string containerNodeText = container.Name + ".str2_pc" + "##" + std::to_string(index);
-                FileNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, false, container.Name, packfile.Name());
+                string containerNodeText = ICON_FA_ARCHIVE " " + container.Name + ".str2_pc" + "##" + std::to_string(index);
+                FileNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, false, container.Name + ".str2_pc", packfile.Name());
                 for (auto& primitive : container.Primitives)
                 {
-                    string primitiveNodeText = primitive.Name + "##" + std::to_string(index);
+                    string primitiveNodeText = GetNodeIcon(primitive.Name) + primitive.Name + "##" + std::to_string(index);
                     containerNode.Children.emplace_back(primitiveNodeText, Primitive, true, primitive.Name, container.Name + ".str2_pc");
                     index++;
                 }
@@ -132,7 +180,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
             if (Path::GetExtension(entryName) == ".str2_pc")
                 continue;
 
-            string looseFileNodeText = string(entryName) + "##" + std::to_string(index);
+            string looseFileNodeText = GetNodeIcon(entryName) + string(entryName) + "##" + std::to_string(index);
             packfileNode.Children.emplace_back(looseFileNodeText, Primitive, false, string(entryName), packfile.Name());
             index++;
         }
@@ -145,21 +193,12 @@ void FileExplorer_GenerateFileTree(GuiState* state)
 //Returns true if the node text matches the current search term
 bool DoesNodeFitSearch(FileNode& node)
 {
-    if (FileExplorer_SearchType == Match && !String::Contains(node.Text, FileExplorer_SearchTermPatched))
+    if (FileExplorer_SearchType == Match && !String::Contains(node.Filename, FileExplorer_SearchTermPatched))
         return false;
-    else if (FileExplorer_SearchType == MatchStart && !String::StartsWith(node.Text, FileExplorer_SearchTermPatched))
+    else if (FileExplorer_SearchType == MatchStart && !String::StartsWith(node.Filename, FileExplorer_SearchTermPatched))
         return false;
-    else if (FileExplorer_SearchType == MatchEnd)
-    {
-        //All non .vpp_pc FileNode names are postfixed with "##i", where i is they're node id. This an imgui label, used to avoid weirdness in case two files have the same name
-        //We must strip that from the end of the string when doing MatchEnd searches so they're work properly
-        size_t labelLocation = node.Text.find("##");
-        string realName = node.Text;
-        if (labelLocation != string::npos)
-            realName = realName.substr(0, labelLocation);
-
-        return String::EndsWith(realName, FileExplorer_SearchTermPatched);
-    }
+    else if (FileExplorer_SearchType == MatchEnd && !String::EndsWith(node.Filename, FileExplorer_SearchTermPatched))
+        return false;
     else
         return true;
 }

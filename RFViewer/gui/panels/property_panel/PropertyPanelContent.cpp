@@ -51,7 +51,7 @@ void PropertyPanel_Str2Content(GuiState* state)
         if (container)
             delete container;
 
-        container = state->PackfileVFS->GetContainer(FileExplorer_SelectedNode->Filename + ".str2_pc", FileExplorer_SelectedNode->ParentName);
+        container = state->PackfileVFS->GetContainer(FileExplorer_SelectedNode->Filename, FileExplorer_SelectedNode->ParentName);
         if (!container)
             return;
 
