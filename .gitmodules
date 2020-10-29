@@ -27,3 +27,6 @@
 [submodule "lib"]
 	path = lib
 	url = https://github.com/Moneyl/RF-Viewer-Lib.git
+[submodule "Dependencies/ImGuiFileDialog"]
+	path = Dependencies/ImGuiFileDialog
+	url = https://github.com/aiekick/ImGuiFileDialog.git
