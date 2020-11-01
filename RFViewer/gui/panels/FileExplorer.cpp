@@ -4,8 +4,8 @@
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
 
-std::vector<FileNode> FileExplorer_FileTree = {};
-FileNode* FileExplorer_SelectedNode = nullptr;
+std::vector<FileExplorerNode> FileExplorer_FileTree = {};
+FileExplorerNode* FileExplorer_SelectedNode = nullptr;
 
 //Data used for file tree searches
 //Buffer used by search text bar
@@ -25,12 +25,12 @@ FileSearchType FileExplorer_SearchType = Match;
 //Generates file tree. Done once at startup and when files are added/removed (very rare)
 //Pre-generating data like this makes rendering and interacting with the file tree simpler
 void FileExplorer_GenerateFileTree(GuiState* state);
-//Draws and imgui tree node for the provided FileNode
-void FileExplorer_DrawFileNode(GuiState* state, FileNode& node);
+//Draws and imgui tree node for the provided FileExplorerNode
+void FileExplorer_DrawFileNode(GuiState* state, FileExplorerNode& node);
 //Called when file is single clicked from the explorer. Used to update property panel content
-void FileExplorer_SingleClickedFile(GuiState* state, FileNode& node);
+void FileExplorer_SingleClickedFile(GuiState* state, FileExplorerNode& node);
 //Called when a file is double clicked in the file explorer. Attempts to open a tool/viewer for the provided file
-void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node);
+void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node);
 
 string FileExplorer_VppName;
 void FileExplorer_Update(GuiState* state, bool* open)
@@ -150,7 +150,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
     for (auto& packfile : state->PackfileVFS->packfiles_)
     {
         string packfileNodeText = ICON_FA_ARCHIVE " " + packfile.Name();
-        FileNode& packfileNode = FileExplorer_FileTree.emplace_back(packfileNodeText, Packfile, false, packfile.Name(), "");
+        FileExplorerNode& packfileNode = FileExplorer_FileTree.emplace_back(packfileNodeText, Packfile, false, packfile.Name(), "");
 
         //Loop through each asm_pc file in the packfile
         //These are done separate from other files so str2_pc files and their asm_pc files are readily accessible. Important since game streams str2_pc files based on asm_pc contents
@@ -160,7 +160,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
             for (auto& container : asmFile.Containers)
             {
                 string containerNodeText = ICON_FA_ARCHIVE " " + container.Name + ".str2_pc" + "##" + std::to_string(index);
-                FileNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, false, container.Name + ".str2_pc", packfile.Name());
+                FileExplorerNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, false, container.Name + ".str2_pc", packfile.Name());
                 for (auto& primitive : container.Primitives)
                 {
                     string primitiveNodeText = GetNodeIcon(primitive.Name) + primitive.Name + "##" + std::to_string(index);
@@ -191,7 +191,7 @@ void FileExplorer_GenerateFileTree(GuiState* state)
 }
 
 //Returns true if the node text matches the current search term
-bool DoesNodeFitSearch(FileNode& node)
+bool DoesNodeFitSearch(FileExplorerNode& node)
 {
     if (FileExplorer_SearchType == Match && !String::Contains(node.Filename, FileExplorer_SearchTermPatched))
         return false;
@@ -204,7 +204,7 @@ bool DoesNodeFitSearch(FileNode& node)
 }
 
 //Returns true if any of the child nodes of node match the current search term
-bool AnyChildNodesFitSearch(FileNode& node)
+bool AnyChildNodesFitSearch(FileExplorerNode& node)
 {
     for (auto& childNode : node.Children)
     {
@@ -214,8 +214,8 @@ bool AnyChildNodesFitSearch(FileNode& node)
     return false;
 }
 
-//Updates node search results. Stores result in FileNode::MatchesSearchTerm and FileNode::AnyChildNodeMatchesSearchTerm
-void UpdateNodeSearchResultsRecursive(FileNode& node)
+//Updates node search results. Stores result in FileExplorerNode::MatchesSearchTerm and FileExplorerNode::AnyChildNodeMatchesSearchTerm
+void UpdateNodeSearchResultsRecursive(FileExplorerNode& node)
 {
     node.MatchesSearchTerm = DoesNodeFitSearch(node);
     node.AnyChildNodeMatchesSearchTerm = AnyChildNodesFitSearch(node);
@@ -223,7 +223,7 @@ void UpdateNodeSearchResultsRecursive(FileNode& node)
         UpdateNodeSearchResultsRecursive(childNode);
 }
 
-void FileExplorer_DrawFileNode(GuiState* state, FileNode& node)
+void FileExplorer_DrawFileNode(GuiState* state, FileExplorerNode& node)
 {
     static u32 maxDoubleClickTime = 500; //Max ms between 2 clicks on one item to count as a double click
     static Timer clickTimer; //Measures times between consecutive clicks on the same node. Used to determine if a double click occurred
@@ -282,7 +282,7 @@ void FileExplorer_DrawFileNode(GuiState* state, FileNode& node)
     }
 }
 
-void FileExplorer_SingleClickedFile(GuiState* state, FileNode& node)
+void FileExplorer_SingleClickedFile(GuiState* state, FileExplorerNode& node)
 {
     string extension = Path::GetExtension(node.Filename);
     if (node.Type == Packfile)
@@ -303,7 +303,7 @@ void FileExplorer_SingleClickedFile(GuiState* state, FileNode& node)
     }
 }
 
-void FileExplorer_DoubleClickedFile(GuiState* state, FileNode& node)
+void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
 {
     string extension = Path::GetExtension(node.Filename);
     if (extension == ".cpeg_pc" || extension == ".cvbm_pc" || extension == ".gpeg_pc" || extension == ".gvbm_pc")

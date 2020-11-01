@@ -11,8 +11,8 @@ struct TextureDocumentData
     string VppName;
     string ExtractionPath;
     PegFile10 Peg;
-    std::span<u8> CpuFileBytes;
-    std::span<u8> GpuFileBytes;
+    string CpuFilePath;
+    string GpuFilePath;
     std::vector<ImTextureID> ImageTextures;
     bool InContainer;
 

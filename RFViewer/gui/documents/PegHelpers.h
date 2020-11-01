@@ -9,9 +9,9 @@
 namespace PegHelpers
 {
     //Export all entries from peg
-    void ExportAll(PegFile10& peg, std::span<u8> gpuFileBytes, const string& exportFolderPath);
+    void ExportAll(PegFile10& peg, const string& gpuFilePath, const string& exportFolderPath);
     //Export single entry from peg
-    void ExportSingle(PegFile10& peg, std::span<u8> gpuFileBytes, u32 entryIndex, const string& exportFolderPath);
+    void ExportSingle(PegFile10& peg, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath);
     //Convert peg format to dxgi format
     DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input);
     //Convert PegFormat enum to string

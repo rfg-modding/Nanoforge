@@ -20,7 +20,7 @@ void PropertyPanel_VppContent(GuiState* state)
         return;
 
     //Cache packfile, only find again if selected node changes
-    static FileNode* lastSelectedNode = nullptr;
+    static FileExplorerNode* lastSelectedNode = nullptr;
     static Packfile3* packfile = nullptr;
     if (FileExplorer_SelectedNode != lastSelectedNode)
     {
@@ -41,7 +41,7 @@ void PropertyPanel_Str2Content(GuiState* state)
         return;
 
     //Cache container, only find again if selected node changes
-    static FileNode* lastSelectedNode = nullptr;
+    static FileExplorerNode* lastSelectedNode = nullptr;
     static Packfile3* container = nullptr;
     if (FileExplorer_SelectedNode != lastSelectedNode)
     {

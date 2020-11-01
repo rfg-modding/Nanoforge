@@ -7,53 +7,26 @@
 #include "ImGuiFileDialog/ImGuiFileDialog.h"
 #include "TextureDocumentState.h"
 #include "PegHelpers.h"
+#include "util/RfgUtil.h"
 
 void TextureDocument_Init(GuiState* state, Document& doc)
 {
     //Get parent packfile
     TextureDocumentData* data = (TextureDocumentData*)doc.Data;
-    PackfileVFS* vfs = state->PackfileVFS;
-    Packfile3* parent = data->InContainer ? vfs->GetContainer(data->ParentName, data->VppName) : vfs->GetPackfile(data->ParentName);
-    if (!parent)
-    {
-        Log->error("Failed to get parent in TextureDocument_Init() for TextureDocument '{}'", data->Filename);
-        return;
-    }
 
     //Get gpu filename
-    string extension = Path::GetExtension(data->Filename);
-    string filenameNoExt = Path::GetFileNameNoExtension(data->Filename);
-    string gpuFileName = filenameNoExt;
-    if (extension == ".cpeg_pc")
-        gpuFileName += ".gpeg_pc";
-    else if (extension == ".cvbm_pc")
-        gpuFileName += ".gvbm_pc";
-    else
-    {
-        Log->error("Invalid texture extension '{}' in TextureDocument_Init() for TextureDocument '{}'", extension, data->Filename);
-        return;
-    }
+    string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(data->Filename);
 
-    //Get cpu file and gpu file bytes
-    auto cpuFile = parent->ExtractSingleFile(String::ToLower(data->Filename), true);
-    auto gpuFile = parent->ExtractSingleFile(String::ToLower(gpuFileName), true);
-    if (!cpuFile)
-    {
-        Log->error("Failed to extract cpu file in TextureDocument_Init() for TextureDocument '{}'", data->Filename);
-        return;
-    }
-    if (!gpuFile)
-    {
-        Log->error("Failed to extract gpu file in TextureDocument_Init() for TextureDocument '{}'", data->Filename);
-        return;
-    }
-
-    //Todo: Extract the peg to the filesystem and interact with that copy instead of caching it's bytes. Caching in RAM is unsustainable because some gpeg/gvbm files are huge
     //Parse peg and cache bytes for later manipulation
-    data->CpuFileBytes = cpuFile.value();
-    data->GpuFileBytes = gpuFile.value();
-    BinaryReader cpuFileReader(cpuFile.value());
-    BinaryReader gpuFileReader(gpuFile.value());
+    data->CpuFilePath = data->InContainer ?
+                         state->PackfileVFS->GetFile(data->VppName, data->ParentName, data->Filename) :
+                         state->PackfileVFS->GetFile(data->VppName, data->Filename);
+    data->GpuFilePath = data->InContainer ?
+                         state->PackfileVFS->GetFile(data->VppName, data->ParentName, gpuFileName) :
+                         state->PackfileVFS->GetFile(data->VppName, gpuFileName);
+
+    BinaryReader cpuFileReader(data->CpuFilePath);
+    BinaryReader gpuFileReader(data->GpuFilePath);
     data->Peg.Read(cpuFileReader, gpuFileReader);
 
     //Fill texture list with nullptrs. When a sub-image of the peg is opened it'll be rendered from this list.
@@ -150,11 +123,11 @@ void TextureDocument_Update(GuiState* state, Document& doc)
             Log->info("Extract all window selection: \"{}\"", igfd::ImGuiFileDialog::Instance()->GetFilePathName());
             if (data->ExtractType == TextureDocumentData::PegExtractType::All)
             {
-                PegHelpers::ExportAll(data->Peg, data->GpuFileBytes, igfd::ImGuiFileDialog::Instance()->GetFilePathName() + "\\");
+                PegHelpers::ExportAll(data->Peg, data->GpuFilePath, igfd::ImGuiFileDialog::Instance()->GetFilePathName() + "\\");
             }
             else if (data->ExtractType == TextureDocumentData::PegExtractType::SingleFile)
             {
-                PegHelpers::ExportSingle(data->Peg, data->GpuFileBytes, data->SelectedIndex, igfd::ImGuiFileDialog::Instance()->GetFilePathName() + "\\");
+                PegHelpers::ExportSingle(data->Peg, data->GpuFilePath, data->SelectedIndex, igfd::ImGuiFileDialog::Instance()->GetFilePathName() + "\\");
             }
         }
         igfd::ImGuiFileDialog::Instance()->CloseDialog("PickPegExportFolder");
@@ -218,10 +191,11 @@ void TextureDocument_Update(GuiState* state, Document& doc)
         ImTextureID entryTexture = data->ImageTextures[data->SelectedIndex];
         if (!entryTexture && !data->CreateFailed)
         {
-            BinaryReader gpuFileReader(data->GpuFileBytes);
+            BinaryReader gpuFileReader(data->GpuFilePath);
             data->Peg.ReadTextureData(gpuFileReader, entry);
             DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat);
             ImTextureID id = state->Renderer->TextureDataToHandle(entry.RawData, format, entry.Width, entry.Height);
+            delete[] entry.RawData.data();
             if (!id)
             {
                 Log->error("Failed to create texture resource for texture entry {} in peg file {}", entry.Name, doc.Title);
@@ -249,12 +223,13 @@ void TextureDocument_Update(GuiState* state, Document& doc)
 
 
     //Todo: Editing pipeline:
-        //Todo: File caching system like what OGE has. Make global cache. Equivalent purpose of OGE CacheManager (call this version Cache or something, manager isn't accurate name)
         //Todo: Project system. Tracks changes and has it's own cache which is preferred over the global cache, holds edited files
         //Todo: Texture import + saving
-        //Todo: Auto update .str2_pc which holds edited textures
-        //Todo: Auto update .asm_pc files when .str2_pc files edited
+        
+    //Todo: Mod compilation/packaging
         //Todo: Generate modinfo from changes. Put modinfo.xml and any files the mod needs in a folder ready for use with the MM
+        //Todo: Auto update .str2_pc which holds edited textures, package with mod
+        //Todo: Auto update .asm_pc files when .str2_pc files edited, package with mod
 
     //Todo: Misc / QOL changes
         //Todo: Add bookmarks to real file explorer used when exporting/importing. See ImGuiFileDialog repo for examples of this
@@ -282,10 +257,6 @@ void TextureDocument_OnClose(GuiState* state, Document& doc)
 
     //Cleanup peg resources
     data->Peg.Cleanup();
-
-    //Free cached cpu and gpu file bytes (these are the entire files so possibly quite large)
-    delete data->CpuFileBytes.data();
-    delete data->GpuFileBytes.data();
 
     //Free document data
     delete data;

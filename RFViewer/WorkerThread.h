@@ -49,7 +49,7 @@ void WorkerThread(GuiState* state, bool reload)
         state->FileTreeNeedsRegen = true;
         //Scan contents of packfiles
         state->SetStatus(ICON_FA_SYNC " Scanning packfiles", Working);
-        state->PackfileVFS->ScanPackfiles();
+        state->PackfileVFS->ScanPackfilesAndLoadCache();
         Log->info("Loaded {} packfiles", state->PackfileVFS->packfiles_.size());
         state->FileTreeLocked = false;
     }

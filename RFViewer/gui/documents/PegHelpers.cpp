@@ -7,19 +7,19 @@
 
 namespace PegHelpers
 {
-    void ExportAll(PegFile10& peg, std::span<u8> gpuFileBytes, const string& exportFolderPath)
+    void ExportAll(PegFile10& peg, const string& gpuFilePath, const string& exportFolderPath)
     {
         for (u32 i = 0; i < peg.Entries.size(); i++)
         {
-            ExportSingle(peg, gpuFileBytes, i, exportFolderPath);
+            ExportSingle(peg, gpuFilePath, i, exportFolderPath);
         }
     }
 
-    void ExportSingle(PegFile10& peg, std::span<u8> gpuFileBytes, u32 entryIndex, const string& exportFolderPath)
+    void ExportSingle(PegFile10& peg, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath)
     {
         //Get entry ref and create reader for gpu file
         PegEntry10& entry = peg.Entries[entryIndex];
-        BinaryReader gpuFile(gpuFileBytes);
+        BinaryReader gpuFile(gpuFilePath);
 
         //First make sure we have the raw data for the target entry
         peg.ReadTextureData(gpuFile, entry);

@@ -1,23 +1,23 @@
 #pragma once
 #include <vector>
 
-enum FileNodeType
+enum FileExplorerNodeType
 {
     Packfile, //Top level packfile (.vpp_pc file)
     Container, //Internal packfile/container (.str2_pc file)
     Primitive, //Any file that's not a .vpp_pc or .str2_pc file
 };
-struct FileNode
+struct FileExplorerNode
 {
-    FileNode(string text, FileNodeType type, bool inContainer, string filename, string parentName) : Text(text), Type(type), InContainer(inContainer), Filename(filename), ParentName(parentName)
+    FileExplorerNode(string text, FileExplorerNodeType type, bool inContainer, string filename, string parentName) : Text(text), Type(type), InContainer(inContainer), Filename(filename), ParentName(parentName)
     {
         Children = {};
         Selected = false;
     }
 
     string Text;
-    std::vector<FileNode> Children = {};
-    FileNodeType Type = Packfile;
+    std::vector<FileExplorerNode> Children = {};
+    FileExplorerNodeType Type = Packfile;
     bool InContainer = false;
     bool Selected = false;
     //If true ::Text matches the most recent search term
