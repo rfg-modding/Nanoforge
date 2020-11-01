@@ -38,12 +38,12 @@ Application::Application(HINSTANCE hInstance)
 
     appInstance = this;
     hInstance_ = hInstance;
-    packfileVFS_.Init(packfileFolderPath_);
+    packfileVFS_.Init(packfileFolderPath_, &project_);
     //Camera.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
     //Setup gui
-    Gui.Init(&fontManager_, &packfileVFS_, &zoneManager_, &renderer_);
+    Gui.Init(&fontManager_, &packfileVFS_, &zoneManager_, &renderer_, &project_);
     //Set initial territory name
     Gui.State.SetTerritory(territoryFilename_, true);
     zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName, Gui.State.CurrentTerritoryShortname);

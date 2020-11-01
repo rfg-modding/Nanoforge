@@ -12,6 +12,7 @@ class PackfileVFS;
 class Camera;
 class ZoneManager;
 class DX11Renderer;
+class Project;
 
 //Maximum gui panels. Gui list is preallocated so we can have stable pointers to the panels
 const u32 MaxGuiPanels = 256;
@@ -28,7 +29,7 @@ class MainGui
 public:
     ~MainGui();
 
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer, Project* project);
     void Update(f32 deltaTime);
     void HandleResize();
 
@@ -43,10 +44,18 @@ private:
 
     void SetThemePreset(ThemePreset preset);
 
+    void DrawNewProjectWindow();
+    void DrawOpenProjectWindow();
+    void DrawSaveProjectWindow();
+
     //Size is pre-allocated with MaxGuiPanels elements. Crashes if it resizes beyond this
     std::vector<GuiPanel> panels_ = {};
     std::vector<MenuItem> menuItems_ = {};
 
     //Docking data
     ImGuiID dockspaceId = 0;
+
+    bool showNewProjectWindow_ = false;
+    bool showOpenProjectWindow_ = false;
+    bool showSaveProjectWindow_ = false;
 };

@@ -12,7 +12,9 @@
 #include "gui/panels/PropertyList.h"
 #include "gui/panels/ZoneRender.h"
 #include "gui/panels/LogPanel.h"
+#include "application/project/Project.h"
 #include "Log.h"
+#include "ImGuiFileDialog/ImGuiFileDialog.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
 
@@ -22,9 +24,9 @@ MainGui::~MainGui()
     node::DestroyEditor(State.NodeEditor);
 }
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer, Project* project)
 {
-    State = GuiState{ fontManager, packfileVFS, zoneManager, renderer };
+    State = GuiState{ fontManager, packfileVFS, zoneManager, renderer, project };
 
     //Create node editor library context
     State.NodeEditor = node::CreateEditor();
@@ -123,6 +125,10 @@ void MainGui::Update(f32 deltaTime)
         document++;
         counter++;
     }
+
+    DrawNewProjectWindow();
+    DrawOpenProjectWindow();
+    DrawSaveProjectWindow();
 }
 
 void MainGui::HandleResize()
@@ -136,8 +142,9 @@ void MainGui::DrawMainMenuBar()
     if (ImGui::BeginMainMenuBar())
     {
         ImGuiMenu("File",
-            ImGuiMenuItemShort("Open file", )
-            ImGuiMenuItemShort("Save file", )
+            ImGuiMenuItemShort("New project", showNewProjectWindow_ = true;)
+            ImGuiMenuItemShort("Open project", showOpenProjectWindow_ = true;)
+            ImGuiMenuItemShort("Save project", showSaveProjectWindow_ = true;)
             ImGuiMenuItemShort("Exit", )
         );
         for (auto& menuItem : menuItems_)
@@ -421,4 +428,94 @@ void MainGui::SetThemePreset(ThemePreset preset)
     default:
         break;
     }
+}
+
+void MainGui::DrawNewProjectWindow()
+{
+    if (!showNewProjectWindow_)
+        return;
+
+    if (ImGui::Begin("New project", &showNewProjectWindow_))
+    {
+        static string projectName;
+        static string projectPath;
+        static string projectDescription;
+        static string projectAuthor;
+        static bool createProjectFolder = true;
+
+        //Project name/path/etc input
+        ImGui::PushItemWidth(230.0f);
+        ImGui::InputText("Name:", &projectName);
+        ImGui::InputText("Path: ", &projectPath);
+        ImGui::SameLine();
+        if (ImGui::Button("..."))
+        {
+            igfd::ImGuiFileDialog::Instance()->OpenDialog("PickProjectFolder", "Choose folder", 0, ".");
+        }
+        ImGui::InputText("Description", &projectDescription);
+        ImGui::InputText("Author: ", &projectAuthor);
+        ImGui::Checkbox("Create project folder", &createProjectFolder);
+
+        //Update project folder picker
+        if (igfd::ImGuiFileDialog::Instance()->FileDialog("PickProjectFolder"))
+        {
+            if (igfd::ImGuiFileDialog::Instance()->IsOk)
+            {
+                projectPath = igfd::ImGuiFileDialog::Instance()->GetFilePathName();
+            }
+            igfd::ImGuiFileDialog::Instance()->CloseDialog("PickProjectFolder");
+        }
+
+        //Create project from inputs
+        if (ImGui::Button("Create"))
+        {
+            //Todo: Add save check for existing project
+
+            //Set project and save
+            string endPath = createProjectFolder ? 
+                             projectPath + "\\" + projectName + "\\" :
+                             projectPath + "\\";
+            if(createProjectFolder)
+                std::filesystem::create_directory(endPath);
+
+            State.CurrentProject->Name = projectName;
+            State.CurrentProject->Path = endPath;
+            State.CurrentProject->Description = projectDescription;
+            State.CurrentProject->Author = projectAuthor;
+            State.CurrentProject->ProjectFilename = projectName + ".nanoproj";
+            State.CurrentProject->UnsavedChanges = false;
+            State.CurrentProject->Save();
+            State.CurrentProject->Load(endPath + projectName + ".nanoproj");
+
+            showNewProjectWindow_ = false;
+        }
+
+        ImGui::End();
+    }
+}
+
+void MainGui::DrawOpenProjectWindow()
+{
+    if (showOpenProjectWindow_)
+    {
+        igfd::ImGuiFileDialog::Instance()->OpenDialog("OpenProjectFile", "Choose project file", ".nanoproj", ".");
+        showOpenProjectWindow_ = false;
+    }
+    if (igfd::ImGuiFileDialog::Instance()->FileDialog("OpenProjectFile"))
+    {
+        if (igfd::ImGuiFileDialog::Instance()->IsOk)
+        {
+            //Todo: Add save check if project already open
+            State.CurrentProject->Load(igfd::ImGuiFileDialog::Instance()->GetFilePathName());
+        }
+        igfd::ImGuiFileDialog::Instance()->CloseDialog("OpenProjectFile");
+    }
+}
+
+void MainGui::DrawSaveProjectWindow()
+{
+    if (!showSaveProjectWindow_)
+        return;
+
+    State.CurrentProject->Save();
 }

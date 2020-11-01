@@ -14,11 +14,13 @@ enum class SearchType
     AnyEnd //Find starts that start with the search string
 };
 
+class Project;
+
 //Interface for interacting with RFG packfiles and their contents
 class PackfileVFS
 {
 public:
-    void Init(const string& packfileFolderPath);
+    void Init(const string& packfileFolderPath, Project* project);
     ~PackfileVFS();
 
     //Scans metadata of all vpps in the data folder and loads the global file cache
@@ -55,6 +57,8 @@ private:
 
     //Global file cache
     FileCache globalFileCache_;
+    //The current project
+    Project* project_ = nullptr;
     //RFG data folder path
     std::string packfileFolderPath_;
     //Global file cache path. Extracted files are put in this folder to avoid repeat extractions

@@ -19,6 +19,7 @@ enum GuiStatus
 };
 
 class GuiState;
+class Project;
 //Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
 using PropertyPanelContentFunc = void(GuiState* state);
 
@@ -30,6 +31,7 @@ public:
     ZoneManager* ZoneManager = nullptr;
     //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;
+    Project* CurrentProject = nullptr;
 
     bool Visible = true;
 

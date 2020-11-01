@@ -2,14 +2,16 @@
 #include "common/filesystem/Path.h"
 #include "common/filesystem/File.h"
 #include "common/string/String.h"
+#include "application/project/Project.h"
 #include "Log.h"
 #include <filesystem>
 #include <iostream>
 
-void PackfileVFS::Init(const string& packfileFolderPath)
+void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
 {
     //Data folder of a copy of RFGR
     packfileFolderPath_ = packfileFolderPath;
+    project_ = project;
 }
 
 PackfileVFS::~PackfileVFS()
@@ -160,6 +162,9 @@ string PackfileVFS::GetFile(const string& packfileName, const string& filename1,
     if (inContainer)
         filePath += "\\" + filename2;
 
+    //If file is in project cache use that version. Otherwise operate on global cache
+    if(project_ && project_->Cache.IsCached(filePath))
+        return std::filesystem::absolute(project_->GetCachePath() + filePath).string();
     //Cache the file if it isn't already
     if (!globalFileCache_.IsCached(filePath))
         AddFileToCache(packfileName, filename1, filename2);

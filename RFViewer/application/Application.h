@@ -7,6 +7,7 @@
 #include "rfg/PackfileVFS.h"
 #include "rfg/ZoneManager.h"
 #include "gui/MainGui.h"
+#include "project/Project.h"
 #include <ext/WindowsWrapper.h>
 #include <chrono>
 #include <spdlog/spdlog.h>
@@ -39,6 +40,7 @@ private:
     ImGuiFontManager fontManager_;
     PackfileVFS packfileVFS_;
     ZoneManager zoneManager_;
+    Project project_;
 
     int windowWidth_ = 1600;
     int windowHeight_ = 1000;
