@@ -75,13 +75,17 @@ void FileExplorer_Update(GuiState* state, bool* open)
     }
 
     //Draw nodes
-    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
-    for (auto& node : FileExplorer_FileTree)
+    if (ImGui::BeginChild("FileExplorerList"))
     {
-        FileExplorer_VppName = node.Filename;
-        FileExplorer_DrawFileNode(state, node);
+        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
+        for (auto& node : FileExplorer_FileTree)
+        {
+            FileExplorer_VppName = node.Filename;
+            FileExplorer_DrawFileNode(state, node);
+        }
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
     }
-    ImGui::PopStyleVar();
     FileExplorer_SearchChanged = false;
 
     ImGui::End();

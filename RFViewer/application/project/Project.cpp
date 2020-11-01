@@ -15,17 +15,27 @@ bool Project::Save()
 {
     tinyxml2::XMLDocument project;
     auto* projectBlock = project.NewElement("Project");
-    auto* name = project.NewElement("Name");
-    auto* description = project.NewElement("Description");
-    auto* author = project.NewElement("Author");
+    auto* name = projectBlock->InsertNewChildElement("Name");
+    auto* description = projectBlock->InsertNewChildElement("Description");
+    auto* author = projectBlock->InsertNewChildElement("Author");
+    auto* edits = projectBlock->InsertNewChildElement("Edits");
 
+    //Set name, desc, and author
     name->SetText(Name.c_str());
     description->SetText(Description.c_str());
     author->SetText(Author.c_str());
 
-    projectBlock->InsertFirstChild(name);
-    projectBlock->InsertFirstChild(description);
-    projectBlock->InsertFirstChild(author);
+    //Set edits
+    for (auto& edit : Edits)
+    {
+        auto* editElement = edits->InsertNewChildElement("Edit");
+        auto* editType = editElement->InsertNewChildElement("Type");
+        auto* editPath = editElement->InsertNewChildElement("Path");
+        
+        editType->SetText(edit.EditType.c_str());
+        editPath->SetText(edit.EditedFile.c_str());
+    }
+
     project.InsertFirstChild(projectBlock);
     project.SaveFile((Path + "\\" + ProjectFilename).c_str());
 
@@ -40,6 +50,16 @@ bool Project::PackageMod(const string& outputPath)
 string Project::GetCachePath()
 {
     return Path + "\\cache\\";
+}
+
+void Project::RescanCache()
+{
+    Cache.Load(GetCachePath());
+}
+
+void Project::AddEdit(FileEdit edit)
+{
+    Edits.push_back(edit);
 }
 
 bool Project::LoadProjectFile(const string& projectFilePath)
@@ -62,6 +82,7 @@ bool Project::LoadProjectFile(const string& projectFilePath)
     auto* name = projectBlock->FirstChildElement("Name");
     auto* description = projectBlock->FirstChildElement("Description");
     auto* author = projectBlock->FirstChildElement("Author");
+    auto* edits = projectBlock->FirstChildElement("Edits");
     if(!name)
     {
         Log->info("<Name> block not found in project file \"{}\"", projectFilePath);
@@ -77,9 +98,35 @@ bool Project::LoadProjectFile(const string& projectFilePath)
         Log->info("<Author> block not found in project file \"{}\"", projectFilePath);
         return false;
     }
+    if (!edits)
+    {
+        Log->info("<Edits> block not found in project file \"{}\"", projectFilePath);
+        return false;
+    }
     Name = name->GetText();
     Description = description->GetText();
     Author = author->GetText();
+
+    //Get edits list
+    auto* edit = edits->FirstChildElement("Edit");
+    while (edit)
+    {
+        auto* editType = edit->FirstChildElement("Type");
+        auto* editPath = edit->FirstChildElement("Path");
+        if (!editType)
+        {
+            Log->info("<Type> block not found in <Edit> block of project file \"{}\"", projectFilePath);
+            return false;
+        }
+        if (!editPath)
+        {
+            Log->info("<Path> block not found in <Edit> block of project file \"{}\"", projectFilePath);
+            return false;
+        }
+
+        Edits.push_back(FileEdit{ editType->GetText(), editPath->GetText() });
+        edit = edit->NextSiblingElement("Edit");
+    }
 
     return true;
 }

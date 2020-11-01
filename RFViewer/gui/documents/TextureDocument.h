@@ -8,6 +8,7 @@
 #include "TextureDocumentState.h"
 #include "PegHelpers.h"
 #include "util/RfgUtil.h"
+#include "application/project/Project.h"
 
 void TextureDocument_Init(GuiState* state, Document& doc)
 {
@@ -56,6 +57,44 @@ void TextureDocument_Update(GuiState* state, Document& doc)
 
     const f32 columnZeroWidth = 300.0f;
     ImGui::Columns(2);
+    //Todo: Add confirmation when closing an edited file before saving it
+    //Todo: Require a project to be opened to even open textures
+    if (ImGui::Button("Save"))
+    {
+        //Read all texture data from unedited gpu file
+        BinaryReader gpuFileOriginal(data->GpuFilePath);
+        data->Peg.ReadAllTextureData(gpuFileOriginal, false); //Read all texture data and don't overwrite edited files
+
+        //Base output path relative to project root
+        string pathBaseRelative = data->VppName + "\\";
+        if (data->InContainer)
+            pathBaseRelative += data->ParentName + "\\";
+
+        //Absolute base output path
+        string pathBaseAbsolute = state->CurrentProject->GetCachePath() + pathBaseRelative;
+
+        //Create base path folders
+        std::filesystem::create_directories(pathBaseAbsolute);
+
+        //Full output path for cpu & gpu files
+        string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(data->Filename);
+        string cpuFilePathOut = pathBaseAbsolute + data->Filename;
+        string gpuFilePathOut = pathBaseAbsolute + gpuFilename;
+
+        //Create binary writers and output edited peg file
+        BinaryWriter cpuFileOut(cpuFilePathOut);
+        BinaryWriter gpuFileOut(gpuFilePathOut);
+        data->Peg.Write(cpuFileOut, gpuFileOut);
+
+        //Rescan project cache to see the files we just saved
+        state->CurrentProject->RescanCache();
+        
+        //Add edit to project and resave the project file
+        state->CurrentProject->AddEdit(FileEdit{ "TextureEdit", pathBaseRelative + data->Filename });
+        state->CurrentProject->Save();
+
+        Log->info("Saved \"{}\"", data->Filename);
+    }
     ImGui::ColorEdit4("Background color", (float*)&data->ImageBackground, ImGuiColorEditFlags_NoInputs);
     ImGui::Separator();
     ImGui::SetColumnWidth(0, columnZeroWidth);
@@ -101,12 +140,14 @@ void TextureDocument_Update(GuiState* state, Document& doc)
                     //Since filter == 0 this window is a directory picker
                     igfd::ImGuiFileDialog::Instance()->OpenDialog("PickPegExportFolder", "Choose folder", 0, ".");
                     data->ExtractType = TextureDocumentData::PegExtractType::SingleFile;
-                    data->ExtractIndex = data->SelectedIndex;
+                    data->ExtractIndex = i;
                     ImGui::CloseCurrentPopup();
                 }
                 else if (ImGui::Button("Replace"))
                 {
                     Log->info("Replacing {} in {}", entry.Name, data->Filename);
+                    igfd::ImGuiFileDialog::Instance()->OpenDialog("PickImportTexture", "Choose texture", ".dds", ".");
+                    data->ImportIndex = i;
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::EndPopup();
@@ -120,17 +161,43 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     {
         if (igfd::ImGuiFileDialog::Instance()->IsOk)
         {
-            Log->info("Extract all window selection: \"{}\"", igfd::ImGuiFileDialog::Instance()->GetFilePathName());
+            Log->info("Extract all window selection: \"{}\"", igfd::ImGuiFileDialog::Instance()->GetCurrentPath());
             if (data->ExtractType == TextureDocumentData::PegExtractType::All)
             {
-                PegHelpers::ExportAll(data->Peg, data->GpuFilePath, igfd::ImGuiFileDialog::Instance()->GetFilePathName() + "\\");
+                PegHelpers::ExportAll(data->Peg, data->GpuFilePath, igfd::ImGuiFileDialog::Instance()->GetCurrentPath() + "\\");
             }
             else if (data->ExtractType == TextureDocumentData::PegExtractType::SingleFile)
             {
-                PegHelpers::ExportSingle(data->Peg, data->GpuFilePath, data->SelectedIndex, igfd::ImGuiFileDialog::Instance()->GetFilePathName() + "\\");
+                PegHelpers::ExportSingle(data->Peg, data->GpuFilePath, data->SelectedIndex, igfd::ImGuiFileDialog::Instance()->GetCurrentPath() + "\\");
             }
         }
         igfd::ImGuiFileDialog::Instance()->CloseDialog("PickPegExportFolder");
+    }
+    //Update texture import file picker
+    if (igfd::ImGuiFileDialog::Instance()->FileDialog("PickImportTexture"))
+    {
+        if (igfd::ImGuiFileDialog::Instance()->IsOk)
+        {
+            if (std::filesystem::exists(igfd::ImGuiFileDialog::Instance()->GetFilePathName()))
+            {
+                //Import texture
+                PegHelpers::ImportTexture(data->Peg, data->ImportIndex, igfd::ImGuiFileDialog::Instance()->GetFilePathName());
+
+                //If there's a shader resource for the texture we're replacing then destroy it. Will be recreated by drawing code below
+                void* imageHandle = data->ImageTextures[data->ImportIndex];
+                if (imageHandle)
+                {
+                    ID3D11ShaderResourceView* asSrv = (ID3D11ShaderResourceView*)imageHandle;
+                    asSrv->Release();
+                    data->ImageTextures[data->ImportIndex] = nullptr;
+                }
+            }
+            else
+            {
+                Log->error("Invalid path \"{}\" selected for texture import.", igfd::ImGuiFileDialog::Instance()->GetFilePathName());
+            }
+        }
+        igfd::ImGuiFileDialog::Instance()->CloseDialog("PickImportTexture");
     }
 
     //Info about the selected texture
@@ -195,7 +262,6 @@ void TextureDocument_Update(GuiState* state, Document& doc)
             data->Peg.ReadTextureData(gpuFileReader, entry);
             DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat);
             ImTextureID id = state->Renderer->TextureDataToHandle(entry.RawData, format, entry.Width, entry.Height);
-            delete[] entry.RawData.data();
             if (!id)
             {
                 Log->error("Failed to create texture resource for texture entry {} in peg file {}", entry.Name, doc.Title);
@@ -221,17 +287,13 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     }
     ImGui::PopStyleColor();
 
-
-    //Todo: Editing pipeline:
-        //Todo: Project system. Tracks changes and has it's own cache which is preferred over the global cache, holds edited files
-        //Todo: Texture import + saving
-        
     //Todo: Mod compilation/packaging
         //Todo: Generate modinfo from changes. Put modinfo.xml and any files the mod needs in a folder ready for use with the MM
         //Todo: Auto update .str2_pc which holds edited textures, package with mod
         //Todo: Auto update .asm_pc files when .str2_pc files edited, package with mod
 
     //Todo: Misc / QOL changes
+        //Todo: Add option to disable/limit caching
         //Todo: Add bookmarks to real file explorer used when exporting/importing. See ImGuiFileDialog repo for examples of this
         //Todo: Add export support for PC_8888 (doesn't work with dds exporter)
         //Todo: Allow exporting dxt compressed files to formats other than dds (see if people really care about this, any decent image editor can handle dds)

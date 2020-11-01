@@ -44,6 +44,40 @@ namespace PegHelpers
         delete pathWide;
     }
 
+    void ImportTexture(PegFile10& peg, u32 targetIndex, const string& importFilePath)
+    {
+        //Get entry ref
+        PegEntry10& entry = peg.Entries[targetIndex];
+
+        //Free existing data if it's loaded. We're replacing it so can ditch it
+        if (entry.RawData.data())
+            delete[] entry.RawData.data();
+
+        //Load texture from DDS
+        const wchar_t* pathWide = WidenCString(importFilePath.c_str());
+        DirectX::TexMetadata metadata;
+        DirectX::ScratchImage image;
+        HRESULT result = DirectX::LoadFromDDSFile(pathWide, DirectX::DDS_FLAGS::DDS_FLAGS_NONE, &metadata, image);
+        if (FAILED(result))
+            Log->error("Error when loading \"{}\". Result: {:x}", importFilePath, (u32)result);
+
+        //Copy image data to buffer so ScratchImage destructor doesn't delete it
+        u32 dataSize = image.GetPixelsSize();
+        u8* dataBuffer = new u8[dataSize];
+        memcpy(dataBuffer, image.GetPixels(), dataSize);
+        
+        //Set entry data with loaded image data
+        entry.Width = metadata.width;
+        entry.Height = metadata.height;
+        entry.MipLevels = metadata.mipLevels;
+        entry.BitmapFormat = DxgiFormatToPegFormat(metadata.format);
+        entry.RawData = std::span<u8>(dataBuffer, dataSize);
+        entry.FrameSize = dataSize;
+        entry.Edited = true;
+
+        delete pathWide;
+    }
+
     DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input)
     {
         if (input == PegFormat::PC_DXT1)
@@ -56,6 +90,20 @@ namespace PegHelpers
             return DXGI_FORMAT_R8G8B8A8_UNORM;
         else
             THROW_EXCEPTION("Unknown or unsupported format '{}' passed to PegFormatToDxgiFormat()", input);
+    }
+
+    PegFormat DxgiFormatToPegFormat(DXGI_FORMAT input)
+    {
+        if (input == DXGI_FORMAT_BC1_UNORM) //DXT1
+            return PegFormat::PC_DXT1;
+        else if (input == DXGI_FORMAT_BC2_UNORM) //DXT2/3
+            return PegFormat::PC_DXT3;
+        else if (input == DXGI_FORMAT_BC3_UNORM) //DXT4/5
+            return PegFormat::PC_DXT5;
+        else if (input == DXGI_FORMAT_R8G8B8A8_UNORM)
+            return PegFormat::PC_8888;
+        else
+            THROW_EXCEPTION("Unknown or unsupported format '{}' passed to DxgiFormatToPegFormat()", input);
     }
 
     string PegFormatToString(PegFormat input)

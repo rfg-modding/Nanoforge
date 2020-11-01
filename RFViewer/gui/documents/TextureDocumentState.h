@@ -28,4 +28,5 @@ struct TextureDocumentData
     enum PegExtractType { All, SingleFile };
     PegExtractType ExtractType;
     u32 ExtractIndex;
+    u32 ImportIndex;
 };
