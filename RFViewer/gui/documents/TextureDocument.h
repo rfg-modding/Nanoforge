@@ -287,11 +287,6 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     }
     ImGui::PopStyleColor();
 
-    //Todo: Mod compilation/packaging
-        //Todo: Generate modinfo from changes. Put modinfo.xml and any files the mod needs in a folder ready for use with the MM
-        //Todo: Auto update .str2_pc which holds edited textures, package with mod
-        //Todo: Auto update .asm_pc files when .str2_pc files edited, package with mod
-
     //Todo: Misc / QOL changes
         //Todo: Add option to disable/limit caching
         //Todo: Add bookmarks to real file explorer used when exporting/importing. See ImGuiFileDialog repo for examples of this

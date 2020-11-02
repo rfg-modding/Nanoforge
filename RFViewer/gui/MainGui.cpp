@@ -145,6 +145,9 @@ void MainGui::DrawMainMenuBar()
             ImGuiMenuItemShort("New project", showNewProjectWindow_ = true;)
             ImGuiMenuItemShort("Open project", showOpenProjectWindow_ = true;)
             ImGuiMenuItemShort("Save project", showSaveProjectWindow_ = true;)
+            ImGui::Separator();
+            ImGuiMenuItemShort("Package mod", State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\");)
+            ImGui::Separator();
             ImGuiMenuItemShort("Exit", )
         );
         for (auto& menuItem : menuItems_)

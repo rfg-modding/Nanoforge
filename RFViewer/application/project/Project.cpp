@@ -1,5 +1,8 @@
 #include "Project.h"
 #include "common/filesystem/Path.h"
+#include "common/string/String.h"
+#include "common/filesystem/File.h"
+#include "util/RfgUtil.h"
 #include "Log.h"
 #include <tinyxml2/tinyxml2.h>
 
@@ -44,6 +47,62 @@ bool Project::Save()
 
 bool Project::PackageMod(const string& outputPath)
 {
+    //Create output path
+    std::filesystem::create_directories(outputPath);
+
+    //Create modinfo.xml and fill out basic info
+    tinyxml2::XMLDocument modinfo;
+    auto* modBlock = modinfo.NewElement("Mod");
+    auto* author = modBlock->InsertNewChildElement("Author");
+    auto* description = modBlock->InsertNewChildElement("Description");
+    auto* changes = modBlock->InsertNewChildElement("Changes");
+    modBlock->SetAttribute("Name", Name.c_str());
+    author->SetText(Author.c_str());
+    description->SetText(Description.c_str());
+    
+    //Loop through edits
+    for (auto& edit : Edits)
+    {
+        //Split edited file cache path
+        std::vector<s_view> split = String::SplitString(edit.EditedFile, "\\");
+        bool inContainer = split.size() == 3;
+
+        //Todo: Define IAction interface that each edit/action will be implemented as. Put this behavior in that
+        //Update modinfo, repack files if necessary, and copy edited files to output
+        if (edit.EditType == "TextureEdit")
+        {
+            if (inContainer)
+            {
+                //Todo: Repack .str2_pc which holds edited textures
+                //Todo: Update and resave .asm_pc file which references the edited .str2_pc
+                //Todo: Copy .str2_pc and .asm_pc to output folder
+                //Todo: Add <Replace> entry form .str2_pc to modinfo
+                //Todo: Add <Replace> entry form .asm_pc to modinfo
+
+
+            }
+            else
+            {
+                //Copy edited files from project cache to output folder
+                string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(string(split.back()));
+                //Todo: Fix crash that happens when file already exists at target path
+                std::filesystem::copy_file(GetCachePath() + edit.EditedFile, outputPath + string(split.back()));
+                std::filesystem::copy_file(GetCachePath() + string(split[0]) + "\\" + gpuFilename, outputPath + gpuFilename);
+
+                //Add <Replace> blocks for the cpu file and the gpu file
+                auto* replaceCpuFile = changes->InsertNewChildElement("Replace");
+                replaceCpuFile->SetAttribute("File", ("data\\" + Path::GetFileNameNoExtension(split[0]) + ".vpp" + "\\" + string(split.back())).c_str());
+                replaceCpuFile->SetAttribute("NewFile", string(split.back()).c_str());
+                auto* replaceGpuFile = changes->InsertNewChildElement("Replace");
+                replaceGpuFile->SetAttribute("File", ("data\\" + Path::GetFileNameNoExtension(split[0]) + ".vpp" + "\\" + gpuFilename).c_str());
+                replaceGpuFile->SetAttribute("NewFile", gpuFilename.c_str());
+            }
+        }
+    }
+
+    modinfo.InsertFirstChild(modBlock);
+    modinfo.SaveFile((outputPath + "modinfo.xml").c_str());
+
     return true;
 }
 
