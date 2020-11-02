@@ -5,6 +5,7 @@
 #include "util/RfgUtil.h"
 #include "Log.h"
 #include <tinyxml2/tinyxml2.h>
+#include <spdlog/fmt/fmt.h>
 
 bool Project::Load(const string& projectFilePath)
 {
@@ -84,22 +85,25 @@ bool Project::PackageMod(const string& outputPath)
             else
             {
                 //Copy edited files from project cache to output folder
-                string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(string(split.back()));
-                //Todo: Fix crash that happens when file already exists at target path
-                std::filesystem::copy_file(GetCachePath() + edit.EditedFile, outputPath + string(split.back()));
-                std::filesystem::copy_file(GetCachePath() + string(split[0]) + "\\" + gpuFilename, outputPath + gpuFilename);
+                string cpuFilename = string(split.back());
+                string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(cpuFilename);
+                std::filesystem::copy_options copyOptions = std::filesystem::copy_options::overwrite_existing;
+                std::filesystem::copy_file(GetCachePath() + edit.EditedFile, outputPath + cpuFilename, copyOptions);
+                std::filesystem::copy_file(fmt::format("{}{}\\{}", GetCachePath(), split[0], gpuFilename), outputPath + gpuFilename, copyOptions);
 
                 //Add <Replace> blocks for the cpu file and the gpu file
                 auto* replaceCpuFile = changes->InsertNewChildElement("Replace");
-                replaceCpuFile->SetAttribute("File", ("data\\" + Path::GetFileNameNoExtension(split[0]) + ".vpp" + "\\" + string(split.back())).c_str());
+                replaceCpuFile->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), cpuFilename).c_str());
                 replaceCpuFile->SetAttribute("NewFile", string(split.back()).c_str());
+
                 auto* replaceGpuFile = changes->InsertNewChildElement("Replace");
-                replaceGpuFile->SetAttribute("File", ("data\\" + Path::GetFileNameNoExtension(split[0]) + ".vpp" + "\\" + gpuFilename).c_str());
+                replaceGpuFile->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), gpuFilename).c_str());
                 replaceGpuFile->SetAttribute("NewFile", gpuFilename.c_str());
             }
         }
     }
 
+    //Save modinfo.xml
     modinfo.InsertFirstChild(modBlock);
     modinfo.SaveFile((outputPath + "modinfo.xml").c_str());
 
