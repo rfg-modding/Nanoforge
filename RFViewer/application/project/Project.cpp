@@ -139,7 +139,7 @@ bool Project::PackageMod(const string& outputPath, PackfileVFS* vfs)
 
                 
                 //Get container
-                AsmContainer* asmContainer = currentAsm->GetContainer(Path::GetFileNameNoExtension(str2Filename));
+                AsmContainer* asmContainer = newAsmFile.GetContainer(Path::GetFileNameNoExtension(str2Filename));
                 if (!asmContainer)
                     THROW_EXCEPTION("Failed to find container for str2_pc file \"{}\" in asmFile \"{}\" in Project::PackageMod()", str2Filename, asmName);
 
@@ -155,6 +155,7 @@ bool Project::PackageMod(const string& outputPath, PackfileVFS* vfs)
 
                 //Update primitive values
                 u32 primIndex = 0;
+                u32 primSizeIndex = 0;
                 while (primIndex < asmContainer->Primitives.size())
                 {
                     AsmPrimitive& curPrim = asmContainer->Primitives[primIndex];
@@ -163,14 +164,16 @@ bool Project::PackageMod(const string& outputPath, PackfileVFS* vfs)
                     //If DataSize = 0 assume this primitive has no gpu file
                     if (curPrim.DataSize == 0)
                     {
-                        curPrim.HeaderSize = newStr2.Entries[primIndex].DataSize; //Uncompressed size
+                        curPrim.HeaderSize = newStr2.Entries[primSizeIndex].DataSize; //Uncompressed size
                         primIndex++;
+                        primSizeIndex++;
                     }
                     else //Otherwise assume primitive has cpu and gpu file
                     {
-                        curPrim.HeaderSize = newStr2.Entries[primIndex].DataSize; //Cpu file uncompressed size
-                        curPrim.DataSize = newStr2.Entries[primIndex + 1].DataSize; //Gpu file uncompressed size
-                        primIndex += 2;
+                        curPrim.HeaderSize = newStr2.Entries[primSizeIndex].DataSize; //Cpu file uncompressed size
+                        curPrim.DataSize = newStr2.Entries[primSizeIndex + 1].DataSize; //Gpu file uncompressed size
+                        primIndex++;
+                        primSizeIndex += 2;
                     }
                 }
 
