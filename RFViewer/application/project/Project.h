@@ -4,12 +4,13 @@
 #include "FileEdit.h"
 #include <vector>
 
+class PackfileVFS;
 class Project
 {
 public:
     bool Load(const string& projectFilePath);
     bool Save();
-    bool PackageMod(const string& outputPath);
+    bool PackageMod(const string& outputPath, PackfileVFS* vfs);
     string GetCachePath();
     void RescanCache();
     void AddEdit(FileEdit edit);

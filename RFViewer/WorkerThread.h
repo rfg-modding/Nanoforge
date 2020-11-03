@@ -54,6 +54,11 @@ void WorkerThread(GuiState* state, bool reload)
         state->FileTreeLocked = false;
     }
 
+    //Todo: Re-enable remainder of this when the map viewer is re-enabled. Also, instead of immediately loading terrain and zone data should wait for the player to open a territory or zone
+    state->ClearStatus();
+    WorkerDone = true;
+    return;
+
     //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory
     //Read all zones from zonescript_terr01.vpp_pc
     state->SetStatus(ICON_FA_SYNC " Loading zones", Working);

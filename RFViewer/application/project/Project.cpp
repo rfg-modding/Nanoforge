@@ -6,6 +6,9 @@
 #include "Log.h"
 #include <tinyxml2/tinyxml2.h>
 #include <spdlog/fmt/fmt.h>
+#include "RfgTools++/RfgTools++/formats/packfiles/Packfile3.h"
+#include "RfgTools++/RfgTools++/formats/asm/AsmFile5.h"
+#include "rfg/PackfileVFS.h"
 
 bool Project::Load(const string& projectFilePath)
 {
@@ -46,10 +49,11 @@ bool Project::Save()
     return true;
 }
 
-bool Project::PackageMod(const string& outputPath)
+bool Project::PackageMod(const string& outputPath, PackfileVFS* vfs)
 {
     //Create output path
     std::filesystem::create_directories(outputPath);
+    std::filesystem::copy_options copyOptions = std::filesystem::copy_options::overwrite_existing;
 
     //Create modinfo.xml and fill out basic info
     tinyxml2::XMLDocument modinfo;
@@ -60,7 +64,8 @@ bool Project::PackageMod(const string& outputPath)
     modBlock->SetAttribute("Name", Name.c_str());
     author->SetText(Author.c_str());
     description->SetText(Description.c_str());
-    
+
+
     //Loop through edits
     for (auto& edit : Edits)
     {
@@ -72,20 +77,127 @@ bool Project::PackageMod(const string& outputPath)
         //Update modinfo, repack files if necessary, and copy edited files to output
         if (edit.EditType == "TextureEdit")
         {
+            //Todo: Put outputted files into subfolder based on vpp they're in to avoid name conflicts
             if (inContainer)
             {
-                //Todo: **SECOND** Need to split this step into a separate loop to support editing multiple cpegs in one str2_pc
-                //Todo: Put outputted files into subfolder based on vpp they're in to avoid name conflicts
-                //Todo: Determine what data needs to be stored for the following loop to complete this step
                 //Copy edited str2_pc contents to temp folder
-                //Copy unedited str2_pc contents to temp folder. We need all the files to repack the str2
-                //Repack str2_pc from temp files, delete temp files, and parse freshly packed str2
-                //Update asm_pc from freshly packed str2
-                //Resave asm_pc to project cache
-                //Copy new str2 and asm files to output folder
+                string parentPath = edit.EditedFile.substr(0, edit.EditedFile.find_last_of("\\"));
+                string tempPath = Path + "\\Temp\\" + parentPath + "\\";
+                string str2Filename = string(split[1]);
+                string packOutputPath = tempPath + "\\repack\\" + str2Filename;
+                std::filesystem::create_directories(tempPath);
+                std::filesystem::copy(GetCachePath() + parentPath + "\\", tempPath, copyOptions);
 
-                //Todo: **THIRD** Write this step. Only step that can be done immediately
+                //Copy unedited str2_pc contents to temp folder. We need all the files to repack the str2
+                for (auto& entry : std::filesystem::directory_iterator(".\\Cache\\" + parentPath + "\\")) //Todo: De-hardcode global cache path
+                {
+                    //Skip file if it's already in the temp folder
+                    if (entry.is_directory() || std::filesystem::exists(tempPath + entry.path().filename().string()))
+                        continue;
+
+                    //Otherwise copy into temp folder
+                    std::filesystem::copy_file(entry.path(), tempPath + entry.path().filename().string(), copyOptions);
+                }
+
+                //Repack str2_pc from temp files
+                std::filesystem::create_directory(tempPath + "\\repack\\");
+                Packfile3::Pack(tempPath, packOutputPath, true, true);
+
+                //Parse freshly packed str2
+                Packfile3 newStr2(packOutputPath);
+                newStr2.ReadMetadata();
+                newStr2.SetName(str2Filename);
+
+                //Get current asm_pc file
+                string asmName;
+                AsmFile5* currentAsm = nullptr;
+                Packfile3* parentVpp = vfs->GetPackfile(Path::GetFileName(split[0]));
+                for (auto& asmFile : parentVpp->AsmFiles)
+                {
+                    if (asmFile.HasContainer(Path::GetFileNameNoExtension(str2Filename)))
+                    {
+                        asmName = asmFile.Name;
+                        currentAsm = &asmFile;
+                    }
+                }
+                if(!currentAsm)
+                    THROW_EXCEPTION("Failed to find asm_pc file for str2_pc file \"{}\" in Project::PackageMod()", str2Filename);
+
+                //Update asm_pc from freshly packed str2
+                string asmOutputPath = GetCachePath() + string(split[0]) + "\\" + asmName;
+                AsmFile5 newAsmFile;
+                //If asm is already in the project cache use that
+                if (std::filesystem::exists(asmOutputPath))
+                {
+                    BinaryReader reader(asmOutputPath);
+                    newAsmFile.Read(reader, currentAsm->Name);
+                }
+                else //Otherwise use version from packfiles
+                {
+                    newAsmFile = *currentAsm;
+                }
+
+                
+                //Get container
+                AsmContainer* asmContainer = currentAsm->GetContainer(Path::GetFileNameNoExtension(str2Filename));
+                if (!asmContainer)
+                    THROW_EXCEPTION("Failed to find container for str2_pc file \"{}\" in asmFile \"{}\" in Project::PackageMod()", str2Filename, asmName);
+
+                //Todo: Support adding/remove files from str2s. This assumes its the same files but edited
+                //Update container values
+                asmContainer->CompressedSize = newStr2.Header.CompressedDataSize;
+
+                //Update primitive sizes
+                for (u32 i = 0; i < asmContainer->PrimitiveSizes.size(); i++)
+                {
+                    asmContainer->PrimitiveSizes[i] = newStr2.Entries[i].DataSize; //Uncompressed size
+                }
+
+                //Update primitive values
+                u32 primIndex = 0;
+                while (primIndex < asmContainer->Primitives.size())
+                {
+                    AsmPrimitive& curPrim = asmContainer->Primitives[primIndex];
+                    
+                    //Todo: This assumption blocks support of adding/remove files from str2s or reordering them
+                    //If DataSize = 0 assume this primitive has no gpu file
+                    if (curPrim.DataSize == 0)
+                    {
+                        curPrim.HeaderSize = newStr2.Entries[primIndex].DataSize; //Uncompressed size
+                        primIndex++;
+                    }
+                    else //Otherwise assume primitive has cpu and gpu file
+                    {
+                        curPrim.HeaderSize = newStr2.Entries[primIndex].DataSize; //Cpu file uncompressed size
+                        curPrim.DataSize = newStr2.Entries[primIndex + 1].DataSize; //Gpu file uncompressed size
+                        primIndex += 2;
+                    }
+                }
+
+                //Resave asm_pc to project cache
+                newAsmFile.Write(asmOutputPath);
+
+                //Copy new str2 and asm files to output folder. Also copy asm to project folder
+                std::filesystem::copy_file(packOutputPath, outputPath + str2Filename, copyOptions);
+                std::filesystem::copy_file(asmOutputPath, outputPath + asmName, copyOptions);
+
+                //Delete temp files
+                for (auto& entry : std::filesystem::recursive_directory_iterator(tempPath))
+                    if (!entry.is_directory())
+                        std::filesystem::remove(entry);
+
+                //Cleanup str2 resources stored on the heap
+                newStr2.Cleanup();
+
+
                 //Add <Replace> blocks for str2 and asm file
+                auto* replaceStr2 = changes->InsertNewChildElement("Replace");
+                replaceStr2->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), str2Filename).c_str());
+                replaceStr2->SetAttribute("NewFile", str2Filename.c_str());
+
+                auto* replaceAsm = changes->InsertNewChildElement("Replace");
+                replaceAsm->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), asmName).c_str());
+                replaceAsm->SetAttribute("NewFile", asmName.c_str());
             }
             else
             {
@@ -93,7 +205,6 @@ bool Project::PackageMod(const string& outputPath)
                 //Copy edited files from project cache to output folder
                 string cpuFilename = string(split.back());
                 string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(cpuFilename);
-                std::filesystem::copy_options copyOptions = std::filesystem::copy_options::overwrite_existing;
                 std::filesystem::copy_file(GetCachePath() + edit.EditedFile, outputPath + cpuFilename, copyOptions);
                 std::filesystem::copy_file(fmt::format("{}{}\\{}", GetCachePath(), split[0], gpuFilename), outputPath + gpuFilename, copyOptions);
 

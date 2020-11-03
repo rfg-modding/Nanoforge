@@ -146,7 +146,7 @@ void MainGui::DrawMainMenuBar()
             ImGuiMenuItemShort("Open project", showOpenProjectWindow_ = true;)
             ImGuiMenuItemShort("Save project", showSaveProjectWindow_ = true;)
             ImGui::Separator();
-            ImGuiMenuItemShort("Package mod", State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\");)
+            ImGuiMenuItemShort("Package mod", State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);)
             ImGui::Separator();
             ImGuiMenuItemShort("Exit", )
         );
