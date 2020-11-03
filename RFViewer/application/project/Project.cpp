@@ -74,16 +74,22 @@ bool Project::PackageMod(const string& outputPath)
         {
             if (inContainer)
             {
-                //Todo: Repack .str2_pc which holds edited textures
-                //Todo: Update and resave .asm_pc file which references the edited .str2_pc
-                //Todo: Copy .str2_pc and .asm_pc to output folder
-                //Todo: Add <Replace> entry form .str2_pc to modinfo
-                //Todo: Add <Replace> entry form .asm_pc to modinfo
+                //Todo: **SECOND** Need to split this step into a separate loop to support editing multiple cpegs in one str2_pc
+                //Todo: Put outputted files into subfolder based on vpp they're in to avoid name conflicts
+                //Todo: Determine what data needs to be stored for the following loop to complete this step
+                //Copy edited str2_pc contents to temp folder
+                //Copy unedited str2_pc contents to temp folder. We need all the files to repack the str2
+                //Repack str2_pc from temp files, delete temp files, and parse freshly packed str2
+                //Update asm_pc from freshly packed str2
+                //Resave asm_pc to project cache
+                //Copy new str2 and asm files to output folder
 
-
+                //Todo: **THIRD** Write this step. Only step that can be done immediately
+                //Add <Replace> blocks for str2 and asm file
             }
             else
             {
+                //Todo: Put outputted files into subfolder based on vpp they're in to avoid name conflicts
                 //Copy edited files from project cache to output folder
                 string cpuFilename = string(split.back());
                 string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(cpuFilename);

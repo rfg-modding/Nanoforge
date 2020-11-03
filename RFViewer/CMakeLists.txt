@@ -66,7 +66,7 @@ target_include_directories(RFViewer SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Source/
     ${CMAKE_SOURCE_DIR}/Dependencies/im3d
-    ${CMAKE_SOURCE_DIR}/Dependencies/tinyxml2
+    ${CMAKE_SOURCE_DIR}/Dependencies/tinyxml2/
     ${CMAKE_SOURCE_DIR}/Dependencies/spdlog/include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imnodes/
     ${CMAKE_SOURCE_DIR}/Dependencies/ImGuiFileDialog/

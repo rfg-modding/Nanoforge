@@ -193,19 +193,20 @@ void PackfileVFS::AddFileToCache(const string& packfileName, const string& filen
     else //Otherwise must extract all files
     {
         string entryParentFolder = globalCachePath_ + packfileName + "\\";
+        //If in container can extract all subfiles to output
         if (inContainer)
         {
             //Extract all subfiles
             entryParentFolder += filename1 + "\\";
-            parent->ExtractSubfiles(entryParentFolder);
+            parent->ExtractSubfiles(entryParentFolder, true);
         }
-        else
+        else //Else extracting C&C packfile. Must selectively extract to avoid storing str2s in cache
         {
             //Extract all subfiles
             string entryParentFolder = globalCachePath_ + packfileName + "\\";
 
             //Have to use special case here to since we don't want to store actual .str2_pc files in the cache
-            std::vector<MemoryFile> files = parent->ExtractSubfiles();
+            std::vector<MemoryFile> files = parent->ExtractSubfiles(false);
 
             //Write files out if they aren't str_pc files. Those are only represented as folders in the cache
             for (auto& file : files)
@@ -213,9 +214,10 @@ void PackfileVFS::AddFileToCache(const string& packfileName, const string& filen
                 string ext = Path::GetExtension(file.Filename);
                 if (ext != ".str2_pc")
                     File::WriteToFile(entryParentFolder + file.Filename, file.Bytes);
-
-                delete[] file.Bytes.data();
             }
+            //Todo: This is terrible. Make this more obvious and/or auto destroy this buffer
+            //That ExtractSubfiles function extracts these files as one big buffer so we only have to free once
+            delete[] files[0].Bytes.data();
         }
 
         //Todo: Add func to register existing file instead of reloading whole cache
