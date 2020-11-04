@@ -221,6 +221,8 @@ void TextureDocument_Update(GuiState* state, Document& doc)
         gui::LabelAndValue("Flags:", std::to_string((int)entry.Flags));
         gui::LabelAndValue("Filename offset:", std::to_string(entry.FilenameOffset));
         gui::LabelAndValue("Source height:", std::to_string(entry.SourceHeight));
+        gui::LabelAndValue("Fps:", std::to_string(entry.Fps));
+        gui::LabelAndValue("Mip levels:", std::to_string(entry.MipLevels));
         gui::LabelAndValue("Frame size:", std::to_string(entry.FrameSize));
     }
     else
