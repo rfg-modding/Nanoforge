@@ -15,7 +15,7 @@ bool NewTerrainInstanceAdded = false;
 //Set this to false to test the init sequence. It will wait for this to be set to true to start init. F1 sets this to true
 bool CanStartInit = true;
 //Signals that the worker thread is done so any worker resources can be cleared once the rest of the program is done with them
-bool WorkerDone = false;
+bool TerrainWorkerDone = false;
 
 void LoadTerrainMeshes(GuiState* state);
 void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state);
@@ -35,7 +35,7 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
 
 void WorkerThread(GuiState* state, bool reload)
 {
-    WorkerDone = false;
+    TerrainWorkerDone = false;
     state->SetStatus(ICON_FA_SYNC " Waiting for init signal", Working);
     while (!CanStartInit)
     {
@@ -53,11 +53,6 @@ void WorkerThread(GuiState* state, bool reload)
         Log->info("Loaded {} packfiles", state->PackfileVFS->packfiles_.size());
         state->FileTreeLocked = false;
     }
-
-    //Todo: Re-enable remainder of this when the map viewer is re-enabled. Also, instead of immediately loading terrain and zone data should wait for the player to open a territory or zone
-    state->ClearStatus();
-    WorkerDone = true;
-    return;
 
     //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory
     //Read all zones from zonescript_terr01.vpp_pc
@@ -82,11 +77,12 @@ void WorkerThread(GuiState* state, bool reload)
         }
     }
 
-    //Load terrain meshes and extract their index + vertex data
-    LoadTerrainMeshes(state);
-
     state->ClearStatus();
-    WorkerDone = true;
+
+
+    //Load terrain meshes and extract their index + vertex data
+    //LoadTerrainMeshes(state);
+    //TerrainWorkerDone = true;
 }
 
 //Loads vertex and index data of each zones terrain mesh

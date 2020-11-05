@@ -1,6 +1,7 @@
 #pragma once
 #include "gui/GuiState.h"
 #include "common/string/String.h"
+#include "gui/documents/SceneDocument.h"
 
 static string ZoneList_SearchTerm = "";
 static std::vector<const char*> TerritoryList =
@@ -77,7 +78,13 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::SameLine();
     if (ImGui::Button("Set##SetTerritory"))
     {
-        state->SetTerritory(string(TerritoryList[currentTerritory]));
+        string territoryName = string(TerritoryList[currentTerritory]);
+        state->SetTerritory(territoryName);
+        state->CreateDocument(Document(territoryName, &SceneDocument_Init, &SceneDocument_Update, &SceneDocument_OnClose, new SceneDocumentData
+        {
+            .TerritoryName = territoryName,
+            .SceneIndex = state->Renderer->Scenes.size()
+        }));
     }
     ImGui::Separator();
 

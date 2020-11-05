@@ -100,7 +100,7 @@ void Application::Run()
             //renderer_.InitTerrainMeshes(&TerrainInstances);
 
             //If the worker is done clear it's temporary data
-            if (WorkerDone)
+            if (TerrainWorkerDone)
                 WorkerThread_ClearData();
         }
 

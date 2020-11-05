@@ -27,6 +27,10 @@ public:
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
     void HandleResize(int windowWidth, int windowHeight);
     
+    ID3D11ShaderResourceView* GetView() { return sceneViewShaderResource_; }
+    u32 Width() { return sceneViewWidth_; }
+    u32 Height() { return sceneViewHeight_; }
+
     Camera Cam;
 
 private:
