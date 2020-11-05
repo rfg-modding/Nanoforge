@@ -125,7 +125,6 @@ void MainGui::Update(f32 deltaTime)
         
         if (document->FirstDraw)
         {
-            //ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
             ImGui::DockBuilderDockWindow(document->Title.c_str(), ImGui::DockBuilderGetCentralNode(dockspaceId)->ID);
             ImGui::DockBuilderFinish(dockspaceId);
         }
