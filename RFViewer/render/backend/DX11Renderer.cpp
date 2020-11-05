@@ -169,7 +169,7 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
 {
     ImGui_ImplWin32_EnableDpiAwareness();
     //Todo: Move into config file or have Application class set this
-    const char* windowClassName = "RF Viewer";
+    const char* windowClassName = "Nanoforge";
 
     WNDCLASSEX wc; //Create a new extended windows class
     wc.cbSize = sizeof(WNDCLASSEX); //Size of our windows class
@@ -191,7 +191,7 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
         //Todo: Implement behavior for this, letting you drag and drop files onto the app. Could drop maps or packfiles onto it
         WS_EX_ACCEPTFILES, //Extended style
         windowClassName, //Name of our windows class
-        "RF Viewer", //Name in the title bar of our window
+        "Nanoforge", //Name in the title bar of our window
         WS_OVERLAPPEDWINDOW, //style of our window
         CW_USEDEFAULT, CW_USEDEFAULT, //Top left corner of window
         windowWidth_, //Width of our window

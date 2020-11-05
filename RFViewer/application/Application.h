@@ -50,10 +50,6 @@ private:
     const u32 maxFrameRate = 60;
     const f32 maxFrameRateDelta = 1.0f / static_cast<f32>(maxFrameRate);
 
-    string packfileFolderPath_ = "C:/Program Files (x86)/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered";
-    //Name of the vpp_pc file that zone data is loaded from at startup
-    string territoryFilename_ = "zonescript_terr01.vpp_pc";
-
     std::vector<spdlog::sink_ptr> logSinks_ = {};
 
     //Future for worker thread. Need to store it for std::async to actually run it asynchronously

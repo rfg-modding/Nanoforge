@@ -22,6 +22,14 @@ enum ThemePreset
     Dark,
     Blue
 };
+//Basic enum for handling switch from welcome screen to main gui
+enum GuiStateEnum
+{
+    //Welcome screen. Initial state, must select or create a project to get out of this
+    Welcome,
+    //Main gui. Where most of the app is
+    Main
+};
 
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
@@ -31,9 +39,10 @@ public:
 
     void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer, Project* project);
     void Update(f32 deltaTime);
-    void HandleResize();
+    void HandleResize(u32 width, u32 height);
 
     GuiState State;
+    GuiStateEnum StateEnum = Welcome;
 
 private: 
     void DrawMainMenuBar();
@@ -47,6 +56,7 @@ private:
     void DrawNewProjectWindow();
     void DrawOpenProjectWindow();
     void DrawSaveProjectWindow();
+    void DrawWelcomeWindow();
 
     //Size is pre-allocated with MaxGuiPanels elements. Crashes if it resizes beyond this
     std::vector<GuiPanel> panels_ = {};
@@ -58,4 +68,7 @@ private:
     bool showNewProjectWindow_ = false;
     bool showOpenProjectWindow_ = false;
     bool showSaveProjectWindow_ = false;
+
+    u32 windowWidth_;
+    u32 windowHeight_;
 };

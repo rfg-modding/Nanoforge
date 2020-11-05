@@ -289,13 +289,6 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     }
     ImGui::PopStyleColor();
 
-    //Todo: Misc / QOL changes
-        //Todo: Add option to disable/limit caching
-        //Todo: Add bookmarks to real file explorer used when exporting/importing. See ImGuiFileDialog repo for examples of this
-        //Todo: Add export support for PC_8888 (doesn't work with dds exporter)
-        //Todo: Allow exporting dxt compressed files to formats other than dds (see if people really care about this, any decent image editor can handle dds)
-
-
     ImGui::Columns(1);
     ImGui::End();
 }

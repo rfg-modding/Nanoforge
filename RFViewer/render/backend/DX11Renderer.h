@@ -33,8 +33,11 @@ public:
     
     //Creates a shader resource view from the provided input and returns it. Up to user to free it once they're done
     ImTextureID TextureDataToHandle(std::span<u8> data, DXGI_FORMAT format, u32 width, u32 height);
+    u32 WindowWidth() { return windowWidth_; }
+    u32 WindowHeight() { return windowHeight_; }
 
     std::vector<Scene> Scenes = {};
+
 
 private:
     //Todo: Add a callback so viewport windows can be written outside of the renderer

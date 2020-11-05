@@ -14,10 +14,11 @@
 #include "gui/panels/LogPanel.h"
 #include "application/project/Project.h"
 #include "Log.h"
+#include "application/Settings.h"
 #include "ImGuiFileDialog/ImGuiFileDialog.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
-
+#include <spdlog/fmt/fmt.h>
 
 MainGui::~MainGui()
 {
@@ -60,6 +61,16 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Zone
 
 void MainGui::Update(f32 deltaTime)
 {
+    DrawNewProjectWindow();
+    DrawOpenProjectWindow();
+    DrawSaveProjectWindow();
+    if (StateEnum == Welcome)
+        DrawWelcomeWindow();
+
+    //Dont draw main gui if we're not in the main gui state.
+    if (StateEnum != Main)
+        return;
+
     //Draw built in / special gui elements
     DrawMainMenuBar();
     DrawDockspace();
@@ -125,15 +136,12 @@ void MainGui::Update(f32 deltaTime)
         document++;
         counter++;
     }
-
-    DrawNewProjectWindow();
-    DrawOpenProjectWindow();
-    DrawSaveProjectWindow();
 }
 
-void MainGui::HandleResize()
+void MainGui::HandleResize(u32 width, u32 height)
 {
-
+    windowWidth_ = width;
+    windowHeight_ = height;
 }
 
 void MainGui::DrawMainMenuBar()
@@ -148,6 +156,25 @@ void MainGui::DrawMainMenuBar()
             ImGui::Separator();
             ImGuiMenuItemShort("Package mod", State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);)
             ImGui::Separator();
+            
+            if (ImGui::BeginMenu("Recent projects"))
+            {
+                for (auto& path : Settings_RecentProjects)
+                {
+                    if (ImGui::MenuItem(Path::GetFileName(path).c_str()))
+                    {
+                        if (State.CurrentProject->Load(path))
+                        {
+                            StateEnum = Main;
+                            ImGui::End();
+                            return;
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::Separator();
+            
             ImGuiMenuItemShort("Exit", )
         );
         for (auto& menuItem : menuItems_)
@@ -490,6 +517,13 @@ void MainGui::DrawNewProjectWindow()
             State.CurrentProject->Save();
             State.CurrentProject->Load(endPath + projectName + ".nanoproj");
 
+            //If in welcome screen switch to main screen upon creating a new project
+            if (StateEnum == Welcome)
+                StateEnum = Main;
+
+            //Add project to recent projects list if unique
+            Settings_AddRecentProjectPathUnique(endPath + projectName + ".nanoproj");
+            Settings_Write();
             showNewProjectWindow_ = false;
         }
 
@@ -509,7 +543,16 @@ void MainGui::DrawOpenProjectWindow()
         if (igfd::ImGuiFileDialog::Instance()->IsOk)
         {
             //Todo: Add save check if project already open
-            State.CurrentProject->Load(igfd::ImGuiFileDialog::Instance()->GetFilePathName());
+            if (State.CurrentProject->Load(igfd::ImGuiFileDialog::Instance()->GetFilePathName()))
+            {
+                //If in welcome screen switch to main screen upon opening a project
+                if (StateEnum == Welcome)
+                    StateEnum = Main;
+
+                //Add project to recent projects list if unique
+                Settings_AddRecentProjectPathUnique(igfd::ImGuiFileDialog::Instance()->GetFilePathName());
+                Settings_Write();
+            }
         }
         igfd::ImGuiFileDialog::Instance()->CloseDialog("OpenProjectFile");
     }
@@ -521,4 +564,47 @@ void MainGui::DrawSaveProjectWindow()
         return;
 
     State.CurrentProject->Save();
+}
+
+void MainGui::DrawWelcomeWindow()
+{
+    ImGui::SetNextWindowPos({0, 0});
+    ImGui::SetNextWindowSize(ImVec2(windowWidth_, windowHeight_));
+    if (!ImGui::Begin("Welcome", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Welcome to Nanoforge");
+    ImGui::Separator();
+
+    ImGui::BeginChild("##WelcomeColumn0", ImVec2(950.0f, 450.0f), true, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Text("Open or create a project to continue");
+    if (ImGui::Button("New project"))
+    {
+        showNewProjectWindow_ = true;
+    }
+
+    ImGui::Separator();
+    State.FontManager->FontL.Push();
+    ImGui::Text(ICON_FA_FILE_IMPORT "Recent projects");
+    State.FontManager->FontL.Pop();
+    ImGui::Separator();
+
+    for (auto& path : Settings_RecentProjects)
+    {
+        if (ImGui::Selectable(fmt::format("{} - \"{}\"", Path::GetFileName(path), path).c_str(), false))
+        {
+            if (State.CurrentProject->Load(path))
+            {
+                StateEnum = Main;
+                ImGui::End();
+                return;
+            }
+        }
+    }
+    ImGui::EndChild();
+
+    ImGui::End();
 }
