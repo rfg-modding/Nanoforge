@@ -189,10 +189,6 @@ bool Project::PackageMod(const string& outputPath, PackfileVFS* vfs)
                     if (!entry.is_directory())
                         std::filesystem::remove(entry);
 
-                //Cleanup str2 resources stored on the heap
-                newStr2.Cleanup();
-
-
                 //Add <Replace> blocks for str2 and asm file
                 auto* replaceStr2 = changes->InsertNewChildElement("Replace");
                 replaceStr2->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), str2Filename).c_str());

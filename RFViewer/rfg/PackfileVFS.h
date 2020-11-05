@@ -21,7 +21,6 @@ class PackfileVFS
 {
 public:
     void Init(const string& packfileFolderPath, Project* project);
-    ~PackfileVFS();
 
     //Scans metadata of all vpps in the data folder and loads the global file cache
     void ScanPackfilesAndLoadCache();
