@@ -7,6 +7,7 @@
 #include "rfg/PackfileVFS.h"
 #include "rfg/ZoneManager.h"
 #include "gui/MainGui.h"
+#include "project/Project.h"
 #include <ext/WindowsWrapper.h>
 #include <chrono>
 #include <spdlog/spdlog.h>
@@ -20,10 +21,10 @@ public:
 
     void Run();
     void HandleResize();
+    void HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     bool Paused = false;
     Timer FrameTimer;
-    Camera Camera;
     MainGui Gui;
 
 private:
@@ -39,6 +40,7 @@ private:
     ImGuiFontManager fontManager_;
     PackfileVFS packfileVFS_;
     ZoneManager zoneManager_;
+    Project project_;
 
     int windowWidth_ = 1600;
     int windowHeight_ = 1000;
@@ -47,10 +49,6 @@ private:
     f32 deltaTime_ = 0.01f;
     const u32 maxFrameRate = 60;
     const f32 maxFrameRateDelta = 1.0f / static_cast<f32>(maxFrameRate);
-
-    string packfileFolderPath_ = "C:/Program Files (x86)/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered";
-    //Name of the vpp_pc file that zone data is loaded from at startup
-    string territoryFilename_ = "zonescript_terr01.vpp_pc";
 
     std::vector<spdlog::sink_ptr> logSinks_ = {};
 

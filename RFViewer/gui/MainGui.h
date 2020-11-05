@@ -2,6 +2,7 @@
 #include "common/Typedefs.h"
 #include "GuiState.h"
 #include "GuiBase.h"
+#include "MenuItem.h"
 #include <ext/WindowsWrapper.h>
 #include <vector>
 #include <mutex>
@@ -11,40 +12,23 @@ class PackfileVFS;
 class Camera;
 class ZoneManager;
 class DX11Renderer;
+class Project;
 
-struct MenuItem
+//Maximum gui panels. Gui list is preallocated so we can have stable pointers to the panels
+const u32 MaxGuiPanels = 256;
+
+enum ThemePreset
 {
-    string Text;
-    std::vector<MenuItem> Items = {};
-    //Todo: Must update if we start adding panels after init. Currently do not do this
-    GuiPanel* panel = nullptr;
-
-    MenuItem* GetItem(const string& text)
-    {
-        for (auto& item : Items)
-        {
-            if (item.Text == text)
-                return &item;
-        }
-        return nullptr;
-    }
-    void Draw()
-    {
-        if (panel)
-        {
-            ImGui::MenuItem(Text.c_str(), "", &panel->Open);
-            return;
-        }
-        
-        if (ImGui::BeginMenu(Text.c_str()))
-        {
-            for (auto& item : Items)
-            {
-                item.Draw();
-            }
-            ImGui::EndMenu();
-        }
-    }
+    Dark,
+    Blue
+};
+//Basic enum for handling switch from welcome screen to main gui
+enum GuiStateEnum
+{
+    //Welcome screen. Initial state, must select or create a project to get out of this
+    Welcome,
+    //Main gui. Where most of the app is
+    Main
 };
 
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
@@ -53,18 +37,38 @@ class MainGui
 public:
     ~MainGui();
 
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Camera* camera, ZoneManager* zoneManager, DX11Renderer* renderer);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer, Project* project);
     void Update(f32 deltaTime);
-    void HandleResize();
+    void HandleResize(u32 width, u32 height);
 
     GuiState State;
+    GuiStateEnum StateEnum = Welcome;
 
 private: 
     void DrawMainMenuBar();
     void DrawDockspace();
     void GenerateMenus();
     MenuItem* GetMenu(const string& text);
+    void CheckGuiListResize();
 
+    void SetThemePreset(ThemePreset preset);
+
+    void DrawNewProjectWindow();
+    void DrawOpenProjectWindow();
+    void DrawSaveProjectWindow();
+    void DrawWelcomeWindow();
+
+    //Size is pre-allocated with MaxGuiPanels elements. Crashes if it resizes beyond this
     std::vector<GuiPanel> panels_ = {};
     std::vector<MenuItem> menuItems_ = {};
+
+    //Docking data
+    ImGuiID dockspaceId = 0;
+
+    bool showNewProjectWindow_ = false;
+    bool showOpenProjectWindow_ = false;
+    bool showSaveProjectWindow_ = false;
+
+    u32 windowWidth_;
+    u32 windowHeight_;
 };

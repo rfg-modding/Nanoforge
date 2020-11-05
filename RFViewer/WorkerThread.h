@@ -45,11 +45,19 @@ void WorkerThread(GuiState* state, bool reload)
     //We only need to scan the packfiles once. Packfile data is independent from our current territory
     if (!reload)
     {
+        state->FileTreeLocked = true;
+        state->FileTreeNeedsRegen = true;
         //Scan contents of packfiles
         state->SetStatus(ICON_FA_SYNC " Scanning packfiles", Working);
-        state->PackfileVFS->ScanPackfiles();
+        state->PackfileVFS->ScanPackfilesAndLoadCache();
         Log->info("Loaded {} packfiles", state->PackfileVFS->packfiles_.size());
+        state->FileTreeLocked = false;
     }
+
+    //Todo: Re-enable remainder of this when the map viewer is re-enabled. Also, instead of immediately loading terrain and zone data should wait for the player to open a territory or zone
+    state->ClearStatus();
+    WorkerDone = true;
+    return;
 
     //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory
     //Read all zones from zonescript_terr01.vpp_pc
@@ -69,7 +77,8 @@ void WorkerThread(GuiState* state, bool reload)
             newCamPos.x += 100.0f;
             newCamPos.y += 500.0f;
             newCamPos.z += 100.0f;
-            state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+            //Todo: Add support to scene system
+            //state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
         }
     }
 

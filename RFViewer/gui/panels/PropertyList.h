@@ -21,152 +21,18 @@ void PropertyList_Update(GuiState* state, bool* open)
         return;
     }
 
-    ImGui::Separator();
     state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_WRENCH " Properties");
     state->FontManager->FontL.Pop();
+    ImGui::Separator();
 
-    if (!state->SelectedObject)
+    if (state->PropertyPanelContentFuncPtr)
     {
-        ImGui::Text("%s Select a zone object to see it's properties", ICON_FA_EXCLAMATION_CIRCLE);
+        state->PropertyPanelContentFuncPtr(state);
     }
     else
     {
-        ZoneObjectNode36& selected = *state->SelectedObject;
-        for (IZoneProperty* prop : selected.Self->Properties)
-        {
-            //Todo: Add support for these types
-            //Ignore these types for now since they're not yet supported
-            if (prop->DataType == ZonePropertyType::NavpointData || prop->DataType == ZonePropertyType::List || prop->DataType == ZonePropertyType::ConstraintTemplate)
-                continue;
-
-            ImGui::Separator();
-            state->FontManager->FontMedium.Push();
-            ImGui::Text(prop->Name);
-            //state->FontManager->FontMedium.Pop();
-            //ImGui::Separator();
-
-            switch (prop->DataType)
-            {
-            case ZonePropertyType::None:
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-                break;
-            case ZonePropertyType::String:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[String]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Value:", static_cast<StringProperty*>(prop)->Data);
-                break;
-            case ZonePropertyType::Bool:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Bool]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Value:", static_cast<BoolProperty*>(prop)->Data ? "true" : "false");
-                break;
-            case ZonePropertyType::Float:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Float]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Value:", std::to_string(static_cast<FloatProperty*>(prop)->Data));
-                break;
-            case ZonePropertyType::Uint:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Uint]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Value:", std::to_string(static_cast<UintProperty*>(prop)->Data));
-                break;
-            case ZonePropertyType::BoundingBox:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Bounding box]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Min:", static_cast<BoundingBoxProperty*>(prop)->Min.String());
-                gui::LabelAndValue("    - Max:", static_cast<BoundingBoxProperty*>(prop)->Max.String());
-                break;
-            //case ZonePropertyType::ConstraintTemplate: //Todo: Support this type
-            //    ImGui::SameLine();
-            //    ImGui::TextColored(gui::TertiaryTextColor, "[Constraint template]");
-            //    state->FontManager->FontMedium.Pop();
-            //    ImGui::Separator();
-
-
-            //    break;
-            case ZonePropertyType::Matrix33:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Matrix33]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Rvec:", static_cast<Matrix33Property*>(prop)->Data.rvec.String());
-                gui::LabelAndValue("    - Uvec:", static_cast<Matrix33Property*>(prop)->Data.uvec.String());
-                gui::LabelAndValue("    - Fvec:", static_cast<Matrix33Property*>(prop)->Data.fvec.String());
-                break;
-            case ZonePropertyType::Vec3:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Vec3]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Value:", static_cast<Vec3Property*>(prop)->Data.String());
-                break;
-            case ZonePropertyType::DistrictFlags:
-                {
-                    ImGui::SameLine();
-                    ImGui::TextColored(gui::TertiaryTextColor, "[DistrictFlags]");
-                    state->FontManager->FontMedium.Pop();
-                    ImGui::Separator();
-
-                    u32 flags = static_cast<u32>(static_cast<DistrictFlagsProperty*>(prop)->Data);
-                    gui::LabelAndValue("    - AllowCough:", (flags & static_cast<u32>(DistrictFlags::AllowCough)) != 0 ? "true" : "false");
-                    gui::LabelAndValue("    - AllowAmbEdfCivilianDump:", (flags & static_cast<u32>(DistrictFlags::AllowAmbEdfCivilianDump)) != 0 ? "true" : "false");
-                    gui::LabelAndValue("    - PlayCapstoneUnlockedLines:", (flags & static_cast<u32>(DistrictFlags::PlayCapstoneUnlockedLines)) != 0 ? "true" : "false");
-                    gui::LabelAndValue("    - DisableMoraleChange:", (flags & static_cast<u32>(DistrictFlags::DisableMoraleChange)) != 0 ? "true" : "false");
-                    gui::LabelAndValue("    - DisableControlChange:", (flags & static_cast<u32>(DistrictFlags::DisableControlChange)) != 0 ? "true" : "false"); 
-                }
-                break;
-            //case ZonePropertyType::NavpointData:
-            //    ImGui::SameLine();
-            //    ImGui::TextColored(gui::TertiaryTextColor, "[NavpointData]");
-            //    state->FontManager->FontMedium.Pop();
-            //    ImGui::Separator();
-
-
-            //    break;
-            //case ZonePropertyType::List: //Todo: Support this type
-            //    ImGui::SameLine();
-            //    ImGui::TextColored(gui::TertiaryTextColor, "[List]");
-            //    state->FontManager->FontMedium.Pop();
-            //    ImGui::Separator();
-
-
-            //    break;
-            case ZonePropertyType::Op:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Orient & position]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Position:", static_cast<OpProperty*>(prop)->Position.String());
-                gui::LabelAndValue("    - Orient.Rvec:", static_cast<OpProperty*>(prop)->Orient.rvec.String());
-                gui::LabelAndValue("    - Orient.Uvec:", static_cast<OpProperty*>(prop)->Orient.uvec.String());
-                gui::LabelAndValue("    - Orient.Fvec:", static_cast<OpProperty*>(prop)->Orient.fvec.String());
-                break;
-            default:
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-                break;
-            }
-        }
+        ImGui::TextWrapped("%s Click a file in the file explorer or another panel to see it's properties here.", ICON_FA_EXCLAMATION_CIRCLE);
     }
 
     ImGui::End();

@@ -22,3 +22,11 @@
 [submodule "Dependencies/imnodes"]
 	path = Dependencies/imnodes
 	url = https://github.com/Nelarius/imnodes.git
+[submodule "Dependencies/DirectXTex"]
+	url = https://github.com/microsoft/DirectXTex.git
+[submodule "lib"]
+	path = lib
+	url = https://github.com/Moneyl/RF-Viewer-Lib.git
+[submodule "Dependencies/ImGuiFileDialog"]
+	path = Dependencies/ImGuiFileDialog
+	url = https://github.com/aiekick/ImGuiFileDialog.git

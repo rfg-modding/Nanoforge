@@ -3,6 +3,7 @@
 #include "rfg/PackfileVFS.h"
 #include "rfg/ZoneManager.h"
 #include "render/camera/Camera.h"
+#include "documents/Document.h"
 #include <imgui_node_editor.h>
 
 class DX11Renderer;
@@ -17,15 +18,20 @@ enum GuiStatus
     None //Used for default function arguments
 };
 
+class GuiState;
+class Project;
+//Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
+using PropertyPanelContentFunc = void(GuiState* state);
+
 class GuiState
 {
 public:
     ImGuiFontManager* FontManager = nullptr;
-    PackfileVFS* PackfileVFS = nullptr; 
-    Camera* Camera = nullptr;
+    PackfileVFS* PackfileVFS = nullptr;
     ZoneManager* ZoneManager = nullptr;
     //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;
+    Project* CurrentProject = nullptr;
 
     bool Visible = true;
 
@@ -54,6 +60,17 @@ public:
     bool ReloadNeeded = false;
     string CurrentTerritoryName;
     string CurrentTerritoryShortname;
+
+    //If true the file explorer will regenerate it's tree
+    bool FileTreeNeedsRegen = true;
+    //If true the file tree won't access packfileVFS. Used to defer tree generation until all packfiles have been scanned to reduce unecessary tree regen at startup
+    bool FileTreeLocked = true;
+
+    //Content func for property panel
+    PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
+
+    //Documents that are currently open
+    std::vector<Document> Documents = {};
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
@@ -102,5 +119,24 @@ public:
         CurrentTerritoryShortname = newTerritory;
         if (!firstLoad)
             ReloadNeeded = true;
+    }
+    //Create and init a document
+    void CreateDocument(Document&& document)
+    {
+        //Make sure document with same title doesn't already exist
+        for (auto& doc : Documents)
+        {
+            if (doc.Title == document.Title)
+            {
+                if (document.Data)
+                    delete document.Data;
+
+                return;
+            }
+        }
+
+        //Create document
+        Documents.push_back(document);
+        Documents.back().Init(this, Documents.back());
     }
 };

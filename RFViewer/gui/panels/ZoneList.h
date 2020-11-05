@@ -67,7 +67,6 @@ void ZoneList_Update(GuiState* state, bool* open)
         return;
     }
 
-    ImGui::Separator();
     state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_MAP " Zones");
     state->FontManager->FontL.Pop();
@@ -94,7 +93,6 @@ void ZoneList_Update(GuiState* state, bool* open)
         ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
     }
 
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     if (ImGui::Button("Show all"))
     {
@@ -149,7 +147,8 @@ void ZoneList_Update(GuiState* state, bool* open)
                 newCamPos.x += 50.0f;
                 newCamPos.y += 100.0f;
                 newCamPos.z += 50.0f;
-                state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+                //Todo: Add support to scene system
+                //state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
             }
         }
         ImGui::SameLine();
@@ -159,7 +158,6 @@ void ZoneList_Update(GuiState* state, bool* open)
     }
     ImGui::Columns(1);
     ImGui::EndChild();
-    ImGui::PopStyleColor();
 
     ImGui::End();
 }

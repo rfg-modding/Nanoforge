@@ -21,8 +21,8 @@ add_executable (RFViewer ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_demo.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_draw.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_win32.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui/examples/imgui_impl_dx11.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/backends/imgui_impl_win32.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/backends/imgui_impl_dx11.cpp
     #Do the same with im3d
     ${CMAKE_SOURCE_DIR}/Dependencies/im3d/im3d.cpp
     #List imgui-node-editor files
@@ -44,6 +44,9 @@ add_executable (RFViewer ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/tinyxml2/tinyxml2.cpp
     # imnodes files
     ${CMAKE_SOURCE_DIR}/dependencies/imnodes/imnodes.cpp
+    # ImGuiFileDialog files
+    ${CMAKE_SOURCE_DIR}/dependencies/ImGuiFileDialog/CustomFont.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/ImGuiFileDialog/ImGuiFileDialog/ImGuiFileDialog.cpp
     )
 
 # Add include directories
@@ -58,12 +61,16 @@ target_include_directories(RFViewer SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui/
     ${CMAKE_SOURCE_DIR}/Dependencies/IconFontCppHeaders/
     ${CMAKE_SOURCE_DIR}/Dependencies/
+    ${CMAKE_SOURCE_DIR}/Dependencies/DirectXTex/DirectXTex/
+    ${CMAKE_SOURCE_DIR}/Dependencies/DirectXTex/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Source/
     ${CMAKE_SOURCE_DIR}/Dependencies/im3d
-    ${CMAKE_SOURCE_DIR}/Dependencies/tinyxml2
+    ${CMAKE_SOURCE_DIR}/Dependencies/tinyxml2/
     ${CMAKE_SOURCE_DIR}/Dependencies/spdlog/include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imnodes/
+    ${CMAKE_SOURCE_DIR}/Dependencies/ImGuiFileDialog/
+    ${CMAKE_SOURCE_DIR}/Dependencies/ImGuiFileDialog/3rdparty/dirent/include/
 )
 
 # Copy assets directory to binary dir after builds
@@ -76,3 +83,10 @@ add_custom_command(TARGET RFViewer POST_BUILD
 target_link_libraries(RFViewer PRIVATE Common)
 target_link_libraries(RFViewer PRIVATE RfgTools++)
 target_link_libraries(RFViewer PRIVATE spdlog)
+
+# Have to manually link pre-built versions of these for the moment since it wasn't playing nice with cmake add_subdirectory
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_link_libraries(RFViewer PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex_d.lib)
+else()
+    target_link_libraries(RFViewer PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex.lib)
+endif()

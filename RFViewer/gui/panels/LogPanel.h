@@ -5,7 +5,7 @@
 
 void LogPanel_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Output", open))
+    if (!ImGui::Begin("Log", open))
     {
         ImGui::End();
         return;
@@ -15,7 +15,6 @@ void LogPanel_Update(GuiState* state, bool* open)
     static bool autoScroll = true;
     ImGui::Checkbox("Auto scroll", &autoScroll);
 
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
     ImGui::BeginChild("OutputChildWindow", ImVec2(0, 0), true, ImGuiWindowFlags_ChildWindow);
     
     //Grab the ringbuffer sink off the logger to read recent log messages
@@ -48,6 +47,5 @@ void LogPanel_Update(GuiState* state, bool* open)
         ImGui::SetScrollHereY(1.0f);
 
     ImGui::EndChild();
-    ImGui::PopStyleColor();
     ImGui::End();
 }
