@@ -1,4 +1,4 @@
-#include "ZoneManager.h"
+#include "Territory.h"
 #include "common/filesystem/Path.h"
 #include "common/filesystem/File.h"
 #include "common/string/String.h"
@@ -7,14 +7,14 @@
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
 
-void ZoneManager::Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname)
+void Territory::Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname)
 {
     packfileVFS_ = packfileVFS;
     territoryFilename_ = territoryFilename;
     territoryShortname_ = territoryShortname;
 }
 
-void ZoneManager::LoadZoneData()
+void Territory::LoadZoneData()
 {
     Log->info("Loading zone data from {}", territoryFilename_);
     Packfile3* zonescriptVpp = packfileVFS_->GetPackfile(territoryFilename_);
@@ -35,7 +35,7 @@ void ZoneManager::LoadZoneData()
 
         //Todo: It'd be safer to do this all in a temporary vector and then .swap() it into the real one
         BinaryReader reader(fileBuffer.value());
-        ZoneFile& zoneFile = ZoneFiles.emplace_back();
+        ZoneData& zoneFile = ZoneFiles.emplace_back();
         zoneFile.Name = Path::GetFileName(std::filesystem::path(path));
         zoneFile.Zone.SetName(zoneFile.Name);
         zoneFile.Zone.Read(reader);
@@ -50,7 +50,7 @@ void ZoneManager::LoadZoneData()
 
     //Sort vector by object count for convenience
     std::sort(ZoneFiles.begin(), ZoneFiles.end(),
-    [](const ZoneFile& a, const ZoneFile& b)
+    [](const ZoneData& a, const ZoneData& b)
     {
         return a.Zone.Header.NumObjects > b.Zone.Header.NumObjects;
     });
@@ -70,7 +70,7 @@ void ZoneManager::LoadZoneData()
     InitObjectClassData();
 }
 
-void ZoneManager::ResetTerritoryData()
+void Territory::ResetTerritoryData()
 {
     for (auto& zoneFile : ZoneFiles)
     {
@@ -80,7 +80,7 @@ void ZoneManager::ResetTerritoryData()
     ZoneObjectClasses.clear();;
 }
 
-bool ZoneManager::ShouldShowObjectClass(u32 classnameHash)
+bool Territory::ShouldShowObjectClass(u32 classnameHash)
 {
     for (const auto& objectClass : ZoneObjectClasses)
     {
@@ -90,7 +90,7 @@ bool ZoneManager::ShouldShowObjectClass(u32 classnameHash)
     return true;
 }
 
-bool ZoneManager::ObjectClassRegistered(u32 classnameHash, u32& outIndex)
+bool Territory::ObjectClassRegistered(u32 classnameHash, u32& outIndex)
 {
     outIndex = InvalidZoneIndex;
     u32 i = 0;
@@ -106,7 +106,7 @@ bool ZoneManager::ObjectClassRegistered(u32 classnameHash, u32& outIndex)
     return false;
 }
 
-void ZoneManager::UpdateObjectClassInstanceCounts(u32 selectedZone)
+void Territory::UpdateObjectClassInstanceCounts(u32 selectedZone)
 {
     //Zero instance counts for each object class
     for (auto& objectClass : ZoneObjectClasses)
@@ -134,7 +134,7 @@ void ZoneManager::UpdateObjectClassInstanceCounts(u32 selectedZone)
     });
 }
 
-void ZoneManager::InitObjectClassData()
+void Territory::InitObjectClassData()
 {
     ZoneObjectClasses =
     {
@@ -200,7 +200,7 @@ void ZoneManager::InitObjectClassData()
     }
 }
 
-ZoneObjectClass& ZoneManager::GetObjectClass(u32 classnameHash)
+ZoneObjectClass& Territory::GetObjectClass(u32 classnameHash)
 {
     for (auto& objectClass : ZoneObjectClasses)
     {
@@ -212,7 +212,7 @@ ZoneObjectClass& ZoneManager::GetObjectClass(u32 classnameHash)
     THROW_EXCEPTION("Failed to find object class with classname hash {}", classnameHash);
 }
 
-void ZoneManager::SetZoneShortName(ZoneFile& zone)
+void Territory::SetZoneShortName(ZoneData& zone)
 {
     const string& fullName = zone.Name;
     zone.ShortName = fullName; //Set shortname to fullname by default in case of failure

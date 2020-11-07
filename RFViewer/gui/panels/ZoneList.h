@@ -83,7 +83,7 @@ void ZoneList_Update(GuiState* state, bool* open)
         state->CreateDocument(Document(territoryName, &SceneDocument_Init, &SceneDocument_Update, &SceneDocument_OnClose, new SceneDocumentData
         {
             .TerritoryName = territoryName,
-            .SceneIndex = state->Renderer->Scenes.size()
+            .SceneIndex = (u32)state->Renderer->Scenes.size()
         }));
     }
     ImGui::Separator();
@@ -103,7 +103,7 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     if (ImGui::Button("Show all"))
     {
-        for (auto& zone : state->ZoneManager->ZoneFiles)
+        for (auto& zone : state->CurrentTerritory->ZoneFiles)
         {
             zone.RenderBoundingBoxes = true;
         }
@@ -111,7 +111,7 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::SameLine();
     if (ImGui::Button("Hide all"))
     {
-        for (auto& zone : state->ZoneManager->ZoneFiles)
+        for (auto& zone : state->CurrentTerritory->ZoneFiles)
         {
             zone.RenderBoundingBoxes = false;
         }
@@ -122,7 +122,7 @@ void ZoneList_Update(GuiState* state, bool* open)
 
     ImGui::Columns(2);
     u32 i = 0;
-    for (auto& zone : state->ZoneManager->ZoneFiles)
+    for (auto& zone : state->CurrentTerritory->ZoneFiles)
     {
         if (ZoneList_SearchTerm != "" && zone.Name.find(ZoneList_SearchTerm) == string::npos)
             continue;
@@ -135,7 +135,7 @@ void ZoneList_Update(GuiState* state, bool* open)
 
         //Todo: Come up with a way of calculating this value at runtime
         const f32 glyphWidth = 9.0f;
-        ImGui::SetColumnWidth(0, glyphWidth * (f32)state->ZoneManager->LongestZoneName);
+        ImGui::SetColumnWidth(0, glyphWidth * (f32)state->CurrentTerritory->LongestZoneName);
         ImGui::SetColumnWidth(1, 300.0f);
         if (ImGui::Selectable(zone.ShortName.c_str()))
         {

@@ -10,7 +10,7 @@
 class ImGuiFontManager;
 class PackfileVFS;
 class Camera;
-class ZoneManager;
+class Territory;
 class DX11Renderer;
 class Project;
 
@@ -37,7 +37,7 @@ class MainGui
 public:
     ~MainGui();
 
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer, Project* project);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Territory* zoneManager, DX11Renderer* renderer, Project* project);
     void Update(f32 deltaTime);
     void HandleResize(u32 width, u32 height);
 

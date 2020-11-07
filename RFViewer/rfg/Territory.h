@@ -5,8 +5,8 @@
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\types\Vec4.h>
 
-//Wrapper around ZonePc36 used by ZoneManager
-struct ZoneFile
+//Wrapper around ZonePc36 used by Territory
+struct ZoneData
 {
     string Name;
     string ShortName;
@@ -15,13 +15,13 @@ struct ZoneFile
     bool Persistent = false;
 };
 
-//Used by ZoneManager to filter objects list by class type
+//Used by Territory to filter objects list by class type
 struct ZoneObjectClass
 {
     string Name;
     u32 Hash = 0;
     u32 NumInstances = 0;
-    //Todo: This is mixing ui logic with data. I'd like to separate this stuff out of ZoneManager if possible
+    //Todo: This is mixing ui logic with data. I'd like to separate this stuff out of Territory if possible
     Vec4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
     bool Show = true;
     bool ShowLabel = false;
@@ -30,8 +30,8 @@ struct ZoneObjectClass
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
 
-//Loads all zone files and tracks info about them and their contents
-class ZoneManager
+//Loads all zone files for a territory and tracks info about them and their contents
+class Territory
 {
 public:
     //Set values needed for it to function
@@ -51,7 +51,7 @@ public:
     void InitObjectClassData();
     ZoneObjectClass& GetObjectClass(u32 classnameHash);
 
-    std::vector<ZoneFile> ZoneFiles;
+    std::vector<ZoneData> ZoneFiles;
     std::vector<ZoneObjectClass> ZoneObjectClasses = {};
 
     u32 LongestZoneName = 0;
@@ -61,7 +61,7 @@ private:
     //Goal is to hide unecessary info such as the territory, prefix, and extension where possible
     //Still has full name for situations where that info is useful or for users who prefer that format
     //Note: Assumes persistence prefix "p_" has already been checked for and that Name has already been set.
-    void SetZoneShortName(ZoneFile& zone);
+    void SetZoneShortName(ZoneData& zone);
 
     PackfileVFS* packfileVFS_ = nullptr;
     //Name of the vpp_pc file that zone data is loaded from at startup

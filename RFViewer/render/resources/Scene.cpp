@@ -64,7 +64,7 @@ void Scene::Draw()
     }
 
     //Set render target and clear it
-    d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<float*>(&clearColor));
+    d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<const float*>(&ClearColor));
     d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
     d3d11Context_->RSSetViewports(1, &sceneViewport_);

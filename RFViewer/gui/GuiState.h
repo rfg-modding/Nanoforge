@@ -1,7 +1,7 @@
 #pragma once
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
-#include "rfg/ZoneManager.h"
+#include "rfg/Territory.h"
 #include "render/camera/Camera.h"
 #include "documents/Document.h"
 #include <imgui_node_editor.h>
@@ -28,7 +28,7 @@ class GuiState
 public:
     ImGuiFontManager* FontManager = nullptr;
     PackfileVFS* PackfileVFS = nullptr;
-    ZoneManager* ZoneManager = nullptr;
+    Territory* CurrentTerritory = nullptr;
     //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;
     Project* CurrentProject = nullptr;
@@ -99,7 +99,7 @@ public:
 
         //Otherwise select zone and update any data reliant on the selected zone
         SelectedZone = index;
-        ZoneManager->UpdateObjectClassInstanceCounts(SelectedZone);
+        CurrentTerritory->UpdateObjectClassInstanceCounts(SelectedZone);
     }
     void SetSelectedZoneObject(ZoneObjectNode36* object)
     {

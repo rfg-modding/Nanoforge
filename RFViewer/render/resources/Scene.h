@@ -32,6 +32,7 @@ public:
     u32 Height() { return sceneViewHeight_; }
 
     Camera Cam;
+    const DirectX::XMFLOAT4 ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
 private:
     void InitInternal();
@@ -55,7 +56,6 @@ private:
     ID3D11DepthStencilView* depthBufferView_ = nullptr;
     u32 sceneViewWidth_ = 200;
     u32 sceneViewHeight_ = 200;
-    DirectX::XMFLOAT4 clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
 
 

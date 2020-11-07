@@ -57,14 +57,14 @@ void WorkerThread(GuiState* state, bool reload)
     //Todo: Load all zone files in all vpps and str2s. Someone organize them by purpose/area. Maybe by territory
     //Read all zones from zonescript_terr01.vpp_pc
     state->SetStatus(ICON_FA_SYNC " Loading zones", Working);
-    state->ZoneManager->LoadZoneData();
+    state->CurrentTerritory->LoadZoneData();
     state->SetSelectedZone(0);
-    Log->info("Loaded {} zones", state->ZoneManager->ZoneFiles.size());
+    Log->info("Loaded {} zones", state->CurrentTerritory->ZoneFiles.size());
 
     //Move camera close to zone with the most objects by default. Convenient as some territories have origins distant from each other
-    if (state->ZoneManager->ZoneFiles.size() > 0)
+    if (state->CurrentTerritory->ZoneFiles.size() > 0)
     {
-        ZoneFile& zone = state->ZoneManager->ZoneFiles[0];
+        ZoneData& zone = state->CurrentTerritory->ZoneFiles[0];
         if (zone.Zone.Objects.size() > 0)
         {
             auto& firstObj = zone.Zone.Objects[0];
@@ -98,7 +98,7 @@ void LoadTerrainMeshes(GuiState* state)
     std::vector<Vec3> terrainPositions = {};
 
     //Create list of terrain meshes we need from obj_zone objects
-    for (auto& zone : state->ZoneManager->ZoneFiles)
+    for (auto& zone : state->CurrentTerritory->ZoneFiles)
     {
         //Get obj zone object from zone
         auto* objZoneObject = zone.Zone.GetSingleObject("obj_zone");
