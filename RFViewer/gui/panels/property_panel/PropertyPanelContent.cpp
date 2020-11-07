@@ -54,9 +54,6 @@ void PropertyPanel_Str2Content(GuiState* state)
         container = state->PackfileVFS->GetContainer(FileExplorer_SelectedNode->Filename, FileExplorer_SelectedNode->ParentName);
         if (!container)
             return;
-
-        //We immediately call Cleanup() so since we don't need to extract any files from the container here. Important to do this since some containers are pretty large
-        container->Cleanup();
     }
 
     //Draw container data if we've got it

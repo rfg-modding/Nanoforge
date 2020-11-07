@@ -243,7 +243,6 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state)
     }
 
     //Clear resources
-    container->Cleanup();
     delete container;
     delete[] cpuFileBytes.value().data();
     delete[] gpuFileBytes.value().data();

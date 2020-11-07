@@ -39,14 +39,16 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Zone
     panels_ =
     {
         GuiPanel{&FileExplorer_Update, "Tools/File explorer", true},
-        GuiPanel{&CameraPanel_Update, "Tools/Camera", false},
-        GuiPanel{&RenderSettings_Update, "Tools/Render settings", false},
         GuiPanel{&StatusBar_Update, "", true},
-        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", false},
         GuiPanel{&PropertyList_Update, "Tools/Properties", true},
         GuiPanel{&ZoneRender_Update, "", false},
         GuiPanel{&LogPanel_Update, "Tools/Log", true},
-        GuiPanel{&ZoneList_Update, "Tools/Zone list", false},
+        //Todo: Re-enable once scene view is fixed. Disabled temporarily since 3d view is broken for some necessary refactoring
+        //Todo: Likely will be fixed soon since viewing meshes is an upcoming feature
+        //GuiPanel{&CameraPanel_Update, "Tools/Camera", false},
+        //GuiPanel{&RenderSettings_Update, "Tools/Render settings", false},
+        //GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", false},
+        //GuiPanel{&ZoneList_Update, "Tools/Zone list", false},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD

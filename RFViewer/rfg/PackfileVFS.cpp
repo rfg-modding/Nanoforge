@@ -14,13 +14,6 @@ void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
     project_ = project;
 }
 
-PackfileVFS::~PackfileVFS()
-{
-    //Clear all packfile resources
-    for (auto& packfile : packfiles_)
-        packfile.Cleanup();
-}
-
 void PackfileVFS::ScanPackfilesAndLoadCache()
 {
     //Load global cache

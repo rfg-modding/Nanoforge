@@ -36,8 +36,6 @@ std::span<u8> FileHandle::Get()
             throw std::exception("Error! Failed to extract file from container via file handle.");
 #endif
 
-        //Delete container resources once done with it
-        container.Cleanup();
         //Return file byte buffer
         return fileBytes.value();
     }
