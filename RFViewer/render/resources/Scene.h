@@ -27,12 +27,18 @@ public:
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
     void HandleResize(int windowWidth, int windowHeight);
     
+    void InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances);
+
     ID3D11ShaderResourceView* GetView() { return sceneViewShaderResource_; }
     u32 Width() { return sceneViewWidth_; }
     u32 Height() { return sceneViewHeight_; }
 
     Camera Cam;
     const DirectX::XMFLOAT4 ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
+
+    //Todo: Get rid of this. Delete scenes like a sane person. Try again once scenes are refactored since they'll be a bit simpler
+    //Dumb fix for compiler not generating copy assignment operator needed by std::vector<Scene>::erase() and bugs in own implementation
+    bool Deleted = false;
 
 private:
     void InitInternal();
@@ -41,7 +47,6 @@ private:
     void InitTerrain();
     void LoadTerrainShaders(bool reload);
     void ResetTerritoryData();
-    void InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances);
 
     //General render state
     ID3D11Device* d3d11Device_ = nullptr;

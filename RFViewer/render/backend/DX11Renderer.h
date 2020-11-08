@@ -36,6 +36,9 @@ public:
     u32 WindowWidth() { return windowWidth_; }
     u32 WindowHeight() { return windowHeight_; }
 
+    void CreateScene();
+    void DeleteScene(u32 index);
+
     std::vector<Scene> Scenes = {};
 
 

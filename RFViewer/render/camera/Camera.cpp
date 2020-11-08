@@ -50,6 +50,9 @@ void Camera::HandleResize(const DirectX::XMFLOAT2& screenDimensions)
 
 void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if (!InputActive)
+        return;
+
     switch (msg)
     {
     case WM_KEYDOWN: //Key down

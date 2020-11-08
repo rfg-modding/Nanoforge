@@ -25,9 +25,9 @@ MainGui::~MainGui()
     node::DestroyEditor(State.NodeEditor);
 }
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Territory* zoneManager, DX11Renderer* renderer, Project* project)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project)
 {
-    State = GuiState{ fontManager, packfileVFS, zoneManager, renderer, project };
+    State = GuiState{ fontManager, packfileVFS, renderer, project };
 
     //Create node editor library context
     State.NodeEditor = node::CreateEditor();
@@ -46,7 +46,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Terr
         GuiPanel{&CameraPanel_Update, "Tools/Camera", false},
         GuiPanel{&RenderSettings_Update, "Tools/Render settings", false},
         GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", false},
-        GuiPanel{&ZoneList_Update, "Tools/Zone list", false},
+        GuiPanel{&ZoneList_Update, "Tools/Zone list", true},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD
@@ -153,7 +153,14 @@ void MainGui::DrawMainMenuBar()
             ImGuiMenuItemShort("Open project", showOpenProjectWindow_ = true;)
             ImGuiMenuItemShort("Save project", showSaveProjectWindow_ = true;)
             ImGui::Separator();
-            ImGuiMenuItemShort("Package mod", State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);)
+            ImGuiMenuItemShort("Package mod",
+            {
+                //Todo: Run on separate thread so this doesn't free the gui
+                //Todo: Consider blocking input with modal while packaging or at least blocking edits while packaging
+                State.SetStatus("Packing mod...", GuiStatus::Working);
+                State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);
+                State.ClearStatus();
+            })
             ImGui::Separator();
             
             if (ImGui::BeginMenu("Recent projects"))

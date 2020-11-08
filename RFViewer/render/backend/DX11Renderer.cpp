@@ -83,7 +83,8 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     d3d11Context_->RSSetState(rasterizerState_);
 
     for (auto& scene : Scenes)
-        scene.Draw();
+        if(!scene.Deleted)
+            scene.Draw();
 
     d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, nullptr);
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
@@ -157,6 +158,27 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
     texture->Release();
 
     return shaderResourceView;
+}
+
+void DX11Renderer::CreateScene()
+{
+    auto& scene = Scenes.emplace_back();
+    scene.Init(d3d11Device_, d3d11Context_);
+}
+
+void DX11Renderer::DeleteScene(u32 index)
+{
+    if (index >= Scenes.size())
+        return;
+
+    Scene& scene = Scenes[index];
+    scene.Cleanup();
+    scene.Deleted = true; //Very temporary and dumb workaround to bugs surrounding deletion
+
+    //auto begin = Scenes.begin();
+    //std::advance(begin, index);
+    //Scenes.erase(begin);
+    //Scenes.erase(Scenes.begin() + index);
 }
 
 void DX11Renderer::ImGuiDoFrame()

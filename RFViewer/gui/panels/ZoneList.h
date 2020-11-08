@@ -1,7 +1,7 @@
 #pragma once
 #include "gui/GuiState.h"
 #include "common/string/String.h"
-#include "gui/documents/SceneDocument.h"
+#include "gui/documents/TerritoryDocument.h"
 
 static string ZoneList_SearchTerm = "";
 static std::vector<const char*> TerritoryList =
@@ -76,13 +76,14 @@ void ZoneList_Update(GuiState* state, bool* open)
     static int currentTerritory = 0;
     ImGui::Combo("Territory", &currentTerritory, TerritoryList.data(), (int)TerritoryList.size());
     ImGui::SameLine();
-    if (ImGui::Button("Set##SetTerritory"))
+    if (ImGui::Button("Open##OpenTerritory"))
     {
         string territoryName = string(TerritoryList[currentTerritory]);
         state->SetTerritory(territoryName);
-        state->CreateDocument(Document(territoryName, &SceneDocument_Init, &SceneDocument_Update, &SceneDocument_OnClose, new SceneDocumentData
+        state->CreateDocument(Document(territoryName, &TerritoryDocument_Init, &TerritoryDocument_Update, &TerritoryDocument_OnClose, new TerritoryDocumentData
         {
-            .TerritoryName = territoryName,
+            .TerritoryName = state->CurrentTerritoryName,
+            .TerritoryShortname = state->CurrentTerritoryShortname,
             .SceneIndex = (u32)state->Renderer->Scenes.size()
         }));
     }
@@ -99,6 +100,20 @@ void ZoneList_Update(GuiState* state, bool* open)
         ImGui::SetNextItemWidth(176.5f);
         ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
     }
+
+    //Can't draw territory data if no territory is selected/open
+    if (!state->CurrentTerritory)
+    {
+        ImGui::TextWrapped("%s Open a territory above to see its zones.", ICON_FA_EXCLAMATION_CIRCLE);
+
+        ImGui::End();
+        return;
+    }
+
+    state->FontManager->FontL.Push();
+    ImGui::Text(string(ICON_FA_MAP " ") + state->CurrentTerritoryName);
+    state->FontManager->FontL.Pop();
+    ImGui::Separator();
 
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     if (ImGui::Button("Show all"))
@@ -154,8 +169,8 @@ void ZoneList_Update(GuiState* state, bool* open)
                 newCamPos.x += 50.0f;
                 newCamPos.y += 100.0f;
                 newCamPos.z += 50.0f;
-                //Todo: Add support to scene system
-                //state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+                state->CurrentTerritoryCamPosNeedsUpdate = true;
+                state->CurrentTerritoryNewCamPos = newCamPos;
             }
         }
         ImGui::SameLine();

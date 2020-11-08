@@ -322,10 +322,10 @@ void Scene::ResetTerritoryData()
     terrainModelMatrices_.clear();
 }
 
-void Scene::InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances)
+void Scene::InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances)
 {
     //Create terrain index & vertex buffers
-    for (auto& instance : *terrainInstances)
+    for (auto& instance : terrainInstances)
     {
         //Skip already-initialized terrain instances
         if (instance.RenderDataInitialized)

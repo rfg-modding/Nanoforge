@@ -48,11 +48,6 @@ public:
 
     DirectX::XMMATRIX camRotationMatrix;
 
-    f32 Speed = 5.0f;
-    f32 SprintSpeed = 10.0f;
-    f32 MinSpeed = 0.1f;
-    f32 MaxSpeed = 100.0f;
-
     [[nodiscard]] f32 GetFov() const { return fov_; }
     [[nodiscard]] f32 GetFovRadians() const { return fov_ * (3.141593f / 180.0f); } //Todo: Make PI a constant
     [[nodiscard]] f32 GetAspectRatio() const { return aspectRatio_; }
@@ -69,6 +64,12 @@ public:
     void SetLookSensitivity(f32 lookSensitivity) { lookSensitivity_ = lookSensitivity; }
 
     void SetPosition(f32 x, f32 y, f32 z);
+
+    f32 Speed = 5.0f;
+    f32 SprintSpeed = 10.0f;
+    f32 MinSpeed = 0.1f;
+    f32 MaxSpeed = 100.0f;
+    bool InputActive = true; //If false does not respond to input
 
 private:
     //Todo: Move these to static func / helper namespace

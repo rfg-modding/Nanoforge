@@ -28,12 +28,18 @@ class GuiState
 public:
     ImGuiFontManager* FontManager = nullptr;
     PackfileVFS* PackfileVFS = nullptr;
-    Territory* CurrentTerritory = nullptr;
     //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;
     Project* CurrentProject = nullptr;
-
     bool Visible = true;
+
+    //Most recently selected territory. If you have multiple territories open this is the most recently selected window
+    Territory* CurrentTerritory = nullptr;
+    
+    //Todo: This would be better handled via an event system
+    //Used to trigger camera position changes in the focused territory
+    bool CurrentTerritoryCamPosNeedsUpdate = false;
+    Vec3 CurrentTerritoryNewCamPos;
 
     GuiStatus Status = Ready;
     string CustomStatusMessage = "";
