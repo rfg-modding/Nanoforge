@@ -39,17 +39,10 @@ void TerritoryDocument_Init(GuiState* state, Document& doc)
     //Create worker thread to load terrain meshes in background
     data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, doc);
 
-    //Todo: (WORKER) Tell renderer to create new meshes and resources each time a terrain mesh is ready. Can do this in SceneDocument_Update()
-        //Todo: Step 1: Have Scene class handle this. Make it specifically for rendering territories
-        //Todo: Step 2: Make scene class generic. Split texture/shader/model code into own classes. Maybe add custom behavior by making Scene abstract or with func ptrs
-
-
     //Todo: ZoneList needs to know which zones info to display. Maybe have SceneDocument own territory data and ZoneList draw based on SceneDocument
     //Todo: Update ZoneList, Properties, Camera, and Render settings to support multiples scenes
     //Todo: Consider moving some of those^ windows into the territory window. Likely camera and render settings
     //Todo: Consider providing different ui/menu for opening territories instead of the zone list. Is too hidden having it in the zone list. Maybe have territories panel
-
-    //Todo: Call WorkerThread_ClearData
 }
 
 void TerritoryDocument_Update(GuiState* state, Document& doc)
@@ -136,7 +129,7 @@ void TerritoryDocument_WorkerThread(GuiState* state, Document& doc)
     data->Territory.Init(state->PackfileVFS, data->TerritoryName, data->TerritoryShortname);
     data->Territory.LoadZoneData();
     state->CurrentTerritory = &data->Territory;
-    state->SetSelectedZone(0); //Todo: Assumes single territory
+    state->SetSelectedZone(0);
     Log->info("Loaded {} zones", data->Territory.ZoneFiles.size());
 
     //Move camera close to zone with the most objects by default. Convenient as some territories have origins distant from each other
@@ -150,8 +143,8 @@ void TerritoryDocument_WorkerThread(GuiState* state, Document& doc)
             newCamPos.x += 100.0f;
             newCamPos.y += 500.0f;
             newCamPos.z += 100.0f;
-            //Todo: Assumes single territory/scene
-            //state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+            state->CurrentTerritoryCamPosNeedsUpdate = true;
+            state->CurrentTerritoryNewCamPos = newCamPos;
         }
     }
 
@@ -327,7 +320,6 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state, D
     delete[] cpuFileBytes.value().data();
     delete[] gpuFileBytes.value().data();
 
-    //Todo: Need to tell the scene to generate dx11 resources for each new terrain mesh we process. May still need a mutex
     //Acquire resource lock before writing terrain instance data to the instance list
     std::lock_guard<std::mutex> lock(data->ResourceLock);
     data->TerrainInstances.push_back(terrain);
