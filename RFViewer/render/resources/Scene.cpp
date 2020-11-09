@@ -19,8 +19,6 @@ void Scene::Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context)
     InitInternal();
     InitRenderTarget();
     InitTerrain();
-
-    terrainShaderWriteTime_ = std::filesystem::last_write_time(terrainShaderPath_);
 }
 
 void Scene::Cleanup()
@@ -42,9 +40,6 @@ void Scene::Cleanup()
 
     ReleaseCOM(cbPerFrameBuffer);
     ReleaseCOM(cbPerObjectBuffer);
-
-    ReleaseCOM(depthBuffer_);
-    ReleaseCOM(depthBufferView_);
 }
 
 void Scene::Draw()
@@ -53,9 +48,9 @@ void Scene::Draw()
     shader_.TryReload();
 
     //Set render target and clear it
-    d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<const float*>(&ClearColor));
-    d3d11Context_->ClearDepthStencilView(depthBufferView_, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-    d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
+    d3d11Context_->ClearRenderTargetView(sceneViewTexture_.GetRenderTargetView(), reinterpret_cast<const float*>(&ClearColor));
+    d3d11Context_->ClearDepthStencilView(depthBufferTexture_.GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    d3d11Context_->OMSetRenderTargets(1, sceneViewTexture_.GetRenderTargetViewPP(), depthBufferTexture_.GetDepthStencilView());
     d3d11Context_->RSSetViewports(1, &sceneViewport_);
 
     //Update per-frame constant buffer
@@ -103,7 +98,7 @@ void Scene::HandleResize(int windowWidth, int windowHeight)
         
         //Recreate scene view resources with new size
         InitInternal();
-        CreateDepthBuffer(false);
+        CreateDepthBuffer();
 
         sceneViewport_.TopLeftX = 0.0f;
         sceneViewport_.TopLeftY = 0.0f;
@@ -118,56 +113,17 @@ void Scene::HandleResize(int windowWidth, int windowHeight)
 void Scene::InitInternal()
 {
     //Release scene texture and view if they've already been initialized
-    if (sceneViewShaderResource_)
-        ReleaseCOM(sceneViewShaderResource_);
-    if (sceneViewRenderTarget_)
-        ReleaseCOM(sceneViewRenderTarget_);
-    if (sceneViewTexture_)
-        ReleaseCOM(sceneViewTexture_);
     if (cbPerFrameBuffer)
         ReleaseCOM(cbPerFrameBuffer);
 
-    //Create texture the view is rendered to
-    D3D11_TEXTURE2D_DESC textureDesc;
-    ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
-    textureDesc.Width = sceneViewWidth_;
-    textureDesc.Height = sceneViewHeight_;
-    textureDesc.MipLevels = 1;
-    textureDesc.ArraySize = 1;
-    textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-    textureDesc.SampleDesc.Count = 1;
-    textureDesc.Usage = D3D11_USAGE_DEFAULT;
-    textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    textureDesc.CPUAccessFlags = 0;
-    textureDesc.MiscFlags = 0;
-    d3d11Device_->CreateTexture2D(&textureDesc, nullptr, &sceneViewTexture_);
-    if (!sceneViewTexture_)
-        THROW_EXCEPTION("sceneViewTexture_ nullptr after call to CreateTexture2D in DX11Renderer::InitScene()");
-
-    //Create the render target view for the scene
-    D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
-    renderTargetViewDesc.Format = textureDesc.Format;
-    renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-    renderTargetViewDesc.Texture2D.MipSlice = 0;
-
-    //Create the scene render target view and map it to the scene texture
-    d3d11Device_->CreateRenderTargetView(sceneViewTexture_, &renderTargetViewDesc, &sceneViewRenderTarget_);
-
-    //Create shader resource for dear imgui to use
-    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-    shaderResourceViewDesc.Format = textureDesc.Format;
-    shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-    shaderResourceViewDesc.Texture2D.MipLevels = 1;
-
-    //Todo: Add error code and (if possible) error string reporting to the DxCheck macro
-    //Create the shader resource view.
-    HRESULT result = d3d11Device_->CreateShaderResourceView(sceneViewTexture_, &shaderResourceViewDesc, &sceneViewShaderResource_);
+    //Create texture and map a render target and shader resource view to it
+    DXGI_FORMAT sceneViewFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    sceneViewTexture_.Create(d3d11Device_, sceneViewWidth_, sceneViewHeight_, sceneViewFormat, (D3D11_BIND_FLAG)(D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
+    sceneViewTexture_.CreateRenderTargetView(); //Allows us to use texture as a render target
+    sceneViewTexture_.CreateShaderResourceView(); //Lets shaders view texture. Used by dear imgui to draw textures in gui
 
 #ifdef DEBUG_BUILD
-    SetDebugName(sceneViewTexture_, "sceneViewTexture_");
-    SetDebugName(sceneViewRenderTarget_, "sceneViewRenderTarget_");
-    SetDebugName(sceneViewShaderResource_, "sceneViewShaderResource_");
+    SetDebugName(sceneViewTexture_.Get(), "sceneViewTexture_");
 #endif
 
     //Create per-frame constant buffer
@@ -178,41 +134,21 @@ void Scene::InitInternal()
     cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbbd.CPUAccessFlags = 0;
     cbbd.MiscFlags = 0;
-    result = d3d11Device_->CreateBuffer(&cbbd, NULL, &cbPerFrameBuffer);
+    HRESULT result = d3d11Device_->CreateBuffer(&cbbd, NULL, &cbPerFrameBuffer);
 }
 
 void Scene::InitRenderTarget()
 {
     CreateDepthBuffer();
-    d3d11Context_->OMSetRenderTargets(1, &sceneViewRenderTarget_, depthBufferView_);
+    d3d11Context_->OMSetRenderTargets(1, sceneViewTexture_.GetRenderTargetViewPP(), depthBufferTexture_.GetDepthStencilView());
     d3d11Context_->RSSetViewports(1, &sceneViewport_);
 }
 
-void Scene::CreateDepthBuffer(bool firstResize)
+void Scene::CreateDepthBuffer()
 {
-    //Clear depth resources if we're re-initing them
-    if (!firstResize && depthBuffer_)
-        ReleaseCOM(depthBuffer_);
-    if (!firstResize && depthBufferView_)
-        ReleaseCOM(depthBufferView_);
-
-    D3D11_TEXTURE2D_DESC depthBufferDesc;
-    depthBufferDesc.Width = sceneViewWidth_;
-    depthBufferDesc.Height = sceneViewHeight_;
-    depthBufferDesc.MipLevels = 1;
-    depthBufferDesc.ArraySize = 1;
-    depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depthBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-    depthBufferDesc.CPUAccessFlags = 0;
-    depthBufferDesc.MiscFlags = 0;
-    depthBufferDesc.SampleDesc.Count = 1;
-    depthBufferDesc.SampleDesc.Quality = 0;
-
-    if (FAILED(d3d11Device_->CreateTexture2D(&depthBufferDesc, 0, &depthBuffer_)))
-        THROW_EXCEPTION("Failed to create depth buffer texture");
-    if (FAILED(d3d11Device_->CreateDepthStencilView(depthBuffer_, 0, &depthBufferView_)))
-        THROW_EXCEPTION("Failed to create depth buffer view");
+    //Create depth buffer texture and view
+    depthBufferTexture_.Create(d3d11Device_, sceneViewWidth_, sceneViewHeight_, DXGI_FORMAT_D24_UNORM_S8_UINT, D3D11_BIND_DEPTH_STENCIL);
+    depthBufferTexture_.CreateDepthStencilView();
 }
 
 void Scene::InitTerrain()

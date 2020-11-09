@@ -105,7 +105,8 @@ public:
 
         //Otherwise select zone and update any data reliant on the selected zone
         SelectedZone = index;
-        CurrentTerritory->UpdateObjectClassInstanceCounts(SelectedZone);
+        if(CurrentTerritory)
+            CurrentTerritory->UpdateObjectClassInstanceCounts(SelectedZone);
     }
     void SetSelectedZoneObject(ZoneObjectNode36* object)
     {

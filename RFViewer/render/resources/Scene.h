@@ -3,6 +3,7 @@
 #include "render/resources/Shader.h"
 #include "render/camera/Camera.h"
 #include "rfg/TerrainHelpers.h"
+#include "render/resources/Texture2D.h"
 #include <filesystem>
 #include <d3d11.h>
 #include <array>
@@ -30,7 +31,7 @@ public:
     
     void InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances);
 
-    ID3D11ShaderResourceView* GetView() { return sceneViewShaderResource_; }
+    ID3D11ShaderResourceView* GetView() { return sceneViewTexture_.GetShaderResourceView(); }
     u32 Width() { return sceneViewWidth_; }
     u32 Height() { return sceneViewHeight_; }
 
@@ -44,7 +45,7 @@ public:
 private:
     void InitInternal();
     void InitRenderTarget();
-    void CreateDepthBuffer(bool firstResize = true);
+    void CreateDepthBuffer();
     void InitTerrain();
     void LoadTerrainShaders();
     void ResetTerritoryData();
@@ -52,14 +53,11 @@ private:
     //General render state
     ID3D11Device* d3d11Device_ = nullptr;
     ID3D11DeviceContext* d3d11Context_ = nullptr;
+    D3D11_VIEWPORT sceneViewport_;
 
     //Scene state
-    ID3D11Texture2D* sceneViewTexture_ = nullptr;
-    ID3D11RenderTargetView* sceneViewRenderTarget_ = nullptr;
-    ID3D11ShaderResourceView* sceneViewShaderResource_ = nullptr;
-    D3D11_VIEWPORT sceneViewport_;
-    ID3D11Texture2D* depthBuffer_ = nullptr;
-    ID3D11DepthStencilView* depthBufferView_ = nullptr;
+    Texture2D sceneViewTexture_;
+    Texture2D depthBufferTexture_;
     u32 sceneViewWidth_ = 200;
     u32 sceneViewHeight_ = 200;
 
@@ -68,18 +66,6 @@ private:
     //TERRAIN SPECIFIC DATA
     //Todo: Move into other classes to make this a generic scene class that isn't specific to rendering a certain thing like terrain
 
-    //Todo: Classes to make + their rough designs:
-    //Todo: Shader (1st pass):
-    //Todo:     - Manages vertex + pixel shader pair.
-    //Todo:     - Handles loading + reloading + tracking if source files were edited (for live reload).
-    //Todo:     - Use RAII for resource management.
-    
-    //Todo: Texture (1st pass):
-    //Todo:     - Takes raw data, format, and dimensions as input and creates DX11 resources from them.
-    //Todo:     - No hot reload for the moment. Just recreate texture if necessary.
-    //Todo:     - Use RAII for resource management
-    //Todo:     - Put loading/saving/manipulation in util namespace or maybe static funcs
-
     //Todo: Mesh (1st pass):
     //Todo:     - Takes raw data, format, and other config as input and creates DX11 resources from them.
     //Todo:     - No hot reload for the moment. Just recreate texture if necessary.
@@ -87,6 +73,7 @@ private:
     //Todo:     - Put loading/saving/manipulation in util namespace or maybe static funcs
 
     //Todo: Re-organize helper namespaces. Likely can combine a few
+    //Todo: Put loading/saving/manipulation for textures/meshes in util namespace or maybe static funcs
     //Todo: Move files into folder where useful. Likely should due to recent large amount of files added.
     //Todo: Split window code in DX11Renderer into a class or util namespace
     //Todo: Note: For first pass don't have materials, just put all shader variables in big buffer for all scene types
@@ -117,8 +104,6 @@ public:
     cbPerFrame cbPerFrameObject;
 
 private:
-    std::filesystem::file_time_type terrainShaderWriteTime_;
-
     DirectX::XMMATRIX WVP;
 
     ID3D11Buffer* cbPerObjectBuffer = nullptr;

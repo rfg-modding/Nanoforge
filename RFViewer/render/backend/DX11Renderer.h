@@ -14,12 +14,6 @@ class ImGuiFontManager;
 class Camera;
 using ImTextureID = void*;
 
-struct Vertex
-{
-    DirectX::XMFLOAT3 pos;
-    DirectX::XMFLOAT2 texCoord;
-};
-
 class DX11Renderer
 {
 public:
@@ -40,7 +34,6 @@ public:
     void DeleteScene(u32 index);
 
     std::vector<Scene> Scenes = {};
-
 
 private:
     //Todo: Add a callback so viewport windows can be written outside of the renderer
@@ -68,7 +61,6 @@ private:
     ID3D11Device* d3d11Device_ = nullptr;
     ID3D11DeviceContext* d3d11Context_ = nullptr;
     IDXGISwapChain* swapChain_ = nullptr;
-
     ID3D11RenderTargetView* renderTargetView_ = nullptr;
 
     ID3D11RasterizerState* rasterizerState_ = nullptr;
