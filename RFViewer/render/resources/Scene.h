@@ -1,20 +1,21 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "render/resources/Shader.h"
+#include "render/resources/Texture2D.h"
+#include "render/resources/Mesh.h"
 #include "render/camera/Camera.h"
 #include "rfg/TerrainHelpers.h"
-#include "render/resources/Texture2D.h"
 #include <filesystem>
 #include <d3d11.h>
 #include <array>
 
+//Todo: Replace with RenderObject class
 //Render data for a single terrain instance. A terrain instance is the terrain for a single zone which consists of 9 meshes which are stitched together
 struct TerrainInstanceRenderData
 {
-    std::array<ID3D11Buffer*, 9> terrainVertexBuffers_ = {};
-    std::array<ID3D11Buffer*, 9> terrainIndexBuffers_ = {};
-    std::array<u32, 9> MeshIndexCounts_ = {};
+    std::array<Mesh, 9> Meshes = {};
     Vec3 Position;
+    std::array<DirectX::XMMATRIX, 9> ModelMatrices;
 };
 
 //Scenes represent different environments or objects that are being rendered. Each frame active scenes are rendered to a texture/render target
@@ -27,7 +28,7 @@ public:
     void Cleanup();
     void Draw();
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
-    void HandleResize(int windowWidth, int windowHeight);
+    void HandleResize(u32 windowWidth, u32 windowHeight);
     
     void InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances);
 
@@ -61,11 +62,7 @@ private:
     u32 sceneViewWidth_ = 200;
     u32 sceneViewHeight_ = 200;
 
-
-
     //TERRAIN SPECIFIC DATA
-    //Todo: Move into other classes to make this a generic scene class that isn't specific to rendering a certain thing like terrain
-
     //Todo: Mesh (1st pass):
     //Todo:     - Takes raw data, format, and other config as input and creates DX11 resources from them.
     //Todo:     - No hot reload for the moment. Just recreate texture if necessary.
@@ -77,19 +74,7 @@ private:
     //Todo: Move files into folder where useful. Likely should due to recent large amount of files added.
     //Todo: Split window code in DX11Renderer into a class or util namespace
     //Todo: Note: For first pass don't have materials, just put all shader variables in big buffer for all scene types
-    //Todo: Once done make sure theres no other terrain specific code in Scene
-
-
-
-
-
-    
-    //Todo: NOTE: DELETE COMMENTS BELOW THIS IF ABOVE CHANGES ARE SUFFICIENT. LIKELY ARE FOR WHAT WERE DOING SO FAR (TERRAIN + STATIC MESHES)
-    //Todo: Note: For second pass split shader variables by constant/per frame/per object shader variables
-
-    //Todo: Material (2nd pass):
-    //Todo:     - Define shaders used
-    //Todo:     - Define constant/per frame/per object shader variables
+    //Todo: Once done make sure theres no other terrain specific code, variables, or comments in Scene
 
 public:
     ID3D11Buffer* cbPerFrameBuffer = nullptr;
@@ -113,18 +98,14 @@ private:
     };
     cbPerObject cbPerObj;
 
-    //Terrain data
     //Data that's the same for all terrain instances
     Shader shader_;
     ID3D11InputLayout* terrainVertexLayout_ = nullptr;
     ID3D11Buffer* terrainPerObjectBuffer_ = nullptr;
     cbPerObject cbPerObjTerrain;
-    UINT terrainVertexStride = 0;
-    UINT terrainVertexOffset = 0;
 
     //Per instance terrain data
     std::vector<TerrainInstanceRenderData> terrainInstanceRenderData_ = {};
-    std::vector<DirectX::XMMATRIX> terrainModelMatrices_ = {};
 
     //Todo: Add build path variable that's set by cmake to the project root path for debug
 #ifdef DEBUG_BUILD

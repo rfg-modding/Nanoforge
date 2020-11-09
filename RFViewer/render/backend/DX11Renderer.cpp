@@ -24,7 +24,7 @@
 #include "Log.h"
 #include "gui/documents/PegHelpers.h"
 
-void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager)
+void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager)
 {
     hInstance_ = hInstance;
     windowWidth_ = WindowWidth;

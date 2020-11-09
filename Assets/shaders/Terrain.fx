@@ -44,6 +44,7 @@ VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
     float zoneMax = 255.5f;
     //Ranges
     float terrainRange = terrainMax - terrainMin;
+    terrainRange *= 0.9980; //Hack to fill in gaps between zones. May cause object positions to be slightly off
     float zoneRange = zoneMax - zoneMin;
     
     float4 posFloat = float4(inPos.x, inPos.y, inPos.z, inPos.w);

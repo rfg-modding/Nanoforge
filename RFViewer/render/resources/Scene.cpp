@@ -24,18 +24,18 @@ void Scene::Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context)
 void Scene::Cleanup()
 {
     ReleaseCOM(terrainVertexLayout_);
-    for (auto& instance : terrainInstanceRenderData_)
-    {
-        //Todo: Figure out why final buffer pair have a reference count of 0. It's likely leaking memory here by not clearing the last buffer.
-        //Note: We don't release the last pair of buffers as doing so causes a crash due to them having a ref count of 0. Unsure why the refcount is zero
-        for (u32 i = 0; i < instance.terrainVertexBuffers_.size() - 1; i++)
-        {
-            auto* vertexBuffer = instance.terrainVertexBuffers_[i];
-            auto* indexBuffer = instance.terrainIndexBuffers_[i];
-            ReleaseCOM(vertexBuffer);
-            ReleaseCOM(indexBuffer);
-        }
-    }
+    //for (auto& instance : terrainInstanceRenderData_)
+    //{
+    //    //Todo: Figure out why final buffer pair have a reference count of 0. It's likely leaking memory here by not clearing the last buffer.
+    //    //Note: We don't release the last pair of buffers as doing so causes a crash due to them having a ref count of 0. Unsure why the refcount is zero
+    //    for (u32 i = 0; i < instance.terrainVertexBuffers_.size() - 1; i++)
+    //    {
+    //        auto* vertexBuffer = instance.terrainVertexBuffers_[i];
+    //        auto* indexBuffer = instance.terrainIndexBuffers_[i];
+    //        ReleaseCOM(vertexBuffer);
+    //        ReleaseCOM(indexBuffer);
+    //    }
+    //}
     ReleaseCOM(terrainPerObjectBuffer_);
 
     ReleaseCOM(cbPerFrameBuffer);
@@ -73,28 +73,29 @@ void Scene::Draw()
             DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
             DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(renderInstance.Position.x, renderInstance.Position.y, renderInstance.Position.z);
 
-            terrainModelMatrices_[i] = DirectX::XMMatrixIdentity();
-            terrainModelMatrices_[i] = translation * rotation;
+            terrainInstanceRenderData_[i].ModelMatrices[j] = DirectX::XMMatrixIdentity();
+            terrainInstanceRenderData_[i].ModelMatrices[j] = translation * rotation;
 
-            WVP = terrainModelMatrices_[i] * Cam.camView * Cam.camProjection;
+            WVP = terrainInstanceRenderData_[i].ModelMatrices[j] * Cam.camView * Cam.camProjection;
             cbPerObjTerrain.WVP = XMMatrixTranspose(WVP);
             d3d11Context_->UpdateSubresource(terrainPerObjectBuffer_, 0, NULL, &cbPerObjTerrain, 0, 0);
             d3d11Context_->VSSetConstantBuffers(0, 1, &terrainPerObjectBuffer_);
 
-            d3d11Context_->IASetIndexBuffer(renderInstance.terrainIndexBuffers_[j], DXGI_FORMAT_R16_UINT, 0);
-            d3d11Context_->IASetVertexBuffers(0, 1, &renderInstance.terrainVertexBuffers_[j], &terrainVertexStride, &terrainVertexOffset);
+            renderInstance.Meshes[j].Bind(d3d11Context_);
+            //d3d11Context_->IASetIndexBuffer(renderInstance.terrainIndexBuffers_[j], DXGI_FORMAT_R16_UINT, 0);
+            //d3d11Context_->IASetVertexBuffers(0, 1, &renderInstance.terrainVertexBuffers_[j], &terrainVertexStride, &terrainVertexOffset);
 
-            d3d11Context_->DrawIndexed(renderInstance.MeshIndexCounts_[j], 0, 0);
+            d3d11Context_->DrawIndexed(renderInstance.Meshes[j].NumIndices(), 0, 0);
         }
     }
 }
 
-void Scene::HandleResize(int windowWidth, int windowHeight)
+void Scene::HandleResize(u32 windowWidth, u32 windowHeight)
 {
-    if ((u32)windowWidth != sceneViewWidth_ || (u32)windowHeight != sceneViewHeight_)
+    if (windowWidth != sceneViewWidth_ || windowHeight != sceneViewHeight_)
     {
-        sceneViewWidth_ = (u32)windowWidth;
-        sceneViewHeight_ = (u32)windowHeight;
+        sceneViewWidth_ = windowWidth;
+        sceneViewHeight_ = windowHeight;
         
         //Recreate scene view resources with new size
         InitInternal();
@@ -192,20 +193,19 @@ void Scene::LoadTerrainShaders()
 
 void Scene::ResetTerritoryData()
 {
-    for (auto& instance : terrainInstanceRenderData_)
-    {
-        //Todo: Figure out why final buffer pair have a reference count of 0. It's likely leaking memory here by not clearing the last buffer.
-        //Note: We don't release the last pair of buffers as doing so causes a crash due to them having a ref count of 0. Unsure why the refcount is zero
-        for (u32 i = 0; i < instance.terrainVertexBuffers_.size() - 1; i++)
-        {
-            auto* vertexBuffer = instance.terrainVertexBuffers_[i];
-            auto* indexBuffer = instance.terrainIndexBuffers_[i];
-            ReleaseCOM(vertexBuffer);
-            ReleaseCOM(indexBuffer);
-        }
-    }
-    terrainInstanceRenderData_.clear();
-    terrainModelMatrices_.clear();
+    //for (auto& instance : terrainInstanceRenderData_)
+    //{
+    //    //Todo: Figure out why final buffer pair have a reference count of 0. It's likely leaking memory here by not clearing the last buffer.
+    //    //Note: We don't release the last pair of buffers as doing so causes a crash due to them having a ref count of 0. Unsure why the refcount is zero
+    //    for (u32 i = 0; i < instance.terrainVertexBuffers_.size() - 1; i++)
+    //    {
+    //        auto* vertexBuffer = instance.terrainVertexBuffers_[i];
+    //        auto* indexBuffer = instance.terrainIndexBuffers_[i];
+    //        ReleaseCOM(vertexBuffer);
+    //        ReleaseCOM(indexBuffer);
+    //    }
+    //}
+    //terrainInstanceRenderData_.clear();
 }
 
 void Scene::InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances)
@@ -222,55 +222,20 @@ void Scene::InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances)
 
         for (u32 i = 0; i < 9; i++)
         {
-            ID3D11Buffer* terrainIndexBuffer = nullptr;
-            ID3D11Buffer* terrainVertexBuffer = nullptr;
-
-            //Create index buffer for instance
-            D3D11_BUFFER_DESC indexBufferDesc = {};
-            indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-            indexBufferDesc.ByteWidth = static_cast<u32>(instance.Indices[i].size_bytes());
-            indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-            indexBufferDesc.CPUAccessFlags = 0;
-            indexBufferDesc.MiscFlags = 0;
-
-            D3D11_SUBRESOURCE_DATA indexBufferInitData;
-            indexBufferInitData.pSysMem = instance.Indices[i].data();
-            HRESULT hr = d3d11Device_->CreateBuffer(&indexBufferDesc, &indexBufferInitData, &terrainIndexBuffer);
-            if (FAILED(hr))
-                THROW_EXCEPTION("Failed to create a terrain index buffer!");
-
-            d3d11Context_->IASetIndexBuffer(terrainIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-
-            //Create vertex buffer for instance
-            D3D11_BUFFER_DESC vertexBufferDesc = {};
-            vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-            vertexBufferDesc.ByteWidth = static_cast<u32>(instance.Vertices[i].size_bytes());
-            vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-            vertexBufferDesc.CPUAccessFlags = 0;
-
-            D3D11_SUBRESOURCE_DATA vertexBufferInitData = {};
-            vertexBufferInitData.pSysMem = instance.Vertices[i].data();
-            hr = d3d11Device_->CreateBuffer(&vertexBufferDesc, &vertexBufferInitData, &terrainVertexBuffer);
-            if (FAILED(hr))
-                THROW_EXCEPTION("Failed to create a terrain vertex buffer!");
-
-            //Set vertex buffer
-            terrainVertexStride = sizeof(LowLodTerrainVertex);
-            terrainVertexOffset = 0;
-            d3d11Context_->IASetVertexBuffers(0, 1, &terrainVertexBuffer, &terrainVertexStride, &terrainVertexOffset);
-
-            //Set primitive topology
-            d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-
+            Mesh& mesh = renderInstance.Meshes[i];
+            //Todo: Change this to take std::span<u8> as input so conversion isn't necessary
+            mesh.Create(d3d11Device_, d3d11Context_, std::span<u8>((u8*)instance.Vertices[i].data(), instance.Vertices[i].size_bytes()), 
+                                                     std::span<u8>((u8*)instance.Indices[i].data(), instance.Indices[i].size_bytes()), 
+                                                     instance.Vertices[i].size(), DXGI_FORMAT_R16_UINT, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            renderInstance.ModelMatrices[i] = DirectX::XMMATRIX();
 #ifdef DEBUG_BUILD
-            SetDebugName(terrainIndexBuffer, "terrain_index_buffer__" + instance.Name + std::to_string(i));
-            SetDebugName(terrainVertexBuffer, "terrain_vertex_buffer__" + instance.Name + std::to_string(i));
+            SetDebugName(mesh.GetIndexBuffer(), "terrain_index_buffer__" + instance.Name + std::to_string(i));
+            SetDebugName(mesh.GetVertexBuffer(), "terrain_vertex_buffer__" + instance.Name + std::to_string(i));
 #endif
 
-            renderInstance.terrainIndexBuffers_[i] = terrainIndexBuffer;
-            renderInstance.terrainVertexBuffers_[i] = terrainVertexBuffer;
-            renderInstance.MeshIndexCounts_[i] = static_cast<u32>(instance.Indices[i].size());
-            terrainModelMatrices_.push_back(DirectX::XMMATRIX());
+            //Todo: Re-enable or ensure being cleared elsewhere. Disabled for bug locating
+            //delete[] instance.Vertices[i].data();
+            //delete[] instance.Indices[i].data();
         }
 
         //Set bool so the instance isn't initialized more than once
