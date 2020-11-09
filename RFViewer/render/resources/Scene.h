@@ -40,6 +40,17 @@ public:
     //Dumb fix for compiler not generating copy assignment operator needed by std::vector<Scene>::erase() and bugs in own implementation
     bool Deleted = false;
 
+    ID3D11Buffer* cbPerFrameBuffer = nullptr;
+    struct cbPerFrame
+    {
+        DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
+        DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+        f32 DiffuseIntensity = 0.65f;
+        f32 ElevationFactorBias = 0.8f;
+        i32 ShadeMode = 1;
+    };
+    cbPerFrame cbPerFrameObject;
+
 private:
     void InitInternal();
     void InitRenderTarget();
@@ -68,17 +79,6 @@ private:
     //Todo: Move into other class / or maybe make this class virtual and specialize scenes
     //Todo: Alt: Define 'Material' class which lists out which shaders to use and the inputs for those
     //Todo:     - Plus have 'Model' and 'Texture' classes which represent other resources used
-
-    ID3D11Buffer* cbPerFrameBuffer = nullptr;
-    struct cbPerFrame
-    {
-        DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
-        DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-        f32 DiffuseIntensity = 0.65f;
-        f32 ElevationFactorBias = 0.8f;
-        i32 ShadeMode = 1;
-    };
-    cbPerFrame cbPerFrameObject;
 
     //Todo: Make shader class that handles reload timing
     std::filesystem::file_time_type terrainShaderWriteTime_;

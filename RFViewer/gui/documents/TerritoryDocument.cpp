@@ -38,12 +38,9 @@ void TerritoryDocument_Init(GuiState* state, Document& doc)
 
     //Create worker thread to load terrain meshes in background
     data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, doc);
-
-    //Todo: ZoneList needs to know which zones info to display. Maybe have SceneDocument own territory data and ZoneList draw based on SceneDocument
-    //Todo: Update ZoneList, Properties, Camera, and Render settings to support multiples scenes
-    //Todo: Consider moving some of those^ windows into the territory window. Likely camera and render settings
-    //Todo: Consider providing different ui/menu for opening territories instead of the zone list. Is too hidden having it in the zone list. Maybe have territories panel
 }
+
+void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc);
 
 void TerritoryDocument_Update(GuiState* state, Document& doc)
 {
@@ -97,18 +94,135 @@ void TerritoryDocument_Update(GuiState* state, Document& doc)
 
     scene.HandleResize(contentAreaSize.x, contentAreaSize.y);
 
+    //Store initial position so we can draw buttons over the scene texture after drawing it
+    ImVec2 initialPos = ImGui::GetCursorPos();
+
     //Render scene texture
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(scene.ClearColor.x, scene.ClearColor.y, scene.ClearColor.z, scene.ClearColor.w));
     ImGui::Image(scene.GetView(), ImVec2(static_cast<f32>(scene.Width()), static_cast<f32>(scene.Height())));
     ImGui::PopStyleColor();
 
+    //Set cursor pos to top left corner to draw buttons over scene texture
+    ImVec2 adjustedPos = initialPos;
+    adjustedPos.x += 10.0f;
+    adjustedPos.y += 10.0f;
+    ImGui::SetCursorPos(adjustedPos);
+
+    TerritoryDocument_DrawOverlayButtons(state, doc);
+
     ImGui::End();
+}
+
+void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc)
+{
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
+    Scene& scene = state->Renderer->Scenes[data->SceneIndex];
+
+    state->FontManager->FontL.Push();
+    if (ImGui::Button(ICON_FA_CAMERA))
+        ImGui::OpenPopup("##CameraSettingsPopup");
+    state->FontManager->FontL.Pop();
+    if (ImGui::BeginPopup("##CameraSettingsPopup"))
+    {
+        state->FontManager->FontL.Push();
+        ImGui::Text("Camera");
+        state->FontManager->FontL.Pop();
+        ImGui::Separator();
+
+        f32 fov = scene.Cam.GetFov();
+        f32 nearPlane = scene.Cam.GetNearPlane();
+        f32 farPlane = scene.Cam.GetFarPlane();
+        f32 lookSensitivity = scene.Cam.GetLookSensitivity();
+
+        if (ImGui::Button("0.1")) scene.Cam.Speed = 0.1f;
+        ImGui::SameLine();
+        if (ImGui::Button("1.0")) scene.Cam.Speed = 1.0f;
+        ImGui::SameLine();
+        if (ImGui::Button("10.0")) scene.Cam.Speed = 10.0f;
+        ImGui::SameLine();
+        if (ImGui::Button("25.0")) scene.Cam.Speed = 25.0f;
+        ImGui::SameLine();
+        if (ImGui::Button("50.0")) scene.Cam.Speed = 50.0f;
+        ImGui::SameLine();
+        if (ImGui::Button("100.0")) scene.Cam.Speed = 100.0f;
+
+        ImGui::InputFloat("Speed", &scene.Cam.Speed);
+        ImGui::InputFloat("Sprint speed", &scene.Cam.SprintSpeed);
+        ImGui::Separator();
+
+        if (ImGui::InputFloat("Fov", &fov))
+            scene.Cam.SetFov(fov);
+        if (ImGui::InputFloat("Near plane", &nearPlane))
+            scene.Cam.SetNearPlane(nearPlane);
+        if (ImGui::InputFloat("Far plane", &farPlane))
+            scene.Cam.SetFarPlane(farPlane);
+        if (ImGui::InputFloat("Look sensitivity", &lookSensitivity))
+            scene.Cam.SetLookSensitivity(lookSensitivity);
+
+        ImGui::Separator();
+        if (ImGui::InputFloat3("Position", (float*)&scene.Cam.camPosition))
+        {
+            scene.Cam.UpdateViewMatrix();
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::SameLine();
+    state->FontManager->FontL.Push();
+    if (ImGui::Button(ICON_FA_SUN))
+        ImGui::OpenPopup("##SceneSettingsPopup");
+    state->FontManager->FontL.Pop();
+    if (ImGui::BeginPopup("##SceneSettingsPopup"))
+    {
+        state->FontManager->FontL.Push();
+        ImGui::Text("Render settings");
+        state->FontManager->FontL.Pop();
+        ImGui::Separator();
+
+        ImGui::Text("Shading mode: ");
+        ImGui::SameLine();
+        ImGui::RadioButton("Elevation", &scene.cbPerFrameObject.ShadeMode, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("Diffuse", &scene.cbPerFrameObject.ShadeMode, 1);
+
+        if (scene.cbPerFrameObject.ShadeMode != 0)
+        {
+            ImGui::Text("Diffuse presets: ");
+            ImGui::SameLine();
+            if (ImGui::Button("Default"))
+            {
+                scene.cbPerFrameObject.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+                scene.cbPerFrameObject.DiffuseIntensity = 0.65f;
+                scene.cbPerFrameObject.ElevationFactorBias = 0.8f;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("False color"))
+            {
+                scene.cbPerFrameObject.DiffuseColor = { 1.15f, 0.67f, 0.02f, 1.0f };
+                scene.cbPerFrameObject.DiffuseIntensity = 0.55f;
+                scene.cbPerFrameObject.ElevationFactorBias = -0.8f;
+            }
+
+            ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&scene.cbPerFrameObject.DiffuseColor));
+            ImGui::InputFloat("Diffuse intensity", &scene.cbPerFrameObject.DiffuseIntensity);
+            ImGui::InputFloat("Elevation color bias", &scene.cbPerFrameObject.ElevationFactorBias);
+        }
+
+        ImGui::EndPopup();
+    }
 }
 
 void TerritoryDocument_OnClose(GuiState* state, Document& doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
     Scene& scene = state->Renderer->Scenes[data->SceneIndex];
+
+    if (state->CurrentTerritory == &data->Territory)
+    {
+        state->CurrentTerritory = nullptr;
+        state->SetSelectedZone(0);
+        state->SetSelectedZoneObject(nullptr);
+    }
 
     //Free territory data
     data->Territory.ResetTerritoryData();

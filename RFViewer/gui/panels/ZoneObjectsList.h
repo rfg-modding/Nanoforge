@@ -1,6 +1,7 @@
 #pragma once
 #include "gui/GuiState.h"
 #include "render/imgui/ImGuiConfig.h"
+#include "property_panel/PropertyPanelContent.h"
 
 //Todo: May want to move this to be under each zone in the zone window list since we'll have a third panel for per-object properties
 void ZoneObjectsList_Update(GuiState* state, bool* open)
@@ -76,6 +77,7 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
                 if (ImGui::IsItemClicked())
                 {
                     state->SetSelectedZoneObject(&object);
+                    state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
                 }
                 object.Selected = &object == state->SelectedObject;
 
@@ -93,6 +95,7 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
                         if (ImGui::IsItemClicked())
                         {
                             state->SetSelectedZoneObject(&childObject);
+                            state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
                         }
                         childObject.Selected = &childObject == state->SelectedObject;
                         ImGui::TreePop();

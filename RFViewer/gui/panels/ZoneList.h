@@ -1,5 +1,6 @@
 #pragma once
 #include "gui/GuiState.h"
+#include "render/backend/DX11Renderer.h"
 #include "common/string/String.h"
 #include "gui/documents/TerritoryDocument.h"
 
@@ -74,6 +75,7 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::Separator();
 
     static int currentTerritory = 0;
+    ImGui::SetNextItemWidth(150.0f);
     ImGui::Combo("Territory", &currentTerritory, TerritoryList.data(), (int)TerritoryList.size());
     ImGui::SameLine();
     if (ImGui::Button("Open##OpenTerritory"))
@@ -89,18 +91,6 @@ void ZoneList_Update(GuiState* state, bool* open)
     }
     ImGui::Separator();
 
-    static bool hideEmptyZones = true;
-    ImGui::Checkbox("Hide empty zones", &hideEmptyZones);
-    ImGui::SameLine();
-    static bool hideObjectBelowObjectThreshold = true;
-    ImGui::Checkbox("Minimum object count", &hideObjectBelowObjectThreshold);
-    static u32 minObjectsToShowZone = 2;
-    if (hideObjectBelowObjectThreshold)
-    {
-        ImGui::SetNextItemWidth(176.5f);
-        ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
-    }
-
     //Can't draw territory data if no territory is selected/open
     if (!state->CurrentTerritory)
     {
@@ -114,6 +104,18 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::Text(string(ICON_FA_MAP " ") + state->CurrentTerritoryName);
     state->FontManager->FontL.Pop();
     ImGui::Separator();
+
+    static bool hideEmptyZones = true;
+    ImGui::Checkbox("Hide empty zones", &hideEmptyZones);
+    ImGui::SameLine();
+    static bool hideObjectBelowObjectThreshold = true;
+    ImGui::Checkbox("Minimum object count", &hideObjectBelowObjectThreshold);
+    static u32 minObjectsToShowZone = 2;
+    if (hideObjectBelowObjectThreshold)
+    {
+        ImGui::SetNextItemWidth(176.5f);
+        ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
+    }
 
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     if (ImGui::Button("Show all"))

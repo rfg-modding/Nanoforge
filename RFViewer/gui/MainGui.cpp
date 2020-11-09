@@ -3,8 +3,6 @@
 #include "render/imgui/ImGuiFontManager.h"
 #include "render/imgui/imgui_ext.h"
 #include "gui/panels/FileExplorer.h"
-#include "gui/panels/CameraPanel.h"
-#include "gui/panels/RenderSettings.h"
 #include "gui/panels/ScriptxEditor.h"
 #include "gui/panels/StatusBar.h"
 #include "gui/panels/ZoneList.h"
@@ -43,9 +41,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
         GuiPanel{&PropertyList_Update, "Tools/Properties", true},
         GuiPanel{&ZoneRender_Update, "", false},
         GuiPanel{&LogPanel_Update, "Tools/Log", true},
-        GuiPanel{&CameraPanel_Update, "Tools/Camera", false},
-        GuiPanel{&RenderSettings_Update, "Tools/Render settings", false},
-        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", false},
+        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", true},
         GuiPanel{&ZoneList_Update, "Tools/Zone list", true},
 
         //Todo: Enable in release builds when this is a working feature
