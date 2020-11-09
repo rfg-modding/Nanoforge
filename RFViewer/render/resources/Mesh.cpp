@@ -30,9 +30,6 @@ void Mesh::Create(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context, 
     if (FAILED(d3d11Device->CreateBuffer(&indexBufferDesc, &indexBufferInitData, indexBuffer_.GetAddressOf())))
         THROW_EXCEPTION("Failed to create index buffer in Mesh::Create()");
 
-    d3d11Context->IASetIndexBuffer(indexBuffer_.Get(), indexBufferFormat_, 0);//Todo: See if this can be done at mesh render time
-
-
     //Create vertex buffer for instance
     D3D11_BUFFER_DESC vertexBufferDesc = {};
     vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -44,11 +41,6 @@ void Mesh::Create(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context, 
     vertexBufferInitData.pSysMem = vertexBytes.data();
     if (FAILED(d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferInitData, vertexBuffer_.GetAddressOf())))
         THROW_EXCEPTION("Failed to create vertex buffer in Mesh::Create()");
-
-    //Set vertex buffer
-    u32 vertexOffset = 0;
-    d3d11Context->IASetVertexBuffers(0, 1, vertexBuffer_.GetAddressOf(), &vertexStride_, &vertexOffset);//Todo: See if this can be done at mesh render time
-    d3d11Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP); //Todo: See if this can be done at mesh render time
 }
 
 void Mesh::Bind(ID3D11DeviceContext* d3d11Context)

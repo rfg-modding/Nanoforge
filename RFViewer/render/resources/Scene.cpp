@@ -24,20 +24,7 @@ void Scene::Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context)
 void Scene::Cleanup()
 {
     ReleaseCOM(terrainVertexLayout_);
-    //for (auto& instance : terrainInstanceRenderData_)
-    //{
-    //    //Todo: Figure out why final buffer pair have a reference count of 0. It's likely leaking memory here by not clearing the last buffer.
-    //    //Note: We don't release the last pair of buffers as doing so causes a crash due to them having a ref count of 0. Unsure why the refcount is zero
-    //    for (u32 i = 0; i < instance.terrainVertexBuffers_.size() - 1; i++)
-    //    {
-    //        auto* vertexBuffer = instance.terrainVertexBuffers_[i];
-    //        auto* indexBuffer = instance.terrainIndexBuffers_[i];
-    //        ReleaseCOM(vertexBuffer);
-    //        ReleaseCOM(indexBuffer);
-    //    }
-    //}
     ReleaseCOM(terrainPerObjectBuffer_);
-
     ReleaseCOM(cbPerFrameBuffer);
     ReleaseCOM(cbPerObjectBuffer);
 }
@@ -82,9 +69,6 @@ void Scene::Draw()
             d3d11Context_->VSSetConstantBuffers(0, 1, &terrainPerObjectBuffer_);
 
             renderInstance.Meshes[j].Bind(d3d11Context_);
-            //d3d11Context_->IASetIndexBuffer(renderInstance.terrainIndexBuffers_[j], DXGI_FORMAT_R16_UINT, 0);
-            //d3d11Context_->IASetVertexBuffers(0, 1, &renderInstance.terrainVertexBuffers_[j], &terrainVertexStride, &terrainVertexOffset);
-
             d3d11Context_->DrawIndexed(renderInstance.Meshes[j].NumIndices(), 0, 0);
         }
     }
@@ -122,7 +106,6 @@ void Scene::InitInternal()
     sceneViewTexture_.Create(d3d11Device_, sceneViewWidth_, sceneViewHeight_, sceneViewFormat, (D3D11_BIND_FLAG)(D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
     sceneViewTexture_.CreateRenderTargetView(); //Allows us to use texture as a render target
     sceneViewTexture_.CreateShaderResourceView(); //Lets shaders view texture. Used by dear imgui to draw textures in gui
-
 #ifdef DEBUG_BUILD
     SetDebugName(sceneViewTexture_.Get(), "sceneViewTexture_");
 #endif
@@ -191,23 +174,6 @@ void Scene::LoadTerrainShaders()
     d3d11Context_->IASetInputLayout(terrainVertexLayout_);
 }
 
-void Scene::ResetTerritoryData()
-{
-    //for (auto& instance : terrainInstanceRenderData_)
-    //{
-    //    //Todo: Figure out why final buffer pair have a reference count of 0. It's likely leaking memory here by not clearing the last buffer.
-    //    //Note: We don't release the last pair of buffers as doing so causes a crash due to them having a ref count of 0. Unsure why the refcount is zero
-    //    for (u32 i = 0; i < instance.terrainVertexBuffers_.size() - 1; i++)
-    //    {
-    //        auto* vertexBuffer = instance.terrainVertexBuffers_[i];
-    //        auto* indexBuffer = instance.terrainIndexBuffers_[i];
-    //        ReleaseCOM(vertexBuffer);
-    //        ReleaseCOM(indexBuffer);
-    //    }
-    //}
-    //terrainInstanceRenderData_.clear();
-}
-
 void Scene::InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances)
 {
     //Create terrain index & vertex buffers
@@ -232,10 +198,6 @@ void Scene::InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances)
             SetDebugName(mesh.GetIndexBuffer(), "terrain_index_buffer__" + instance.Name + std::to_string(i));
             SetDebugName(mesh.GetVertexBuffer(), "terrain_vertex_buffer__" + instance.Name + std::to_string(i));
 #endif
-
-            //Todo: Re-enable or ensure being cleared elsewhere. Disabled for bug locating
-            //delete[] instance.Vertices[i].data();
-            //delete[] instance.Indices[i].data();
         }
 
         //Set bool so the instance isn't initialized more than once

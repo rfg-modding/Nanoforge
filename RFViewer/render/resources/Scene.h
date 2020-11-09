@@ -49,7 +49,6 @@ private:
     void CreateDepthBuffer();
     void InitTerrain();
     void LoadTerrainShaders();
-    void ResetTerritoryData();
 
     //General render state
     ID3D11Device* d3d11Device_ = nullptr;
@@ -63,12 +62,6 @@ private:
     u32 sceneViewHeight_ = 200;
 
     //TERRAIN SPECIFIC DATA
-    //Todo: Mesh (1st pass):
-    //Todo:     - Takes raw data, format, and other config as input and creates DX11 resources from them.
-    //Todo:     - No hot reload for the moment. Just recreate texture if necessary.
-    //Todo:     - Use RAII for resource management.
-    //Todo:     - Put loading/saving/manipulation in util namespace or maybe static funcs
-
     //Todo: Re-organize helper namespaces. Likely can combine a few
     //Todo: Put loading/saving/manipulation for textures/meshes in util namespace or maybe static funcs
     //Todo: Move files into folder where useful. Likely should due to recent large amount of files added.
