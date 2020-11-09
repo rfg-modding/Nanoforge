@@ -25,8 +25,6 @@ void Scene::Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context)
 
 void Scene::Cleanup()
 {
-    ReleaseCOM(terrainVertexShader_);
-    ReleaseCOM(terrainPixelShader_);
     ReleaseCOM(terrainVertexLayout_);
     for (auto& instance : terrainInstanceRenderData_)
     {
@@ -52,16 +50,7 @@ void Scene::Cleanup()
 void Scene::Draw()
 {
     //Reload shaders if necessary
-    const auto latestShaderWriteTime = std::filesystem::last_write_time(terrainShaderPath_);
-    if (latestShaderWriteTime != terrainShaderWriteTime_)
-    {
-        terrainShaderWriteTime_ = latestShaderWriteTime;
-        Log->info("Reloading shaders...");
-        //Wait for a moment as a quickfix to a crash that happens when we read the shader as it's being saved
-        Sleep(250);
-        LoadTerrainShaders(true);
-        Log->info("Shaders reloaded.");
-    }
+    shader_.TryReload();
 
     //Set render target and clear it
     d3d11Context_->ClearRenderTargetView(sceneViewRenderTarget_, reinterpret_cast<const float*>(&ClearColor));
@@ -83,8 +72,7 @@ void Scene::Draw()
 
         for (u32 j = 0; j < 9; j++)
         {
-            d3d11Context_->VSSetShader(terrainVertexShader_, nullptr, 0);
-            d3d11Context_->PSSetShader(terrainPixelShader_, nullptr, 0);
+            shader_.Set(d3d11Context_);
 
             DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
             DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
@@ -229,7 +217,7 @@ void Scene::CreateDepthBuffer(bool firstResize)
 
 void Scene::InitTerrain()
 {
-    LoadTerrainShaders(false);
+    LoadTerrainShaders();
 
     //Create buffer for MVP matrix constant in shader
     D3D11_BUFFER_DESC cbbd;
@@ -247,45 +235,10 @@ void Scene::InitTerrain()
         THROW_EXCEPTION("Failed to create terrain uniform buffer.");
 }
 
-void Scene::LoadTerrainShaders(bool reload)
+void Scene::LoadTerrainShaders()
 {
-    if (reload)
-    {
-        ReleaseCOM(terrainVertexShader_);
-        ReleaseCOM(terrainPixelShader_);
-        ReleaseCOM(terrainVertexLayout_);
-    }
-
-    //Compile & create terrain vertex and pixel shaders
-    ID3DBlob* pVSBlob = nullptr;
-    ID3DBlob* pPSBlob = nullptr;
-
-    const wchar_t* terrainShaderPathWide = WidenCString(terrainShaderPath_.c_str());
-    //Compile the vertex shader
-    if (FAILED(CompileShaderFromFile(terrainShaderPathWide, "VS", "vs_4_0", &pVSBlob)))
-    {
-        delete terrainShaderPathWide;
-        THROW_EXCEPTION("Failed to compile terrain vertex shader!");
-    }
-    if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &terrainVertexShader_)))
-    {
-        delete terrainShaderPathWide;
-        pVSBlob->Release();
-        THROW_EXCEPTION("Failed to create terrain vertex shader!");
-    }
-    //Compile the pixel shader
-    if (FAILED(CompileShaderFromFile(terrainShaderPathWide, "PS", "ps_4_0", &pPSBlob)))
-    {
-        delete terrainShaderPathWide;
-        THROW_EXCEPTION("Failed to compile terrain pixel shader!");
-    }
-    if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &terrainPixelShader_)))
-    {
-        delete terrainShaderPathWide;
-        pPSBlob->Release();
-        THROW_EXCEPTION("Failed to create terrain pixel shader!");
-    }
-    delete terrainShaderPathWide;
+    shader_.Load(terrainShaderPath_, d3d11Device_);
+    auto pVSBlob = shader_.GetVertexShaderBytes();
 
     //Create terrain vertex input layout
     D3D11_INPUT_ELEMENT_DESC layout[] =
@@ -299,9 +252,6 @@ void Scene::LoadTerrainShaders(bool reload)
 
     //Set the input layout
     d3d11Context_->IASetInputLayout(terrainVertexLayout_);
-
-    ReleaseCOM(pVSBlob);
-    ReleaseCOM(pPSBlob);
 }
 
 void Scene::ResetTerritoryData()

@@ -35,13 +35,11 @@ namespace PegHelpers
         image.pixels = entry.RawData.data();
 
         string tempPath = exportFolderPath + Path::GetFileNameNoExtension(entry.Name) + ".dds";
-        const wchar_t* pathWide = WidenCString(tempPath.c_str());
+        std::unique_ptr<wchar_t[]> pathWide = WidenCString(tempPath.c_str());
         //HRESULT result = SaveToWICFile(image, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), pathWide);
-        HRESULT result = DirectX::SaveToDDSFile(image, DirectX::DDS_FLAGS::DDS_FLAGS_NONE, pathWide);
+        HRESULT result = DirectX::SaveToDDSFile(image, DirectX::DDS_FLAGS::DDS_FLAGS_NONE, pathWide.get());
         if (FAILED(result))
             Log->error("Error when saving \"{}\" to path \"{}\". Result: {:x}", entry.Name, exportFolderPath, (u32)result);
-
-        delete pathWide;
     }
 
     void ImportTexture(PegFile10& peg, u32 targetIndex, const string& importFilePath)
@@ -54,10 +52,10 @@ namespace PegHelpers
             delete[] entry.RawData.data();
 
         //Load texture from DDS
-        const wchar_t* pathWide = WidenCString(importFilePath.c_str());
+        std::unique_ptr<wchar_t[]> pathWide = WidenCString(importFilePath.c_str());
         DirectX::TexMetadata metadata;
         DirectX::ScratchImage image;
-        HRESULT result = DirectX::LoadFromDDSFile(pathWide, DirectX::DDS_FLAGS::DDS_FLAGS_NONE, &metadata, image);
+        HRESULT result = DirectX::LoadFromDDSFile(pathWide.get(), DirectX::DDS_FLAGS::DDS_FLAGS_NONE, &metadata, image);
         if (FAILED(result))
             Log->error("Error when loading \"{}\". Result: {:x}", importFilePath, (u32)result);
 
@@ -74,8 +72,6 @@ namespace PegHelpers
         entry.RawData = std::span<u8>(dataBuffer, dataSize);
         entry.FrameSize = dataSize;
         entry.Edited = true;
-
-        delete pathWide;
     }
 
     DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input)

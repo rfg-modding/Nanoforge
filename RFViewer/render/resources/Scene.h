@@ -1,10 +1,11 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "render/resources/Shader.h"
 #include "render/camera/Camera.h"
-#include <d3d11.h>
 #include "rfg/TerrainHelpers.h"
-#include <array>
 #include <filesystem>
+#include <d3d11.h>
+#include <array>
 
 //Render data for a single terrain instance. A terrain instance is the terrain for a single zone which consists of 9 meshes which are stitched together
 struct TerrainInstanceRenderData
@@ -40,23 +41,12 @@ public:
     //Dumb fix for compiler not generating copy assignment operator needed by std::vector<Scene>::erase() and bugs in own implementation
     bool Deleted = false;
 
-    ID3D11Buffer* cbPerFrameBuffer = nullptr;
-    struct cbPerFrame
-    {
-        DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
-        DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-        f32 DiffuseIntensity = 0.65f;
-        f32 ElevationFactorBias = 0.8f;
-        i32 ShadeMode = 1;
-    };
-    cbPerFrame cbPerFrameObject;
-
 private:
     void InitInternal();
     void InitRenderTarget();
     void CreateDepthBuffer(bool firstResize = true);
     void InitTerrain();
-    void LoadTerrainShaders(bool reload);
+    void LoadTerrainShaders();
     void ResetTerritoryData();
 
     //General render state
@@ -76,14 +66,59 @@ private:
 
 
     //TERRAIN SPECIFIC DATA
-    //Todo: Move into other class / or maybe make this class virtual and specialize scenes
-    //Todo: Alt: Define 'Material' class which lists out which shaders to use and the inputs for those
-    //Todo:     - Plus have 'Model' and 'Texture' classes which represent other resources used
+    //Todo: Move into other classes to make this a generic scene class that isn't specific to rendering a certain thing like terrain
 
-    //Todo: Make shader class that handles reload timing
+    //Todo: Classes to make + their rough designs:
+    //Todo: Shader (1st pass):
+    //Todo:     - Manages vertex + pixel shader pair.
+    //Todo:     - Handles loading + reloading + tracking if source files were edited (for live reload).
+    //Todo:     - Use RAII for resource management.
+    
+    //Todo: Texture (1st pass):
+    //Todo:     - Takes raw data, format, and dimensions as input and creates DX11 resources from them.
+    //Todo:     - No hot reload for the moment. Just recreate texture if necessary.
+    //Todo:     - Use RAII for resource management
+    //Todo:     - Put loading/saving/manipulation in util namespace or maybe static funcs
+
+    //Todo: Mesh (1st pass):
+    //Todo:     - Takes raw data, format, and other config as input and creates DX11 resources from them.
+    //Todo:     - No hot reload for the moment. Just recreate texture if necessary.
+    //Todo:     - Use RAII for resource management.
+    //Todo:     - Put loading/saving/manipulation in util namespace or maybe static funcs
+
+    //Todo: Re-organize helper namespaces. Likely can combine a few
+    //Todo: Move files into folder where useful. Likely should due to recent large amount of files added.
+    //Todo: Split window code in DX11Renderer into a class or util namespace
+    //Todo: Note: For first pass don't have materials, just put all shader variables in big buffer for all scene types
+    //Todo: Once done make sure theres no other terrain specific code in Scene
+
+
+
+
+
+    
+    //Todo: NOTE: DELETE COMMENTS BELOW THIS IF ABOVE CHANGES ARE SUFFICIENT. LIKELY ARE FOR WHAT WERE DOING SO FAR (TERRAIN + STATIC MESHES)
+    //Todo: Note: For second pass split shader variables by constant/per frame/per object shader variables
+
+    //Todo: Material (2nd pass):
+    //Todo:     - Define shaders used
+    //Todo:     - Define constant/per frame/per object shader variables
+
+public:
+    ID3D11Buffer* cbPerFrameBuffer = nullptr;
+    struct cbPerFrame
+    {
+        DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
+        DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+        f32 DiffuseIntensity = 0.65f;
+        f32 ElevationFactorBias = 0.8f;
+        i32 ShadeMode = 1;
+    };
+    cbPerFrame cbPerFrameObject;
+
+private:
     std::filesystem::file_time_type terrainShaderWriteTime_;
 
-    //Todo: Move camera values out into camera class
     DirectX::XMMATRIX WVP;
 
     ID3D11Buffer* cbPerObjectBuffer = nullptr;
@@ -95,8 +130,7 @@ private:
 
     //Terrain data
     //Data that's the same for all terrain instances
-    ID3D11VertexShader* terrainVertexShader_ = nullptr;
-    ID3D11PixelShader* terrainPixelShader_ = nullptr;
+    Shader shader_;
     ID3D11InputLayout* terrainVertexLayout_ = nullptr;
     ID3D11Buffer* terrainPerObjectBuffer_ = nullptr;
     cbPerObject cbPerObjTerrain;
