@@ -101,7 +101,7 @@ void ZoneList_Update(GuiState* state, bool* open)
     }
 
     state->FontManager->FontL.Push();
-    ImGui::Text(string(ICON_FA_MAP " ") + state->CurrentTerritoryName);
+    ImGui::Text(string(ICON_FA_MAP " ") + Path::GetFileNameNoExtension(state->CurrentTerritoryShortname));
     state->FontManager->FontL.Pop();
     ImGui::Separator();
 
