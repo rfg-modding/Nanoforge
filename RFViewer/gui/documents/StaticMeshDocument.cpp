@@ -28,8 +28,9 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
 
     //Init scene camera
     Scene& scene = state->Renderer->Scenes[data->SceneIndex];
-    scene.Cam.Init({ 10.0f, 10.0f, 10.0f }, 80.0f, { (f32)scene.Width(), (f32)scene.Height() }, 1.0f, 10000.0f);
+    scene.Cam.Init({ 7.5f, 15.0f, 12.0f }, 80.0f, { (f32)scene.Width(), (f32)scene.Height() }, 1.0f, 10000.0f);
     scene.Cam.Speed = 0.25f;
+    scene.Cam.LookAt({ 0.0f, 0.0f, 0.0f });
     scene.SetShader(staticMeshShaderPath_);
     scene.SetVertexLayout //Todo: Vary this based on vertex format of static mesh we opened
     ({
@@ -201,6 +202,10 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, Document& doc)
         {
             scene.Cam.UpdateViewMatrix();
         }
+
+        gui::LabelAndValue("Pitch: ", std::to_string(scene.Cam.GetPitch()));
+        gui::LabelAndValue("Yaw: ", std::to_string(scene.Cam.GetYaw()));
+
         ImGui::EndPopup();
     }
 

@@ -21,6 +21,7 @@ public:
 
     void Translate(const DirectX::XMVECTOR& translation);
     void Translate(CameraDirection moveDirection, bool sprint = false);
+    void LookAt(const DirectX::XMVECTOR& target);
 
     [[nodiscard]] DirectX::XMVECTOR Up() const;
     [[nodiscard]] DirectX::XMVECTOR Down() const;
@@ -84,7 +85,7 @@ private:
 
     //Todo: Pin down whether these should be in degrees or radians
     f32 yaw_ = 0.0f;
-    f32 pitch_ = 3.0f;
+    f32 pitch_ = 0.0f;
     f32 minPitch_ = -89.0f;
     f32 maxPitch_ = 89.0f;
     f32 lookSensitivity_ = 100.0f;
