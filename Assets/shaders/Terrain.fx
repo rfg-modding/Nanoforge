@@ -64,7 +64,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     //Sun direction for diffuse lighting
     float3 sunDir = float3(0.436f, -1.0f, 0.598f);
-    float ambientIntensity = 0.05f;
+    float ambientIntensity = 0.01f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
 
     //Diffuse

@@ -38,13 +38,18 @@ SamplerState SpecularSampler : register(s1);
 Texture2D NormalTexture : register(t2);
 SamplerState NormalSampler : register(s2);
 
-VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent : TANGENT, float2 inUv : TEXCOORD)
+VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent : TANGENT, int2 inUv : TEXCOORD)
 {
+    //Todo: See if necessary/good idea to convert to tangent space so things are correct even with rotations. See: https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     VS_OUTPUT output;
     output.Pos = mul(inPos, WVP);
-    output.Normal = inNormal;
-    output.Tangent = inTangent;
-    output.Uv = inUv;
+    output.Normal = inNormal, WVP;
+    output.Tangent = mul(inTangent, WVP);
+
+    //For some reason need to divide these by 1024 to get proper values. Would've expected 2^16 / 2 to normalize
+    output.Uv = float2(float(inUv.x), float(inUv.y));
+    output.Uv.x = output.Uv.x / 1024.0f;
+    output.Uv.y = output.Uv.y / 1024.0f;
 
     return output;
 }
@@ -53,19 +58,28 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     float4 color = DiffuseTexture.Sample(DiffuseSampler, input.Uv);
     float4 normal = NormalTexture.Sample(NormalSampler, input.Uv);
-    //Todo: Sample specular
+    float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv);
 
     //Sun direction for diffuse lighting
-    float3 sunDir = float3(0.436f, -1.0f, 0.598f);
-    float ambientIntensity = 0.1f;
+    float3 sunPos = float3(50.0f, 100.0f, 100.0f);
+    float3 sunDir = normalize(float3(0.0f, 0.0f, 0.0f) - sunPos);
+
+    //Ambient light
+    float ambientIntensity = 0.01f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
 
-    //Diffuse
+    //Diffuse light contribution
     float3 lightDir = normalize(-sunDir);
-    float diff = max(dot(normal.xyz, lightDir), 0.0f);
-    float3 diffuse = (color.xyz) * DiffuseIntensity;
+    float diff = max(dot(normal, lightDir), 0.0f);
+    float3 diffuse = (diff * color.xyz) ;
 
-    //Todo: Add specular highlights
-    //Color with basic diffuse + ambient lighting
-    return float4(diffuse, 1.0f) + float4(ambient, 1.0f);
+    //Todo: Fix specular highlights. They don't show up
+    //Specular highlights
+    float3 viewDir = normalize(ViewPos - input.Pos);
+    float3 halfwayDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(viewDir, halfwayDir), 0.0), 32);
+    float3 specular = spec * specularStrength * DiffuseColor;
+
+    //Color with basic diffuse + specular + ambient lighting
+    return float4(diffuse, 1.0f) + float4(specular, 1.0f) + float4(ambient, 1.0f);
 }

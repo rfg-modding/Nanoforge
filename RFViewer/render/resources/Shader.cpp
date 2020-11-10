@@ -17,15 +17,15 @@ void Shader::Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device)
 
     //Compile the vertex shader
     if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "VS", "vs_4_0", pVSBlob_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to compile terrain vertex shader!");
+        THROW_EXCEPTION("Failed to compile vertex shader!");
     if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob_->GetBufferPointer(), pVSBlob_->GetBufferSize(), nullptr, vertexShader_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create terrain vertex shader!");
+        THROW_EXCEPTION("Failed to create vertex shader!");
 
     //Compile the pixel shader
     if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "PS", "ps_4_0", pPSBlob.GetAddressOf())))
-        THROW_EXCEPTION("Failed to compile terrain pixel shader!");
+        THROW_EXCEPTION("Failed to compile pixel shader!");
     if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, pixelShader_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create terrain pixel shader!");
+        THROW_EXCEPTION("Failed to create pixel shader!");
 }
 
 void Shader::TryReload()

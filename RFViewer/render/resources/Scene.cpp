@@ -34,7 +34,7 @@ void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
 
     //Create the input layout
     if (FAILED(d3d11Device_->CreateInputLayout(layout.data(), layout.size(), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), vertexLayout_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create terrain vertex layout");
+        THROW_EXCEPTION("Failed to create scene vertex layout");
 
     //Set the input layout
     d3d11Context_->IASetInputLayout(vertexLayout_.Get());

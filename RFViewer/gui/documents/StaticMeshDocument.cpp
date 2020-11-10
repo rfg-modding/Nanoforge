@@ -35,8 +35,8 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
     ({
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TANGENT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_UNORM, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TANGENT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     });
 
     //Create worker thread to load terrain meshes in background
