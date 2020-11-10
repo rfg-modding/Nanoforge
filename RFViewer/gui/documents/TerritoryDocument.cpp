@@ -1,6 +1,7 @@
 #include "TerritoryDocument.h"
 #include "render/backend/DX11Renderer.h"
 #include "common/filesystem/Path.h"
+#include "util/MeshUtil.h"
 #include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
 #include "Log.h"
 #include <span>
@@ -75,8 +76,7 @@ void TerritoryDocument_Update(GuiState* state, Document& doc)
             {
                 auto& renderObject = scene.Objects.emplace_back();
                 Mesh mesh;
-                mesh.Create(scene.d3d11Device_, scene.d3d11Context_, std::span<u8>((u8*)instance.Vertices[i].data(), instance.Vertices[i].size_bytes()),
-                    std::span<u8>((u8*)instance.Indices[i].data(), instance.Indices[i].size_bytes()),
+                mesh.Create(scene.d3d11Device_, scene.d3d11Context_, ToByteSpan(instance.Vertices[i]), ToByteSpan(instance.Indices[i]),
                     instance.Vertices[i].size(), DXGI_FORMAT_R16_UINT, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
                 renderObject.Create(mesh, instance.Position);
             }
@@ -415,12 +415,10 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state, D
         u64 meshDataBlockStart = (cpuFileIndex * 4) - 4;
         cpuFile.SeekBeg(meshDataBlockStart);
 
-
         //Read mesh data block. Contains info on vertex + index layout + size + format
         MeshDataBlock meshData;
         meshData.Read(cpuFile);
         cpuFileIndex += static_cast<u32>(cpuFile.Position() - meshDataBlockStart) / 4;
-
         terrain.Meshes.push_back(meshData);
 
         //Read index data
