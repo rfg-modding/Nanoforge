@@ -424,6 +424,9 @@ void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state, D
         );
         terrain.Vertices.push_back(verticesWithNormals);
 
+        //Free vertex buffer, no longer need this copy. verticesWithNormals copied the data it needed from this one
+        delete[] vertexBuffer;
+
         u32 endMeshCrc = gpuFile.ReadUint32();
         if (meshCrc != endMeshCrc)
             THROW_EXCEPTION("Error, verification hash at start of gpu file mesh data doesn't match hash end of gpu file mesh data!");
