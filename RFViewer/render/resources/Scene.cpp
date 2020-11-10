@@ -105,7 +105,7 @@ void Scene::InitInternal()
 #endif
 
     //Create per-frame constant buffer
-    cbPerFrameBuffer.Create(d3d11Device_, sizeof(cbPerFrame), D3D11_BIND_CONSTANT_BUFFER);
+    cbPerFrameBuffer.Create(d3d11Device_, sizeof(PerFrameConstants), D3D11_BIND_CONSTANT_BUFFER);
 }
 
 void Scene::InitRenderTarget()
@@ -127,7 +127,7 @@ void Scene::InitTerrain()
     LoadTerrainShaders();
 
     //Create buffer for per object constants
-    terrainPerObjectBuffer_.Create(d3d11Device_, sizeof(cbPerObject), D3D11_BIND_CONSTANT_BUFFER);
+    terrainPerObjectBuffer_.Create(d3d11Device_, sizeof(PerObjectConstants), D3D11_BIND_CONSTANT_BUFFER);
 }
 
 void Scene::LoadTerrainShaders()

@@ -47,17 +47,17 @@ private:
     //General render state
     ComPtr<ID3D11Device> d3d11Device_ = nullptr;
     ComPtr<ID3D11DeviceContext> d3d11Context_ = nullptr;
-    D3D11_VIEWPORT sceneViewport_;
 
     //Scene state
+    D3D11_VIEWPORT sceneViewport_;
     Texture2D sceneViewTexture_;
     Texture2D depthBufferTexture_;
     u32 sceneViewWidth_ = 200;
     u32 sceneViewHeight_ = 200;
 
 public:
-    Buffer cbPerFrameBuffer;
-    struct cbPerFrame
+    //Buffer for per-frame shader constants (set once per frame)
+    struct PerFrameConstants
     {
         DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
         DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -65,21 +65,21 @@ public:
         f32 ElevationFactorBias = 0.8f;
         i32 ShadeMode = 1;
     };
-    cbPerFrame cbPerFrameObject;
+    PerFrameConstants cbPerFrameObject; //Cpu side copy of the buffer
+    Buffer cbPerFrameBuffer; //Gpu side copy of the buffer
 
 private:
-    Buffer cbPerObjectBuffer;
-    Buffer terrainPerObjectBuffer_;
-    struct cbPerObject
+    //Buffer for per-object shader constants (set once per object)
+    struct PerObjectConstants
     {
         DirectX::XMMATRIX WVP;
     };
-    cbPerObject cbPerObj;
-    cbPerObject cbPerObjTerrain;
+    PerObjectConstants cbPerObjTerrain; //Cpu side copy of the buffer
+    Buffer terrainPerObjectBuffer_; //Gpu side copy of the buffer
 
     //Data that's the same for all terrain instances
-    Shader shader_;
     ComPtr<ID3D11InputLayout> terrainVertexLayout_ = nullptr;
+    Shader shader_;
 
     //Per instance terrain data
     std::vector<TerrainInstanceRenderData> terrainInstanceRenderData_ = {};
