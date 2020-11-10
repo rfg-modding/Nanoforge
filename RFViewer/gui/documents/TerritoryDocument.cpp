@@ -64,7 +64,26 @@ void TerritoryDocument_Update(GuiState* state, Document& doc)
     if (data->NewTerrainInstanceAdded)
     {
         std::lock_guard<std::mutex> lock(data->ResourceLock);
-        scene.InitTerrainMeshes(data->TerrainInstances);
+        //Create terrain index & vertex buffers
+        for (auto& instance : data->TerrainInstances)
+        {
+            //Skip already-initialized terrain instances
+            if (instance.RenderDataInitialized)
+                continue;
+
+            for (u32 i = 0; i < 9; i++)
+            {
+                auto& renderObject = scene.Objects.emplace_back();
+                Mesh mesh;
+                mesh.Create(scene.d3d11Device_, scene.d3d11Context_, std::span<u8>((u8*)instance.Vertices[i].data(), instance.Vertices[i].size_bytes()),
+                    std::span<u8>((u8*)instance.Indices[i].data(), instance.Indices[i].size_bytes()),
+                    instance.Vertices[i].size(), DXGI_FORMAT_R16_UINT, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+                renderObject.Create(mesh, instance.Position);
+            }
+
+            //Set bool so the instance isn't initialized more than once
+            instance.RenderDataInitialized = true;
+        }
         data->NewTerrainInstanceAdded = false;
     }
 
@@ -181,31 +200,31 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc)
 
         ImGui::Text("Shading mode: ");
         ImGui::SameLine();
-        ImGui::RadioButton("Elevation", &scene.cbPerFrameObject.ShadeMode, 0);
+        ImGui::RadioButton("Elevation", &scene.perFrameStagingBuffer_.ShadeMode, 0);
         ImGui::SameLine();
-        ImGui::RadioButton("Diffuse", &scene.cbPerFrameObject.ShadeMode, 1);
+        ImGui::RadioButton("Diffuse", &scene.perFrameStagingBuffer_.ShadeMode, 1);
 
-        if (scene.cbPerFrameObject.ShadeMode != 0)
+        if (scene.perFrameStagingBuffer_.ShadeMode != 0)
         {
             ImGui::Text("Diffuse presets: ");
             ImGui::SameLine();
             if (ImGui::Button("Default"))
             {
-                scene.cbPerFrameObject.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-                scene.cbPerFrameObject.DiffuseIntensity = 0.65f;
-                scene.cbPerFrameObject.ElevationFactorBias = 0.8f;
+                scene.perFrameStagingBuffer_.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+                scene.perFrameStagingBuffer_.DiffuseIntensity = 0.65f;
+                scene.perFrameStagingBuffer_.ElevationFactorBias = 0.8f;
             }
             ImGui::SameLine();
             if (ImGui::Button("False color"))
             {
-                scene.cbPerFrameObject.DiffuseColor = { 1.15f, 0.67f, 0.02f, 1.0f };
-                scene.cbPerFrameObject.DiffuseIntensity = 0.55f;
-                scene.cbPerFrameObject.ElevationFactorBias = -0.8f;
+                scene.perFrameStagingBuffer_.DiffuseColor = { 1.15f, 0.67f, 0.02f, 1.0f };
+                scene.perFrameStagingBuffer_.DiffuseIntensity = 0.55f;
+                scene.perFrameStagingBuffer_.ElevationFactorBias = -0.8f;
             }
 
-            ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&scene.cbPerFrameObject.DiffuseColor));
-            ImGui::InputFloat("Diffuse intensity", &scene.cbPerFrameObject.DiffuseIntensity);
-            ImGui::InputFloat("Elevation color bias", &scene.cbPerFrameObject.ElevationFactorBias);
+            ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&scene.perFrameStagingBuffer_.DiffuseColor));
+            ImGui::InputFloat("Diffuse intensity", &scene.perFrameStagingBuffer_.DiffuseIntensity);
+            ImGui::InputFloat("Elevation color bias", &scene.perFrameStagingBuffer_.ElevationFactorBias);
         }
 
         ImGui::EndPopup();
