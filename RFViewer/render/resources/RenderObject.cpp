@@ -24,6 +24,14 @@ void RenderObject::Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObj
     //Set MVP matrix in shader
     perObjectBuffer.SetData(d3d11Context, &constants);
 
+    //Bind textures
+    if (UseTextures)
+    {
+        DiffuseTexture.Bind(d3d11Context, 0);
+        SpecularTexture.Bind(d3d11Context, 1);
+        NormalTexture.Bind(d3d11Context, 2);
+    }
+
     //Bind objects mesh and draw it
     ObjectMesh.Bind(d3d11Context);
     d3d11Context->DrawIndexed(ObjectMesh.NumIndices(), 0, 0);

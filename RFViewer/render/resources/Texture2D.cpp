@@ -70,3 +70,27 @@ void Texture2D::CreateDepthStencilView()
     if (FAILED(d3d11Device_->CreateDepthStencilView(texture_.Get(), 0, depthStencilView_.GetAddressOf())))
         THROW_EXCEPTION("Failed to create depth stencil view in Texture2D::CreateDepthStencilView()");
 }
+
+void Texture2D::CreateSampler()
+{
+    //Setup sampler description
+    D3D11_SAMPLER_DESC sampleDesc;
+    ZeroMemory(&sampleDesc, sizeof(sampleDesc));
+    sampleDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sampleDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampleDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampleDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampleDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    sampleDesc.MinLOD = 0;
+    sampleDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+    //Create the sampler
+    if (FAILED(d3d11Device_->CreateSamplerState(&sampleDesc, samplerState_.GetAddressOf())))
+        THROW_EXCEPTION("Failed to create depth stencil view in Texture2D::CreateDepthStencilView()");
+}
+
+void Texture2D::Bind(ComPtr<ID3D11DeviceContext> d3d11Context, u32 index)
+{
+    d3d11Context->PSSetShaderResources(index, 1, shaderResourceView_.GetAddressOf());
+    d3d11Context->PSSetSamplers(index, 1, samplerState_.GetAddressOf());
+}

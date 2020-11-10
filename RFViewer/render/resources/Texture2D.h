@@ -17,6 +17,10 @@ public:
     void CreateShaderResourceView();
     //Create depth stencil view from texture. Must call ::Create first
     void CreateDepthStencilView();
+    //Create sampler for texture
+    void CreateSampler();
+    //Bind shader resource view and sampler to prepare for use in shader
+    void Bind(ComPtr<ID3D11DeviceContext> d3d11Context, u32 index);
 
     //Get underlying raw pointer to ID3D11Texture2D. Should prefer adding member functions that access this if possible
     ID3D11Texture2D* Get() { return texture_.Get(); }
@@ -34,6 +38,7 @@ private:
     ComPtr<ID3D11RenderTargetView> renderTargetView_ = nullptr;
     ComPtr<ID3D11ShaderResourceView> shaderResourceView_ = nullptr;
     ComPtr<ID3D11DepthStencilView> depthStencilView_ = nullptr;
+    ComPtr<ID3D11SamplerState> samplerState_ = nullptr;
     ComPtr<ID3D11Device> d3d11Device_ = nullptr;
     DXGI_FORMAT format_ = DXGI_FORMAT_UNKNOWN;
 };

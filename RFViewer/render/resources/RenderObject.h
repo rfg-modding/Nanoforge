@@ -3,6 +3,7 @@
 #include "render/resources/Mesh.h"
 #include "RfgTools++/types/Vec3.h"
 #include "render/camera/Camera.h"
+#include "render/resources/Texture2D.h"
 #include <DirectXMath.h>
 
 //Buffer for per-object shader constants (set once per object)
@@ -29,4 +30,9 @@ public:
     Mesh ObjectMesh;
     Vec3 Scale = { 1.0f, 1.0f, 1.0f };
     Vec3 Position = { 0.0f, 0.0f, 0.0f };
+
+    bool UseTextures = false;
+    Texture2D DiffuseTexture;
+    Texture2D SpecularTexture;
+    Texture2D NormalTexture;
 };

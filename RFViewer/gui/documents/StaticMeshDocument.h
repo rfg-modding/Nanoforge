@@ -16,6 +16,9 @@ struct StaticMeshDocumentData
     string GpuFilePath;
     StaticMesh StaticMesh;
     u32 SceneIndex = 0;
+    Texture2D DiffuseTexture;
+    Texture2D NormalTexture;
+    Texture2D SpecularTexture;
 
     //std::future<void> WorkerFuture;
     //std::mutex ResourceLock;
