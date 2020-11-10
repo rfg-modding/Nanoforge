@@ -1,11 +1,13 @@
 #pragma once
 #include "common/Typedefs.h"
-#include <d3d11.h>
+#include "render/resources/Buffer.h"
 #include <filesystem>
+#include <d3d11.h>
 #include <span>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
 
+//Represents a 3d mesh. Made up of a vertex buffer and an index buffer
 class Mesh
 {
 public:
@@ -27,8 +29,8 @@ public:
     static u32 GetFormatStride(DXGI_FORMAT format);
 
 private:
-    ComPtr<ID3D11Buffer> vertexBuffer_ = nullptr;
-    ComPtr<ID3D11Buffer> indexBuffer_ = nullptr;
+    Buffer vertexBuffer_;
+    Buffer indexBuffer_;
 
     u32 numVertices_ = 0;
     u32 numIndices_ = 0;

@@ -21,14 +21,6 @@ void Scene::Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context)
     InitTerrain();
 }
 
-void Scene::Cleanup()
-{
-    ReleaseCOM(terrainVertexLayout_);
-    ReleaseCOM(terrainPerObjectBuffer_);
-    ReleaseCOM(cbPerFrameBuffer);
-    ReleaseCOM(cbPerObjectBuffer);
-}
-
 void Scene::Draw()
 {
     //Reload shaders if necessary
@@ -42,11 +34,11 @@ void Scene::Draw()
 
     //Update per-frame constant buffer
     cbPerFrameObject.ViewPos = Cam.Position();
-    d3d11Context_->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &cbPerFrameObject, 0, 0);
-    d3d11Context_->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
+    cbPerFrameBuffer.SetData(d3d11Context_, &cbPerFrameObject);
+    d3d11Context_->PSSetConstantBuffers(0, 1, cbPerFrameBuffer.GetAddressOf());
 
     //Draw terrain meshes
-    d3d11Context_->IASetInputLayout(terrainVertexLayout_);
+    d3d11Context_->IASetInputLayout(terrainVertexLayout_.Get());
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     for (u32 i = 0; i < terrainInstanceRenderData_.size(); i++)
     {
@@ -65,8 +57,8 @@ void Scene::Draw()
 
             WVP = terrainInstanceRenderData_[i].ModelMatrices[j] * Cam.camView * Cam.camProjection;
             cbPerObjTerrain.WVP = XMMatrixTranspose(WVP);
-            d3d11Context_->UpdateSubresource(terrainPerObjectBuffer_, 0, NULL, &cbPerObjTerrain, 0, 0);
-            d3d11Context_->VSSetConstantBuffers(0, 1, &terrainPerObjectBuffer_);
+            terrainPerObjectBuffer_.SetData(d3d11Context_, &cbPerObjTerrain);
+            d3d11Context_->VSSetConstantBuffers(0, 1, terrainPerObjectBuffer_.GetAddressOf());
 
             renderInstance.Meshes[j].Bind(d3d11Context_);
             d3d11Context_->DrawIndexed(renderInstance.Meshes[j].NumIndices(), 0, 0);
@@ -97,10 +89,6 @@ void Scene::HandleResize(u32 windowWidth, u32 windowHeight)
 
 void Scene::InitInternal()
 {
-    //Release scene texture and view if they've already been initialized
-    if (cbPerFrameBuffer)
-        ReleaseCOM(cbPerFrameBuffer);
-
     //Create texture and map a render target and shader resource view to it
     DXGI_FORMAT sceneViewFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
     sceneViewTexture_.Create(d3d11Device_, sceneViewWidth_, sceneViewHeight_, sceneViewFormat, (D3D11_BIND_FLAG)(D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE));
@@ -111,14 +99,7 @@ void Scene::InitInternal()
 #endif
 
     //Create per-frame constant buffer
-    D3D11_BUFFER_DESC cbbd;
-    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
-    cbbd.Usage = D3D11_USAGE_DEFAULT;
-    cbbd.ByteWidth = sizeof(cbPerFrame);
-    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    cbbd.CPUAccessFlags = 0;
-    cbbd.MiscFlags = 0;
-    HRESULT result = d3d11Device_->CreateBuffer(&cbbd, NULL, &cbPerFrameBuffer);
+    cbPerFrameBuffer.Create(d3d11Device_, sizeof(cbPerFrame), D3D11_BIND_CONSTANT_BUFFER);
 }
 
 void Scene::InitRenderTarget()
@@ -139,20 +120,8 @@ void Scene::InitTerrain()
 {
     LoadTerrainShaders();
 
-    //Create buffer for MVP matrix constant in shader
-    D3D11_BUFFER_DESC cbbd;
-    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
-
-    //Create per object buffer
-    cbbd.Usage = D3D11_USAGE_DEFAULT;
-    cbbd.ByteWidth = sizeof(cbPerObject);
-    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    cbbd.CPUAccessFlags = 0;
-    cbbd.MiscFlags = 0;
-
-    HRESULT result = d3d11Device_->CreateBuffer(&cbbd, nullptr, &terrainPerObjectBuffer_);
-    if (FAILED(result))
-        THROW_EXCEPTION("Failed to create terrain uniform buffer.");
+    //Create buffer for per object constants
+    terrainPerObjectBuffer_.Create(d3d11Device_, sizeof(cbPerObject), D3D11_BIND_CONSTANT_BUFFER);
 }
 
 void Scene::LoadTerrainShaders()
@@ -167,11 +136,11 @@ void Scene::LoadTerrainShaders()
         { "NORMAL", 0,  DXGI_FORMAT_R32G32B32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     //Create the input layout
-    if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &terrainVertexLayout_)))
+    if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), terrainVertexLayout_.GetAddressOf())))
         THROW_EXCEPTION("Failed to create terrain vertex layout");
 
     //Set the input layout
-    d3d11Context_->IASetInputLayout(terrainVertexLayout_);
+    d3d11Context_->IASetInputLayout(terrainVertexLayout_.Get());
 }
 
 void Scene::InitTerrainMeshes(std::vector<TerrainInstance>& terrainInstances)

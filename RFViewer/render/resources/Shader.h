@@ -6,6 +6,7 @@
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
 
+//Wraps ID3D11VertexShader and ID3D11PixelShader. Has functions for loading/reloading shaders from source
 class Shader
 {
 public:

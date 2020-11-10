@@ -5,6 +5,7 @@
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
 
+//Wraps ID3D11Texture2D and provides helpers to create various views bound to the texture
 class Texture2D
 {
 public:

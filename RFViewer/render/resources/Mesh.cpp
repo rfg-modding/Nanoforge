@@ -12,35 +12,11 @@ void Mesh::Create(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context, 
     indexBufferFormat_ = indexBufferFormat;
     topology_ = topology;
 
-    //Clear existing data so this function can be used for recreation with multiple calls
-    vertexBuffer_.Reset();
-    indexBuffer_.Reset();
-
-    //Todo: Consider having general buffer class to wrap this behavior with
-    //Create index buffer and fill with indexBytes data
-    D3D11_BUFFER_DESC indexBufferDesc = {};
-    indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    indexBufferDesc.ByteWidth = static_cast<u32>(indexBytes.size_bytes());
-    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    indexBufferDesc.CPUAccessFlags = 0;
-    indexBufferDesc.MiscFlags = 0;
-
-    D3D11_SUBRESOURCE_DATA indexBufferInitData;
-    indexBufferInitData.pSysMem = indexBytes.data();
-    if (FAILED(d3d11Device->CreateBuffer(&indexBufferDesc, &indexBufferInitData, indexBuffer_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create index buffer in Mesh::Create()");
-
-    //Create vertex buffer for instance
-    D3D11_BUFFER_DESC vertexBufferDesc = {};
-    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    vertexBufferDesc.ByteWidth = static_cast<u32>(vertexBytes.size_bytes());
-    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    vertexBufferDesc.CPUAccessFlags = 0;
-
-    D3D11_SUBRESOURCE_DATA vertexBufferInitData = {};
-    vertexBufferInitData.pSysMem = vertexBytes.data();
-    if (FAILED(d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferInitData, vertexBuffer_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create vertex buffer in Mesh::Create()");
+    //Create and set data for index and vertex buffers
+    indexBuffer_.Create(d3d11Device, static_cast<u32>(indexBytes.size_bytes()), D3D11_BIND_INDEX_BUFFER);
+    indexBuffer_.SetData(d3d11Context, indexBytes.data());
+    vertexBuffer_.Create(d3d11Device, static_cast<u32>(vertexBytes.size_bytes()), D3D11_BIND_VERTEX_BUFFER);
+    vertexBuffer_.SetData(d3d11Context, vertexBytes.data());
 }
 
 void Mesh::Bind(ID3D11DeviceContext* d3d11Context)

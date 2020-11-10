@@ -61,10 +61,6 @@ DX11Renderer::~DX11Renderer()
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    //Release DX11 resources
-    for (auto& scene : Scenes)
-        scene.Cleanup();
-
     ReleaseCOM(swapChain_);
     ReleaseCOM(d3d11Device_);
     ReleaseCOM(d3d11Context_);
@@ -172,7 +168,7 @@ void DX11Renderer::DeleteScene(u32 index)
         return;
 
     Scene& scene = Scenes[index];
-    scene.Cleanup();
+    //scene.Cleanup();
     scene.Deleted = true; //Very temporary and dumb workaround to bugs surrounding deletion
 
     //auto begin = Scenes.begin();
