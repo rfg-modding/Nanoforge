@@ -85,8 +85,8 @@ private:
     //Todo: Pin down whether these should be in degrees or radians
     f32 yaw_ = 0.0f;
     f32 pitch_ = 3.0f;
-    const f32 minPitch_ = -89.0f;
-    const f32 maxPitch_ = 89.0f;
+    f32 minPitch_ = -89.0f;
+    f32 maxPitch_ = 89.0f;
     f32 lookSensitivity_ = 100.0f;
 
     //Todo: Have InputManager provide easier way to track this

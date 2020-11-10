@@ -79,8 +79,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     d3d11Context_->RSSetState(rasterizerState_);
 
     for (auto& scene : Scenes)
-        if(!scene.Deleted)
-            scene.Draw();
+        scene.Draw();
 
     d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, nullptr);
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
@@ -167,8 +166,7 @@ void DX11Renderer::DeleteScene(u32 index)
     if (index >= Scenes.size())
         return;
 
-    Scene& scene = Scenes[index];
-    scene.Deleted = true; //Very temporary and dumb workaround to bugs surrounding deletion
+    Scenes.erase(Scenes.begin() + index);
 }
 
 void DX11Renderer::ImGuiDoFrame()

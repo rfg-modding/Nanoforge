@@ -4,6 +4,13 @@
 #include "Log.h"
 #include "util/StringHelpers.h"
 
+//Todo: Add build path variable that's set by cmake to the project root path for debug
+#ifdef DEBUG_BUILD
+const string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
+#else
+const string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
+#endif
+
 //Todo: Stick this in a debug namespace
 void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
 {
@@ -55,8 +62,7 @@ void Scene::Draw()
             terrainInstanceRenderData_[i].ModelMatrices[j] = DirectX::XMMatrixIdentity();
             terrainInstanceRenderData_[i].ModelMatrices[j] = translation * rotation;
 
-            WVP = terrainInstanceRenderData_[i].ModelMatrices[j] * Cam.camView * Cam.camProjection;
-            cbPerObjTerrain.WVP = XMMatrixTranspose(WVP);
+            cbPerObjTerrain.WVP = XMMatrixTranspose(terrainInstanceRenderData_[i].ModelMatrices[j] * Cam.camView * Cam.camProjection);
             terrainPerObjectBuffer_.SetData(d3d11Context_, &cbPerObjTerrain);
             d3d11Context_->VSSetConstantBuffers(0, 1, terrainPerObjectBuffer_.GetAddressOf());
 

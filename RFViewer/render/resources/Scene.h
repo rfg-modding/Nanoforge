@@ -35,10 +35,7 @@ public:
     u32 Height() { return sceneViewHeight_; }
 
     Camera Cam;
-    const DirectX::XMFLOAT4 ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
-    //Todo: Get rid of this. Delete scenes like a sane person. Try again once scenes are refactored since they'll be a bit simpler
-    //Dumb fix for compiler not generating copy assignment operator needed by std::vector<Scene>::erase() and bugs in own implementation
-    bool Deleted = false;
+    DirectX::XMFLOAT4 ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
 private:
     void InitInternal();
@@ -71,8 +68,6 @@ public:
     cbPerFrame cbPerFrameObject;
 
 private:
-    DirectX::XMMATRIX WVP;
-
     Buffer cbPerObjectBuffer;
     Buffer terrainPerObjectBuffer_;
     struct cbPerObject
@@ -88,11 +83,4 @@ private:
 
     //Per instance terrain data
     std::vector<TerrainInstanceRenderData> terrainInstanceRenderData_ = {};
-
-    //Todo: Add build path variable that's set by cmake to the project root path for debug
-#ifdef DEBUG_BUILD
-    const string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
-#else
-    const string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
-#endif
 };
