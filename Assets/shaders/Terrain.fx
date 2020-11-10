@@ -64,6 +64,8 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     //Sun direction for diffuse lighting
     float3 sunDir = float3(0.436f, -1.0f, 0.598f);
+    float ambientIntensity = 0.05f;
+    float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
 
     //Diffuse
     float3 lightDir = normalize(-sunDir);
@@ -83,7 +85,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     else if(ShadeMode == 1)
     {
         //Color terrain with basic lighting + optional elevation coloring
-        return float4(diffuse, 1.0f) + elevationFactor;
+        return float4(diffuse, 1.0f) + elevationFactor + float4(ambient, 1.0f);
     }
     else
     {

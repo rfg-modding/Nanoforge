@@ -481,16 +481,16 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
 
         Vec3 e1 = vert1 - vert0;
         Vec3 e2 = vert2 - vert1;
-        Vec3 normal = e2.Cross(e1);
-        //Todo: Fix normal vector calculation. This code below is a temporary fix but I'm pretty certain this normals aren't perfectly correct.
-        //Fudge the normals. They don't get calculated otherwise. This isn't correct but creates decent results
+        Vec3 normal = e1.Cross(e2);
+
+        //Todo: Make sure this isn't subtly wrong
+        //Attempt to flip normal if it's pointing in wrong direction. Seems to result in correct normals
         if (normal.y < 0.0f)
         {
             normal.x *= -1.0f;
             normal.y *= -1.0f;
             normal.z *= -1.0f;
         }
-        //normal = normal.Normalize();
         outVerts[ia].normal += normal;
         outVerts[ib].normal += normal;
         outVerts[ic].normal += normal;
