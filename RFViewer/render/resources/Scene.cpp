@@ -11,7 +11,7 @@ void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
         child->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<u32>(name.size()), name.c_str());
 }
 
-void Scene::Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context)
+void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context)
 {
     d3d11Device_ = d3d11Device;
     d3d11Context_ = d3d11Context;
@@ -46,7 +46,7 @@ void Scene::Draw()
 
         for (u32 j = 0; j < 9; j++)
         {
-            shader_.Set(d3d11Context_);
+            shader_.Bind(d3d11Context_);
 
             DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
             DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);

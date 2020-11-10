@@ -168,13 +168,7 @@ void DX11Renderer::DeleteScene(u32 index)
         return;
 
     Scene& scene = Scenes[index];
-    //scene.Cleanup();
     scene.Deleted = true; //Very temporary and dumb workaround to bugs surrounding deletion
-
-    //auto begin = Scenes.begin();
-    //std::advance(begin, index);
-    //Scenes.erase(begin);
-    //Scenes.erase(Scenes.begin() + index);
 }
 
 void DX11Renderer::ImGuiDoFrame()
@@ -277,7 +271,7 @@ bool DX11Renderer::InitImGui() const
 
     //Setup Platform/Renderer bindings
     ImGui_ImplWin32_Init(hwnd_);
-    ImGui_ImplDX11_Init(d3d11Device_, d3d11Context_);
+    ImGui_ImplDX11_Init(d3d11Device_.Get(), d3d11Context_.Get());
 
     return true;
 }
@@ -331,7 +325,7 @@ bool DX11Renderer::CreateSwapchain()
     swapchainDesc.SampleDesc.Quality = 0;
 
     //Create swapchain
-    if (FAILED(dxgiFactory_->CreateSwapChain(d3d11Device_, &swapchainDesc, &swapChain_)))
+    if (FAILED(dxgiFactory_->CreateSwapChain(d3d11Device_.Get(), &swapchainDesc, &swapChain_)))
         THROW_EXCEPTION("Failed to create swapchain!");
 
     return true;

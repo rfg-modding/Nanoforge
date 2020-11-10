@@ -1,7 +1,7 @@
 #include "Texture2D.h"
 #include "render/util/DX11Helpers.h"
 
-void Texture2D::Create(ID3D11Device* d3d11Device, u32 width, u32 height, DXGI_FORMAT format, D3D11_BIND_FLAG bindFlags, D3D11_SUBRESOURCE_DATA* data)
+void Texture2D::Create(ComPtr<ID3D11Device> d3d11Device, u32 width, u32 height, DXGI_FORMAT format, D3D11_BIND_FLAG bindFlags, D3D11_SUBRESOURCE_DATA* data)
 {
     d3d11Device_ = d3d11Device;
     format_ = format;

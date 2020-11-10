@@ -9,6 +9,8 @@
 #include <array>
 #include <filesystem>
 #include <span>
+#include <wrl.h>
+using Microsoft::WRL::ComPtr;
 
 class ImGuiFontManager;
 class Camera;
@@ -58,8 +60,8 @@ private:
     u32 windowHeight_ = 800;
 
     IDXGIFactory* dxgiFactory_ = nullptr;
-    ID3D11Device* d3d11Device_ = nullptr;
-    ID3D11DeviceContext* d3d11Context_ = nullptr;
+    ComPtr<ID3D11Device> d3d11Device_ = nullptr;
+    ComPtr<ID3D11DeviceContext> d3d11Context_ = nullptr;
     IDXGISwapChain* swapChain_ = nullptr;
     ID3D11RenderTargetView* renderTargetView_ = nullptr;
 

@@ -10,7 +10,7 @@ class Texture2D
 {
 public:
     //Create D3D11 texture from provided parameters. If called more than once it will be recreated
-    void Create(ID3D11Device* d3d11Device, u32 width, u32 height, DXGI_FORMAT format, D3D11_BIND_FLAG bindFlags, D3D11_SUBRESOURCE_DATA* data = nullptr);
+    void Create(ComPtr<ID3D11Device> d3d11Device, u32 width, u32 height, DXGI_FORMAT format, D3D11_BIND_FLAG bindFlags, D3D11_SUBRESOURCE_DATA* data = nullptr);
     //Create render target view from texture. Must call ::Create first
     void CreateRenderTargetView();
     //Create shader resource view from texture. Must call ::Create first
@@ -34,6 +34,6 @@ private:
     ComPtr<ID3D11RenderTargetView> renderTargetView_ = nullptr;
     ComPtr<ID3D11ShaderResourceView> shaderResourceView_ = nullptr;
     ComPtr<ID3D11DepthStencilView> depthStencilView_ = nullptr;
-    ID3D11Device* d3d11Device_ = nullptr;
+    ComPtr<ID3D11Device> d3d11Device_ = nullptr;
     DXGI_FORMAT format_ = DXGI_FORMAT_UNKNOWN;
 };

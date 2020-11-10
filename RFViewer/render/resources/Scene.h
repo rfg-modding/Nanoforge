@@ -25,7 +25,7 @@ struct TerrainInstanceRenderData
 class Scene
 {
 public:
-    void Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context);
+    void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context);
     void Draw();
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
     void HandleResize(u32 windowWidth, u32 windowHeight);
@@ -48,8 +48,8 @@ private:
     void LoadTerrainShaders();
 
     //General render state
-    ID3D11Device* d3d11Device_ = nullptr;
-    ID3D11DeviceContext* d3d11Context_ = nullptr;
+    ComPtr<ID3D11Device> d3d11Device_ = nullptr;
+    ComPtr<ID3D11DeviceContext> d3d11Context_ = nullptr;
     D3D11_VIEWPORT sceneViewport_;
 
     //Scene state
@@ -91,8 +91,8 @@ private:
 
     //Todo: Add build path variable that's set by cmake to the project root path for debug
 #ifdef DEBUG_BUILD
-    string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
+    const string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
 #else
-    string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
+    const string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
 #endif
 };

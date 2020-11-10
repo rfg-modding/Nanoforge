@@ -46,7 +46,7 @@ void Shader::TryReload()
     Log->info("Shaders reloaded.");
 }
 
-void Shader::Set(ID3D11DeviceContext* d3d11Context)
+void Shader::Bind(ComPtr<ID3D11DeviceContext> d3d11Context)
 {
     d3d11Context->VSSetShader(vertexShader_.Get(), nullptr, 0);
     d3d11Context->PSSetShader(pixelShader_.Get(), nullptr, 0);

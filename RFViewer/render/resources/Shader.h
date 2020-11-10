@@ -14,8 +14,8 @@ public:
     void Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device);
     //Reloads shader if it's file changed and enough time has elapsed since the last reload
     void TryReload();
-    //Sets as current shader
-    void Set(ID3D11DeviceContext* d3d11Context);
+    //Bind shader to current context
+    void Bind(ComPtr<ID3D11DeviceContext> d3d11Context);
     //Get vertex shader bytes. Needed to set vertex input layout
     ComPtr<ID3DBlob> GetVertexShaderBytes() { return pVSBlob_; }
 

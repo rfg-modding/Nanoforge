@@ -12,9 +12,9 @@ class Mesh
 {
 public:
     //Creates mesh from provided data
-    void Create(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context, std::span<u8> vertexBytes, std::span<u8> indexBytes, u32 numVertices, DXGI_FORMAT indexBufferFormat, D3D11_PRIMITIVE_TOPOLOGY topology);
+    void Create(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, std::span<u8> vertexBytes, std::span<u8> indexBytes, u32 numVertices, DXGI_FORMAT indexBufferFormat, D3D11_PRIMITIVE_TOPOLOGY topology);
     //Bind vertex and index buffers to context
-    void Bind(ID3D11DeviceContext* d3d11Context);
+    void Bind(ComPtr<ID3D11DeviceContext> d3d11Context);
     //Get underlying pointer to d3d11 vertex buffer
     ID3D11Buffer* GetVertexBuffer() { return vertexBuffer_.Get(); }
     //Get underlying pointer to d3d11 index buffer
