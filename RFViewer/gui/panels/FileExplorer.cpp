@@ -1,6 +1,7 @@
 #include "FileExplorer.h"
 #include "property_panel/PropertyPanelContent.h"
 #include "gui/documents/TextureDocument.h"
+#include "gui/documents/StaticMeshDocument.h"
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
 
@@ -322,6 +323,23 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
             filename = Path::GetFileNameNoExtension(node.Filename) + ".cvbm_pc";
 
         state->CreateDocument(Document(filename, &TextureDocument_Init, &TextureDocument_Update, &TextureDocument_OnClose, new TextureDocumentData
+        {
+            .Filename = filename,
+            .ParentName = node.ParentName,
+            .VppName = FileExplorer_VppName,
+            .InContainer = node.InContainer
+        }));
+    }
+    else if (extension == ".csmesh_pc" || extension == ".gsmesh_pc")
+    {
+        //Convert gpu filenames to cpu filename if necessary. StaticMeshDocument expects a cpu file name as input
+        string filename;
+        if (extension == ".csmesh_pc")
+            filename = node.Filename;
+        else if (extension == ".gsmesh_pc")
+            filename = Path::GetFileNameNoExtension(node.Filename) + ".csmesh_pc";
+
+        state->CreateDocument(Document(filename, &StaticMeshDocument_Init, &StaticMeshDocument_Update, &StaticMeshDocument_OnClose, new StaticMeshDocumentData
         {
             .Filename = filename,
             .ParentName = node.ParentName,

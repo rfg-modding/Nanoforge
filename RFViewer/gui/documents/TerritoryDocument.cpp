@@ -36,6 +36,12 @@ void TerritoryDocument_Init(GuiState* state, Document& doc)
     //Init scene camera
     Scene& scene = state->Renderer->Scenes[data->SceneIndex];
     scene.Cam.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)scene.Width(), (f32)scene.Height() }, 1.0f, 10000.0f);
+    scene.SetShader(terrainShaderPath_);
+    scene.SetVertexLayout
+    ({
+        { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0,  DXGI_FORMAT_R32G32B32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 } 
+    });
 
     //Create worker thread to load terrain meshes in background
     data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, doc);

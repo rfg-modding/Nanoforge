@@ -16,7 +16,7 @@ void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFov, const Dir
     pitch_ = ToDegrees(asin(-forwardVec.m128_f32[1]));
     //Todo: Get the math right here. Subtracting from 360 is a dumb fix to get it roughly pointing at the origin.... Fine for now since only need to do this once
     //Todo: Noting for if/when the camera needs to be expanded to jump to different locations / targets in the future
-    yaw_ = 140.0f - ToDegrees(acos(forwardVec.m128_f32[0]));
+    yaw_ = 150.0f;
 
     //Set matrices
     UpdateViewMatrix();

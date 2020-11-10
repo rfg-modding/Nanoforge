@@ -18,8 +18,15 @@ public:
     void Create(const Mesh& mesh, const Vec3& position);
     //Draw the objects mesh
     void Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObjectBuffer, Camera& cam);
+    //Set uniform scale
+    void SetScale(f32 scale)
+    {
+        Scale.x = scale;
+        Scale.y = scale;
+        Scale.z = scale;
+    }
 
-private:
-    Mesh mesh_;
-    Vec3 position_;
+    Mesh ObjectMesh;
+    Vec3 Scale;
+    Vec3 Position;
 };

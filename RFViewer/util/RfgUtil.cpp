@@ -13,6 +13,8 @@ namespace RfgUtil
             return filenameNoExt + ".gpeg_pc";
         else if (extension == ".cvbm_pc")
             return filenameNoExt + ".gvbm_pc";
+        else if (extension == ".csmesh_pc")
+            return filenameNoExt + ".gsmesh_pc";
         else
             THROW_EXCEPTION("Unknown rfg file extension '{}' passed to RfgUtil::CpuFilenameToGpuFilename()", extension);
     }

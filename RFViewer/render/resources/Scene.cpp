@@ -18,25 +18,26 @@ void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d
 
     InitInternal();
     InitRenderTarget();
-    
-    shader_.Load(terrainShaderPath_, d3d11Device_);
+
+    //Create buffer for per object constants
+    perObjectBuffer_.Create(d3d11Device_, sizeof(PerObjectConstants), D3D11_BIND_CONSTANT_BUFFER);
+}
+
+void Scene::SetShader(const string& path)
+{
+    shader_.Load(path, d3d11Device_);
+}
+
+void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
+{
     auto pVSBlob = shader_.GetVertexShaderBytes();
 
-    //Create terrain vertex input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] =
-    {
-        { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0,  DXGI_FORMAT_R32G32B32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
     //Create the input layout
-    if (FAILED(d3d11Device_->CreateInputLayout(layout, ARRAYSIZE(layout), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), vertexLayout_.GetAddressOf())))
+    if (FAILED(d3d11Device_->CreateInputLayout(layout.data(), layout.size(), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), vertexLayout_.GetAddressOf())))
         THROW_EXCEPTION("Failed to create terrain vertex layout");
 
     //Set the input layout
     d3d11Context_->IASetInputLayout(vertexLayout_.Get());
-
-    //Create buffer for per object constants
-    perObjectBuffer_.Create(d3d11Device_, sizeof(PerObjectConstants), D3D11_BIND_CONSTANT_BUFFER);
 }
 
 void Scene::Draw()

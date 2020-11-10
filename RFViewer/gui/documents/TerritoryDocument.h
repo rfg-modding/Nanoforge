@@ -6,7 +6,6 @@
 #include "rfg/TerrainHelpers.h"
 #include <future>
 
-//Todo: Make separate document for general scenes (any meshes, effects, etc)
 struct TerritoryDocumentData
 {
     string TerritoryName;

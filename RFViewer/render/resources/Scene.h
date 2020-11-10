@@ -35,6 +35,8 @@ class Scene
 {
 public:
     void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context);
+    void SetShader(const string& path);
+    void SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
     void Draw();
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
     void HandleResize(u32 windowWidth, u32 windowHeight);
