@@ -27,6 +27,6 @@ public:
     }
 
     Mesh ObjectMesh;
-    Vec3 Scale;
-    Vec3 Position;
+    Vec3 Scale = { 1.0f, 1.0f, 1.0f };
+    Vec3 Position = { 0.0f, 0.0f, 0.0f };
 };
