@@ -44,7 +44,7 @@ void TerritoryDocument_Init(GuiState* state, Document& doc)
     });
 
     //Create worker thread to load terrain meshes in background
-    data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, doc);
+    data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, std::ref(doc));
 }
 
 void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc);
@@ -361,7 +361,7 @@ void LoadTerrainMeshes(GuiState* state, Document& doc)
     u32 terrainMeshIndex = 0;
     for (auto& terrainMesh : terrainMeshHandlesCpu)
     {
-        futures.push_back(std::async(std::launch::async, &LoadTerrainMesh, terrainMesh, terrainPositions[terrainMeshIndex], state, doc));
+        futures.push_back(std::async(std::launch::async, &LoadTerrainMesh, std::ref(terrainMesh), std::ref(terrainPositions[terrainMeshIndex]), state, std::ref(doc)));
         terrainMeshIndex++;
     }
     for (auto& future : futures)
