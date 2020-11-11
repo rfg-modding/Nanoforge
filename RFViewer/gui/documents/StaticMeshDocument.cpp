@@ -16,7 +16,9 @@ const string staticMeshShaderPath_ = "./Assets/shaders/StaticMesh.fx";
 
 void StaticMeshDocument_WorkerThread(GuiState* state, Document& doc);
 //Finds a texture and creates a directx texture resource from it. textureName is the textureName of a texture inside a cpeg/cvbm. So for example, sledgehammer_high_n.tga, which is in sledgehammer_high.cpeg_pc
-std::optional<Texture2D> GetTexture(GuiState* state, Document& doc, const string& name);
+//Will try to find a high res version of the texture first if lookForHighResVariant is true.
+//Will return a default texture if the target isn't found.
+std::optional<Texture2D> FindTexture(GuiState* state, Document& doc, const string& name, bool lookForHighResVariant = false);
 
 void StaticMeshDocument_Init(GuiState* state, Document& doc)
 {
@@ -30,6 +32,7 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
     Scene& scene = state->Renderer->Scenes[data->SceneIndex];
     scene.Cam.Init({ 7.5f, 15.0f, 12.0f }, 80.0f, { (f32)scene.Width(), (f32)scene.Height() }, 1.0f, 10000.0f);
     scene.Cam.Speed = 0.25f;
+    scene.Cam.SprintSpeed = 0.4f;
     scene.Cam.LookAt({ 0.0f, 0.0f, 0.0f });
     scene.SetShader(staticMeshShaderPath_);
     scene.SetVertexLayout //Todo: Vary this based on vertex format of static mesh we opened
@@ -74,34 +77,51 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
 
     for (auto& textureName : data->StaticMesh.TextureNames)
     {
+        bool isLowResTexture = String::Contains(textureName, "_low_");
+        string highResName = isLowResTexture ? String::Replace(textureName, "_low_", "_") : textureName;
         if (String::Contains(textureName, "_d"))
         {
-            auto texture = GetTexture(state, doc, textureName);
+            auto texture = FindTexture(state, doc, textureName, true);
             if (texture)
             {
+                Log->info("Found diffuse texture {} for {}", textureName, data->Filename);
                 data->DiffuseTexture = texture.value();
                 renderObject.UseTextures = true;
                 renderObject.DiffuseTexture = texture.value();
             }
+            else
+            {
+                Log->warn("Failed to find diffuse texture {} for {}", textureName, data->Filename);
+            }
         }
         else if (String::Contains(textureName, "_n"))
         {
-            auto texture = GetTexture(state, doc, textureName);
+            auto texture = FindTexture(state, doc, textureName, true);
             if (texture)
             {
+                Log->info("Found normal map {} for {}", textureName, data->Filename);
                 data->NormalTexture = texture.value();
                 renderObject.UseTextures = true;
                 renderObject.NormalTexture = texture.value();
             }
+            else
+            {
+                Log->warn("Failed to find normal map {} for {}", textureName, data->Filename);
+            }
         }
         else if (String::Contains(textureName, "_s"))
         {
-            auto texture = GetTexture(state, doc, textureName);
+            auto texture = FindTexture(state, doc, textureName, true);
             if (texture)
             {
+                Log->info("Found specular map {} for {}", textureName, data->Filename);
                 data->SpecularTexture = texture.value();
                 renderObject.UseTextures = true;
                 renderObject.SpecularTexture = texture.value();
+            }
+            else
+            {
+                Log->warn("Failed to find specular map {} for {}", textureName, data->Filename);
             }
         }
     }
@@ -233,34 +253,8 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, Document& doc)
         }
         ImGui::DragFloat3("Scale", (float*)&scene.Objects[0].Scale, 0.01, 1.0f, 100.0f);
 
-        ImGui::Text("Shading mode: ");
-        ImGui::SameLine();
-        ImGui::RadioButton("Elevation", &scene.perFrameStagingBuffer_.ShadeMode, 0);
-        ImGui::SameLine();
-        ImGui::RadioButton("Diffuse", &scene.perFrameStagingBuffer_.ShadeMode, 1);
-
-        if (scene.perFrameStagingBuffer_.ShadeMode != 0)
-        {
-            ImGui::Text("Diffuse presets: ");
-            ImGui::SameLine();
-            if (ImGui::Button("Default"))
-            {
-                scene.perFrameStagingBuffer_.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-                scene.perFrameStagingBuffer_.DiffuseIntensity = 0.65f;
-                scene.perFrameStagingBuffer_.ElevationFactorBias = 0.8f;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("False color"))
-            {
-                scene.perFrameStagingBuffer_.DiffuseColor = { 1.15f, 0.67f, 0.02f, 1.0f };
-                scene.perFrameStagingBuffer_.DiffuseIntensity = 0.55f;
-                scene.perFrameStagingBuffer_.ElevationFactorBias = -0.8f;
-            }
-
-            ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&scene.perFrameStagingBuffer_.DiffuseColor));
-            ImGui::InputFloat("Diffuse intensity", &scene.perFrameStagingBuffer_.DiffuseIntensity);
-            ImGui::InputFloat("Elevation color bias", &scene.perFrameStagingBuffer_.ElevationFactorBias);
-        }
+        ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&scene.perFrameStagingBuffer_.DiffuseColor));
+        ImGui::SliderFloat("Diffuse intensity", &scene.perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 1.0f);
 
         ImGui::EndPopup();
     }
@@ -297,7 +291,7 @@ std::optional<Texture2D> GetTextureFromPeg(GuiState* state, Document& doc, Packf
     //See if target texture is in peg. If so extract it and create a Texture2D from it
     for (auto& entry : peg.Entries)
     {
-        if (entry.Name == textureName)
+        if (String::EqualIgnoreCase(entry.Name, textureName))
         {
             peg.ReadTextureData(gpuFileReader, entry);
             std::span<u8> textureData = entry.RawData;
@@ -397,6 +391,27 @@ std::optional<Texture2D> GetTexture(GuiState* state, Document& doc, const string
     //Then search parent vpp
     Packfile3* parentPackfile = state->PackfileVFS->GetPackfile(data->VppName);
     return GetTextureFromPackfile(state, doc, parentPackfile, textureName); //Return regardless here since it's our last search option
+}
+
+std::optional<Texture2D> FindTexture(GuiState* state, Document& doc, const string& name, bool lookForHighResVariant)
+{
+    //Look for high res variant if requested and string fits high res search requirements
+    if (lookForHighResVariant && String::Contains(name, "_low_"))
+    {
+        //Replace _low_ with _. This is the naming scheme I've seen many high res variants follow
+        string highResName = String::Replace(name, "_low_", "_");
+        auto texture = GetTexture(state, doc, highResName);
+        
+        //Return high res variant if it was found
+        if (texture)
+        {
+            Log->info("Found high res variant of {}: {}", name, highResName);
+            return texture;
+        }
+    }
+
+    //Else look for the specified texture
+    return GetTexture(state, doc, name);
 }
 
 void StaticMeshDocument_OnClose(GuiState* state, Document& doc)

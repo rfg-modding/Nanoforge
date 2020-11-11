@@ -1,7 +1,7 @@
 #include "Buffer.h"
 #include "Log.h"
 
-void Buffer::Create(ComPtr<ID3D11Device> d3d11Device, u32 size, UINT bindFlags)
+void Buffer::Create(ComPtr<ID3D11Device> d3d11Device, u32 size, UINT bindFlags, UINT usage, UINT cpuAccessFlags, UINT miscFlags)
 {
     //Save buffer size and reset existing data
     size_ = size;
@@ -10,11 +10,11 @@ void Buffer::Create(ComPtr<ID3D11Device> d3d11Device, u32 size, UINT bindFlags)
     //Fill out buffer description
     D3D11_BUFFER_DESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
-    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    bufferDesc.Usage = (D3D11_USAGE)usage;
     bufferDesc.ByteWidth = size;
     bufferDesc.BindFlags = bindFlags;
-    bufferDesc.CPUAccessFlags = 0;
-    bufferDesc.MiscFlags = 0;
+    bufferDesc.CPUAccessFlags = cpuAccessFlags;
+    bufferDesc.MiscFlags = miscFlags;
 
     //Attempt to create buffer
     if (FAILED(d3d11Device->CreateBuffer(&bufferDesc, nullptr, buffer_.GetAddressOf())))

@@ -71,7 +71,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     //Diffuse light contribution
     float3 lightDir = normalize(-sunDir);
     float diff = max(dot(normal, lightDir), 0.0f);
-    float3 diffuse = (diff * color.xyz) ;
+    float3 diffuse = (diff * color.xyz * DiffuseColor * DiffuseIntensity) ;
 
     //Todo: Fix specular highlights. They don't show up
     //Specular highlights

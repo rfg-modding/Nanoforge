@@ -11,7 +11,7 @@ class Buffer
 {
 public:
     //Creates a buffer from the provided variables
-    void Create(ComPtr<ID3D11Device> d3d11Device, u32 size, UINT bindFlags);
+    void Create(ComPtr<ID3D11Device> d3d11Device, u32 size, UINT bindFlags, UINT usage = D3D11_USAGE_DEFAULT, UINT cpuAccessFlags = 0, UINT miscFlags = 0);
     //Update contents of buffer from pData
     void SetData(ComPtr<ID3D11DeviceContext> d3d11Context, void* pData);
     //Get raw pointer of underlying ID3D11Buffer

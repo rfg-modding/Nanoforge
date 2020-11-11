@@ -229,8 +229,8 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc)
             }
 
             ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&scene.perFrameStagingBuffer_.DiffuseColor));
-            ImGui::InputFloat("Diffuse intensity", &scene.perFrameStagingBuffer_.DiffuseIntensity);
-            ImGui::InputFloat("Elevation color bias", &scene.perFrameStagingBuffer_.ElevationFactorBias);
+            ImGui::SliderFloat("Diffuse intensity", &scene.perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 1.0f);
+            ImGui::SliderFloat("Elevation color bias", &scene.perFrameStagingBuffer_.ElevationFactorBias, -1.0f, 1.0f);
         }
 
         ImGui::EndPopup();
