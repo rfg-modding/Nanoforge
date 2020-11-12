@@ -113,9 +113,21 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "NORMAL", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TANGENT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD0", 0,  DXGI_FORMAT_R16G16_SINT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD1", 0,  DXGI_FORMAT_R16G16_SINT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 1,  DXGI_FORMAT_R16G16_SINT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         });
+    }
+    else if (format == VertexFormat::Pixlit3UvNmap)
+    {
+        scene.SetVertexLayout
+        ({
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "NORMAL", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TANGENT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 1,  DXGI_FORMAT_R16G16_SINT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 2,  DXGI_FORMAT_R16G16_SINT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            });
     }
     else if (format == VertexFormat::Pixlit3UvNmapCa)
     {
@@ -126,9 +138,9 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
             { "TANGENT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "BLENDWEIGHT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "BLENDINDEX", 0,  DXGI_FORMAT_R8G8B8A8_UINT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD0", 0,  DXGI_FORMAT_R16G16_SINT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD1", 0,  DXGI_FORMAT_R16G16_SINT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD2", 0,  DXGI_FORMAT_R16G16_SINT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 1,  DXGI_FORMAT_R16G16_SINT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 2,  DXGI_FORMAT_R16G16_SINT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         });
     }
 
@@ -149,51 +161,52 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
 
         for (auto& textureName : data->StaticMesh.TextureNames)
         {
-            bool isLowResTexture = String::Contains(textureName, "_low_");
-            string highResName = isLowResTexture ? String::Replace(textureName, "_low_", "_") : textureName;
-            if (String::Contains(textureName, "_d"))
+            string textureNameLower = String::ToLower(textureName);
+            bool isLowResTexture = String::Contains(textureNameLower, "_low_");
+            string highResName = isLowResTexture ? String::Replace(textureNameLower, "_low_", "_") : textureNameLower;
+            if (String::Contains(textureNameLower, "_d"))
             {
-                auto texture = FindTexture(state, doc, textureName, true);
+                auto texture = FindTexture(state, doc, textureNameLower, true);
                 if (texture)
                 {
-                    Log->info("Found diffuse texture {} for {}", textureName, data->Filename);
+                    Log->info("Found diffuse texture {} for {}", textureNameLower, data->Filename);
                     data->DiffuseTexture = texture.value();
                     renderObject.UseTextures = true;
                     renderObject.DiffuseTexture = texture.value();
                 }
                 else
                 {
-                    Log->warn("Failed to find diffuse texture {} for {}", textureName, data->Filename);
+                    Log->warn("Failed to find diffuse texture {} for {}", textureNameLower, data->Filename);
                 }
             }
-            else if (String::Contains(textureName, "_n"))
+            else if (String::Contains(textureNameLower, "_n"))
             {
-                auto texture = FindTexture(state, doc, textureName, true);
+                auto texture = FindTexture(state, doc, textureNameLower, true);
                 if (texture)
                 {
-                    Log->info("Found normal map {} for {}", textureName, data->Filename);
+                    Log->info("Found normal map {} for {}", textureNameLower, data->Filename);
                     data->NormalTexture = texture.value();
                     renderObject.UseTextures = true;
                     renderObject.NormalTexture = texture.value();
                 }
                 else
                 {
-                    Log->warn("Failed to find normal map {} for {}", textureName, data->Filename);
+                    Log->warn("Failed to find normal map {} for {}", textureNameLower, data->Filename);
                 }
             }
-            else if (String::Contains(textureName, "_s"))
+            else if (String::Contains(textureNameLower, "_s"))
             {
-                auto texture = FindTexture(state, doc, textureName, true);
+                auto texture = FindTexture(state, doc, textureNameLower, true);
                 if (texture)
                 {
-                    Log->info("Found specular map {} for {}", textureName, data->Filename);
+                    Log->info("Found specular map {} for {}", textureNameLower, data->Filename);
                     data->SpecularTexture = texture.value();
                     renderObject.UseTextures = true;
                     renderObject.SpecularTexture = texture.value();
                 }
                 else
                 {
-                    Log->warn("Failed to find specular map {} for {}", textureName, data->Filename);
+                    Log->warn("Failed to find specular map {} for {}", textureNameLower, data->Filename);
                 }
             }
         }

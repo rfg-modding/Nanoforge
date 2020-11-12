@@ -62,8 +62,8 @@ DX11Renderer::~DX11Renderer()
     ImGui::DestroyContext();
 
     ReleaseCOM(swapChain_);
-    ReleaseCOM(d3d11Device_);
-    ReleaseCOM(d3d11Context_);
+    d3d11Device_.Reset();
+    d3d11Context_.Reset();
     ReleaseCOM(dxgiFactory_);
 }
 

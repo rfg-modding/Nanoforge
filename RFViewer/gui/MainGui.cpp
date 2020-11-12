@@ -601,6 +601,7 @@ void MainGui::DrawWelcomeWindow()
             if (State.CurrentProject->Load(path))
             {
                 StateEnum = Main;
+                ImGui::EndChild();
                 ImGui::End();
                 return;
             }
