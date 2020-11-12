@@ -8,6 +8,9 @@ void RenderObject::Create(const Mesh& mesh, const Vec3& position)
 
 void RenderObject::Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObjectBuffer, Camera& cam)
 {
+    if (!Visible)
+        return;
+
     //Shader constants for this object
     PerObjectConstants constants;
 

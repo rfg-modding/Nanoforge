@@ -65,9 +65,9 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     //Todo: Determine if how second uv should be used. Unsure so just using it for normal map
-    float4 color = 0.75;//DiffuseTexture.Sample(DiffuseSampler, input.Uv0);
-    float4 normal = input.Normal;//NormalTexture.Sample(NormalSampler, input.Uv1);
-    float4 specularStrength = 0.5f;//SpecularTexture.Sample(SpecularSampler, input.Uv0);
+    float4 color = DiffuseTexture.Sample(DiffuseSampler, input.Uv0);
+    float4 normal = NormalTexture.Sample(NormalSampler, input.Uv1);
+    float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv2);
 
     //Sun direction for diffuse lighting
     float3 sunPos = float3(50.0f, 100.0f, 100.0f);

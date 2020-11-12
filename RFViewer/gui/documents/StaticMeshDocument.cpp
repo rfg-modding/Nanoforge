@@ -152,6 +152,7 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
             THROW_EXCEPTION("Failed to get mesh data for static mesh doc in StaticMesh::ReadSubmeshData()");
 
         MeshInstanceData meshData = maybeMeshData.value();
+        data->RenderObjectIndices.push_back(scene.Objects.size());
         auto& renderObject = scene.Objects.emplace_back();
         Mesh mesh;
         mesh.Create(scene.d3d11Device_, scene.d3d11Context_, meshData.VertexBuffer, meshData.IndexBuffer,
@@ -170,7 +171,6 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
                 if (texture)
                 {
                     Log->info("Found diffuse texture {} for {}", textureNameLower, data->Filename);
-                    data->DiffuseTexture = texture.value();
                     renderObject.UseTextures = true;
                     renderObject.DiffuseTexture = texture.value();
                 }
@@ -185,7 +185,6 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
                 if (texture)
                 {
                     Log->info("Found normal map {} for {}", textureNameLower, data->Filename);
-                    data->NormalTexture = texture.value();
                     renderObject.UseTextures = true;
                     renderObject.NormalTexture = texture.value();
                 }
@@ -200,7 +199,6 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
                 if (texture)
                 {
                     Log->info("Found specular map {} for {}", textureNameLower, data->Filename);
-                    data->SpecularTexture = texture.value();
                     renderObject.UseTextures = true;
                     renderObject.SpecularTexture = texture.value();
                 }
@@ -214,6 +212,16 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
         //Clear mesh data
         delete[] meshData.IndexBuffer.data();
         delete[] meshData.VertexBuffer.data();
+    }
+
+    //Hide all submeshes except first if num submeshes = num lods. Generally the other submeshes are low lod meshes
+    if (data->StaticMesh.NumLods == data->StaticMesh.NumSubmeshes)
+    {
+        for (u32 i = 1; i < data->RenderObjectIndices.size(); i++)
+        {
+            auto& renderObject = scene.Objects[data->RenderObjectIndices[i]];
+            renderObject.Visible = false;
+        }
     }
 }
 
@@ -309,8 +317,8 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, Document& doc)
             scene.Cam.UpdateViewMatrix();
         }
 
-        gui::LabelAndValue("Pitch: ", std::to_string(scene.Cam.GetPitch()));
-        gui::LabelAndValue("Yaw: ", std::to_string(scene.Cam.GetYaw()));
+        gui::LabelAndValue("Pitch:", std::to_string(scene.Cam.GetPitch()));
+        gui::LabelAndValue("Yaw:", std::to_string(scene.Cam.GetYaw()));
 
         ImGui::EndPopup();
     }
@@ -352,13 +360,50 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, Document& doc)
     state->FontManager->FontL.Pop();
     if (ImGui::BeginPopup("##MeshInfoPopup"))
     {
+        //Header / general data
         state->FontManager->FontL.Push();
         ImGui::Text("Mesh info");
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
+        gui::LabelAndValue("Header size:", std::to_string(data->StaticMesh.CpuDataSize) + " bytes");
+        gui::LabelAndValue("Data size:", std::to_string(data->StaticMesh.GpuDataSize) + " bytes");
+        gui::LabelAndValue("Num LODs:", std::to_string(data->StaticMesh.NumLods));
+        gui::LabelAndValue("Num submeshes:", std::to_string(data->StaticMesh.NumSubmeshes));
+        gui::LabelAndValue("Num materials:", std::to_string(data->StaticMesh.Header.NumMaterials));
+        gui::LabelAndValue("Num vertices:", std::to_string(data->StaticMesh.VertexBufferConfig.NumVerts));
+        gui::LabelAndValue("Num indices:", std::to_string(data->StaticMesh.IndexBufferConfig.NumIndices));
+        gui::LabelAndValue("Vertex format:", to_string(data->StaticMesh.VertexBufferConfig.Format));
+        gui::LabelAndValue("Vertex size:", std::to_string(data->StaticMesh.VertexBufferConfig.VertexStride0));
+        gui::LabelAndValue("Index size:", std::to_string(data->StaticMesh.IndexBufferConfig.IndexSize));
 
+        //Submesh data
+        ImGui::Separator();
+        state->FontManager->FontL.Push();
+        ImGui::Text(ICON_FA_CUBES "Submeshes");
+        state->FontManager->FontL.Pop();
+        ImGui::Separator();
 
+        if (ImGui::BeginChild("##MeshInfoSubmeshesList", ImVec2(200.0f, 150.0f)))
+        {
+            ImGui::Columns(2);
+            ImGui::SetColumnWidth(0, 100.0f);
+            ImGui::SetColumnWidth(1, 100.0f);
+            for (u32 i = 0; i < data->StaticMesh.SubMeshes.size(); i++)
+            {
+                SubmeshData& submesh = data->StaticMesh.SubMeshes[i];
+                RenderObject& renderObj = scene.Objects[data->RenderObjectIndices[i]];
+                if (ImGui::Selectable(("Submesh " + std::to_string(i)).c_str()))
+                {
+                    //Todo: Edge highlight / glow selected submesh
+                }
+                ImGui::NextColumn();
+                ImGui::Checkbox(("##SubmeshVisibility" + std::to_string(i)).c_str(), &renderObj.Visible);
+                ImGui::NextColumn();
+            }
+            ImGui::EndChild();
+        }
+        ImGui::Columns(1);
         ImGui::EndPopup();
     }
 }

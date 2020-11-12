@@ -30,6 +30,7 @@ public:
     Mesh ObjectMesh;
     Vec3 Scale = { 1.0f, 1.0f, 1.0f };
     Vec3 Position = { 0.0f, 0.0f, 0.0f };
+    bool Visible = true;
 
     bool UseTextures = false;
     Texture2D DiffuseTexture;

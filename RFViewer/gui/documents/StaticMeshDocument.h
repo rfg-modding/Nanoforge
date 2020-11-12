@@ -5,6 +5,7 @@
 #include "render/resources/Scene.h"
 #include "RfgTools++/formats/meshes/StaticMesh.h"
 #include <future>
+#include <vector>
 
 struct StaticMeshDocumentData
 {
@@ -16,9 +17,7 @@ struct StaticMeshDocumentData
     string GpuFilePath;
     StaticMesh StaticMesh;
     u32 SceneIndex = 0;
-    Texture2D DiffuseTexture;
-    Texture2D NormalTexture;
-    Texture2D SpecularTexture;
+    std::vector<u32> RenderObjectIndices;
 
     //std::future<void> WorkerFuture;
     //std::mutex ResourceLock;
