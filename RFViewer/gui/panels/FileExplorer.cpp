@@ -330,7 +330,7 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
             .InContainer = node.InContainer
         }));
     }
-    else if (extension == ".csmesh_pc" || extension == ".gsmesh_pc")
+    else if (extension == ".csmesh_pc" || extension == ".gsmesh_pc" || extension == ".ccmesh_pc" || extension == ".gcmesh_pc")
     {
         //Convert gpu filenames to cpu filename if necessary. StaticMeshDocument expects a cpu file name as input
         string filename;
@@ -338,6 +338,10 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
             filename = node.Filename;
         else if (extension == ".gsmesh_pc")
             filename = Path::GetFileNameNoExtension(node.Filename) + ".csmesh_pc";
+        else if (extension == ".ccmesh_pc")
+            filename = node.Filename;
+        else if (extension == ".gcmesh_pc")
+            filename = Path::GetFileNameNoExtension(node.Filename) + ".ccmesh_pc";
 
         state->CreateDocument(Document(filename, &StaticMeshDocument_Init, &StaticMeshDocument_Update, &StaticMeshDocument_OnClose, new StaticMeshDocumentData
         {
