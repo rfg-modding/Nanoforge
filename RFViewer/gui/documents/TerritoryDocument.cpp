@@ -9,7 +9,7 @@
 void TerritoryDocument_WorkerThread(GuiState* state, Document& doc);
 void WorkerThread_ClearData(Document& doc);
 void LoadTerrainMeshes(GuiState* state, Document& doc);
-void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state, Document& doc);
+void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, Document& doc);
 struct ShortVec4
 {
     i16 x = 0;
@@ -264,34 +264,27 @@ void TerritoryDocument_WorkerThread(GuiState* state, Document& doc)
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
 
     //Read all zones from zonescript_terr01.vpp_pc
-    state->SetStatus(ICON_FA_SYNC " Loading zones", Working);
+    state->SetStatus(ICON_FA_SYNC " Loading zones for " + doc.Title, Working);
     data->Territory.Init(state->PackfileVFS, data->TerritoryName, data->TerritoryShortname);
     data->Territory.LoadZoneData();
     state->CurrentTerritory = &data->Territory;
     state->SetSelectedZone(0);
-    Log->info("Loaded {} zones", data->Territory.ZoneFiles.size());
+
+    std::vector<ZoneData>& zoneFiles = data->Territory.ZoneFiles;
+    Log->info("Loaded {} zones for {}", zoneFiles.size(), doc.Title);
 
     //Move camera close to zone with the most objects by default. Convenient as some territories have origins distant from each other
-    if (data->Territory.ZoneFiles.size() > 0)
+    if (zoneFiles.size() > 0 && zoneFiles[0].Zone.Objects.size() > 0)
     {
-        ZoneData& zone = data->Territory.ZoneFiles[0];
-        if (zone.Zone.Objects.size() > 0)
-        {
-            auto& firstObj = zone.Zone.Objects[0];
-            Vec3 newCamPos = firstObj.Bmin;
-            newCamPos.x += 100.0f;
-            newCamPos.y += 500.0f;
-            newCamPos.z += 100.0f;
-            state->CurrentTerritoryCamPosNeedsUpdate = true;
-            state->CurrentTerritoryNewCamPos = newCamPos;
-        }
+        //Tell camera to move to near the first object in the zone
+        state->CurrentTerritoryNewCamPos = zoneFiles[0].Zone.Objects[0].Bmin + Vec3{ .x = 100.0f, .y = 500.0f, .z = 100.0f };
+        state->CurrentTerritoryCamPosNeedsUpdate = true;
     }
 
     //Load terrain meshes and extract their index + vertex data
     LoadTerrainMeshes(state, doc);
     state->ClearStatus();
     data->WorkerDone = true;
-    //data->NewTerrainInstanceAdded = true;
 }
 
 //Loads vertex and index data of each zones terrain mesh
@@ -299,79 +292,42 @@ void TerritoryDocument_WorkerThread(GuiState* state, Document& doc)
 void LoadTerrainMeshes(GuiState* state, Document& doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
-    state->SetStatus(ICON_FA_SYNC " Locating terrain files", Working);
+    state->SetStatus(ICON_FA_SYNC " Loading terrain meshes for " + doc.Title, Working);
 
-    //Todo: Split this into it's own function(s)
-    //Get terrain mesh files for loaded zones and load them
-    std::vector<string> terrainCpuFileNames = {};
-    std::vector<string> terrainGpuFileNames = {};
-    std::vector<Vec3> terrainPositions = {};
+    //Must store futures for std::async to run functions asynchronously
+    std::vector<std::future<void>> futures;
 
-    //Create list of terrain meshes we need from obj_zone objects
+    //Find terrain meshes and load them
     for (auto& zone : data->Territory.ZoneFiles)
     {
-        //Get obj zone object from zone
+        //Get obj_zone object with a terrain_file_name property
         auto* objZoneObject = zone.Zone.GetSingleObject("obj_zone");
         if (!objZoneObject)
             continue;
-
-        //Attempt to get terrain mesh name from it's properties
         auto* terrainFilenameProperty = objZoneObject->GetProperty<StringProperty>("terrain_file_name");
         if (!terrainFilenameProperty)
             continue;
 
-        bool found = false;
-        for (auto& filename : terrainCpuFileNames)
-        {
-            if (filename == terrainFilenameProperty->Data)
-                found = true;
-        }
-        if (!found)
-        {
-            terrainCpuFileNames.push_back(terrainFilenameProperty->Data);
-            terrainPositions.push_back(objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f));
-        }
-        else
-            std::cout << "Found another zone file using the terrain mesh \"" << terrainFilenameProperty->Data << "\"\n";
-    }
-
-    //Remove extra null terminators that RFG so loves to have in it's files
-    for (auto& filename : terrainCpuFileNames)
-    {
-        //Todo: Strip this in the StringProperty. Causes many issues
+        //Remove extra null terminators that RFG so loves to have in it's files
+        string filename = terrainFilenameProperty->Data;
         if (filename.ends_with('\0'))
             filename.pop_back();
-    }
 
-    //Generate gpu file names from cpu file names
-    for (u32 i = 0; i < terrainCpuFileNames.size(); i++)
-    {
-        string& filename = terrainCpuFileNames[i];
-        terrainGpuFileNames.push_back(filename + ".gterrain_pc");
         filename += ".cterrain_pc";
+        Vec3 position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
+        auto terrainMeshHandleCpu = state->PackfileVFS->GetFiles(filename, true, true);
+        if (terrainMeshHandleCpu.size() > 0)
+            futures.push_back(std::async(std::launch::async, &LoadTerrainMesh, terrainMeshHandleCpu[0], position, state, std::ref(doc)));
     }
-
-    //Get handles to cpu files
-    auto terrainMeshHandlesCpu = state->PackfileVFS->GetFiles(terrainCpuFileNames, true, true);
-    Log->info("Found {} terrain meshes. Loading...", terrainMeshHandlesCpu.size());
-    state->SetStatus(ICON_FA_SYNC " Loading terrain meshes", Working);
-
-    //Todo: Make multithreaded loading optional
-    std::vector<std::future<void>> futures;
-    u32 terrainMeshIndex = 0;
-    for (auto& terrainMesh : terrainMeshHandlesCpu)
-    {
-        futures.push_back(std::async(std::launch::async, &LoadTerrainMesh, std::ref(terrainMesh), std::ref(terrainPositions[terrainMeshIndex]), state, std::ref(doc)));
-        terrainMeshIndex++;
-    }
+    
+    //Wait for all threads to exit
     for (auto& future : futures)
-    {
         future.wait();
-    }
-    Log->info("Done loading terrain meshes");
+
+    Log->info("Done loading terrain meshes for {}", doc.Title);
 }
 
-void LoadTerrainMesh(FileHandle& terrainMesh, Vec3& position, GuiState* state, Document& doc)
+void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, Document& doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
 
@@ -533,7 +489,7 @@ void WorkerThread_ClearData(Document& doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
 
-    Log->info("Terrain worker thread temporary data cleared.");
+    Log->info("Temporary data cleared for {} terrain worker threads", doc.Title);
     for (auto& instance : data->TerrainInstances)
     {
         //Free vertex and index buffer memory

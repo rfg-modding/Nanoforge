@@ -21,7 +21,8 @@ void Territory::LoadZoneData()
     if (!zonescriptVpp)
         THROW_EXCEPTION("Error! Could not find territory file {} in data folder. Required for the program to function.", territoryFilename_);
 
-    //Todo: Add search function with filters to packfile. Can base off of search functions in PackfileVFS
+    //Todo: Use packfile search functions and also search str2s
+    //Todo: Use caching system
     for (u32 i = 0; i < zonescriptVpp->Entries.size(); i++)
     {
         const char* path = zonescriptVpp->EntryNames[i];
@@ -33,7 +34,6 @@ void Territory::LoadZoneData()
         if (!fileBuffer)
             THROW_EXCEPTION("Error! Failed to extract a zone file from zonescript_terr01.vpp_pc");
 
-        //Todo: It'd be safer to do this all in a temporary vector and then .swap() it into the real one
         BinaryReader reader(fileBuffer.value());
         ZoneData& zoneFile = ZoneFiles.emplace_back();
         zoneFile.Name = Path::GetFileName(std::filesystem::path(path));
