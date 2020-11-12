@@ -84,7 +84,16 @@ void StaticMeshDocument_Init(GuiState* state, Document& doc)
     //Vary input and shader based on vertex format
     VertexFormat format = data->StaticMesh.VertexBufferConfig.Format;
     scene.SetShader(shaderFolderPath_ + to_string(format) + ".fx");
-    if (format == VertexFormat::Pixlit1UvNmap)
+    if (format == VertexFormat::Pixlit1Uv)
+    {
+        scene.SetVertexLayout
+        ({
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "NORMAL", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        });
+    }
+    else if (format == VertexFormat::Pixlit1UvNmap)
     {
         scene.SetVertexLayout
         ({
