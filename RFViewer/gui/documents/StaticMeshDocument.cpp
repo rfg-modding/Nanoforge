@@ -202,6 +202,9 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docu
             for (u32 i = 0; i < data->StaticMesh.SubMeshes.size(); i++)
             {
                 SubmeshData& submesh = data->StaticMesh.SubMeshes[i];
+                if (i >= data->RenderObjectIndices.size()) //Skip submeshes that aren't fully loaded yet
+                    continue;
+
                 RenderObject& renderObj = data->Scene->Objects[data->RenderObjectIndices[i]];
                 if (ImGui::Selectable(("Submesh " + std::to_string(i)).c_str()))
                 {
@@ -507,8 +510,8 @@ void StaticMeshDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> 
 
         state->Renderer->ContextMutex.lock();
         MeshInstanceData meshData = maybeMeshData.value();
-        data->RenderObjectIndices.push_back(data->Scene->Objects.size());
         auto& renderObject = data->Scene->Objects.emplace_back();
+        data->RenderObjectIndices.push_back(data->Scene->Objects.size() - 1);
         Mesh mesh;
         mesh.Create(data->Scene->d3d11Device_, data->Scene->d3d11Context_, meshData.VertexBuffer, meshData.IndexBuffer,
             data->StaticMesh.VertexBufferConfig.NumVerts, DXGI_FORMAT_R16_UINT, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
