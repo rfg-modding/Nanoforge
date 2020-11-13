@@ -256,7 +256,21 @@ bool DX11Renderer::InitSwapchainAndResources()
     blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
     blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-    DxCheck(d3d11Device_->CreateBlendState(&blendDesc, &blendState_), "Im3d blend state creation failed!");
+    DxCheck(d3d11Device_->CreateBlendState(&blendDesc, &blendState_), "Blend state creation failed!");
+
+    D3D11_RASTERIZER_DESC rasterizerDesc;
+    ZeroMemory(&rasterizerDesc, sizeof(rasterizerDesc));
+    rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+    rasterizerDesc.CullMode = D3D11_CULL_BACK;
+    rasterizerDesc.FrontCounterClockwise = false;
+    rasterizerDesc.DepthBias = false;
+    rasterizerDesc.DepthBiasClamp = 0;
+    rasterizerDesc.SlopeScaledDepthBias = 0;
+    rasterizerDesc.DepthClipEnable = true;
+    rasterizerDesc.ScissorEnable = false;
+    rasterizerDesc.MultisampleEnable = false;
+    rasterizerDesc.AntialiasedLineEnable = false;
+    DxCheck(d3d11Device_->CreateRasterizerState(&rasterizerDesc, &rasterizerState_), "Rasterizer state creation failed!");
 
     return true;
 }
