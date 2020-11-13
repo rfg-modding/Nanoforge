@@ -8,7 +8,7 @@ bool FileNode::IsCached(const string& path)
     std::vector<s_view> split = String::SplitString(path, "\\");
     for (auto& subfile : Subfiles)
     {
-        if (subfile.Name == split[0])
+        if (String::EqualIgnoreCase(subfile.Name, split[0]))
             return split.size() == 1 ? true : subfile.IsCached(path.substr(path.find_first_of("\\") + 1));
     }
     return false;
@@ -19,7 +19,7 @@ bool FileNode::ContainsFolder(const string& path)
     std::vector<s_view> split = String::SplitString(path, "\\");
     for (auto& subfile : Subfiles)
     {
-        if (subfile.Name == split[0])
+        if (String::EqualIgnoreCase(subfile.Name, split[0]))
             return split.size() == 1 ? true : subfile.ContainsFolder(path.substr(path.find_first_of("\\") + 1));
     }
     return false;
@@ -30,7 +30,7 @@ FileNode& FileNode::GetFolder(const string& path)
     std::vector<s_view> split = String::SplitString(path, "\\");
     for (auto& subfile : Subfiles)
     {
-        if (subfile.Name == split[0])
+        if (String::EqualIgnoreCase(subfile.Name, split[0]))
             return split.size() == 1 ? subfile : subfile.GetFolder(path.substr(path.find_first_of("\\") + 1));
     }
     THROW_EXCEPTION("Failed to find folder \"{}\" in FileNode::GetFolder()", path);
@@ -52,7 +52,7 @@ FileNode& FileNode::AddFolder(const string& path)
 
         for (auto& subfile : Subfiles)
         {
-            if (subfile.Name == split[0])
+            if (String::EqualIgnoreCase(subfile.Name, split[0]))
                 return subfile.AddFolder(path.substr(path.find_first_of("\\") + 1));
         }
     }

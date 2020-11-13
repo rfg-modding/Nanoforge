@@ -60,8 +60,6 @@ private:
     Project* project_ = nullptr;
     //RFG data folder path
     std::string packfileFolderPath_;
-    //Global file cache path. Extracted files are put in this folder to avoid repeat extractions
-    string globalCachePath_ = ".\\Cache\\";
     //If true this class is ready for use by guis / other code
     bool ready_ = false;
 };

@@ -26,6 +26,7 @@ void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d
 void Scene::SetShader(const string& path)
 {
     shader_.Load(path, d3d11Device_);
+    shaderSet_ = true;
 }
 
 void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
@@ -38,10 +39,15 @@ void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
 
     //Set the input layout
     d3d11Context_->IASetInputLayout(vertexLayout_.Get());
+    vertexLayoutSet_ = true;
 }
 
 void Scene::Draw()
 {
+    //Don't draw scene if critical data not set
+    if (!shaderSet_ || !vertexLayoutSet_)
+        return;
+
     //Reload shaders if necessary
     shader_.TryReload();
 

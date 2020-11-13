@@ -60,26 +60,33 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float4 normal = NormalTexture.Sample(NormalSampler, input.Uv);
     float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv);
 
-    //Sun direction for diffuse lighting
-    float3 sunPos = float3(50.0f, 100.0f, 100.0f);
-    float3 sunDir = normalize(float3(0.0f, 0.0f, 0.0f) - sunPos);
-
     //Ambient light
     float ambientIntensity = 0.01f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
+    
+    //Output color
+    float4 outColor = float4(ambient, 1.0f);
+
+    //Sun direction for diffuse lighting
+    float3 sunPos = float3(30.0f, 0.0f, 30.0f);
+    float3 sunDir = normalize(float3(0.0f, 0.0f, 0.0f) - sunPos);
 
     //Diffuse light contribution
     float3 lightDir = normalize(-sunDir);
-    float diff = max(dot(normal, lightDir), 0.0f);
-    float3 diffuse = (diff * color.xyz * DiffuseColor * DiffuseIntensity) ;
+    float diff = max(dot(input.Normal, lightDir), 0.0f);
+    float3 diffuse = (diff * color.xyz * DiffuseColor * DiffuseIntensity);
+    outColor += float4(diffuse, 1.0f);
 
-    //Todo: Fix specular highlights. They don't show up
     //Specular highlights
     float3 viewDir = normalize(ViewPos - input.Pos);
-    float3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(viewDir, halfwayDir), 0.0), 32);
-    float3 specular = spec * specularStrength * DiffuseColor;
+    float3 reflectDir = reflect(lightDir, input.Normal);
+    float spec = dot(normalize(reflectDir), normalize(viewDir));
+    if(spec > 0.0f) //Avoid adding dark spots
+    {
+        spec = pow(spec, 32);
+        outColor += spec * specularStrength;// * float4(DiffuseColor, 1.0f);
+    }
 
-    //Color with basic diffuse + specular + ambient lighting
-    return float4(diffuse, 1.0f) + float4(specular, 1.0f) + float4(ambient, 1.0f);
+    //Final output
+    return outColor;
 }

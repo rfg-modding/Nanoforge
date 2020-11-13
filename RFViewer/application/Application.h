@@ -30,9 +30,6 @@ private:
     void InitRenderer();
     void NewFrame();
     void UpdateGui();
-    void LoadSettings();
-    //Reload map with new territory
-    void Reload();
 
     HINSTANCE hInstance_ = nullptr;
     DX11Renderer renderer_;

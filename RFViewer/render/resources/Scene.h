@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <d3d11.h>
 #include <array>
+#include <mutex>
 
 //Todo: Add build path variable that's set by cmake to the project root path for debug
 #ifdef DEBUG_BUILD
@@ -23,7 +24,7 @@ struct PerFrameConstants
 {
     DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
     DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-    f32 DiffuseIntensity = 0.65f;
+    f32 DiffuseIntensity = 1.0f;
     f32 ElevationFactorBias = 0.8f;
     i32 ShadeMode = 1;
 };
@@ -74,4 +75,7 @@ private:
     //Data that's the same for all terrain instances
     ComPtr<ID3D11InputLayout> vertexLayout_ = nullptr;
     Shader shader_;
+
+    bool shaderSet_ = false;
+    bool vertexLayoutSet_ = false;
 };

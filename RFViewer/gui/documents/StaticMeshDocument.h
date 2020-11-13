@@ -19,7 +19,7 @@ struct StaticMeshDocumentData
     u32 SceneIndex = 0;
     std::vector<u32> RenderObjectIndices;
 
-    //std::future<void> WorkerFuture;
+    std::future<void> WorkerFuture;
     //std::mutex ResourceLock;
     //bool WorkerDone = false;
     //bool WorkerResourcesFreed = false;

@@ -76,10 +76,6 @@ void Application::Run()
             DispatchMessage(&msg);
         }
 
-        //Reload territory if necessary
-        if (Gui.State.ReloadNeeded)
-            Reload();
-
         //Update cameras
         for (auto& scene : renderer_.Scenes)
             scene.Cam.DoFrame(deltaTime_);
@@ -114,6 +110,8 @@ void Application::InitRenderer()
 
 void Application::NewFrame()
 {
+    std::lock_guard<std::mutex> lock(renderer_.ContextMutex);
+
     //Start new imgui frame
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -124,20 +122,6 @@ void Application::NewFrame()
 void Application::UpdateGui()
 {
     Gui.Update(deltaTime_);
-}
-
-void Application::Reload()
-{
-    ////Wait for worker thread to exit
-    //Log->info("Reload triggered.");
-    //workerFuture_.wait();
-    //Log->info("Clearing old territory data.");
-
-    ////Start worker thread and capture it's future. If future isn't captured it won't actually run async
-    //workerFuture_ = std::async(std::launch::async, &WorkerThread, &Gui.State, true);
-    //Log->info("Restarted worker thread.");
-    //Gui.State.ReloadNeeded = false;
-    //Gui.State.SetSelectedZoneObject(nullptr);
 }
 
 //Todo: Pass key & mouse messages to InputManager and have it send input messages to other parts of code via callbacks

@@ -37,6 +37,10 @@ public:
 
     std::vector<Scene> Scenes = {};
 
+    //Todo: Might be better to wrapper ID3D11DeviceContext in a class that handles this for us
+    //Locked before accessing the ID3D11DeviceContext since only one thread is allowed to use it at once. Goal is avoid worker threads accessing it at the same time as the renderer
+    std::mutex ContextMutex;
+
 private:
     //Todo: Add a callback so viewport windows can be written outside of the renderer
     void ImGuiDoFrame();

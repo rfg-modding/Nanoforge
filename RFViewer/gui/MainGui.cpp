@@ -608,6 +608,5 @@ void MainGui::DrawWelcomeWindow()
         }
     }
     ImGui::EndChild();
-
     ImGui::End();
 }
