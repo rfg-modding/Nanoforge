@@ -24,7 +24,7 @@ struct PerFrameConstants
 {
     DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
     DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-    f32 DiffuseIntensity = 1.0f;
+    f32 DiffuseIntensity = 0.65f;
     f32 ElevationFactorBias = 0.8f;
     i32 ShadeMode = 1;
 };

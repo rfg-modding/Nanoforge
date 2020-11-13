@@ -78,7 +78,7 @@ void Application::Run()
 
         //Update cameras
         for (auto& scene : renderer_.Scenes)
-            scene.Cam.DoFrame(deltaTime_);
+            scene->Cam.DoFrame(deltaTime_);
 
         NewFrame();
         UpdateGui();
@@ -100,7 +100,7 @@ void Application::HandleResize()
 void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     for (auto& scene : renderer_.Scenes)
-        scene.Cam.HandleInput(hwnd, msg, wParam, lParam);
+        scene->Cam.HandleInput(hwnd, msg, wParam, lParam);
 }
 
 void Application::InitRenderer()

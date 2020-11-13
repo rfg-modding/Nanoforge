@@ -6,10 +6,10 @@
 #include "Log.h"
 #include <span>
 
-void TerritoryDocument_WorkerThread(GuiState* state, Document& doc);
-void WorkerThread_ClearData(Document& doc);
-void LoadTerrainMeshes(GuiState* state, Document& doc);
-void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, Document& doc);
+void TerritoryDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> doc);
+void WorkerThread_ClearData(std::shared_ptr<Document> doc);
+void LoadTerrainMeshes(GuiState* state, std::shared_ptr<Document> doc);
+void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, std::shared_ptr<Document> doc);
 struct ShortVec4
 {
     i16 x = 0;
@@ -24,36 +24,34 @@ struct ShortVec4
 };
 std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices);
 
-void TerritoryDocument_Init(GuiState* state, Document& doc)
+void TerritoryDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
 {
     //Get parent packfile
-    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
     //Create scene instance and store index
-    data->SceneIndex = state->Renderer->Scenes.size();
     state->Renderer->CreateScene();
+    data->Scene = state->Renderer->Scenes.back();
 
     //Init scene camera
-    Scene& scene = state->Renderer->Scenes[data->SceneIndex];
-    scene.Cam.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)scene.Width(), (f32)scene.Height() }, 1.0f, 10000.0f);
-    scene.SetShader(terrainShaderPath_);
-    scene.SetVertexLayout
+    data->Scene->Cam.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)data->Scene->Width(), (f32)data->Scene->Height() }, 1.0f, 10000.0f);
+    data->Scene->SetShader(terrainShaderPath_);
+    data->Scene->SetVertexLayout
     ({
         { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0,  DXGI_FORMAT_R32G32B32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 } 
     });
 
     //Create worker thread to load terrain meshes in background
-    data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, std::ref(doc));
+    data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, doc);
 }
 
-void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc);
+void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Document> doc);
 
-void TerritoryDocument_Update(GuiState* state, Document& doc)
+void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
 {
-    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
-    Scene& scene = state->Renderer->Scenes[data->SceneIndex];
-    if (!ImGui::Begin(doc.Title.c_str(), &doc.Open))
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
+    if (!ImGui::Begin(doc->Title.c_str(), &doc->Open))
     {
         ImGui::End();
         return;
@@ -80,9 +78,9 @@ void TerritoryDocument_Update(GuiState* state, Document& doc)
 
             for (u32 i = 0; i < 9; i++)
             {
-                auto& renderObject = scene.Objects.emplace_back();
+                auto& renderObject = data->Scene->Objects.emplace_back();
                 Mesh mesh;
-                mesh.Create(scene.d3d11Device_, scene.d3d11Context_, ToByteSpan(instance.Vertices[i]), ToByteSpan(instance.Indices[i]),
+                mesh.Create(data->Scene->d3d11Device_, data->Scene->d3d11Context_, ToByteSpan(instance.Vertices[i]), ToByteSpan(instance.Indices[i]),
                     instance.Vertices[i].size(), DXGI_FORMAT_R16_UINT, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
                 renderObject.Create(mesh, instance.Position);
             }
@@ -98,33 +96,34 @@ void TerritoryDocument_Update(GuiState* state, Document& doc)
     {
         state->SetTerritory(data->TerritoryName);
         state->CurrentTerritory = &data->Territory;
-        scene.Cam.InputActive = true;
+        data->Scene->Cam.InputActive = true;
 
         //Move camera if triggered by another gui panel
         if (state->CurrentTerritoryCamPosNeedsUpdate)
         {
             Vec3 newPos = state->CurrentTerritoryNewCamPos;
-            scene.Cam.SetPosition(newPos.x, newPos.y, newPos.z);
+            data->Scene->Cam.SetPosition(newPos.x, newPos.y, newPos.z);
+            data->Scene->Cam.LookAt({ newPos.x - 250.0f, newPos.y - 500.0f, newPos.z - 250.f });
             state->CurrentTerritoryCamPosNeedsUpdate = false;
         }
     }
     else
     {
-        scene.Cam.InputActive = false;
+        data->Scene->Cam.InputActive = false;
     }
 
     ImVec2 contentAreaSize;
     contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
     contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
 
-    scene.HandleResize(contentAreaSize.x, contentAreaSize.y);
+    data->Scene->HandleResize(contentAreaSize.x, contentAreaSize.y);
 
     //Store initial position so we can draw buttons over the scene texture after drawing it
     ImVec2 initialPos = ImGui::GetCursorPos();
 
     //Render scene texture
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(scene.ClearColor.x, scene.ClearColor.y, scene.ClearColor.z, scene.ClearColor.w));
-    ImGui::Image(scene.GetView(), ImVec2(static_cast<f32>(scene.Width()), static_cast<f32>(scene.Height())));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(data->Scene->ClearColor.x, data->Scene->ClearColor.y, data->Scene->ClearColor.z, data->Scene->ClearColor.w));
+    ImGui::Image(data->Scene->GetView(), ImVec2(static_cast<f32>(data->Scene->Width()), static_cast<f32>(data->Scene->Height())));
     ImGui::PopStyleColor();
 
     //Set cursor pos to top left corner to draw buttons over scene texture
@@ -138,10 +137,9 @@ void TerritoryDocument_Update(GuiState* state, Document& doc)
     ImGui::End();
 }
 
-void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc)
+void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Document> doc)
 {
-    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
-    Scene& scene = state->Renderer->Scenes[data->SceneIndex];
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
     state->FontManager->FontL.Push();
     if (ImGui::Button(ICON_FA_CAMERA))
@@ -154,40 +152,40 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc)
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
-        f32 fov = scene.Cam.GetFov();
-        f32 nearPlane = scene.Cam.GetNearPlane();
-        f32 farPlane = scene.Cam.GetFarPlane();
-        f32 lookSensitivity = scene.Cam.GetLookSensitivity();
+        f32 fov = data->Scene->Cam.GetFov();
+        f32 nearPlane = data->Scene->Cam.GetNearPlane();
+        f32 farPlane = data->Scene->Cam.GetFarPlane();
+        f32 lookSensitivity = data->Scene->Cam.GetLookSensitivity();
 
-        if (ImGui::Button("0.1")) scene.Cam.Speed = 0.1f;
+        if (ImGui::Button("0.1")) data->Scene->Cam.Speed = 0.1f;
         ImGui::SameLine();
-        if (ImGui::Button("1.0")) scene.Cam.Speed = 1.0f;
+        if (ImGui::Button("1.0")) data->Scene->Cam.Speed = 1.0f;
         ImGui::SameLine();
-        if (ImGui::Button("10.0")) scene.Cam.Speed = 10.0f;
+        if (ImGui::Button("10.0")) data->Scene->Cam.Speed = 10.0f;
         ImGui::SameLine();
-        if (ImGui::Button("25.0")) scene.Cam.Speed = 25.0f;
+        if (ImGui::Button("25.0")) data->Scene->Cam.Speed = 25.0f;
         ImGui::SameLine();
-        if (ImGui::Button("50.0")) scene.Cam.Speed = 50.0f;
+        if (ImGui::Button("50.0")) data->Scene->Cam.Speed = 50.0f;
         ImGui::SameLine();
-        if (ImGui::Button("100.0")) scene.Cam.Speed = 100.0f;
+        if (ImGui::Button("100.0")) data->Scene->Cam.Speed = 100.0f;
 
-        ImGui::InputFloat("Speed", &scene.Cam.Speed);
-        ImGui::InputFloat("Sprint speed", &scene.Cam.SprintSpeed);
+        ImGui::InputFloat("Speed", &data->Scene->Cam.Speed);
+        ImGui::InputFloat("Sprint speed", &data->Scene->Cam.SprintSpeed);
         ImGui::Separator();
 
         if (ImGui::InputFloat("Fov", &fov))
-            scene.Cam.SetFov(fov);
+            data->Scene->Cam.SetFov(fov);
         if (ImGui::InputFloat("Near plane", &nearPlane))
-            scene.Cam.SetNearPlane(nearPlane);
+            data->Scene->Cam.SetNearPlane(nearPlane);
         if (ImGui::InputFloat("Far plane", &farPlane))
-            scene.Cam.SetFarPlane(farPlane);
+            data->Scene->Cam.SetFarPlane(farPlane);
         if (ImGui::InputFloat("Look sensitivity", &lookSensitivity))
-            scene.Cam.SetLookSensitivity(lookSensitivity);
+            data->Scene->Cam.SetLookSensitivity(lookSensitivity);
 
         ImGui::Separator();
-        if (ImGui::InputFloat3("Position", (float*)&scene.Cam.camPosition))
+        if (ImGui::InputFloat3("Position", (float*)&data->Scene->Cam.camPosition))
         {
-            scene.Cam.UpdateViewMatrix();
+            data->Scene->Cam.UpdateViewMatrix();
         }
         ImGui::EndPopup();
     }
@@ -206,41 +204,40 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, Document& doc)
 
         ImGui::Text("Shading mode: ");
         ImGui::SameLine();
-        ImGui::RadioButton("Elevation", &scene.perFrameStagingBuffer_.ShadeMode, 0);
+        ImGui::RadioButton("Elevation", &data->Scene->perFrameStagingBuffer_.ShadeMode, 0);
         ImGui::SameLine();
-        ImGui::RadioButton("Diffuse", &scene.perFrameStagingBuffer_.ShadeMode, 1);
+        ImGui::RadioButton("Diffuse", &data->Scene->perFrameStagingBuffer_.ShadeMode, 1);
 
-        if (scene.perFrameStagingBuffer_.ShadeMode != 0)
+        if (data->Scene->perFrameStagingBuffer_.ShadeMode != 0)
         {
             ImGui::Text("Diffuse presets: ");
             ImGui::SameLine();
             if (ImGui::Button("Default"))
             {
-                scene.perFrameStagingBuffer_.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-                scene.perFrameStagingBuffer_.DiffuseIntensity = 0.65f;
-                scene.perFrameStagingBuffer_.ElevationFactorBias = 0.8f;
+                data->Scene->perFrameStagingBuffer_.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+                data->Scene->perFrameStagingBuffer_.DiffuseIntensity = 0.65f;
+                data->Scene->perFrameStagingBuffer_.ElevationFactorBias = 0.8f;
             }
             ImGui::SameLine();
             if (ImGui::Button("False color"))
             {
-                scene.perFrameStagingBuffer_.DiffuseColor = { 1.15f, 0.67f, 0.02f, 1.0f };
-                scene.perFrameStagingBuffer_.DiffuseIntensity = 0.55f;
-                scene.perFrameStagingBuffer_.ElevationFactorBias = -0.8f;
+                data->Scene->perFrameStagingBuffer_.DiffuseColor = { 1.15f, 0.67f, 0.02f, 1.0f };
+                data->Scene->perFrameStagingBuffer_.DiffuseIntensity = 0.55f;
+                data->Scene->perFrameStagingBuffer_.ElevationFactorBias = -0.8f;
             }
 
-            ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&scene.perFrameStagingBuffer_.DiffuseColor));
-            ImGui::SliderFloat("Diffuse intensity", &scene.perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 1.0f);
-            ImGui::SliderFloat("Elevation color bias", &scene.perFrameStagingBuffer_.ElevationFactorBias, -1.0f, 1.0f);
+            ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&data->Scene->perFrameStagingBuffer_.DiffuseColor));
+            ImGui::SliderFloat("Diffuse intensity", &data->Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 1.0f);
+            ImGui::SliderFloat("Elevation color bias", &data->Scene->perFrameStagingBuffer_.ElevationFactorBias, -1.0f, 1.0f);
         }
 
         ImGui::EndPopup();
     }
 }
 
-void TerritoryDocument_OnClose(GuiState* state, Document& doc)
+void TerritoryDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc)
 {
-    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
-    Scene& scene = state->Renderer->Scenes[data->SceneIndex];
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
     if (state->CurrentTerritory == &data->Territory)
     {
@@ -253,31 +250,31 @@ void TerritoryDocument_OnClose(GuiState* state, Document& doc)
     data->Territory.ResetTerritoryData();
 
     //Delete scene and free its resources
-    state->Renderer->DeleteScene(data->SceneIndex);
+    state->Renderer->DeleteScene(data->Scene);
     
     //Free document data
     delete data;
 }
 
-void TerritoryDocument_WorkerThread(GuiState* state, Document& doc)
+void TerritoryDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> doc)
 {
-    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
     //Read all zones from zonescript_terr01.vpp_pc
-    state->SetStatus(ICON_FA_SYNC " Loading zones for " + doc.Title, Working);
+    state->SetStatus(ICON_FA_SYNC " Loading zones for " + doc->Title, Working);
     data->Territory.Init(state->PackfileVFS, data->TerritoryName, data->TerritoryShortname);
     data->Territory.LoadZoneData();
     state->CurrentTerritory = &data->Territory;
     state->SetSelectedZone(0);
 
     std::vector<ZoneData>& zoneFiles = data->Territory.ZoneFiles;
-    Log->info("Loaded {} zones for {}", zoneFiles.size(), doc.Title);
+    Log->info("Loaded {} zones for {}", zoneFiles.size(), doc->Title);
 
     //Move camera close to zone with the most objects by default. Convenient as some territories have origins distant from each other
     if (zoneFiles.size() > 0 && zoneFiles[0].Zone.Objects.size() > 0)
     {
         //Tell camera to move to near the first object in the zone
-        state->CurrentTerritoryNewCamPos = zoneFiles[0].Zone.Objects[0].Bmin + Vec3{ .x = 100.0f, .y = 500.0f, .z = 100.0f };
+        state->CurrentTerritoryNewCamPos = zoneFiles[0].Zone.Objects[0].Bmin + Vec3{ .x = 250.0f, .y = 500.0f, .z = 250.0f };
         state->CurrentTerritoryCamPosNeedsUpdate = true;
     }
 
@@ -289,10 +286,10 @@ void TerritoryDocument_WorkerThread(GuiState* state, Document& doc)
 
 //Loads vertex and index data of each zones terrain mesh
 //Note: This function is run by the worker thread
-void LoadTerrainMeshes(GuiState* state, Document& doc)
+void LoadTerrainMeshes(GuiState* state, std::shared_ptr<Document> doc)
 {
-    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
-    state->SetStatus(ICON_FA_SYNC " Loading terrain meshes for " + doc.Title, Working);
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
+    state->SetStatus(ICON_FA_SYNC " Loading terrain meshes for " + doc->Title, Working);
 
     //Must store futures for std::async to run functions asynchronously
     std::vector<std::future<void>> futures;
@@ -324,12 +321,12 @@ void LoadTerrainMeshes(GuiState* state, Document& doc)
     for (auto& future : futures)
         future.wait();
 
-    Log->info("Done loading terrain meshes for {}", doc.Title);
+    Log->info("Done loading terrain meshes for {}", doc->Title);
 }
 
-void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, Document& doc)
+void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, std::shared_ptr<Document> doc)
 {
-    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
     //Get packfile that holds terrain meshes
     auto* container = terrainMesh.GetContainer();
@@ -485,11 +482,11 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
 }
 
 //Clear temporary data created by the worker thread. Called by Application once the worker thread is done working and the renderer is done using the worker data
-void WorkerThread_ClearData(Document& doc)
+void WorkerThread_ClearData(std::shared_ptr<Document> doc)
 {
-    TerritoryDocumentData* data = (TerritoryDocumentData*)doc.Data;
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
-    Log->info("Temporary data cleared for {} terrain worker threads", doc.Title);
+    Log->info("Temporary data cleared for {} terrain worker threads", doc->Title);
     for (auto& instance : data->TerrainInstances)
     {
         //Free vertex and index buffer memory

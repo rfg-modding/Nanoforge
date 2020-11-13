@@ -4,7 +4,9 @@
 #include "rfg/Territory.h"
 #include "render/camera/Camera.h"
 #include "documents/Document.h"
+#include "common/string/String.h"
 #include <imgui_node_editor.h>
+#include <memory>
 
 class DX11Renderer;
 namespace node = ax::NodeEditor;
@@ -76,7 +78,7 @@ public:
     PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
     //Documents that are currently open
-    std::vector<Document> Documents = {};
+    std::vector<std::shared_ptr<Document>> Documents = {};
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
@@ -128,22 +130,22 @@ public:
             ReloadNeeded = true;
     }
     //Create and init a document
-    void CreateDocument(Document&& document)
+    void CreateDocument(string title, DocumentInitFunction* init, DocumentUpdateFunc* update, DocumentOnCloseFunc* onClose, void* data = nullptr)
     {
         //Make sure document with same title doesn't already exist
         for (auto& doc : Documents)
         {
-            if (doc.Title == document.Title)
+            if (String::EqualIgnoreCase(doc->Title, title))
             {
-                if (document.Data)
-                    delete document.Data;
+                if (data)
+                    delete data;
 
                 return;
             }
         }
 
         //Create document
-        Documents.push_back(document);
-        Documents.back().Init(this, Documents.back());
+        std::shared_ptr<Document> document = Documents.emplace_back(new Document(title, init, update, onClose, data));
+        document->Init(this, document);
     }
 };

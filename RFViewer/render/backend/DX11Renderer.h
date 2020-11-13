@@ -10,8 +10,9 @@
 #include <filesystem>
 #include <span>
 #include <wrl.h>
-using Microsoft::WRL::ComPtr;
+#include <memory>
 
+using Microsoft::WRL::ComPtr;
 class ImGuiFontManager;
 class Camera;
 using ImTextureID = void*;
@@ -33,9 +34,9 @@ public:
     u32 WindowHeight() { return windowHeight_; }
 
     void CreateScene();
-    void DeleteScene(u32 index);
+    void DeleteScene(std::shared_ptr<Scene> target);
 
-    std::vector<Scene> Scenes = {};
+    std::vector<std::shared_ptr<Scene>> Scenes = {};
 
     //Todo: Might be better to wrapper ID3D11DeviceContext in a class that handles this for us
     //Locked before accessing the ID3D11DeviceContext since only one thread is allowed to use it at once. Goal is avoid worker threads accessing it at the same time as the renderer

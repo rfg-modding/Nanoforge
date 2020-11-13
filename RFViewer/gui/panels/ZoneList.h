@@ -82,12 +82,11 @@ void ZoneList_Update(GuiState* state, bool* open)
     {
         string territoryName = string(TerritoryList[currentTerritory]);
         state->SetTerritory(territoryName);
-        state->CreateDocument(Document(territoryName, &TerritoryDocument_Init, &TerritoryDocument_Update, &TerritoryDocument_OnClose, new TerritoryDocumentData
+        state->CreateDocument(territoryName, &TerritoryDocument_Init, &TerritoryDocument_Update, &TerritoryDocument_OnClose, new TerritoryDocumentData
         {
             .TerritoryName = state->CurrentTerritoryName,
             .TerritoryShortname = state->CurrentTerritoryShortname,
-            .SceneIndex = (u32)state->Renderer->Scenes.size()
-        }));
+        });
     }
     ImGui::Separator();
 

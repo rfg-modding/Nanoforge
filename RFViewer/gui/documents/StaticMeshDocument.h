@@ -16,7 +16,7 @@ struct StaticMeshDocumentData
     string CpuFilePath;
     string GpuFilePath;
     StaticMesh StaticMesh;
-    u32 SceneIndex = 0;
+    std::shared_ptr<Scene> Scene = nullptr;
     std::vector<u32> RenderObjectIndices;
 
     std::future<void> WorkerFuture;
@@ -26,6 +26,6 @@ struct StaticMeshDocumentData
 };
 
 
-void StaticMeshDocument_Init(GuiState* state, Document& doc);
-void StaticMeshDocument_Update(GuiState* state, Document& doc);
-void StaticMeshDocument_OnClose(GuiState* state, Document& doc);
+void StaticMeshDocument_Init(GuiState* state, std::shared_ptr<Document> doc);
+void StaticMeshDocument_Update(GuiState* state, std::shared_ptr<Document> doc);
+void StaticMeshDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc);

@@ -10,10 +10,10 @@
 #include "util/RfgUtil.h"
 #include "application/project/Project.h"
 
-void TextureDocument_Init(GuiState* state, Document& doc)
+void TextureDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
 {
     //Get parent packfile
-    TextureDocumentData* data = (TextureDocumentData*)doc.Data;
+    TextureDocumentData* data = (TextureDocumentData*)doc->Data;
 
     //Get gpu filename
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(data->Filename);
@@ -41,15 +41,15 @@ void TextureDocument_Init(GuiState* state, Document& doc)
     igfd::ImGuiFileDialog::Instance()->SetExtentionInfos(".png,.dds,.bmp,.jpg,.jpeg", ImVec4(1, 1, 1, 1.0), ICON_FA_FILE_IMAGE);
 }
 
-void TextureDocument_Update(GuiState* state, Document& doc)
+void TextureDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
 {
-    if (!ImGui::Begin(doc.Title.c_str(), &doc.Open))
+    if (!ImGui::Begin(doc->Title.c_str(), &doc->Open))
     {
         ImGui::End();
         return;
     }
 
-    TextureDocumentData* data = (TextureDocumentData*)doc.Data;
+    TextureDocumentData* data = (TextureDocumentData*)doc->Data;
     
     //Controls max size of selected image in gui relative to the size of it's column
     static f32 imageViewSizeMultiplier = 0.85f;
@@ -266,7 +266,7 @@ void TextureDocument_Update(GuiState* state, Document& doc)
             ImTextureID id = state->Renderer->TextureDataToHandle(entry.RawData, format, entry.Width, entry.Height);
             if (!id)
             {
-                Log->error("Failed to create texture resource for texture entry {} in peg file {}", entry.Name, doc.Title);
+                Log->error("Failed to create texture resource for texture entry {} in peg file {}", entry.Name, doc->Title);
                 data->CreateFailed = true;
             }
             else
@@ -293,9 +293,9 @@ void TextureDocument_Update(GuiState* state, Document& doc)
     ImGui::End();
 }
 
-void TextureDocument_OnClose(GuiState* state, Document& doc)
+void TextureDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc)
 {
-    TextureDocumentData* data = (TextureDocumentData*)doc.Data;
+    TextureDocumentData* data = (TextureDocumentData*)doc->Data;
 
     //Release DX11 resource views
     for (void* imageHandle : data->ImageTextures)

@@ -106,16 +106,17 @@ void MainGui::Update(f32 deltaTime)
 
     //Draw documents
     u32 counter = 0;
-    auto document = State.Documents.begin();
-    while (document != State.Documents.end())
+    auto iter = State.Documents.begin();
+    while (iter != State.Documents.end())
     {
+        std::shared_ptr<Document> document = *iter;
         //If document is no longer open, erase it
         if (!document->Open)
         {
             if (document->OnClose)
-                document->OnClose(&State, *document);
+                document->OnClose(&State, document);
             
-            document = State.Documents.erase(document);
+            iter = State.Documents.erase(iter);
             continue;
         }
         
@@ -126,9 +127,9 @@ void MainGui::Update(f32 deltaTime)
         }
 
         //Draw the document if it's still open
-        document->Update(&State, *document);
+        document->Update(&State, document);
         document->FirstDraw = false;
-        document++;
+        iter++;
         counter++;
     }
 }
