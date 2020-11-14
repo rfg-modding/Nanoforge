@@ -1,7 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "PackfileVFS.h"
-#include <im3d/im3d.h>
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\types\Vec4.h>
 

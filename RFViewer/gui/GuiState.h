@@ -52,7 +52,6 @@ public:
 
     u32 SelectedZone = InvalidZoneIndex;
 
-    Im3d::Vec3 GridOrigin = { 0.0f, 0.0f, 0.0f };
     bool GridFollowCamera = true;
     bool DrawGrid = false;
     int GridSpacing = 10;
