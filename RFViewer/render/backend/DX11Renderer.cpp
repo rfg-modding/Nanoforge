@@ -24,7 +24,7 @@
 #include "Log.h"
 #include "gui/documents/PegHelpers.h"
 
-void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager)
+void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager)
 {
     hInstance_ = hInstance;
     windowWidth_ = WindowWidth;
@@ -61,13 +61,9 @@ DX11Renderer::~DX11Renderer()
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    //Release DX11 resources
-    for (auto& scene : Scenes)
-        scene.Cleanup();
-
     ReleaseCOM(swapChain_);
-    ReleaseCOM(d3d11Device_);
-    ReleaseCOM(d3d11Context_);
+    d3d11Device_.Reset();
+    d3d11Context_.Reset();
     ReleaseCOM(dxgiFactory_);
 }
 
@@ -78,12 +74,13 @@ void DX11Renderer::NewFrame(f32 deltaTime) const
 
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
+    std::lock_guard<std::mutex> lock(ContextMutex);
     d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
     d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
     d3d11Context_->RSSetState(rasterizerState_);
 
     for (auto& scene : Scenes)
-        scene.Draw();
+        scene->Draw();
 
     d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, nullptr);
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
@@ -157,6 +154,27 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
     texture->Release();
 
     return shaderResourceView;
+}
+
+void DX11Renderer::CreateScene()
+{
+    auto& scene = Scenes.emplace_back(new Scene);
+    scene->Init(d3d11Device_, d3d11Context_);
+}
+
+void DX11Renderer::DeleteScene(std::shared_ptr<Scene> target)
+{
+    u32 index = 0;
+    for (auto& scene : Scenes)
+    {
+        if (scene == target)
+        {
+            Scenes.erase(Scenes.begin() + index);
+            return;
+        }
+        index++;
+    }
+    
 }
 
 void DX11Renderer::ImGuiDoFrame()
@@ -238,7 +256,21 @@ bool DX11Renderer::InitSwapchainAndResources()
     blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
     blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-    DxCheck(d3d11Device_->CreateBlendState(&blendDesc, &blendState_), "Im3d blend state creation failed!");
+    DxCheck(d3d11Device_->CreateBlendState(&blendDesc, &blendState_), "Blend state creation failed!");
+
+    D3D11_RASTERIZER_DESC rasterizerDesc;
+    ZeroMemory(&rasterizerDesc, sizeof(rasterizerDesc));
+    rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+    rasterizerDesc.CullMode = D3D11_CULL_BACK;
+    rasterizerDesc.FrontCounterClockwise = false;
+    rasterizerDesc.DepthBias = false;
+    rasterizerDesc.DepthBiasClamp = 0;
+    rasterizerDesc.SlopeScaledDepthBias = 0;
+    rasterizerDesc.DepthClipEnable = true;
+    rasterizerDesc.ScissorEnable = false;
+    rasterizerDesc.MultisampleEnable = false;
+    rasterizerDesc.AntialiasedLineEnable = false;
+    DxCheck(d3d11Device_->CreateRasterizerState(&rasterizerDesc, &rasterizerState_), "Rasterizer state creation failed!");
 
     return true;
 }
@@ -259,7 +291,7 @@ bool DX11Renderer::InitImGui() const
 
     //Setup Platform/Renderer bindings
     ImGui_ImplWin32_Init(hwnd_);
-    ImGui_ImplDX11_Init(d3d11Device_, d3d11Context_);
+    ImGui_ImplDX11_Init(d3d11Device_.Get(), d3d11Context_.Get());
 
     return true;
 }
@@ -313,7 +345,7 @@ bool DX11Renderer::CreateSwapchain()
     swapchainDesc.SampleDesc.Quality = 0;
 
     //Create swapchain
-    if (FAILED(dxgiFactory_->CreateSwapChain(d3d11Device_, &swapchainDesc, &swapChain_)))
+    if (FAILED(dxgiFactory_->CreateSwapChain(d3d11Device_.Get(), &swapchainDesc, &swapChain_)))
         THROW_EXCEPTION("Failed to create swapchain!");
 
     return true;

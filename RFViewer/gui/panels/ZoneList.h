@@ -1,6 +1,8 @@
 #pragma once
 #include "gui/GuiState.h"
+#include "render/backend/DX11Renderer.h"
 #include "common/string/String.h"
+#include "gui/documents/TerritoryDocument.h"
 
 static string ZoneList_SearchTerm = "";
 static std::vector<const char*> TerritoryList =
@@ -73,12 +75,33 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::Separator();
 
     static int currentTerritory = 0;
+    ImGui::SetNextItemWidth(150.0f);
     ImGui::Combo("Territory", &currentTerritory, TerritoryList.data(), (int)TerritoryList.size());
     ImGui::SameLine();
-    if (ImGui::Button("Set##SetTerritory"))
+    if (ImGui::Button("Open##OpenTerritory"))
     {
-        state->SetTerritory(string(TerritoryList[currentTerritory]));
+        string territoryName = string(TerritoryList[currentTerritory]);
+        state->SetTerritory(territoryName);
+        state->CreateDocument(territoryName, &TerritoryDocument_Init, &TerritoryDocument_Update, &TerritoryDocument_OnClose, new TerritoryDocumentData
+        {
+            .TerritoryName = state->CurrentTerritoryName,
+            .TerritoryShortname = state->CurrentTerritoryShortname,
+        });
     }
+    ImGui::Separator();
+
+    //Can't draw territory data if no territory is selected/open
+    if (!state->CurrentTerritory)
+    {
+        ImGui::TextWrapped("%s Open a territory above to see its zones.", ICON_FA_EXCLAMATION_CIRCLE);
+
+        ImGui::End();
+        return;
+    }
+
+    state->FontManager->FontL.Push();
+    ImGui::Text(string(ICON_FA_MAP " ") + Path::GetFileNameNoExtension(state->CurrentTerritoryShortname));
+    state->FontManager->FontL.Pop();
     ImGui::Separator();
 
     static bool hideEmptyZones = true;
@@ -96,7 +119,7 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     if (ImGui::Button("Show all"))
     {
-        for (auto& zone : state->ZoneManager->ZoneFiles)
+        for (auto& zone : state->CurrentTerritory->ZoneFiles)
         {
             zone.RenderBoundingBoxes = true;
         }
@@ -104,7 +127,7 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::SameLine();
     if (ImGui::Button("Hide all"))
     {
-        for (auto& zone : state->ZoneManager->ZoneFiles)
+        for (auto& zone : state->CurrentTerritory->ZoneFiles)
         {
             zone.RenderBoundingBoxes = false;
         }
@@ -115,7 +138,7 @@ void ZoneList_Update(GuiState* state, bool* open)
 
     ImGui::Columns(2);
     u32 i = 0;
-    for (auto& zone : state->ZoneManager->ZoneFiles)
+    for (auto& zone : state->CurrentTerritory->ZoneFiles)
     {
         if (ZoneList_SearchTerm != "" && zone.Name.find(ZoneList_SearchTerm) == string::npos)
             continue;
@@ -128,7 +151,7 @@ void ZoneList_Update(GuiState* state, bool* open)
 
         //Todo: Come up with a way of calculating this value at runtime
         const f32 glyphWidth = 9.0f;
-        ImGui::SetColumnWidth(0, glyphWidth * (f32)state->ZoneManager->LongestZoneName);
+        ImGui::SetColumnWidth(0, glyphWidth * (f32)state->CurrentTerritory->LongestZoneName);
         ImGui::SetColumnWidth(1, 300.0f);
         if (ImGui::Selectable(zone.ShortName.c_str()))
         {
@@ -147,8 +170,8 @@ void ZoneList_Update(GuiState* state, bool* open)
                 newCamPos.x += 50.0f;
                 newCamPos.y += 100.0f;
                 newCamPos.z += 50.0f;
-                //Todo: Add support to scene system
-                //state->Camera->SetPosition(newCamPos.x, newCamPos.y, newCamPos.z);
+                state->CurrentTerritoryCamPosNeedsUpdate = true;
+                state->CurrentTerritoryNewCamPos = newCamPos;
             }
         }
         ImGui::SameLine();

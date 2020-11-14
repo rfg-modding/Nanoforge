@@ -5,7 +5,6 @@
 #include "render/backend/DX11Renderer.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
-#include "rfg/ZoneManager.h"
 #include "gui/MainGui.h"
 #include "project/Project.h"
 #include <ext/WindowsWrapper.h>
@@ -31,15 +30,11 @@ private:
     void InitRenderer();
     void NewFrame();
     void UpdateGui();
-    void LoadSettings();
-    //Reload map with new territory
-    void Reload();
 
     HINSTANCE hInstance_ = nullptr;
     DX11Renderer renderer_;
     ImGuiFontManager fontManager_;
     PackfileVFS packfileVFS_;
-    ZoneManager zoneManager_;
     Project project_;
 
     int windowWidth_ = 1600;

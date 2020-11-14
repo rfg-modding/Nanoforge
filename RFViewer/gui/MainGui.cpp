@@ -3,8 +3,6 @@
 #include "render/imgui/ImGuiFontManager.h"
 #include "render/imgui/imgui_ext.h"
 #include "gui/panels/FileExplorer.h"
-#include "gui/panels/CameraPanel.h"
-#include "gui/panels/RenderSettings.h"
 #include "gui/panels/ScriptxEditor.h"
 #include "gui/panels/StatusBar.h"
 #include "gui/panels/ZoneList.h"
@@ -25,9 +23,9 @@ MainGui::~MainGui()
     node::DestroyEditor(State.NodeEditor);
 }
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, ZoneManager* zoneManager, DX11Renderer* renderer, Project* project)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project)
 {
-    State = GuiState{ fontManager, packfileVFS, zoneManager, renderer, project };
+    State = GuiState{ fontManager, packfileVFS, renderer, project };
 
     //Create node editor library context
     State.NodeEditor = node::CreateEditor();
@@ -43,12 +41,8 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, Zone
         GuiPanel{&PropertyList_Update, "Tools/Properties", true},
         GuiPanel{&ZoneRender_Update, "", false},
         GuiPanel{&LogPanel_Update, "Tools/Log", true},
-        //Todo: Re-enable once scene view is fixed. Disabled temporarily since 3d view is broken for some necessary refactoring
-        //Todo: Likely will be fixed soon since viewing meshes is an upcoming feature
-        //GuiPanel{&CameraPanel_Update, "Tools/Camera", false},
-        //GuiPanel{&RenderSettings_Update, "Tools/Render settings", false},
-        //GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", false},
-        //GuiPanel{&ZoneList_Update, "Tools/Zone list", false},
+        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", true},
+        GuiPanel{&ZoneList_Update, "Tools/Zone list", true},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD
@@ -112,16 +106,17 @@ void MainGui::Update(f32 deltaTime)
 
     //Draw documents
     u32 counter = 0;
-    auto document = State.Documents.begin();
-    while (document != State.Documents.end())
+    auto iter = State.Documents.begin();
+    while (iter != State.Documents.end())
     {
+        std::shared_ptr<Document> document = *iter;
         //If document is no longer open, erase it
         if (!document->Open)
         {
             if (document->OnClose)
-                document->OnClose(&State, *document);
+                document->OnClose(&State, document);
             
-            document = State.Documents.erase(document);
+            iter = State.Documents.erase(iter);
             continue;
         }
         
@@ -132,9 +127,9 @@ void MainGui::Update(f32 deltaTime)
         }
 
         //Draw the document if it's still open
-        document->Update(&State, *document);
+        document->Update(&State, document);
         document->FirstDraw = false;
-        document++;
+        iter++;
         counter++;
     }
 }
@@ -155,7 +150,14 @@ void MainGui::DrawMainMenuBar()
             ImGuiMenuItemShort("Open project", showOpenProjectWindow_ = true;)
             ImGuiMenuItemShort("Save project", showSaveProjectWindow_ = true;)
             ImGui::Separator();
-            ImGuiMenuItemShort("Package mod", State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);)
+            ImGuiMenuItemShort("Package mod",
+            {
+                //Todo: Run on separate thread so this doesn't free the gui
+                //Todo: Consider blocking input with modal while packaging or at least blocking edits while packaging
+                State.SetStatus("Packing mod...", GuiStatus::Working);
+                State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);
+                State.ClearStatus();
+            })
             ImGui::Separator();
             
             if (ImGui::BeginMenu("Recent projects"))
@@ -600,12 +602,12 @@ void MainGui::DrawWelcomeWindow()
             if (State.CurrentProject->Load(path))
             {
                 StateEnum = Main;
+                ImGui::EndChild();
                 ImGui::End();
                 return;
             }
         }
     }
     ImGui::EndChild();
-
     ImGui::End();
 }

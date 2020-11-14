@@ -44,6 +44,7 @@ VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
     float zoneMax = 255.5f;
     //Ranges
     float terrainRange = terrainMax - terrainMin;
+    terrainRange *= 0.9980; //Hack to fill in gaps between zones. May cause object positions to be slightly off
     float zoneRange = zoneMax - zoneMin;
     
     float4 posFloat = float4(inPos.x, inPos.y, inPos.z, inPos.w);
@@ -63,6 +64,8 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     //Sun direction for diffuse lighting
     float3 sunDir = float3(0.436f, -1.0f, 0.598f);
+    float ambientIntensity = 0.01f;
+    float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
 
     //Diffuse
     float3 lightDir = normalize(-sunDir);
@@ -82,7 +85,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     else if(ShadeMode == 1)
     {
         //Color terrain with basic lighting + optional elevation coloring
-        return float4(diffuse, 1.0f) + elevationFactor;
+        return float4(diffuse, 1.0f) + elevationFactor + float4(ambient, 1.0f);
     }
     else
     {

@@ -7,6 +7,9 @@
 #include <filesystem>
 #include <iostream>
 
+//Global file cache path. Extracted files are put in this folder to avoid repeat extractions
+const string globalCachePath_ = ".\\Cache\\";
+
 void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
 {
     //Data folder of a copy of RFGR
@@ -27,10 +30,9 @@ void PackfileVFS::ScanPackfilesAndLoadCache()
             continue;
 
         //Load and parse the vpp, then push it to packfiles vector
-        Packfile3 packfile(filePath.path().string());
+        Packfile3& packfile = packfiles_.emplace_back(filePath.path().string());
         packfile.ReadMetadata();
         packfile.ReadAsmFiles();
-        packfiles_.push_back(packfile);
         globalFileCache_.AddFolder(packfile.Name());
     }
     ready_ = true;
@@ -185,13 +187,17 @@ void PackfileVFS::AddFileToCache(const string& packfileName, const string& filen
     }
     else //Otherwise must extract all files
     {
-        string entryParentFolder = globalCachePath_ + packfileName + "\\";
+        //string entryParentFolder = globalCachePath_ + packfileName + "\\";
+        string entryParentFolder(globalCachePath_);
+        entryParentFolder += packfileName + "\\";
         //If in container can extract all subfiles to output
         if (inContainer)
         {
             //Extract all subfiles
             entryParentFolder += filename1 + "\\";
+            Log->info("Before: {}, {}", globalCachePath_, (void*)this);
             parent->ExtractSubfiles(entryParentFolder, true);
+            Log->info("After: {}, {}", globalCachePath_, (void*)this);
         }
         else //Else extracting C&C packfile. Must selectively extract to avoid storing str2s in cache
         {

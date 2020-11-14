@@ -16,7 +16,7 @@ void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFov, const Dir
     pitch_ = ToDegrees(asin(-forwardVec.m128_f32[1]));
     //Todo: Get the math right here. Subtracting from 360 is a dumb fix to get it roughly pointing at the origin.... Fine for now since only need to do this once
     //Todo: Noting for if/when the camera needs to be expanded to jump to different locations / targets in the future
-    yaw_ = 140.0f - ToDegrees(acos(forwardVec.m128_f32[0]));
+    yaw_ = 0.0f;
 
     //Set matrices
     UpdateViewMatrix();
@@ -50,6 +50,9 @@ void Camera::HandleResize(const DirectX::XMFLOAT2& screenDimensions)
 
 void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if (!InputActive)
+        return;
+
     switch (msg)
     {
     case WM_KEYDOWN: //Key down
@@ -121,6 +124,15 @@ void Camera::UpdateProjectionMatrix()
     camProjection = DirectX::XMMatrixPerspectiveFovLH(fov_, screenDimensions_.x / screenDimensions_.y, nearPlane_, farPlane_);
 }
 
+void ExtractPitchYawRollFromXMMatrix(float* flt_p_PitchOut, float* flt_p_YawOut, float* flt_p_RollOut, const DirectX::XMMATRIX* XMMatrix_p_Rotation)
+{
+    DirectX::XMFLOAT4X4 XMFLOAT4X4_Values;
+    DirectX::XMStoreFloat4x4(&XMFLOAT4X4_Values, DirectX::XMMatrixTranspose(*XMMatrix_p_Rotation));
+    *flt_p_PitchOut = (float)asin(-XMFLOAT4X4_Values._23);
+    *flt_p_YawOut = (float)atan2(XMFLOAT4X4_Values._13, XMFLOAT4X4_Values._33);
+    *flt_p_RollOut = (float)atan2(XMFLOAT4X4_Values._21, XMFLOAT4X4_Values._22);
+}
+
 void Camera::UpdateViewMatrix()
 {
     //Recalculate target
@@ -174,6 +186,36 @@ void Camera::Translate(CameraDirection moveDirection, bool sprint)
     default:
         break;
     }
+}
+
+void Camera::LookAt(const DirectX::XMVECTOR& target)
+{
+    //Recalculate target
+    camRotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(ToRadians(pitch_), ToRadians(yaw_), ToRadians(180.0f));
+    camTarget = DirectX::XMVector3TransformCoord(DefaultForward, camRotationMatrix);
+    camTarget = DirectX::XMVector3Normalize(camTarget);
+
+    //Recalculate right, forward, and up vectors
+    camRight = DirectX::XMVector3TransformCoord(DefaultRight, camRotationMatrix);
+    camForward = DirectX::XMVector3TransformCoord(DefaultForward, camRotationMatrix);
+    camUp = DirectX::XMVector3Cross(camForward, camRight);
+
+    //Recalculate view matrix
+    camTarget = target;
+    camView = DirectX::XMMatrixLookAtLH(camPosition, camTarget, camUp);
+
+    //Recalculate pitch and yaw
+    DirectX::XMMATRIX mInvView = XMMatrixInverse(nullptr, camView);
+    //The axis basis vectors and camera position are stored inside the position matrix in the 4 rows of the camera's world matrix.
+    //To figure out the yaw/pitch of the camera, we just need the Z basis vector
+    DirectX::XMFLOAT3 zBasis;
+    DirectX::XMStoreFloat3(&zBasis, mInvView.r[2]);
+
+    yaw_ = ToDegrees(atan2f(zBasis.x, zBasis.z));
+    float fLen = sqrtf(zBasis.z * zBasis.z + zBasis.x * zBasis.x);
+    pitch_ = ToDegrees(-atan2f(zBasis.y, fLen));
+
+    UpdateViewMatrix();
 }
 
 DirectX::XMVECTOR Camera::Up() const

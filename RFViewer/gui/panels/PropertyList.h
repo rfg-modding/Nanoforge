@@ -1,17 +1,5 @@
 #pragma once
 #include "gui/GuiState.h"
-#include "render/imgui/ImGuiConfig.h"
-#include "RfgTools++/formats/zones/properties/primitive/StringProperty.h"
-#include "RfgTools++/formats/zones/properties/primitive/BoolProperty.h"
-#include "RfgTools++/formats/zones/properties/primitive/FloatProperty.h"
-#include "RfgTools++/formats/zones/properties/primitive/UintProperty.h"
-#include "RfgTools++/formats/zones/properties/compound/Vec3Property.h"
-#include "RfgTools++/formats/zones/properties/compound/Matrix33Property.h"
-#include "RfgTools++/formats/zones/properties/compound/BoundingBoxProperty.h"
-#include "RfgTools++/formats/zones/properties/compound/OpProperty.h"
-#include "RfgTools++/formats/zones/properties/special/DistrictFlagsProperty.h"
-#include "RfgTools++/formats/zones/properties/compound/ListProperty.h"
-#include "RfgTools++/formats/zones/properties/special/NavpointDataProperty.h"
 
 void PropertyList_Update(GuiState* state, bool* open)
 {

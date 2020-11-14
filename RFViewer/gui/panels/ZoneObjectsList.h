@@ -1,6 +1,7 @@
 #pragma once
 #include "gui/GuiState.h"
 #include "render/imgui/ImGuiConfig.h"
+#include "property_panel/PropertyPanelContent.h"
 
 //Todo: May want to move this to be under each zone in the zone window list since we'll have a third panel for per-object properties
 void ZoneObjectsList_Update(GuiState* state, bool* open)
@@ -11,7 +12,7 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
         return;
     }
 
-    if (state->SelectedZone == InvalidZoneIndex || state->SelectedZone >= state->ZoneManager->ZoneFiles.size())
+    if (state->SelectedZone == InvalidZoneIndex || state->SelectedZone >= state->CurrentTerritory->ZoneFiles.size())
     {
         ImGui::Text("%s Select a zone to see the objects it contains.", ICON_FA_EXCLAMATION_CIRCLE);
     }
@@ -29,7 +30,7 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
             ImGui::Text(" " ICON_FA_MARKER);
             gui::TooltipOnPrevious("Toggles whether class name labels are drawn for the object class", nullptr);
 
-            for (auto& objectClass : state->ZoneManager->ZoneObjectClasses)
+            for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
             {
                 ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show);
                 ImGui::SameLine();
@@ -55,7 +56,7 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
         ImGui::Separator();
 
         //Object list
-        auto& zone = state->ZoneManager->ZoneFiles[state->SelectedZone].Zone;
+        auto& zone = state->CurrentTerritory->ZoneFiles[state->SelectedZone].Zone;
         ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
 
         u32 index = 0;
@@ -64,7 +65,7 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
         int node_clicked = -1;
         for (auto& object : zone.ObjectsHierarchical)
         {
-            auto objectClass = state->ZoneManager->GetObjectClass(object.Self->ClassnameHash);
+            auto objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
             if (!objectClass.Show)
                 continue;
 
@@ -76,13 +77,14 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
                 if (ImGui::IsItemClicked())
                 {
                     state->SetSelectedZoneObject(&object);
+                    state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
                 }
                 object.Selected = &object == state->SelectedObject;
 
 
                 for (auto& childObject : object.Children)
                 {
-                    auto childObjectClass = state->ZoneManager->GetObjectClass(childObject.Self->ClassnameHash);
+                    auto childObjectClass = state->CurrentTerritory->GetObjectClass(childObject.Self->ClassnameHash);
                     if (!childObjectClass.Show)
                         continue;
 
@@ -93,6 +95,7 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
                         if (ImGui::IsItemClicked())
                         {
                             state->SetSelectedZoneObject(&childObject);
+                            state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
                         }
                         childObject.Selected = &childObject == state->SelectedObject;
                         ImGui::TreePop();

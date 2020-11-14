@@ -39,14 +39,12 @@ Application::Application(HINSTANCE hInstance)
     appInstance = this;
     hInstance_ = hInstance;
     packfileVFS_.Init(Settings_PackfileFolderPath, &project_);
-    //Camera.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)windowWidth_, (f32)windowHeight_ }, 1.0f, 10000.0f);
     
     InitRenderer();
     //Setup gui
-    Gui.Init(&fontManager_, &packfileVFS_, &zoneManager_, &renderer_, &project_);
+    Gui.Init(&fontManager_, &packfileVFS_, &renderer_, &project_);
     //Set initial territory name
     Gui.State.SetTerritory(Settings_TerritoryFilename, true);
-    zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName, Gui.State.CurrentTerritoryShortname);
     Gui.HandleResize(windowWidth_, windowHeight_);
 
     //Start worker thread and capture it's future. If future isn't captured it won't actually run async
@@ -78,32 +76,12 @@ void Application::Run()
             DispatchMessage(&msg);
         }
 
-        //Reload territory if necessary
-        if (Gui.State.ReloadNeeded)
-            Reload();
-
         //Update cameras
         for (auto& scene : renderer_.Scenes)
-            scene.Cam.DoFrame(deltaTime_);
+            scene->Cam.DoFrame(deltaTime_);
 
         NewFrame();
         UpdateGui();
-
-        //Check for newly streamed terrain instances that need to be initialized
-        if (NewTerrainInstanceAdded)
-        {
-            //If there are new terrain instances lock their mutex and pass them to the renderer
-            std::lock_guard<std::mutex> lock(ResourceLock);
-            NewTerrainInstanceAdded = false;
-            //The renderer will upload the vertex and index buffers of the new instances to the gpu
-            //Todo: Update to support new scene system
-            //renderer_.InitTerrainMeshes(&TerrainInstances);
-
-            //If the worker is done clear it's temporary data
-            if (WorkerDone)
-                WorkerThread_ClearData();
-        }
-
         renderer_.DoFrame(deltaTime_);
 
         while (FrameTimer.ElapsedSecondsPrecise() < maxFrameRateDelta)
@@ -122,7 +100,7 @@ void Application::HandleResize()
 void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     for (auto& scene : renderer_.Scenes)
-        scene.Cam.HandleInput(hwnd, msg, wParam, lParam);
+        scene->Cam.HandleInput(hwnd, msg, wParam, lParam);
 }
 
 void Application::InitRenderer()
@@ -132,6 +110,8 @@ void Application::InitRenderer()
 
 void Application::NewFrame()
 {
+    std::lock_guard<std::mutex> lock(renderer_.ContextMutex);
+
     //Start new imgui frame
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -142,27 +122,6 @@ void Application::NewFrame()
 void Application::UpdateGui()
 {
     Gui.Update(deltaTime_);
-}
-
-void Application::Reload()
-{
-    //Wait for worker thread to exit
-    Log->info("Reload triggered.");
-    workerFuture_.wait();
-    Log->info("Clearing old territory data.");
-
-    //Clear old territory data
-    //Todo: Update to support new scene system
-    //renderer_.ResetTerritoryData();
-    zoneManager_.ResetTerritoryData();
-    zoneManager_.Init(&packfileVFS_, Gui.State.CurrentTerritoryName, Gui.State.CurrentTerritoryShortname);
-    WorkerThread_ClearData();
-
-    //Start worker thread and capture it's future. If future isn't captured it won't actually run async
-    workerFuture_ = std::async(std::launch::async, &WorkerThread, &Gui.State, true);
-    Log->info("Restarted worker thread.");
-    Gui.State.ReloadNeeded = false;
-    Gui.State.SetSelectedZoneObject(nullptr);
 }
 
 //Todo: Pass key & mouse messages to InputManager and have it send input messages to other parts of code via callbacks
@@ -184,10 +143,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
                 //Release the windows allocated memory  
                 DestroyWindow(hwnd);
-        }
-        if (wParam == VK_F1)
-        {
-            CanStartInit = true;
         }
         return 0;
     case WM_DESTROY: //Exit if window close button pressed

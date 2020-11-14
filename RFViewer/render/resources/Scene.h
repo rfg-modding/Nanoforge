@@ -1,18 +1,32 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "render/resources/RenderObject.h"
+#include "render/resources/Texture2D.h"
+#include "render/resources/Shader.h"
+#include "render/resources/Buffer.h"
+#include "render/resources/Mesh.h"
 #include "render/camera/Camera.h"
-#include <d3d11.h>
 #include "rfg/TerrainHelpers.h"
-#include <array>
 #include <filesystem>
+#include <d3d11.h>
+#include <array>
+#include <mutex>
 
-//Render data for a single terrain instance. A terrain instance is the terrain for a single zone which consists of 9 meshes which are stitched together
-struct TerrainInstanceRenderData
+//Todo: Add build path variable that's set by cmake to the project root path for debug
+#ifdef DEBUG_BUILD
+    const string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
+#else
+    const string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
+#endif
+
+//Buffer for per-frame shader constants (set once per frame)
+struct PerFrameConstants
 {
-    std::array<ID3D11Buffer*, 9> terrainVertexBuffers_ = {};
-    std::array<ID3D11Buffer*, 9> terrainIndexBuffers_ = {};
-    std::array<u32, 9> MeshIndexCounts_ = {};
-    Vec3 Position;
+    DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
+    DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+    f32 DiffuseIntensity = 0.65f;
+    f32 ElevationFactorBias = 0.8f;
+    i32 ShadeMode = 1;
 };
 
 //Scenes represent different environments or objects that are being rendered. Each frame active scenes are rendered to a texture/render target
@@ -21,87 +35,47 @@ struct TerrainInstanceRenderData
 class Scene
 {
 public:
-    void Init(ID3D11Device* d3d11Device, ID3D11DeviceContext* d3d11Context);
-    void Cleanup();
+    void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context);
+    void SetShader(const string& path);
+    void SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
     void Draw();
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
-    void HandleResize(int windowWidth, int windowHeight);
-    
+    void HandleResize(u32 windowWidth, u32 windowHeight);
+    ID3D11ShaderResourceView* GetView() { return sceneViewTexture_.GetShaderResourceView(); }
+    u32 Width() { return sceneViewWidth_; }
+    u32 Height() { return sceneViewHeight_; }
+
     Camera Cam;
+    std::vector<RenderObject> Objects = {};
+    DirectX::XMFLOAT4 ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
+
+    //Buffer for per-frame shader constants (set once per frame)
+    PerFrameConstants perFrameStagingBuffer_; //Cpu side copy of the buffer
+    Buffer perFrameBuffer_; //Gpu side copy of the buffer
+
+    //General render state
+    ComPtr<ID3D11Device> d3d11Device_ = nullptr;
+    ComPtr<ID3D11DeviceContext> d3d11Context_ = nullptr;
 
 private:
     void InitInternal();
     void InitRenderTarget();
-    void CreateDepthBuffer(bool firstResize = true);
-    void InitTerrain();
-    void LoadTerrainShaders(bool reload);
-    void ResetTerritoryData();
-    void InitTerrainMeshes(std::vector<TerrainInstance>* terrainInstances);
-
-    //General render state
-    ID3D11Device* d3d11Device_ = nullptr;
-    ID3D11DeviceContext* d3d11Context_ = nullptr;
+    void CreateDepthBuffer();
 
     //Scene state
-    ID3D11Texture2D* sceneViewTexture_ = nullptr;
-    ID3D11RenderTargetView* sceneViewRenderTarget_ = nullptr;
-    ID3D11ShaderResourceView* sceneViewShaderResource_ = nullptr;
     D3D11_VIEWPORT sceneViewport_;
-    ID3D11Texture2D* depthBuffer_ = nullptr;
-    ID3D11DepthStencilView* depthBufferView_ = nullptr;
+    Texture2D sceneViewTexture_;
+    Texture2D depthBufferTexture_;
     u32 sceneViewWidth_ = 200;
     u32 sceneViewHeight_ = 200;
-    DirectX::XMFLOAT4 clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
+    //Buffer for per-object shader constants (set once per object)
+    Buffer perObjectBuffer_; //Gpu side copy of the buffer
 
-
-    //TERRAIN SPECIFIC DATA
-    //Todo: Move into other class / or maybe make this class virtual and specialize scenes
-    //Todo: Alt: Define 'Material' class which lists out which shaders to use and the inputs for those
-    //Todo:     - Plus have 'Model' and 'Texture' classes which represent other resources used
-
-    ID3D11Buffer* cbPerFrameBuffer = nullptr;
-    struct cbPerFrame
-    {
-        DirectX::XMVECTOR ViewPos = { 0.0f, 0.0f, 0.0f, 1.0f };
-        DirectX::XMVECTOR DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-        f32 DiffuseIntensity = 0.65f;
-        f32 ElevationFactorBias = 0.8f;
-        i32 ShadeMode = 1;
-    };
-    cbPerFrame cbPerFrameObject;
-
-    //Todo: Make shader class that handles reload timing
-    std::filesystem::file_time_type terrainShaderWriteTime_;
-
-    //Todo: Move camera values out into camera class
-    DirectX::XMMATRIX WVP;
-
-    ID3D11Buffer* cbPerObjectBuffer = nullptr;
-    struct cbPerObject
-    {
-        DirectX::XMMATRIX WVP;
-    };
-    cbPerObject cbPerObj;
-
-    //Terrain data
     //Data that's the same for all terrain instances
-    ID3D11VertexShader* terrainVertexShader_ = nullptr;
-    ID3D11PixelShader* terrainPixelShader_ = nullptr;
-    ID3D11InputLayout* terrainVertexLayout_ = nullptr;
-    ID3D11Buffer* terrainPerObjectBuffer_ = nullptr;
-    cbPerObject cbPerObjTerrain;
-    UINT terrainVertexStride = 0;
-    UINT terrainVertexOffset = 0;
+    ComPtr<ID3D11InputLayout> vertexLayout_ = nullptr;
+    Shader shader_;
 
-    //Per instance terrain data
-    std::vector<TerrainInstanceRenderData> terrainInstanceRenderData_ = {};
-    std::vector<DirectX::XMMATRIX> terrainModelMatrices_ = {};
-
-    //Todo: Add build path variable that's set by cmake to the project root path for debug
-#ifdef DEBUG_BUILD
-    string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
-#else
-    string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
-#endif
+    bool shaderSet_ = false;
+    bool vertexLayoutSet_ = false;
 };

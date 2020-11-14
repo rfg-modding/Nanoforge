@@ -11,14 +11,14 @@ void ZoneRender_Update(GuiState* state, bool* open)
     //Im3d::SetSize(state->BoundingBoxThickness);
 
     ////Draw bounding boxes
-    //for (const auto& zone : state->ZoneManager->ZoneFiles)
+    //for (const auto& zone : state->CurrentTerritory->ZoneFiles)
     //{
     //    if (!zone.RenderBoundingBoxes)
     //        continue;
 
     //    for (const auto& object : zone.Zone.Objects)
     //    {
-    //        auto objectClass = state->ZoneManager->GetObjectClass(object.ClassnameHash);
+    //        auto objectClass = state->CurrentTerritory->GetObjectClass(object.ClassnameHash);
     //        if (!objectClass.Show)
     //            continue;
     //        //if (objectClass.Hash == 1794022917)

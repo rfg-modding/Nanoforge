@@ -21,6 +21,7 @@ public:
 
     void Translate(const DirectX::XMVECTOR& translation);
     void Translate(CameraDirection moveDirection, bool sprint = false);
+    void LookAt(const DirectX::XMVECTOR& target);
 
     [[nodiscard]] DirectX::XMVECTOR Up() const;
     [[nodiscard]] DirectX::XMVECTOR Down() const;
@@ -48,11 +49,6 @@ public:
 
     DirectX::XMMATRIX camRotationMatrix;
 
-    f32 Speed = 5.0f;
-    f32 SprintSpeed = 10.0f;
-    f32 MinSpeed = 0.1f;
-    f32 MaxSpeed = 100.0f;
-
     [[nodiscard]] f32 GetFov() const { return fov_; }
     [[nodiscard]] f32 GetFovRadians() const { return fov_ * (3.141593f / 180.0f); } //Todo: Make PI a constant
     [[nodiscard]] f32 GetAspectRatio() const { return aspectRatio_; }
@@ -70,6 +66,12 @@ public:
 
     void SetPosition(f32 x, f32 y, f32 z);
 
+    f32 Speed = 5.0f;
+    f32 SprintSpeed = 10.0f;
+    f32 MinSpeed = 0.1f;
+    f32 MaxSpeed = 100.0f;
+    bool InputActive = true; //If false does not respond to input
+
 private:
     //Todo: Move these to static func / helper namespace
     f32 ToRadians(f32 angleInDegrees);
@@ -83,9 +85,9 @@ private:
 
     //Todo: Pin down whether these should be in degrees or radians
     f32 yaw_ = 0.0f;
-    f32 pitch_ = 3.0f;
-    const f32 minPitch_ = -89.0f;
-    const f32 maxPitch_ = 89.0f;
+    f32 pitch_ = 0.0f;
+    f32 minPitch_ = -89.0f;
+    f32 maxPitch_ = 89.0f;
     f32 lookSensitivity_ = 100.0f;
 
     //Todo: Have InputManager provide easier way to track this

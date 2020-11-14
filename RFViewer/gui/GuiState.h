@@ -1,10 +1,12 @@
 #pragma once
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
-#include "rfg/ZoneManager.h"
+#include "rfg/Territory.h"
 #include "render/camera/Camera.h"
 #include "documents/Document.h"
+#include "common/string/String.h"
 #include <imgui_node_editor.h>
+#include <memory>
 
 class DX11Renderer;
 namespace node = ax::NodeEditor;
@@ -28,12 +30,18 @@ class GuiState
 public:
     ImGuiFontManager* FontManager = nullptr;
     PackfileVFS* PackfileVFS = nullptr;
-    ZoneManager* ZoneManager = nullptr;
     //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;
     Project* CurrentProject = nullptr;
-
     bool Visible = true;
+
+    //Most recently selected territory. If you have multiple territories open this is the most recently selected window
+    Territory* CurrentTerritory = nullptr;
+    
+    //Todo: This would be better handled via an event system
+    //Used to trigger camera position changes in the focused territory
+    bool CurrentTerritoryCamPosNeedsUpdate = false;
+    Vec3 CurrentTerritoryNewCamPos;
 
     GuiStatus Status = Ready;
     string CustomStatusMessage = "";
@@ -70,7 +78,7 @@ public:
     PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
     //Documents that are currently open
-    std::vector<Document> Documents = {};
+    std::vector<std::shared_ptr<Document>> Documents = {};
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
@@ -99,7 +107,8 @@ public:
 
         //Otherwise select zone and update any data reliant on the selected zone
         SelectedZone = index;
-        ZoneManager->UpdateObjectClassInstanceCounts(SelectedZone);
+        if(CurrentTerritory)
+            CurrentTerritory->UpdateObjectClassInstanceCounts(SelectedZone);
     }
     void SetSelectedZoneObject(ZoneObjectNode36* object)
     {
@@ -121,22 +130,22 @@ public:
             ReloadNeeded = true;
     }
     //Create and init a document
-    void CreateDocument(Document&& document)
+    void CreateDocument(string title, DocumentInitFunction* init, DocumentUpdateFunc* update, DocumentOnCloseFunc* onClose, void* data = nullptr)
     {
         //Make sure document with same title doesn't already exist
         for (auto& doc : Documents)
         {
-            if (doc.Title == document.Title)
+            if (String::EqualIgnoreCase(doc->Title, title))
             {
-                if (document.Data)
-                    delete document.Data;
+                if (data)
+                    delete data;
 
                 return;
             }
         }
 
         //Create document
-        Documents.push_back(document);
-        Documents.back().Init(this, Documents.back());
+        std::shared_ptr<Document> document = Documents.emplace_back(new Document(title, init, update, onClose, data));
+        document->Init(this, document);
     }
 };

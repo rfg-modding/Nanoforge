@@ -9,21 +9,18 @@
 #include <array>
 #include <filesystem>
 #include <span>
+#include <wrl.h>
+#include <memory>
 
+using Microsoft::WRL::ComPtr;
 class ImGuiFontManager;
 class Camera;
 using ImTextureID = void*;
 
-struct Vertex
-{
-    DirectX::XMFLOAT3 pos;
-    DirectX::XMFLOAT2 texCoord;
-};
-
 class DX11Renderer
 {
 public:
-    void Init(HINSTANCE hInstance, WNDPROC wndProc, int WindowWidth, int WindowHeight, ImGuiFontManager* fontManager);
+    void Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager);
     ~DX11Renderer();
 
     void NewFrame(f32 deltaTime) const;
@@ -36,8 +33,14 @@ public:
     u32 WindowWidth() { return windowWidth_; }
     u32 WindowHeight() { return windowHeight_; }
 
-    std::vector<Scene> Scenes = {};
+    void CreateScene();
+    void DeleteScene(std::shared_ptr<Scene> target);
 
+    std::vector<std::shared_ptr<Scene>> Scenes = {};
+
+    //Todo: Might be better to wrapper ID3D11DeviceContext in a class that handles this for us
+    //Locked before accessing the ID3D11DeviceContext since only one thread is allowed to use it at once. Goal is avoid worker threads accessing it at the same time as the renderer
+    std::mutex ContextMutex;
 
 private:
     //Todo: Add a callback so viewport windows can be written outside of the renderer
@@ -58,14 +61,13 @@ private:
     ImGuiFontManager* fontManager_ = nullptr;
     HINSTANCE hInstance_ = nullptr;
     HWND hwnd_ = nullptr;
-    int windowWidth_ = 800;
-    int windowHeight_ = 800;
+    u32 windowWidth_ = 800;
+    u32 windowHeight_ = 800;
 
     IDXGIFactory* dxgiFactory_ = nullptr;
-    ID3D11Device* d3d11Device_ = nullptr;
-    ID3D11DeviceContext* d3d11Context_ = nullptr;
+    ComPtr<ID3D11Device> d3d11Device_ = nullptr;
+    ComPtr<ID3D11DeviceContext> d3d11Context_ = nullptr;
     IDXGISwapChain* swapChain_ = nullptr;
-
     ID3D11RenderTargetView* renderTargetView_ = nullptr;
 
     ID3D11RasterizerState* rasterizerState_ = nullptr;

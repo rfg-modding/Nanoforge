@@ -2,11 +2,11 @@
 #include <cstdlib>
 #include <cstring>
 
-const wchar_t* WidenCString(const char* c)
+std::unique_ptr<wchar_t[]> WidenCString(const char* c)
 {
     const size_t cSize = strlen(c) + 1;
-    wchar_t* wc = new wchar_t[cSize];
-    mbstowcs(wc, c, cSize);
+    auto wc = std::unique_ptr<wchar_t[]>(new wchar_t[cSize]);
+    mbstowcs(wc.get(), c, cSize);
 
     return wc;
 }
