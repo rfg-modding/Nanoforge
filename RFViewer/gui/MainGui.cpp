@@ -13,22 +13,14 @@
 #include "application/project/Project.h"
 #include "Log.h"
 #include "application/Settings.h"
-#include "ImGuiFileDialog/ImGuiFileDialog.h"
+#include "gui/util/WinUtil.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
 
-MainGui::~MainGui()
-{
-    node::DestroyEditor(State.NodeEditor);
-}
-
 void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project)
 {
     State = GuiState{ fontManager, packfileVFS, renderer, project };
-
-    //Create node editor library context
-    State.NodeEditor = node::CreateEditor();
 
     //Pre-allocate gui list so we can have stable pointers to the gui
     panels_.resize(MaxGuiPanels);
@@ -36,13 +28,13 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     //Register all gui panels
     panels_ =
     {
-        GuiPanel{&FileExplorer_Update, "Tools/File explorer", true},
         GuiPanel{&StatusBar_Update, "", true},
         GuiPanel{&PropertyList_Update, "Tools/Properties", true},
         GuiPanel{&ZoneRender_Update, "", false},
         GuiPanel{&LogPanel_Update, "Tools/Log", true},
         GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", true},
         GuiPanel{&ZoneList_Update, "Tools/Zone list", true},
+        GuiPanel{&FileExplorer_Update, "Tools/File explorer", true},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD
@@ -58,7 +50,6 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
 void MainGui::Update(f32 deltaTime)
 {
     DrawNewProjectWindow();
-    DrawOpenProjectWindow();
     DrawSaveProjectWindow();
     if (StateEnum == Welcome)
         DrawWelcomeWindow();
@@ -146,8 +137,8 @@ void MainGui::DrawMainMenuBar()
     if (ImGui::BeginMainMenuBar())
     {
         ImGuiMenu("File",
-            ImGuiMenuItemShort("New project", showNewProjectWindow_ = true;)
-            ImGuiMenuItemShort("Open project", showOpenProjectWindow_ = true;)
+            ImGuiMenuItemShort("New project...", showNewProjectWindow_ = true;)
+            ImGuiMenuItemShort("Open project...", TryOpenProject();)
             ImGuiMenuItemShort("Save project", showSaveProjectWindow_ = true;)
             ImGui::Separator();
             ImGuiMenuItemShort("Package mod",
@@ -483,21 +474,13 @@ void MainGui::DrawNewProjectWindow()
         ImGui::SameLine();
         if (ImGui::Button("..."))
         {
-            igfd::ImGuiFileDialog::Instance()->OpenDialog("PickProjectFolder", "Choose folder", 0, ".");
+            auto output = OpenFolder(State.Renderer->GetSystemWindowHandle(), "Pick a folder for your project");
+            if (output)
+                projectPath = output.value();
         }
         ImGui::InputText("Description", &projectDescription);
         ImGui::InputText("Author: ", &projectAuthor);
         ImGui::Checkbox("Create project folder", &createProjectFolder);
-
-        //Update project folder picker
-        if (igfd::ImGuiFileDialog::Instance()->FileDialog("PickProjectFolder"))
-        {
-            if (igfd::ImGuiFileDialog::Instance()->IsOk)
-            {
-                projectPath = igfd::ImGuiFileDialog::Instance()->GetFilePathName();
-            }
-            igfd::ImGuiFileDialog::Instance()->CloseDialog("PickProjectFolder");
-        }
 
         //Create project from inputs
         if (ImGui::Button("Create"))
@@ -534,31 +517,19 @@ void MainGui::DrawNewProjectWindow()
     }
 }
 
-void MainGui::DrawOpenProjectWindow()
+void MainGui::TryOpenProject()
 {
-    if (showOpenProjectWindow_)
-    {
-        igfd::ImGuiFileDialog::Instance()->OpenDialog("OpenProjectFile", "Choose project file", ".nanoproj", ".");
-        showOpenProjectWindow_ = false;
-    }
-    if (igfd::ImGuiFileDialog::Instance()->FileDialog("OpenProjectFile"))
-    {
-        if (igfd::ImGuiFileDialog::Instance()->IsOk)
-        {
-            //Todo: Add save check if project already open
-            if (State.CurrentProject->Load(igfd::ImGuiFileDialog::Instance()->GetFilePathName()))
-            {
-                //If in welcome screen switch to main screen upon opening a project
-                if (StateEnum == Welcome)
-                    StateEnum = Main;
+    auto result = OpenFile(State.Renderer->GetSystemWindowHandle(), "Nanoforge project (*.nanoproj)\0*.nanoproj\0", "Open a nanoforge project file");
+    if (!result)
+        return;
 
-                //Add project to recent projects list if unique
-                Settings_AddRecentProjectPathUnique(igfd::ImGuiFileDialog::Instance()->GetFilePathName());
-                Settings_Write();
-            }
-        }
-        igfd::ImGuiFileDialog::Instance()->CloseDialog("OpenProjectFile");
-    }
+    //If in welcome screen switch to main screen upon opening a project
+    if (StateEnum == Welcome)
+        StateEnum = Main;
+
+    //Add project to recent projects list if unique
+    Settings_AddRecentProjectPathUnique(result.value());
+    Settings_Write();
 }
 
 void MainGui::DrawSaveProjectWindow()

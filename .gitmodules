@@ -7,12 +7,6 @@
 [submodule "Dependencies/IconFontCppHeaders"]
 	path = Dependencies/IconFontCppHeaders
 	url = https://github.com/juliettef/IconFontCppHeaders.git
-[submodule "Dependencies/im3d"]
-	path = Dependencies/im3d
-	url = https://github.com/john-chapman/im3d.git
-[submodule "Dependencies/imgui-node-editor"]
-	path = Dependencies/imgui-node-editor
-	url = https://github.com/thedmd/imgui-node-editor.git
 [submodule "Dependencies/tinyxml2"]
 	path = Dependencies/tinyxml2
 	url = https://github.com/leethomason/tinyxml2.git
@@ -27,6 +21,3 @@
 [submodule "lib"]
 	path = lib
 	url = https://github.com/Moneyl/RF-Viewer-Lib.git
-[submodule "Dependencies/ImGuiFileDialog"]
-	path = Dependencies/ImGuiFileDialog
-	url = https://github.com/aiekick/ImGuiFileDialog.git

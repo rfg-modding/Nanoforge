@@ -1,6 +1,5 @@
 #include "Settings.h"
 #include "Log.h"
-#include <ImGuiFileDialog/ImGuiFileDialog.h>
 #include <common/string/String.h>
 #include <tinyxml2/tinyxml2.h>
 #include <filesystem>

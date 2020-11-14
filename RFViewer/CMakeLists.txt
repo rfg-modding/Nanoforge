@@ -11,7 +11,6 @@ file(GLOB_RECURSE SOURCES
     "${CMAKE_SOURCE_DIR}/RFViewer/*.h"
     # TODO: Hook this up as a static lib once it's got a CMakeLists.txt. For now this works
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.h
-    #${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.cpp
     )
 
 # Add source to this project's executable.
@@ -23,30 +22,10 @@ add_executable (RFViewer ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/backends/imgui_impl_win32.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/backends/imgui_impl_dx11.cpp
-    #Do the same with im3d
-    ${CMAKE_SOURCE_DIR}/Dependencies/im3d/im3d.cpp
-    #List imgui-node-editor files
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Include/imgui_node_editor.h
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/crude_json.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/crude_json.h
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_bezier_math.h
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_bezier_math.inl
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_canvas.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_canvas.h
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_extra_math.h
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_extra_math.inl
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_node_editor_api.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_node_editor_internal.h
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_node_editor_internal.inl
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Source/imgui_node_editor.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/imgui-node-editor/NodeEditor/Support/imgui_node_editor.natvis
     # tinyxml2 files
     ${CMAKE_SOURCE_DIR}/dependencies/tinyxml2/tinyxml2.cpp
     # imnodes files
     ${CMAKE_SOURCE_DIR}/dependencies/imnodes/imnodes.cpp
-    # ImGuiFileDialog files
-    ${CMAKE_SOURCE_DIR}/dependencies/ImGuiFileDialog/CustomFont.cpp
-    ${CMAKE_SOURCE_DIR}/dependencies/ImGuiFileDialog/ImGuiFileDialog/ImGuiFileDialog.cpp
     )
 
 # Add include directories
@@ -63,14 +42,9 @@ target_include_directories(RFViewer SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/
     ${CMAKE_SOURCE_DIR}/Dependencies/DirectXTex/DirectXTex/
     ${CMAKE_SOURCE_DIR}/Dependencies/DirectXTex/
-    ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Include/
-    ${CMAKE_SOURCE_DIR}/Dependencies/imgui-node-editor/NodeEditor/Source/
-    ${CMAKE_SOURCE_DIR}/Dependencies/im3d
     ${CMAKE_SOURCE_DIR}/Dependencies/tinyxml2/
     ${CMAKE_SOURCE_DIR}/Dependencies/spdlog/include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imnodes/
-    ${CMAKE_SOURCE_DIR}/Dependencies/ImGuiFileDialog/
-    ${CMAKE_SOURCE_DIR}/Dependencies/ImGuiFileDialog/3rdparty/dirent/include/
 )
 
 # Copy assets directory to binary dir after builds

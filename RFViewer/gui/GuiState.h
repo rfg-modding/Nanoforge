@@ -5,11 +5,9 @@
 #include "render/camera/Camera.h"
 #include "documents/Document.h"
 #include "common/string/String.h"
-#include <imgui_node_editor.h>
 #include <memory>
 
 class DX11Renderer;
-namespace node = ax::NodeEditor;
 
 //Used to color status bar
 enum GuiStatus
@@ -51,8 +49,6 @@ public:
     f32 LabelTextSize = 1.0f;
     Vec4 LabelTextColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     bool DrawParentConnections = false;
-
-    node::EditorContext* NodeEditor = nullptr;
 
     u32 SelectedZone = InvalidZoneIndex;
 

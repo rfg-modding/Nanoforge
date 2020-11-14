@@ -1,6 +1,5 @@
 #pragma once
 #include "gui/GuiState.h"
-#include <im3d.h>
 
 f32 ScaleTextSizeToDistance(f32 minSize, f32 maxSize, const Vec3& textPos, Camera* camera);
 

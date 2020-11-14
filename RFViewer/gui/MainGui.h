@@ -34,8 +34,6 @@ enum GuiStateEnum
 class MainGui
 {
 public:
-    ~MainGui();
-
     void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project);
     void Update(f32 deltaTime);
     void HandleResize(u32 width, u32 height);
@@ -53,7 +51,7 @@ private:
     void SetThemePreset(ThemePreset preset);
 
     void DrawNewProjectWindow();
-    void DrawOpenProjectWindow();
+    void TryOpenProject();
     void DrawSaveProjectWindow();
     void DrawWelcomeWindow();
 

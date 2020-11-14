@@ -4,7 +4,7 @@
 #include "gui/GuiState.h"
 #include "render/backend/DX11Renderer.h"
 #include "common/string/String.h"
-#include "ImGuiFileDialog/ImGuiFileDialog.h"
+#include "gui/util/WinUtil.h"
 #include "TextureDocumentState.h"
 #include "PegHelpers.h"
 #include "util/RfgUtil.h"
@@ -36,9 +36,48 @@ void TextureDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
     {
         data->ImageTextures.push_back(nullptr);
     }
+}
 
-    //Add an icon for png files 
-    igfd::ImGuiFileDialog::Instance()->SetExtentionInfos(".png,.dds,.bmp,.jpg,.jpeg", ImVec4(1, 1, 1, 1.0), ICON_FA_FILE_IMAGE);
+void TextureDocument_PickPegExportFolder(GuiState* state, TextureDocumentData* data)
+{
+    //Open folder browser and return result
+    auto result = OpenFolder(state->Renderer->GetSystemWindowHandle(), "Select a folder to export textures into");
+    if (!result)
+        return;
+
+    //If result is valid export the texture(s)
+    Log->info("Extract all window selection: \"{}\"", result.value());
+    if (data->ExtractType == TextureDocumentData::PegExtractType::All)
+        PegHelpers::ExportAll(data->Peg, data->GpuFilePath, result.value() + "\\");
+    else if (data->ExtractType == TextureDocumentData::PegExtractType::SingleFile)
+        PegHelpers::ExportSingle(data->Peg, data->GpuFilePath, data->SelectedIndex, result.value() + "\\");
+}
+
+void TextureDocument_PickPegImportTexture(GuiState* state, TextureDocumentData* data)
+{
+    //Open file browser and return result
+    auto result = OpenFile(state->Renderer->GetSystemWindowHandle(), "Supported image format (*.dds)\0*.dds\0", "Select a texture to import");
+    if (!result)
+        return;
+
+    if (std::filesystem::exists(result.value()))
+    {
+        //Import texture
+        PegHelpers::ImportTexture(data->Peg, data->ImportIndex, result.value());
+
+        //If there's a shader resource for the texture we're replacing then destroy it. Will be recreated by drawing code below
+        void* imageHandle = data->ImageTextures[data->ImportIndex];
+        if (imageHandle)
+        {
+            ID3D11ShaderResourceView* asSrv = (ID3D11ShaderResourceView*)imageHandle;
+            asSrv->Release();
+            data->ImageTextures[data->ImportIndex] = nullptr;
+        }
+    }
+    else
+    {
+        Log->error("Invalid path \"{}\" selected for texture import.", result.value());
+    }
 }
 
 void TextureDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
@@ -110,13 +149,12 @@ void TextureDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
     ImGui::Text(ICON_FA_IMAGES " Textures");
     state->FontManager->FontL.Pop();
     ImGui::Separator();
-    if (ImGui::Button("Export all"))
+    if (ImGui::Button("Export all..."))
     {
         Log->info("Exporting all textures from {}", data->Filename);
-        //Since filter == 0 this window is a directory picker
-        igfd::ImGuiFileDialog::Instance()->OpenDialog("PickPegExportFolder", "Choose folder", 0, ".");
         data->ExtractType = TextureDocumentData::PegExtractType::All;
         data->ExtractIndex = 0;
+        TextureDocument_PickPegExportFolder(state, data);
     }
     
     //Texture entry list
@@ -134,70 +172,25 @@ void TextureDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
             //Right click context menu
             if (ImGui::BeginPopupContextItem())
             {
-                if (ImGui::Button("Export"))
+                if (ImGui::Button("Export..."))
                 {
                     Log->info("Exporting {} from {}", entry.Name, data->Filename);
-                    //Since filter == 0 this window is a directory picker
-                    igfd::ImGuiFileDialog::Instance()->OpenDialog("PickPegExportFolder", "Choose folder", 0, ".");
                     data->ExtractType = TextureDocumentData::PegExtractType::SingleFile;
                     data->ExtractIndex = i;
+                    TextureDocument_PickPegExportFolder(state, data);
                     ImGui::CloseCurrentPopup();
                 }
-                else if (ImGui::Button("Replace"))
+                else if (ImGui::Button("Replace..."))
                 {
                     Log->info("Replacing {} in {}", entry.Name, data->Filename);
-                    igfd::ImGuiFileDialog::Instance()->OpenDialog("PickImportTexture", "Choose texture", ".dds", ".");
                     data->ImportIndex = i;
+                    TextureDocument_PickPegImportTexture(state, data);
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::EndPopup();
             }
         }
         ImGui::EndChild();
-    }
-
-    //Update file browser for picking a folder to extract files to if it's open
-    if (igfd::ImGuiFileDialog::Instance()->FileDialog("PickPegExportFolder"))
-    {
-        if (igfd::ImGuiFileDialog::Instance()->IsOk)
-        {
-            Log->info("Extract all window selection: \"{}\"", igfd::ImGuiFileDialog::Instance()->GetCurrentPath());
-            if (data->ExtractType == TextureDocumentData::PegExtractType::All)
-            {
-                PegHelpers::ExportAll(data->Peg, data->GpuFilePath, igfd::ImGuiFileDialog::Instance()->GetCurrentPath() + "\\");
-            }
-            else if (data->ExtractType == TextureDocumentData::PegExtractType::SingleFile)
-            {
-                PegHelpers::ExportSingle(data->Peg, data->GpuFilePath, data->SelectedIndex, igfd::ImGuiFileDialog::Instance()->GetCurrentPath() + "\\");
-            }
-        }
-        igfd::ImGuiFileDialog::Instance()->CloseDialog("PickPegExportFolder");
-    }
-    //Update texture import file picker
-    if (igfd::ImGuiFileDialog::Instance()->FileDialog("PickImportTexture"))
-    {
-        if (igfd::ImGuiFileDialog::Instance()->IsOk)
-        {
-            if (std::filesystem::exists(igfd::ImGuiFileDialog::Instance()->GetFilePathName()))
-            {
-                //Import texture
-                PegHelpers::ImportTexture(data->Peg, data->ImportIndex, igfd::ImGuiFileDialog::Instance()->GetFilePathName());
-
-                //If there's a shader resource for the texture we're replacing then destroy it. Will be recreated by drawing code below
-                void* imageHandle = data->ImageTextures[data->ImportIndex];
-                if (imageHandle)
-                {
-                    ID3D11ShaderResourceView* asSrv = (ID3D11ShaderResourceView*)imageHandle;
-                    asSrv->Release();
-                    data->ImageTextures[data->ImportIndex] = nullptr;
-                }
-            }
-            else
-            {
-                Log->error("Invalid path \"{}\" selected for texture import.", igfd::ImGuiFileDialog::Instance()->GetFilePathName());
-            }
-        }
-        igfd::ImGuiFileDialog::Instance()->CloseDialog("PickImportTexture");
     }
 
     //Info about the selected texture
