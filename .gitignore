@@ -277,3 +277,5 @@ sh.exe.stackdump
 Project26CppCheck-cppcheck-build-dir/
 
 Project26CppCheck.cppcheck
+
+StructLayoutSettings.json
