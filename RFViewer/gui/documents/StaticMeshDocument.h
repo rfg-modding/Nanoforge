@@ -24,7 +24,6 @@ struct StaticMeshDocumentData
     f32 WorkerProgressFraction = 0.0f;
     bool WorkerDone = false;
 
-    string MeshExportPath;
     string DiffuseMapPegPath = "";
     string SpecularMapPegPath = "";
     string NormalMapPegPath = "";

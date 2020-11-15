@@ -240,7 +240,8 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docu
         ImGui::SameLine();
         ImGui::RadioButton("Obj", true);
 
-        ImGui::InputText("Export path", &data->MeshExportPath);
+        static string MeshExportPath;
+        ImGui::InputText("Export path", &MeshExportPath);
         ImGui::SameLine();
         if (ImGui::Button("..."))
         {
@@ -248,7 +249,7 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docu
             if (!result)
                 return;
 
-            data->MeshExportPath = result.value();
+            MeshExportPath = result.value();
         }
 
         //Draw export button that is disabled if the worker thread isn't done loading the mesh
@@ -259,9 +260,9 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docu
         }
         if (ImGui::Button("Export"))
         {
-            if (!std::filesystem::exists(data->MeshExportPath))
+            if (!std::filesystem::exists(MeshExportPath))
             {
-                Log->error("Failed to export {} to obj. Output folder \"{}\" does not exist.", data->StaticMesh.Name, data->MeshExportPath);
+                Log->error("Failed to export {} to obj. Output folder \"{}\" does not exist.", data->StaticMesh.Name, MeshExportPath);
             }
             else
             {
@@ -273,26 +274,26 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docu
                 {
                     string cpuFilePath = data->DiffuseMapPegPath;
                     string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, data->DiffuseTextureName, data->MeshExportPath + "\\");
+                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, data->DiffuseTextureName, MeshExportPath + "\\");
                     diffuseMapName = String::Replace(data->DiffuseTextureName, ".tga", ".dds");
                 }
                 if (data->SpecularMapPegPath != "")
                 {
                     string cpuFilePath = data->SpecularMapPegPath;
                     string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, data->SpecularTextureName, data->MeshExportPath + "\\");
+                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, data->SpecularTextureName, MeshExportPath + "\\");
                     specularMapPath = String::Replace(data->SpecularTextureName, ".tga", ".dds");
                 }
                 if (data->NormalMapPegPath != "")
                 {
                     string cpuFilePath = data->NormalMapPegPath;
                     string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, data->NormalTextureName, data->MeshExportPath + "\\");
+                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, data->NormalTextureName, MeshExportPath + "\\");
                     normalMapPath = String::Replace(data->NormalTextureName, ".tga", ".dds");
                 }
 
                 //Write mesh to obj
-                data->StaticMesh.WriteToObj(data->GpuFilePath, data->MeshExportPath, diffuseMapName, specularMapPath, normalMapPath);
+                data->StaticMesh.WriteToObj(data->GpuFilePath, MeshExportPath, diffuseMapName, specularMapPath, normalMapPath);
             }
         }
         if (!data->WorkerDone)
