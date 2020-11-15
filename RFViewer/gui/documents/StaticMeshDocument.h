@@ -20,9 +20,17 @@ struct StaticMeshDocumentData
     std::vector<u32> RenderObjectIndices;
 
     std::future<void> WorkerFuture;
-    //std::mutex ResourceLock;
-    //bool WorkerDone = false;
-    //bool WorkerResourcesFreed = false;
+    string WorkerStatusString;
+    f32 WorkerProgressFraction = 0.0f;
+    bool WorkerDone = false;
+
+    string MeshExportPath;
+    string DiffuseMapPegPath = "";
+    string SpecularMapPegPath = "";
+    string NormalMapPegPath = "";
+    string DiffuseTextureName;
+    string SpecularTextureName;
+    string NormalTextureName;
 };
 
 

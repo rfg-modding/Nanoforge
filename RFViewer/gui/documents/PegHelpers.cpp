@@ -15,6 +15,21 @@ namespace PegHelpers
         }
     }
 
+    void ExportAll(const string& cpuFilePath, const string& gpuFilePath, const string& exportFolderPath)
+    {
+        //Open and parse peg
+        PegFile10 peg;
+        BinaryReader cpuFile(cpuFilePath);
+        BinaryReader gpuFile(gpuFilePath);
+        peg.Read(cpuFile, gpuFile);
+
+        //Export all entires
+        ExportAll(peg, gpuFilePath, exportFolderPath);
+
+        //Cleanup peg heap resources
+        peg.Cleanup();
+    }
+
     void ExportSingle(PegFile10& peg, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath)
     {
         //Get entry ref and create reader for gpu file
@@ -40,6 +55,44 @@ namespace PegHelpers
         HRESULT result = DirectX::SaveToDDSFile(image, DirectX::DDS_FLAGS::DDS_FLAGS_NONE, pathWide.get());
         if (FAILED(result))
             Log->error("Error when saving \"{}\" to path \"{}\". Result: {:x}", entry.Name, exportFolderPath, (u32)result);
+    }
+
+    void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath)
+    {
+        //Open and parse peg
+        PegFile10 peg;
+        BinaryReader cpuFile(cpuFilePath);
+        BinaryReader gpuFile(gpuFilePath);
+        peg.Read(cpuFile, gpuFile);
+
+        //Export target entry
+        ExportSingle(peg, gpuFilePath, entryIndex, exportFolderPath);
+
+        //Cleanup peg heap resources
+        peg.Cleanup();
+    }
+
+    void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, const string& entryName, const string& exportFolderPath)
+    {
+        //Open and parse peg
+        PegFile10 peg;
+        BinaryReader cpuFile(cpuFilePath);
+        BinaryReader gpuFile(gpuFilePath);
+        peg.Read(cpuFile, gpuFile);
+
+        //Get entry index
+        auto entryIndex = peg.GetEntryIndex(entryName);
+        if (!entryIndex)
+        {
+            Log->error("Failed to get entry \"{}\" from {}. Stopping texture export.", entryName, Path::GetFileName(cpuFilePath));
+            return;
+        }
+
+        //Export target entry
+        ExportSingle(peg, gpuFilePath, entryIndex.value(), exportFolderPath);
+
+        //Cleanup peg heap resources
+        peg.Cleanup();
     }
 
     void ImportTexture(PegFile10& peg, u32 targetIndex, const string& importFilePath)

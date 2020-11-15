@@ -33,6 +33,8 @@ public:
     //Get underlying raw pointer for depth stencil view. Returns nullptr if one wasn't created
     ID3D11DepthStencilView* GetDepthStencilView() { return depthStencilView_.Get(); }
 
+    string Name;
+
 private:
     ComPtr<ID3D11Texture2D> texture_ = nullptr;
     ComPtr<ID3D11RenderTargetView> renderTargetView_ = nullptr;

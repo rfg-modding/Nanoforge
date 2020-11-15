@@ -195,9 +195,7 @@ void PackfileVFS::AddFileToCache(const string& packfileName, const string& filen
         {
             //Extract all subfiles
             entryParentFolder += filename1 + "\\";
-            Log->info("Before: {}, {}", globalCachePath_, (void*)this);
             parent->ExtractSubfiles(entryParentFolder, true);
-            Log->info("After: {}, {}", globalCachePath_, (void*)this);
         }
         else //Else extracting C&C packfile. Must selectively extract to avoid storing str2s in cache
         {

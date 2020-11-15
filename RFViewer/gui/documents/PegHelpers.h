@@ -10,8 +10,15 @@ namespace PegHelpers
 {
     //Export all entries from peg
     void ExportAll(PegFile10& peg, const string& gpuFilePath, const string& exportFolderPath);
+    //Export all entries from peg
+    void ExportAll(const string& cpuFilePath, const string& gpuFilePath, const string& exportFolderPath);
     //Export single entry from peg
     void ExportSingle(PegFile10& peg, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath);
+    //Export single entry from peg
+    void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath);
+    //Export single entry from peg
+    void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, const string& entryName, const string& exportFolderPath);
+    
     //Import texture and replace provided entry with it's data
     void ImportTexture(PegFile10& peg, u32 targetIndex, const string& importFilePath);
     //Convert peg format to dxgi format
