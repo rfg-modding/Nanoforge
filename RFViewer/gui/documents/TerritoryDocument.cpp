@@ -57,6 +57,8 @@ void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
         return;
     }
 
+    //Only redraw scene if window is focused
+    data->Scene->NeedsRedraw = ImGui::IsWindowFocused();
     if (data->WorkerDone) //Once worker thread is done clear its temporary data
     {
         if (!data->WorkerResourcesFreed && !data->NewTerrainInstanceAdded)
@@ -88,6 +90,7 @@ void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
             //Set bool so the instance isn't initialized more than once
             instance.RenderDataInitialized = true;
         }
+        data->Scene->NeedsRedraw = true; //Redraw scene if new terrain meshes added
         data->NewTerrainInstanceAdded = false;
     }
 

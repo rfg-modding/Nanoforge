@@ -90,6 +90,7 @@ void Scene::HandleResize(u32 windowWidth, u32 windowHeight)
         sceneViewport_.MinDepth = 0.0f;
         sceneViewport_.MaxDepth = 1.0f;
         Cam.HandleResize({ (f32)sceneViewWidth_, (f32)sceneViewHeight_ });
+        NeedsRedraw = true;
     }
 }
 

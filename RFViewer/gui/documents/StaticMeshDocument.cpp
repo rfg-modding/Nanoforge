@@ -52,6 +52,8 @@ void StaticMeshDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
 
     //Camera only handles input if window is focused
     data->Scene->Cam.InputActive = ImGui::IsWindowFocused();
+    //Only redraw scene if window is focused
+    data->Scene->NeedsRedraw = ImGui::IsWindowFocused();
 
     ImVec2 contentAreaSize;
     contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;

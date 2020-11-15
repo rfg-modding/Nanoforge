@@ -80,7 +80,10 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     d3d11Context_->RSSetState(rasterizerState_);
 
     for (auto& scene : Scenes)
-        scene->Draw();
+    {
+        if (scene->NeedsRedraw)
+            scene->Draw();
+    }
 
     d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, nullptr);
     d3d11Context_->ClearRenderTargetView(renderTargetView_, reinterpret_cast<float*>(&clearColor));
@@ -174,7 +177,6 @@ void DX11Renderer::DeleteScene(std::shared_ptr<Scene> target)
         }
         index++;
     }
-    
 }
 
 void DX11Renderer::ImGuiDoFrame()
