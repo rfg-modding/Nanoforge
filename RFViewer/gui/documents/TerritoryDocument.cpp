@@ -155,6 +155,9 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docum
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
+        //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
+        data->Scene->NeedsRedraw = true;
+
         f32 fov = data->Scene->Cam.GetFov();
         f32 nearPlane = data->Scene->Cam.GetNearPlane();
         f32 farPlane = data->Scene->Cam.GetFarPlane();
@@ -204,6 +207,9 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docum
         ImGui::Text("Render settings");
         state->FontManager->FontL.Pop();
         ImGui::Separator();
+
+        //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
+        data->Scene->NeedsRedraw = true;
 
         ImGui::Text("Shading mode: ");
         ImGui::SameLine();

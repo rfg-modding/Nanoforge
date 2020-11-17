@@ -94,6 +94,9 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docu
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
+        //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
+        data->Scene->NeedsRedraw = true;
+
         f32 fov = data->Scene->Cam.GetFov();
         f32 nearPlane = data->Scene->Cam.GetNearPlane();
         f32 farPlane = data->Scene->Cam.GetFarPlane();
@@ -147,6 +150,9 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docu
         ImGui::Text("Render settings");
         state->FontManager->FontL.Pop();
         ImGui::Separator();
+
+        //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
+        data->Scene->NeedsRedraw = true;
 
         ImGui::SetNextItemWidth(175.0f);
         static float tempScale = 1.0f;
