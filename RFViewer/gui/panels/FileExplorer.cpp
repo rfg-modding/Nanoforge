@@ -213,7 +213,7 @@ bool AnyChildNodesFitSearch(FileExplorerNode& node)
 {
     for (auto& childNode : node.Children)
     {
-        if (DoesNodeFitSearch(childNode))
+        if (DoesNodeFitSearch(childNode) || AnyChildNodesFitSearch(childNode))
             return true;
     }
     return false;
