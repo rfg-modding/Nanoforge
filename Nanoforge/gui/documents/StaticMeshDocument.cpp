@@ -13,7 +13,7 @@
 #include <optional>
 
 #ifdef DEBUG_BUILD
-    const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/";
+    const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/";
 #else
     const string shaderFolderPath_ = "./Assets/shaders/";
 #endif

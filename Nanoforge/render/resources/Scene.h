@@ -14,7 +14,7 @@
 
 //Todo: Add build path variable that's set by cmake to the project root path for debug
 #ifdef DEBUG_BUILD
-    const string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Project28/Assets/shaders/Terrain.fx";
+    const string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/Terrain.fx";
 #else
     const string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
 #endif

@@ -1,7 +1,7 @@
 
 # Top level project. Treating this like a VS solution
 cmake_minimum_required (VERSION 3.8)
-project ("RFViewer")
+project ("Nanoforge")
 
 set(CMAKE_CXX_STANDARD           20)
 set(CMAKE_CXX_STANDARD_REQUIRED  ON)
@@ -18,4 +18,4 @@ endif()
 # Include sub-projects.
 add_subdirectory("Dependencies/RfgToolsPlusPlus")
 add_subdirectory("Dependencies/spdlog")
-add_subdirectory("RFViewer")
+add_subdirectory("Nanoforge")
