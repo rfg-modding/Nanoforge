@@ -1,6 +1,11 @@
 # Nanoforge
 A modding tool for the game Red Faction Guerilla. Started off as a map viewer call RF Viewer. The aim is to make it easier to view and edit RFGs many file formats and to automate some of the more tedious and error-prone parts of modding the game.
 
+## Contents
+- [Current features](https://github.com/Moneyl/Nanoforge#current-features)
+- [Planned features](https://github.com/Moneyl/Nanoforge#planned-features)
+- [Screenshots](https://github.com/Moneyl/Nanoforge#screenshots)
+
 ## Current features
 Below are the current features of Nanoforge. See the screenshots section for examples and more details.
 - Map/territory viewing. Loads the terrain and zone data for the selected territory. Can open any territory including the main campaign map, the DLC map, and the WC and MP maps. Doesn't load many parts of the map like building and object meshes yet.
