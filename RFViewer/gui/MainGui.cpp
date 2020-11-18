@@ -191,7 +191,7 @@ void MainGui::DrawMainMenuBar()
         u64 decimal = framerate.find('.');
         const char* labelAndSeparator = "|    FPS: ";
         drawList->AddText(ImVec2(ImGui::GetCursorPosX(), 3.0f), 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
-        drawList->AddText(ImVec2(ImGui::GetCursorPosX() + 49.0f, 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+        drawList->AddText(ImVec2(ImGui::GetCursorPosX() + (49.0f * Settings_UIScale), 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
 
         ImGui::EndMainMenuBar();
     }
@@ -312,7 +312,7 @@ void MainGui::CheckGuiListResize()
 void MainGui::SetThemePreset(ThemePreset preset)
 {
     ImGuiStyle* style = &ImGui::GetStyle();
-    ImVec4* colors = ImGui::GetStyle().Colors;
+    ImVec4* colors = style->Colors;
     
     switch (preset)
     {

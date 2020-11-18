@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include "ImGuiConfig.h"
 #include <IconsFontAwesome5_c.h>
+#include "application/Settings.h"
 
 class ImGuiFont
 {
@@ -16,6 +17,7 @@ public:
     void Pop() const { ImGui::PopFont(); }
     void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges)
     {
+        size_ *= Settings_UIScale;
         //Load normal font
         io.Fonts->AddFontFromFileTTF(gui::FontPath, size_);
         //Load FontAwesome image font and merge with normal font

@@ -8,6 +8,7 @@
 string Settings_PackfileFolderPath = "C:/Program Files (x86)/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered";
 string Settings_TerritoryFilename = "zonescript_terr01.vpp_pc";
 std::vector<string> Settings_RecentProjects = {};
+f32 Settings_UIScale = 1.0f;
 
 void Settings_Read()
 {
@@ -27,8 +28,11 @@ void Settings_Read()
     if (!territoryFile)
         THROW_EXCEPTION("Failed to get <TerritoryFile> from Settings.xml");
 
+    const char* uiScale = settings.FirstChildElement("UI_Scale")->GetText();
+
     Settings_PackfileFolderPath = string(dataPath);
     Settings_TerritoryFilename = string(territoryFile);
+    Settings_UIScale = std::stof(string(uiScale));
 
     //Temporary compatibility patches for convenience. Previous versions expected vpp_pc files instead of shorthand names
     if (Settings_TerritoryFilename == "zonescript_terr01.vpp_pc")
@@ -75,6 +79,10 @@ void Settings_Write()
         auto* pathNode = recentProjects->InsertNewChildElement("Path");
         pathNode->SetText(path.c_str());
     }
+
+    auto* uiScale = settings.NewElement("UI_Scale");
+    settings.InsertEndChild(uiScale);
+    uiScale->SetText(Settings_UIScale);
 
     settings.SaveFile("./Settings.xml");
 }
