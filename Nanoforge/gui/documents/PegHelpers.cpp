@@ -118,6 +118,11 @@ namespace PegHelpers
         memcpy(dataBuffer, image.GetPixels(), dataSize);
         
         //Set entry data with loaded image data
+        if (entry.SourceWidth == entry.Width)
+            entry.SourceWidth = metadata.width;
+        if (entry.SourceHeight == entry.Height)
+            entry.SourceHeight = metadata.height;
+
         entry.Width = metadata.width;
         entry.Height = metadata.height;
         entry.MipLevels = metadata.mipLevels;
