@@ -28,7 +28,11 @@ struct VS_OUTPUT
     float4 Pos : SV_POSITION;
     float3 Normal : NORMAL;
     float4 ZonePos : POSITION0;
+    float2 Uv : TEXCOORD;
 };
+
+Texture2D WeightTexture : register(t0);
+SamplerState WeightSampler : register(s0);
 
 VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
 {
@@ -57,20 +61,32 @@ VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
     output.Pos = mul(posFloat, WVP);
     output.Normal = inNormal;
 
+    //Calculate UV of blend weight texture sample for this terrain location
+    output.Uv.x = ((posFloat.x + 255.5f) / 511.0f);
+    output.Uv.y = ((posFloat.z + 255.5f) / 511.0f);
+    output.Uv.x *= 0.9980; //Part of hack to fix terrain gaps. Must scale UVs since we're scaling the terrain size
+    output.Uv.y *= 0.9980;
+
     return output;
 }
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
+    //Todo: Use _alpha00 textures + high res terrain textures to make a higher quality version of this shader. 
+    //Get low res terrain color with comb texture
+    float4 blendValues = WeightTexture.Sample(WeightSampler, input.Uv);
+    float gamma = 0.45f;
+    float3 terrainColor = pow(blendValues.xyz, float3(1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
+
     //Sun direction for diffuse lighting
     float3 sunDir = float3(0.436f, -1.0f, 0.598f);
-    float ambientIntensity = 0.01f;
+    float ambientIntensity = 0.05f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
 
     //Diffuse
     float3 lightDir = normalize(-sunDir);
     float diff = max(dot(input.Normal, lightDir), 0.0f);
-    float3 diffuse = diff * DiffuseColor * DiffuseIntensity;
+    float3 diffuse = diff * terrainColor * DiffuseColor * DiffuseIntensity;
 
     //Adjust range from [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0] and set color to elevation
     float elevationNormalized = (input.ZonePos.y + 255.5f) / 511.0f;
@@ -84,8 +100,8 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     }
     else if(ShadeMode == 1)
     {
-        //Color terrain with basic lighting + optional elevation coloring
-        return float4(diffuse, 1.0f) + elevationFactor + float4(ambient, 1.0f);
+        //Color terrain with basic lighting
+        return float4(diffuse, 1.0f) + float4(ambient, 1.0f);
     }
     else
     {

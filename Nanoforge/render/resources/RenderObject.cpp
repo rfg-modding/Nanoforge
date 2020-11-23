@@ -23,6 +23,7 @@ void RenderObject::Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObj
     constants.MVP = translation * rotation * scale; //First calculate the model matrix
     //Then calculate model matrix with Model * View * Projection
     constants.MVP = DirectX::XMMatrixTranspose(constants.MVP * cam.camView * cam.camProjection);
+    constants.TerrainSubpieceIndex = TerrainSubpieceIndex;
 
     //Set MVP matrix in shader
     perObjectBuffer.SetData(d3d11Context, &constants);

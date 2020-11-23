@@ -1,6 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include <RfgTools++\formats\meshes\MeshDataBlock.h>
+#include <RfgTools++\formats\textures\PegFile10.h>
 #include <vector>
 #include <span>
 
@@ -28,4 +29,17 @@ struct TerrainInstance
     bool Visible = true;
     bool RenderDataInitialized = false;
     Vec3 Position;
+
+    //If true BlendTextureBytes has data
+    bool HasBlendTexture = false;
+    //Peg file for blend texture
+    PegFile10 BlendPeg;
+    //PC_8888 pixel data (DXGI_FORMAT_R8G8B8A8_UNORM)
+    std::span<u8> BlendTextureBytes;
+    //Blend texture dimensions
+    u32 BlendTextureWidth = 0;
+    u32 BlendTextureHeight = 0;
+
+    //Index of this terrain subpiece on 3x3 grid that makes up the terrain of a single zone
+    int TerrainSubpieceIndex = 0;
 };

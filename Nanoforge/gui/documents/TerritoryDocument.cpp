@@ -3,6 +3,8 @@
 #include "common/filesystem/Path.h"
 #include "util/MeshUtil.h"
 #include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
+#include <RfgTools++\formats\textures\PegFile10.h>
+#include "gui/documents/PegHelpers.h"
 #include "Log.h"
 #include <span>
 
@@ -41,6 +43,7 @@ void TerritoryDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
         { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0,  DXGI_FORMAT_R32G32B32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 } 
     });
+    data->Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2f;
 
     //Create worker thread to load terrain meshes in background
     data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, doc);
@@ -85,6 +88,26 @@ void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
                 mesh.Create(data->Scene->d3d11Device_, data->Scene->d3d11Context_, ToByteSpan(instance.Vertices[i]), ToByteSpan(instance.Indices[i]),
                     instance.Vertices[i].size(), DXGI_FORMAT_R16_UINT, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
                 renderObject.Create(mesh, instance.Position);
+                
+                if (instance.HasBlendTexture)
+                {
+                    //Create and setup texture2d
+                    Texture2D texture2d;
+                    texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "_alpha00.cvbm_pc";
+                    DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
+                    D3D11_SUBRESOURCE_DATA textureSubresourceData;
+                    textureSubresourceData.pSysMem = instance.BlendTextureBytes.data();
+                    textureSubresourceData.SysMemSlicePitch = 0;
+                    textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.BlendTextureWidth, instance.BlendTextureHeight);
+                    state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
+                    texture2d.Create(data->Scene->d3d11Device_, instance.BlendTextureWidth, instance.BlendTextureHeight, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
+                    texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
+                    texture2d.CreateSampler(); //Need sampler too
+                    state->Renderer->ContextMutex.unlock();
+
+                    renderObject.UseTextures = true;
+                    renderObject.DiffuseTexture = texture2d;
+                }
             }
 
             //Set bool so the instance isn't initialized more than once
@@ -224,20 +247,12 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docum
             if (ImGui::Button("Default"))
             {
                 data->Scene->perFrameStagingBuffer_.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-                data->Scene->perFrameStagingBuffer_.DiffuseIntensity = 0.65f;
+                data->Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2;
                 data->Scene->perFrameStagingBuffer_.ElevationFactorBias = 0.8f;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("False color"))
-            {
-                data->Scene->perFrameStagingBuffer_.DiffuseColor = { 1.15f, 0.67f, 0.02f, 1.0f };
-                data->Scene->perFrameStagingBuffer_.DiffuseIntensity = 0.55f;
-                data->Scene->perFrameStagingBuffer_.ElevationFactorBias = -0.8f;
             }
 
             ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&data->Scene->perFrameStagingBuffer_.DiffuseColor));
-            ImGui::SliderFloat("Diffuse intensity", &data->Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 1.0f);
-            ImGui::SliderFloat("Elevation color bias", &data->Scene->perFrameStagingBuffer_.ElevationFactorBias, -1.0f, 1.0f);
+            ImGui::SliderFloat("Diffuse intensity", &data->Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 2.0f);
         }
 
         ImGui::EndPopup();
@@ -422,6 +437,57 @@ void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, std
     delete[] cpuFileBytes.value().data();
     delete[] gpuFileBytes.value().data();
 
+    //Todo: Use + "_alpha00" here to get the blend weights texture, load high res textures, and apply those. Will make terrain texture higher res and have specular + normal maps
+    //Todo: Remember to also change the DXGI_FORMAT for the Texture2D to DXGI_FORMAT_R8G8B8A8_UNORM since that's what the _alpha00 textures used instead of DXT1
+    //Get terrain blending texture
+    string blendTextureName = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "comb.cvbm_pc";
+    auto blendTextureHandlesCpu = state->PackfileVFS->GetFiles(blendTextureName, true, true);
+    if (blendTextureHandlesCpu.size() > 0)
+    {
+        FileHandle& blendTextureHandle = blendTextureHandlesCpu[0];
+        auto* containerBlend = blendTextureHandle.GetContainer();
+        if (!containerBlend)
+            THROW_EXCEPTION("Error! Failed to get container ptr for a terrain mesh.");
+
+        //Get mesh file byte arrays
+        auto cpuFileBytesBlend = containerBlend->ExtractSingleFile(blendTextureName, true);
+        auto gpuFileBytesBlend = containerBlend->ExtractSingleFile(Path::GetFileNameNoExtension(blendTextureName) + ".gvbm_pc", true);
+
+        //Ensure the texture files were extracted
+        if (!cpuFileBytesBlend)
+            THROW_EXCEPTION("Error! Failed to get terrain mesh cpu file byte array!");
+        if (!gpuFileBytesBlend)
+            THROW_EXCEPTION("Error! Failed to get terrain mesh gpu file byte array!");
+
+        BinaryReader cpuFileBlend(cpuFileBytesBlend.value());
+        BinaryReader gpuFileBlend(gpuFileBytesBlend.value());
+
+        terrain.BlendPeg.Read(cpuFileBlend, gpuFileBlend);
+
+        //PC_8888 texture
+        terrain.BlendPeg.ReadTextureData(gpuFileBlend, terrain.BlendPeg.Entries[0]);
+        auto maybeBlendTexturePixelData = terrain.BlendPeg.GetTextureData(0);
+        if (maybeBlendTexturePixelData)
+        {
+            terrain.HasBlendTexture = true;
+            terrain.BlendTextureBytes = maybeBlendTexturePixelData.value();
+            terrain.BlendTextureWidth = terrain.BlendPeg.Entries[0].Width;
+            terrain.BlendTextureHeight = terrain.BlendPeg.Entries[0].Height;
+        }
+        else
+        {
+            Log->warn("Failed to extract pixel data for terrain blend texture {}", blendTextureName);
+        }
+
+        delete containerBlend;
+        delete[] cpuFileBytesBlend.value().data();
+        delete[] gpuFileBytesBlend.value().data();
+    }
+    else
+    {
+        Log->warn("Couldn't find blend texture for {}.", terrainMesh.Filename());
+    }
+
     //Acquire resource lock before writing terrain instance data to the instance list
     std::lock_guard<std::mutex> lock(data->ResourceLock);
     data->TerrainInstances.push_back(terrain);
@@ -509,6 +575,15 @@ void WorkerThread_ClearData(std::shared_ptr<Document> doc)
         instance.Indices.clear();
         instance.Vertices.clear();
         instance.Meshes.clear();
+
+        //Clear blend texture data
+        if (instance.HasBlendTexture)
+        {
+            //Cleanup peg texture data
+            instance.BlendPeg.Cleanup();
+            //Set to nullptr and 0. Don't have to delete this since it's really referencing the data owned by BlendPeg
+            instance.BlendTextureBytes = std::span<u8>((u8*)nullptr, 0);
+        }
     }
     //Clear instance list
     data->TerrainInstances.clear();

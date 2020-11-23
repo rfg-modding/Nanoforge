@@ -10,6 +10,8 @@
 struct PerObjectConstants
 {
     DirectX::XMMATRIX MVP;
+    //Index of this terrain subpiece on 3x3 grid that makes up the terrain of a single zone
+    int TerrainSubpieceIndex;
 };
 
 class RenderObject
@@ -36,4 +38,8 @@ public:
     Texture2D DiffuseTexture;
     Texture2D SpecularTexture;
     Texture2D NormalTexture;
+
+    //Todo: Terrain specific, should be in a material once material support is added
+    //Index of this terrain subpiece on 3x3 grid that makes up the terrain of a single zone
+    int TerrainSubpieceIndex = 0;
 };
