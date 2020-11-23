@@ -203,6 +203,28 @@ void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docu
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
+        //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
+        data->Scene->NeedsRedraw = true;
+
+        //Buttons to show/hide all submeshes at once
+        if (ImGui::Button("Show all"))
+        {
+            for (u32 i = 0; i < data->StaticMesh.SubMeshes.size(); i++)
+            {
+                RenderObject& renderObj = data->Scene->Objects[data->RenderObjectIndices[i]];
+                renderObj.Visible = true;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Hide all"))
+        {
+            for (u32 i = 0; i < data->StaticMesh.SubMeshes.size(); i++)
+            {
+                RenderObject& renderObj = data->Scene->Objects[data->RenderObjectIndices[i]];
+                renderObj.Visible = false;
+            }
+        }
+
         if (ImGui::BeginChild("##MeshInfoSubmeshesList", ImVec2(200.0f, 150.0f)))
         {
             ImGui::Columns(2);
