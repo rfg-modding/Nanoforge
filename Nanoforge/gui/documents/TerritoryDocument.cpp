@@ -463,8 +463,6 @@ void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, std
         BinaryReader gpuFileBlend(gpuFileBytesBlend.value());
 
         terrain.BlendPeg.Read(cpuFileBlend, gpuFileBlend);
-
-        //PC_8888 texture
         terrain.BlendPeg.ReadTextureData(gpuFileBlend, terrain.BlendPeg.Entries[0]);
         auto maybeBlendTexturePixelData = terrain.BlendPeg.GetTextureData(0);
         if (maybeBlendTexturePixelData)
