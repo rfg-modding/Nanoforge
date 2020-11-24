@@ -24,7 +24,7 @@ Below are some planned features. This isn't a roadmap so their order does not de
 ## Screenshots
 First here's a screenshot showing a view of the main campaign map. The panels on the left and right let you view the objects that make up each map zone and some of their properties. Editing isn't supported yet but is hopefully coming soon. Building and object meshes aren't shown in this view yet but there is an option to draw cubes where each object is, colored by object type. If you've seen early versions of this tool you might notice that the lighting is improved and that there's no longer seams in the terrain.
 
-![](https://i.imgur.com/2HOkcKJ.png)
+![](https://i.imgur.com/FTXfVAB.jpg)
 
 This next image shows mesh viewing. Nanoforge can currently view static meshes (csmesh_pc & gsmesh_pc files) and character meshes (ccmesh_pc & gcmesh_pc files). When you open one of the meshes it will try to automatically locate it's textures and apply them to the mesh. It also supports exporting these meshes to .obj files which can then be imported into tools like blender. If textures were found for the mesh they'll be exported with the obj as a .mtl file.
 
@@ -36,4 +36,4 @@ This next picture shows texture viewing. RFG textures come in a pair of two file
 
 This final image shows a top down view of the whole main campaign map to demonstrate that Nanoforge can show the map at full scale.
 
-![](https://i.imgur.com/gcWzvqH.png)
+![](https://i.imgur.com/onv4Dln.jpg)
