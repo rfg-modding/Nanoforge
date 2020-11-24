@@ -13,6 +13,8 @@ file(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/Dependencies/RfgToolsPlusPlus/Dependencies/BinaryTools/*.h
     )
 
+add_compile_definitions(IMGUI_IMPL_WIN32_DISABLE_LINKING_XINPUT IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
+
 # Add source to this project's executable.
 add_executable (Nanoforge ${SOURCES}
     #Need to manually add the dear imgui files)
