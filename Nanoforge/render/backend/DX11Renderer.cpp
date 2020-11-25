@@ -82,7 +82,7 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     for (auto& scene : Scenes)
     {
         if (scene->NeedsRedraw)
-            scene->Draw();
+            scene->Draw(deltaTime);
     }
 
     d3d11Context_->OMSetRenderTargets(1, &renderTargetView_, nullptr);

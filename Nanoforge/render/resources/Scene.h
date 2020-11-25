@@ -27,6 +27,7 @@ struct PerFrameConstants
     f32 DiffuseIntensity = 0.65f;
     f32 ElevationFactorBias = 0.8f;
     i32 ShadeMode = 1;
+    f32 Time = 0.0f;
 };
 
 //Scenes represent different environments or objects that are being rendered. Each frame active scenes are rendered to a texture/render target
@@ -38,7 +39,7 @@ public:
     void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context);
     void SetShader(const string& path);
     void SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
-    void Draw();
+    void Draw(f32 deltaTime);
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
     void HandleResize(u32 windowWidth, u32 windowHeight);
     ID3D11ShaderResourceView* GetView() { return sceneViewTexture_.GetShaderResourceView(); }

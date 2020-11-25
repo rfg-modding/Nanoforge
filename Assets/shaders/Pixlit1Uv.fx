@@ -21,6 +21,7 @@ cbuffer cbPerFrame
     //Shade mode 0: Color terrain only by elevation
     //Shade mode 1: Color terrain with basic lighting + option elevation coloring
     int ShadeMode;
+    float Time;
 };
 
 struct VS_OUTPUT

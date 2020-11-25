@@ -42,7 +42,7 @@ void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
     vertexLayoutSet_ = true;
 }
 
-void Scene::Draw()
+void Scene::Draw(f32 deltaTime)
 {
     //Don't draw scene if critical data not set
     if (!shaderSet_ || !vertexLayoutSet_)
@@ -58,6 +58,7 @@ void Scene::Draw()
     d3d11Context_->RSSetViewports(1, &sceneViewport_);
 
     //Update per-frame constant buffer
+    perFrameStagingBuffer_.Time += deltaTime;
     perFrameStagingBuffer_.ViewPos = Cam.Position();
     perFrameBuffer_.SetData(d3d11Context_, &perFrameStagingBuffer_);
     d3d11Context_->PSSetConstantBuffers(0, 1, perFrameBuffer_.GetAddressOf());
