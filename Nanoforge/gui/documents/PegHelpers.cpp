@@ -54,7 +54,7 @@ namespace PegHelpers
         //HRESULT result = SaveToWICFile(image, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), pathWide);
         HRESULT result = DirectX::SaveToDDSFile(image, DirectX::DDS_FLAGS::DDS_FLAGS_NONE, pathWide.get());
         if (FAILED(result))
-            Log->error("Error when saving \"{}\" to path \"{}\". Result: {:x}", entry.Name, exportFolderPath, (u32)result);
+            Log->error("Error when saving \"{}\" to path \"{}\". Error code: {:x}", entry.Name, exportFolderPath, (u32)result);
     }
 
     void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath)
@@ -110,7 +110,20 @@ namespace PegHelpers
         DirectX::ScratchImage image;
         HRESULT result = DirectX::LoadFromDDSFile(pathWide.get(), DirectX::DDS_FLAGS::DDS_FLAGS_NONE, &metadata, image);
         if (FAILED(result))
-            Log->error("Error when loading \"{}\". Result: {:x}", importFilePath, (u32)result);
+        {
+            Log->error("Error when loading \"{}\". Error code: {:x}", importFilePath, (u32)result);
+            return;
+        }
+        if (metadata.width % 4 != 0)
+        {
+            Log->error("Error when loading \"{}\". Imported image width must be divisible by 4. Current image width is ", importFilePath, metadata.width);
+            return;
+        }
+        if (metadata.height % 4 != 0)
+        {
+            Log->error("Error when loading \"{}\". Imported image height must be divisible by 4. Current image height is ", importFilePath, metadata.height);
+            return;
+        }
 
         //Copy image data to buffer so ScratchImage destructor doesn't delete it
         u32 dataSize = image.GetPixelsSize();
