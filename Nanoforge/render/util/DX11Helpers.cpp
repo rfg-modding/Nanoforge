@@ -1,4 +1,5 @@
 #include "DX11Helpers.h"
+#include "Log.h"
 #include <d3dcompiler.h>
 #include <iostream>
 
@@ -18,7 +19,7 @@ HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCS
         const char* error = (const char*)pErrorBlob->GetBufferPointer();
         if (pErrorBlob)
         {
-            std::cout << "D3DCompileFromFile error! Error message: \"" << error << "\"\n";
+            Log->error("Shader compiler error message: \"{}\"", error);
             OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
             pErrorBlob->Release();
         }

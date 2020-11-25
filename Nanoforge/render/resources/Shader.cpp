@@ -15,17 +15,41 @@ void Shader::Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device)
     ComPtr<ID3DBlob> pPSBlob = nullptr;
     std::unique_ptr<wchar_t[]> shaderPathWide = WidenCString(shaderPath_.c_str());
 
+    ComPtr<ID3D11VertexShader> vertexShader = nullptr;
+    ComPtr<ID3D11PixelShader> pixelShader = nullptr;
+    ComPtr<ID3DBlob> pVSBlob = nullptr;
+
     //Compile the vertex shader
-    if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "VS", "vs_4_0", pVSBlob_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to compile vertex shader!");
-    if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob_->GetBufferPointer(), pVSBlob_->GetBufferSize(), nullptr, vertexShader_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create vertex shader!");
+    if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "VS", "vs_4_0", pVSBlob.GetAddressOf())))
+    {
+        Log->error("Failed to compile vertex shader in {}", Path::GetFileName(shaderPath_));
+        return;
+    }
+    if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, vertexShader.GetAddressOf())))
+    {
+        Log->error("Failed to create vertex shader in {}", Path::GetFileName(shaderPath_));
+        return;
+    }
 
     //Compile the pixel shader
     if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "PS", "ps_4_0", pPSBlob.GetAddressOf())))
-        THROW_EXCEPTION("Failed to compile pixel shader!");
-    if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, pixelShader_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create pixel shader!");
+    {
+        Log->error("Failed to compile pixel shader in {}", Path::GetFileName(shaderPath_));
+        return;
+    }
+    if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, pixelShader.GetAddressOf())))
+    {
+        Log->error("Failed to create pixel shader in {}", Path::GetFileName(shaderPath_));
+        return;
+    }
+
+    vertexShader_.Reset();
+    pixelShader_.Reset();
+    pVSBlob_.Reset();
+    vertexShader_ = vertexShader;
+    pixelShader_ = pixelShader;
+    pVSBlob_ = pVSBlob;
+    Log->info("\"{}\" reloaded.", Path::GetFileName(shaderPath_));
 }
 
 void Shader::TryReload()
@@ -33,17 +57,11 @@ void Shader::TryReload()
     //Reload shader if file has been written to since last check
     if (shaderWriteTime_ == std::filesystem::last_write_time(shaderPath_))
         return;
-    
-    //Release current resources and reload
-    vertexShader_.Reset();
-    pixelShader_.Reset();
-    pVSBlob_.Reset();
 
     //Wait for a moment as a quickfix to a crash that happens when we read the shader as it's being saved
     Log->info("Reloading shader \"{}\"", Path::GetFileName(shaderPath_));
     Sleep(250);
     Load(shaderPath_, d3d11Device_);
-    Log->info("Shaders reloaded.");
 }
 
 void Shader::Bind(ComPtr<ID3D11DeviceContext> d3d11Context)
