@@ -140,7 +140,7 @@ void TerritoryDocument_Update(GuiState* state, Handle<Document> doc)
     }
 
     //Update debug draw regardless of focus state since we'll never be focused when using the other panels which control debug draw
-    if (state->CurrentTerritory->ZoneFiles.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && data->TerritoryDataLoaded)
+    if (data->Territory.ZoneFiles.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && data->TerritoryDataLoaded)
     {
         TerritoryDocument_UpdateDebugDraw(state, doc);
         data->PrimitivesNeedRedraw = false;
@@ -276,14 +276,14 @@ void TerritoryDocument_UpdateDebugDraw(GuiState* state, Handle<Document> doc)
     scene->ResetPrimitives();
 
     //Draw bounding boxes
-    for (const auto& zone : state->CurrentTerritory->ZoneFiles)
+    for (const auto& zone : data->Territory.ZoneFiles)
     {
         if (!zone.RenderBoundingBoxes)
             continue;
 
         for (const auto& object : zone.Zone.Objects)
         {
-            auto objectClass = state->CurrentTerritory->GetObjectClass(object.ClassnameHash);
+            auto objectClass = data->Territory.GetObjectClass(object.ClassnameHash);
             if (!objectClass.Show)
                 continue;
 
@@ -324,7 +324,6 @@ void TerritoryDocument_WorkerThread(GuiState* state, Handle<Document> doc)
     state->SetStatus(ICON_FA_SYNC " Loading zones for " + doc->Title, Working);
     data->Territory.Init(state->PackfileVFS, data->TerritoryName, data->TerritoryShortname);
     data->Territory.LoadZoneData();
-    state->CurrentTerritory = &data->Territory;
     state->CurrentTerritoryUpdateDebugDraw = true;
     state->SetSelectedZone(0);
     data->TerritoryDataLoaded = true;
@@ -343,7 +342,6 @@ void TerritoryDocument_WorkerThread(GuiState* state, Handle<Document> doc)
     //Check if the document was closed. If so, end worker thread early
     if (!doc->Open)
     {
-        state->CurrentTerritory = nullptr;
         state->ClearStatus();
         data->WorkerDone = true;
         return;

@@ -17,6 +17,7 @@ void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d
     d3d11Context_ = d3d11Context;
 
     InitInternal();
+    InitPrimitiveState();
     InitRenderTarget();
 
     //Create buffer for per object constants
@@ -172,8 +173,12 @@ void Scene::InitInternal()
     rasterizerDesc.MultisampleEnable = false;
     rasterizerDesc.AntialiasedLineEnable = false;
     DxCheck(d3d11Device_->CreateRasterizerState(&rasterizerDesc, meshRasterizerState_.GetAddressOf()), "Mesh rasterizer state creation failed!");
+}
 
+void Scene::InitPrimitiveState()
+{
     //Setup rasterizer state used for primitives
+    D3D11_RASTERIZER_DESC rasterizerDesc;
     ZeroMemory(&rasterizerDesc, sizeof(rasterizerDesc));
     rasterizerDesc.FillMode = D3D11_FILL_SOLID;
     rasterizerDesc.CullMode = D3D11_CULL_NONE;
@@ -189,7 +194,7 @@ void Scene::InitInternal()
 
     //Create linelist primitive vertex buffer
     lineVertexBuffer_.Create(d3d11Device_, 1200, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-    
+
     linelistShader_.Load(linelistShaderPath_, d3d11Device_);
 
     //Create linelist vertex layout

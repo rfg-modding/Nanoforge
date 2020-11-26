@@ -73,6 +73,7 @@ public:
 
 private:
     void InitInternal();
+    void InitPrimitiveState();
     void InitRenderTarget();
     void CreateDepthBuffer();
 
