@@ -13,9 +13,9 @@
 #include <optional>
 
 //Worker thread that loads a mesh and locates its textures in the background
-void StaticMeshDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> doc);
+void StaticMeshDocument_WorkerThread(GuiState* state, Handle<Document> doc);
 
-void StaticMeshDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
+void StaticMeshDocument_Init(GuiState* state, Handle<Document> doc)
 {
     StaticMeshDocumentData* data = (StaticMeshDocumentData*)doc->Data;
 
@@ -33,9 +33,9 @@ void StaticMeshDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
     data->WorkerFuture = std::async(std::launch::async, &StaticMeshDocument_WorkerThread, state, doc);
 }
 
-void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Document> doc);
+void StaticMeshDocument_DrawOverlayButtons(GuiState* state, Handle<Document> doc);
 
-void StaticMeshDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
+void StaticMeshDocument_Update(GuiState* state, Handle<Document> doc)
 {
     StaticMeshDocumentData* data = (StaticMeshDocumentData*)doc->Data;
     if (!ImGui::Begin(doc->Title.c_str(), &doc->Open))
@@ -73,7 +73,7 @@ void StaticMeshDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
     ImGui::End();
 }
 
-void StaticMeshDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Document> doc)
+void StaticMeshDocument_DrawOverlayButtons(GuiState* state, Handle<Document> doc)
 {
     StaticMeshDocumentData* data = (StaticMeshDocumentData*)doc->Data;
 
@@ -406,7 +406,7 @@ std::optional<Texture2D_Ext> GetTextureFromPeg(GuiState* state, StaticMeshDocume
 }
 
 //Tries to find a cpeg with a subtexture with the provided name and create a Texture2D from it. Searches all cpeg/cvbm files in packfile. First checks pegs then searches in str2s
-std::optional<Texture2D_Ext> GetTextureFromPackfile(GuiState* state, std::shared_ptr<Document> doc, Packfile3* packfile, const string& textureName, bool isStr2 = false)
+std::optional<Texture2D_Ext> GetTextureFromPackfile(GuiState* state, Handle<Document> doc, Packfile3* packfile, const string& textureName, bool isStr2 = false)
 {
     StaticMeshDocumentData* data = (StaticMeshDocumentData*)doc->Data;
 
@@ -458,7 +458,7 @@ std::optional<Texture2D_Ext> GetTextureFromPackfile(GuiState* state, std::shared
     return {};
 }
 
-std::optional<Texture2D_Ext> GetTexture(GuiState* state, std::shared_ptr<Document> doc, const string& textureName)
+std::optional<Texture2D_Ext> GetTexture(GuiState* state, Handle<Document> doc, const string& textureName)
 {
     StaticMeshDocumentData* data = (StaticMeshDocumentData*)doc->Data;
 
@@ -488,7 +488,7 @@ std::optional<Texture2D_Ext> GetTexture(GuiState* state, std::shared_ptr<Documen
 //Finds a texture and creates a directx texture resource from it. textureName is the textureName of a texture inside a cpeg/cvbm. So for example, sledgehammer_high_n.tga, which is in sledgehammer_high.cpeg_pc
 //Will try to find a high res version of the texture first if lookForHighResVariant is true.
 //Will return a default texture if the target isn't found.
-std::optional<Texture2D_Ext> FindTexture(GuiState* state, std::shared_ptr<Document> doc, const string& name, bool lookForHighResVariant)
+std::optional<Texture2D_Ext> FindTexture(GuiState* state, Handle<Document> doc, const string& name, bool lookForHighResVariant)
 {
     //Look for high res variant if requested and string fits high res search requirements
     if (lookForHighResVariant && String::Contains(name, "_low_"))
@@ -509,7 +509,7 @@ std::optional<Texture2D_Ext> FindTexture(GuiState* state, std::shared_ptr<Docume
     return GetTexture(state, doc, name);
 }
 
-void StaticMeshDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc)
+void StaticMeshDocument_OnClose(GuiState* state, Handle<Document> doc)
 {
     StaticMeshDocumentData* data = (StaticMeshDocumentData*)doc->Data;
 
@@ -520,7 +520,7 @@ void StaticMeshDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc)
     delete data;
 }
 
-void StaticMeshDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> doc)
+void StaticMeshDocument_WorkerThread(GuiState* state, Handle<Document> doc)
 {
     StaticMeshDocumentData* data = (StaticMeshDocumentData*)doc->Data;
     data->WorkerStatusString = "Parsing header...";

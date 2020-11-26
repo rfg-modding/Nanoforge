@@ -74,7 +74,7 @@ public:
     PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
     //Documents that are currently open
-    std::vector<std::shared_ptr<Document>> Documents = {};
+    std::vector<Handle<Document>> Documents = {};
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
@@ -141,7 +141,7 @@ public:
         }
 
         //Create document
-        std::shared_ptr<Document> document = Documents.emplace_back(new Document(title, init, update, onClose, data));
+        Handle<Document> document = Documents.emplace_back(new Document(title, init, update, onClose, data));
         document->Init(this, document);
     }
 };

@@ -98,7 +98,7 @@ void MainGui::Update(f32 deltaTime)
     auto iter = State.Documents.begin();
     while (iter != State.Documents.end())
     {
-        std::shared_ptr<Document> document = *iter;
+        Handle<Document> document = *iter;
         //If document is no longer open, erase it
         if (!document->Open)
         {

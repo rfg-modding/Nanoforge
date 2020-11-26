@@ -18,7 +18,7 @@ void LogPanel_Update(GuiState* state, bool* open)
     ImGui::BeginChild("OutputChildWindow", ImVec2(0, 0), true, ImGuiWindowFlags_ChildWindow);
     
     //Grab the ringbuffer sink off the logger to read recent log messages
-    std::shared_ptr<spdlog::sinks::ringbuffer_sink_mt> sink = std::dynamic_pointer_cast<spdlog::sinks::ringbuffer_sink_mt>(Log->sinks()[2]); //Todo: De-hardcode the ringbuffer sink location
+    Handle<spdlog::sinks::ringbuffer_sink_mt> sink = std::dynamic_pointer_cast<spdlog::sinks::ringbuffer_sink_mt>(Log->sinks()[2]); //Todo: De-hardcode the ringbuffer sink location
     auto messages = sink->last_formatted();
     for (auto& messageWhole : messages)
     {

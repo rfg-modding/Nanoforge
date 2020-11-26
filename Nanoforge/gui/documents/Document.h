@@ -5,9 +5,9 @@
 struct Document;
 class GuiState;
 //Function signature for document init and update functions
-using DocumentInitFunction = void(GuiState* state, std::shared_ptr<Document> doc);
-using DocumentUpdateFunc = void(GuiState* state, std::shared_ptr<Document> doc);
-using DocumentOnCloseFunc = void(GuiState* state, std::shared_ptr<Document> doc);
+using DocumentInitFunction = void(GuiState* state, Handle<Document> doc);
+using DocumentUpdateFunc = void(GuiState* state, Handle<Document> doc);
+using DocumentOnCloseFunc = void(GuiState* state, Handle<Document> doc);
 
 //Document instance. MainGui deletes the Data* you provide when the document is closed
 struct Document

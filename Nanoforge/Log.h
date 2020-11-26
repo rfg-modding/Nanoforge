@@ -7,7 +7,7 @@
 #include <exception>
 #include <mutex>
 
-extern std::shared_ptr<spdlog::logger> Log;
+extern Handle<spdlog::logger> Log;
 
 //Throw an exception and log it's error message
 #define THROW_EXCEPTION(formatString, ...) \

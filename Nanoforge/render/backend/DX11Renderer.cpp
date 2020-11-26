@@ -165,7 +165,7 @@ void DX11Renderer::CreateScene()
     scene->Init(d3d11Device_, d3d11Context_);
 }
 
-void DX11Renderer::DeleteScene(std::shared_ptr<Scene> target)
+void DX11Renderer::DeleteScene(Handle<Scene> target)
 {
     u32 index = 0;
     for (auto& scene : Scenes)

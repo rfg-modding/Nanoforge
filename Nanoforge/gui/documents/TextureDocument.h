@@ -10,7 +10,7 @@
 #include "util/RfgUtil.h"
 #include "application/project/Project.h"
 
-void TextureDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
+void TextureDocument_Init(GuiState* state, Handle<Document> doc)
 {
     //Get parent packfile
     TextureDocumentData* data = (TextureDocumentData*)doc->Data;
@@ -80,7 +80,7 @@ void TextureDocument_PickPegImportTexture(GuiState* state, TextureDocumentData* 
     }
 }
 
-void TextureDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
+void TextureDocument_Update(GuiState* state, Handle<Document> doc)
 {
     if (!ImGui::Begin(doc->Title.c_str(), &doc->Open))
     {
@@ -286,7 +286,7 @@ void TextureDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
     ImGui::End();
 }
 
-void TextureDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc)
+void TextureDocument_OnClose(GuiState* state, Handle<Document> doc)
 {
     TextureDocumentData* data = (TextureDocumentData*)doc->Data;
 

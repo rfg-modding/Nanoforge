@@ -8,10 +8,10 @@
 #include "Log.h"
 #include <span>
 
-void TerritoryDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> doc);
-void WorkerThread_ClearData(std::shared_ptr<Document> doc);
-void LoadTerrainMeshes(GuiState* state, std::shared_ptr<Document> doc);
-void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, std::shared_ptr<Document> doc);
+void TerritoryDocument_WorkerThread(GuiState* state, Handle<Document> doc);
+void WorkerThread_ClearData(Handle<Document> doc);
+void LoadTerrainMeshes(GuiState* state, Handle<Document> doc);
+void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, Handle<Document> doc);
 struct ShortVec4
 {
     i16 x = 0;
@@ -26,7 +26,7 @@ struct ShortVec4
 };
 std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices);
 
-void TerritoryDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
+void TerritoryDocument_Init(GuiState* state, Handle<Document> doc)
 {
     //Get parent packfile
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
@@ -49,10 +49,10 @@ void TerritoryDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
     data->WorkerFuture = std::async(std::launch::async, &TerritoryDocument_WorkerThread, state, doc);
 }
 
-void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Document> doc);
-void TerritoryDocument_UpdateDebugDraw(GuiState* state, std::shared_ptr<Document> doc);
+void TerritoryDocument_DrawOverlayButtons(GuiState* state, Handle<Document> doc);
+void TerritoryDocument_UpdateDebugDraw(GuiState* state, Handle<Document> doc);
 
-void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
+void TerritoryDocument_Update(GuiState* state, Handle<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
     if (!ImGui::Begin(doc->Title.c_str(), &doc->Open))
@@ -171,7 +171,7 @@ void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
     ImGui::End();
 }
 
-void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Document> doc)
+void TerritoryDocument_DrawOverlayButtons(GuiState* state, Handle<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
@@ -267,10 +267,10 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docum
     }
 }
 
-void TerritoryDocument_UpdateDebugDraw(GuiState* state, std::shared_ptr<Document> doc)
+void TerritoryDocument_UpdateDebugDraw(GuiState* state, Handle<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
-    std::shared_ptr<Scene> scene = data->Scene;
+    Handle<Scene> scene = data->Scene;
 
     //Reset primitives first to ensure old primitives get cleared
     scene->ResetPrimitives();
@@ -295,7 +295,7 @@ void TerritoryDocument_UpdateDebugDraw(GuiState* state, std::shared_ptr<Document
     state->CurrentTerritoryUpdateDebugDraw = false;
 }
 
-void TerritoryDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc)
+void TerritoryDocument_OnClose(GuiState* state, Handle<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
@@ -316,7 +316,7 @@ void TerritoryDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc)
     delete data;
 }
 
-void TerritoryDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> doc)
+void TerritoryDocument_WorkerThread(GuiState* state, Handle<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
@@ -348,7 +348,7 @@ void TerritoryDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> d
 
 //Loads vertex and index data of each zones terrain mesh
 //Note: This function is run by the worker thread
-void LoadTerrainMeshes(GuiState* state, std::shared_ptr<Document> doc)
+void LoadTerrainMeshes(GuiState* state, Handle<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
     state->SetStatus(ICON_FA_SYNC " Loading terrain meshes for " + doc->Title, Working);
@@ -386,7 +386,7 @@ void LoadTerrainMeshes(GuiState* state, std::shared_ptr<Document> doc)
     Log->info("Done loading terrain meshes for {}", doc->Title);
 }
 
-void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, std::shared_ptr<Document> doc)
+void LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state, Handle<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 
@@ -593,7 +593,7 @@ std::span<LowLodTerrainVertex> GenerateTerrainNormals(std::span<ShortVec4> verti
 }
 
 //Clear temporary data created by the worker thread. Called by Application once the worker thread is done working and the renderer is done using the worker data
-void WorkerThread_ClearData(std::shared_ptr<Document> doc)
+void WorkerThread_ClearData(Handle<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
 

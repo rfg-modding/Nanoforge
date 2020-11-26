@@ -12,7 +12,7 @@ struct TerritoryDocumentData
     string TerritoryName;
     string TerritoryShortname;
     Territory Territory;
-    std::shared_ptr<Scene> Scene = nullptr;
+    Handle<Scene> Scene = nullptr;
     std::vector<TerrainInstance> TerrainInstances = {};
     std::future<void> WorkerFuture;
     std::mutex ResourceLock;
@@ -24,6 +24,6 @@ struct TerritoryDocumentData
 };
 
 
-void TerritoryDocument_Init(GuiState* state, std::shared_ptr<Document> doc);
-void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc);
-void TerritoryDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc);
+void TerritoryDocument_Init(GuiState* state, Handle<Document> doc);
+void TerritoryDocument_Update(GuiState* state, Handle<Document> doc);
+void TerritoryDocument_OnClose(GuiState* state, Handle<Document> doc);
