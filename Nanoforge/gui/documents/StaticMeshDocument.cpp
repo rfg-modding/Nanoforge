@@ -413,6 +413,10 @@ std::optional<Texture2D_Ext> GetTextureFromPackfile(GuiState* state, Handle<Docu
     //First search top level cpeg/cvbm files
     for (u32 i = 0; i < packfile->Entries.size(); i++)
     {
+        //Check if the document was closed. If so, end worker thread early
+        if (!doc->Open)
+            return {};
+
         Packfile3Entry& entry = packfile->Entries[i];
         const char* entryName = packfile->EntryNames[i];
         string ext = Path::GetExtension(entryName);
@@ -431,6 +435,10 @@ std::optional<Texture2D_Ext> GetTextureFromPackfile(GuiState* state, Handle<Docu
     {
         for (u32 i = 0; i < packfile->Entries.size(); i++)
         {
+            //Check if the document was closed. If so, end worker thread early
+            if (!doc->Open)
+                return {};
+
             Packfile3Entry& entry = packfile->Entries[i];
             const char* entryName = packfile->EntryNames[i];
             string ext = Path::GetExtension(entryName);
@@ -476,10 +484,17 @@ std::optional<Texture2D_Ext> GetTexture(GuiState* state, Handle<Document> doc, c
                 return texture;
         }
     }
+    //Check if the document was closed. If so, end worker thread early
+    if (!doc->Open)
+        return {};
 
     //Then search parent vpp
     Packfile3* parentPackfile = state->PackfileVFS->GetPackfile(data->VppName);
     if (!parentPackfile)
+        return {};
+
+    //Check if the document was closed. If so, end worker thread early
+    if (!doc->Open)
         return {};
 
     return GetTextureFromPackfile(state, doc, parentPackfile, textureName); //Return regardless here since it's our last search option
@@ -504,6 +519,9 @@ std::optional<Texture2D_Ext> FindTexture(GuiState* state, Handle<Document> doc, 
             return texture;
         }
     }
+    //Check if the document was closed. If so, end worker thread early
+    if (!doc->Open)
+        return {};
 
     //Else look for the specified texture
     return GetTexture(state, doc, name);
@@ -548,6 +566,10 @@ void StaticMeshDocument_WorkerThread(GuiState* state, Handle<Document> doc)
         data->StaticMesh.Read(cpuFileReader, data->Filename, 0xFAC351A9, 4);
 
     Log->info("Mesh vertex format: {}", to_string(data->StaticMesh.VertexBufferConfig.Format));
+
+    //Check if the document was closed. If so, end worker thread early
+    if (!doc->Open)
+        return;
 
     //Todo: Put this in renderer / RenderObject code somewhere so it can be reused by other mesh code
     //Vary input and shader based on vertex format
@@ -638,6 +660,10 @@ void StaticMeshDocument_WorkerThread(GuiState* state, Handle<Document> doc)
 
     for (u32 i = 0; i < data->StaticMesh.SubMeshes.size(); i++)
     {
+        //Check if the document was closed. If so, end worker thread early
+        if (!doc->Open)
+            return;
+
         data->WorkerStatusString = "Loading submesh " + std::to_string(i) + "...";
 
         //Read index and vertex buffers from gpu file
@@ -667,6 +693,14 @@ void StaticMeshDocument_WorkerThread(GuiState* state, Handle<Document> doc)
         bool foundNormal = false;
         for (auto& textureName : data->StaticMesh.TextureNames)
         {
+            //Check if the document was closed. If so, end worker thread early
+            if (!doc->Open)
+            {
+                delete[] meshData.IndexBuffer.data();
+                delete[] meshData.VertexBuffer.data();
+                return;
+            }
+
             string textureNameLower = String::ToLower(textureName);
             bool missing = missingTextures.find(textureNameLower) != missingTextures.end();
             if (missing) //Skip textures that weren't found in previous searches

@@ -340,6 +340,15 @@ void TerritoryDocument_WorkerThread(GuiState* state, Handle<Document> doc)
         state->CurrentTerritoryCamPosNeedsUpdate = true;
     }
 
+    //Check if the document was closed. If so, end worker thread early
+    if (!doc->Open)
+    {
+        state->CurrentTerritory = nullptr;
+        state->ClearStatus();
+        data->WorkerDone = true;
+        return;
+    }
+
     //Load terrain meshes and extract their index + vertex data
     LoadTerrainMeshes(state, doc);
     state->ClearStatus();
@@ -359,6 +368,10 @@ void LoadTerrainMeshes(GuiState* state, Handle<Document> doc)
     //Find terrain meshes and load them
     for (auto& zone : data->Territory.ZoneFiles)
     {
+        //Check if the document was closed. If so, end worker thread early
+        if (!doc->Open)
+            break;
+
         //Get obj_zone object with a terrain_file_name property
         auto* objZoneObject = zone.Zone.GetSingleObject("obj_zone");
         if (!objZoneObject)
