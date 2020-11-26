@@ -124,21 +124,21 @@ void TerritoryDocument_Update(GuiState* state, Handle<Document> doc)
         state->SetTerritory(data->TerritoryName);
         state->CurrentTerritory = &data->Territory;
         data->Scene->Cam.InputActive = true;
-
-        //Move camera if triggered by another gui panel
-        if (state->CurrentTerritoryCamPosNeedsUpdate)
-        {
-            Vec3 newPos = state->CurrentTerritoryNewCamPos;
-            data->Scene->Cam.SetPosition(newPos.x, newPos.y, newPos.z);
-            data->Scene->Cam.LookAt({ newPos.x - 250.0f, newPos.y - 500.0f, newPos.z - 250.f });
-            state->CurrentTerritoryCamPosNeedsUpdate = false;
-        }
     }
     else
     {
         data->Scene->Cam.InputActive = false;
     }
 
+    //Move camera if triggered by another gui panel
+    if (state->CurrentTerritoryCamPosNeedsUpdate && &data->Territory == state->CurrentTerritory)
+    {
+        Vec3 newPos = state->CurrentTerritoryNewCamPos;
+        data->Scene->Cam.SetPosition(newPos.x, newPos.y, newPos.z);
+        data->Scene->Cam.LookAt({ newPos.x - 250.0f, newPos.y - 500.0f, newPos.z - 250.f });
+        data->Scene->NeedsRedraw = true;
+        state->CurrentTerritoryCamPosNeedsUpdate = false;
+    }
     //Update debug draw regardless of focus state since we'll never be focused when using the other panels which control debug draw
     if (data->Territory.ZoneFiles.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && data->TerritoryDataLoaded)
     {
