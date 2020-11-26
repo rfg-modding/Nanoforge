@@ -121,6 +121,27 @@ void MainGui::Update(f32 deltaTime)
         iter++;
         counter++;
     }
+
+    //Draw mod packaging modal
+    if (State.CurrentProject->WorkerRunning)
+        ImGui::OpenPopup("Packaging mod");
+    if (ImGui::BeginPopupModal("Packaging mod"))
+    {
+        ImGui::Text(State.CurrentProject->WorkerState);
+        ImGui::ProgressBar(State.CurrentProject->WorkerPercentage);
+        
+        if (!State.CurrentProject->WorkerRunning)
+            ImGui::CloseCurrentPopup();
+
+        if (ImGui::Button("Cancel"))
+        {
+            State.CurrentProject->PackagingCancelled = true;
+            Log->info("Cancelled mod packaging.");
+        }
+
+        //Todo: Add cancel button
+        ImGui::EndPopup();
+    }
 }
 
 void MainGui::HandleResize(u32 width, u32 height)
@@ -141,11 +162,12 @@ void MainGui::DrawMainMenuBar()
             ImGui::Separator();
             ImGuiMenuItemShort("Package mod",
             {
-                //Todo: Run on separate thread so this doesn't free the gui
-                //Todo: Consider blocking input with modal while packaging or at least blocking edits while packaging
-                State.SetStatus("Packing mod...", GuiStatus::Working);
-                State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);
-                State.ClearStatus();
+                if (State.PackfileVFS->Ready() && State.CurrentProject)
+                {
+                    State.SetStatus("Packing mod...", GuiStatus::Working);
+                    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);
+                    State.ClearStatus();
+                }
             })
             ImGui::Separator();
             

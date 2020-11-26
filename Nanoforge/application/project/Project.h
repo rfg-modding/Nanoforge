@@ -3,6 +3,7 @@
 #include "rfg/FileCache.h"
 #include "FileEdit.h"
 #include <vector>
+#include <future>
 
 class PackfileVFS;
 class Project
@@ -10,7 +11,7 @@ class Project
 public:
     bool Load(const string& projectFilePath);
     bool Save();
-    bool PackageMod(const string& outputPath, PackfileVFS* vfs);
+    void PackageMod(const string& outputPath, PackfileVFS* vfs);
     string GetCachePath();
     void RescanCache();
     void AddEdit(FileEdit edit);
@@ -33,6 +34,14 @@ public:
     //Edits made in this project
     std::vector<FileEdit> Edits = {};
 
+    //Used by progress bar and worker thread to show packaging status without freezing the whole UI
+    bool WorkerRunning = false;
+    bool PackagingCancelled = false;
+    string WorkerState;
+    f32 WorkerPercentage = 0.0f;
+    std::future<bool> WorkerResult;
+
 private:
     bool LoadProjectFile(const string& projectFilePath);
+    bool PackageModThread(const string& outputPath, PackfileVFS* vfs);
 };
