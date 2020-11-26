@@ -123,6 +123,7 @@ void ZoneList_Update(GuiState* state, bool* open)
         {
             zone.RenderBoundingBoxes = true;
         }
+        state->CurrentTerritoryUpdateDebugDraw = true;
     }
     ImGui::SameLine();
     if (ImGui::Button("Hide all"))
@@ -131,6 +132,7 @@ void ZoneList_Update(GuiState* state, bool* open)
         {
             zone.RenderBoundingBoxes = false;
         }
+        state->CurrentTerritoryUpdateDebugDraw = true;
     }
 
     ImGui::Separator();
@@ -159,7 +161,10 @@ void ZoneList_Update(GuiState* state, bool* open)
             state->SetSelectedZoneObject(nullptr);
         }
         ImGui::NextColumn();
-        ImGui::Checkbox((string("Draw##") + zone.Name).c_str(), &zone.RenderBoundingBoxes);
+        if (ImGui::Checkbox((string("Draw##") + zone.Name).c_str(), &zone.RenderBoundingBoxes))
+        {
+            state->CurrentTerritoryUpdateDebugDraw = true;
+        }
         ImGui::SameLine();
         if (ImGui::Button((string(ICON_FA_MAP_MARKER "##") + zone.Name).c_str()))
         {

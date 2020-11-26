@@ -50,6 +50,7 @@ void TerritoryDocument_Init(GuiState* state, std::shared_ptr<Document> doc)
 }
 
 void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Document> doc);
+void TerritoryDocument_UpdateDebugDraw(GuiState* state, std::shared_ptr<Document> doc);
 
 void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
 {
@@ -136,6 +137,13 @@ void TerritoryDocument_Update(GuiState* state, std::shared_ptr<Document> doc)
     else
     {
         data->Scene->Cam.InputActive = false;
+    }
+
+    //Update debug draw regardless of focus state since we'll never be focused when using the other panels which control debug draw
+    if (state->CurrentTerritory->ZoneFiles.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && data->TerritoryDataLoaded)
+    {
+        TerritoryDocument_UpdateDebugDraw(state, doc);
+        data->PrimitivesNeedRedraw = false;
     }
 
     ImVec2 contentAreaSize;
@@ -259,6 +267,34 @@ void TerritoryDocument_DrawOverlayButtons(GuiState* state, std::shared_ptr<Docum
     }
 }
 
+void TerritoryDocument_UpdateDebugDraw(GuiState* state, std::shared_ptr<Document> doc)
+{
+    TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
+    std::shared_ptr<Scene> scene = data->Scene;
+
+    //Reset primitives first to ensure old primitives get cleared
+    scene->ResetPrimitives();
+
+    //Draw bounding boxes
+    for (const auto& zone : state->CurrentTerritory->ZoneFiles)
+    {
+        if (!zone.RenderBoundingBoxes)
+            continue;
+
+        for (const auto& object : zone.Zone.Objects)
+        {
+            auto objectClass = state->CurrentTerritory->GetObjectClass(object.ClassnameHash);
+            if (!objectClass.Show)
+                continue;
+
+            scene->DrawBox(object.Bmin, object.Bmax, objectClass.Color);
+        }
+    }
+
+    scene->NeedsRedraw = true;
+    state->CurrentTerritoryUpdateDebugDraw = false;
+}
+
 void TerritoryDocument_OnClose(GuiState* state, std::shared_ptr<Document> doc)
 {
     TerritoryDocumentData* data = (TerritoryDocumentData*)doc->Data;
@@ -289,7 +325,9 @@ void TerritoryDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> d
     data->Territory.Init(state->PackfileVFS, data->TerritoryName, data->TerritoryShortname);
     data->Territory.LoadZoneData();
     state->CurrentTerritory = &data->Territory;
+    state->CurrentTerritoryUpdateDebugDraw = true;
     state->SetSelectedZone(0);
+    data->TerritoryDataLoaded = true;
 
     std::vector<ZoneData>& zoneFiles = data->Territory.ZoneFiles;
     Log->info("Loaded {} zones for {}", zoneFiles.size(), doc->Title);
@@ -298,7 +336,7 @@ void TerritoryDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> d
     if (zoneFiles.size() > 0 && zoneFiles[0].Zone.Objects.size() > 0)
     {
         //Tell camera to move to near the first object in the zone
-        state->CurrentTerritoryNewCamPos = zoneFiles[0].Zone.Objects[0].Bmin + Vec3{ .x = 250.0f, .y = 500.0f, .z = 250.0f };
+        state->CurrentTerritoryNewCamPos = zoneFiles[0].Zone.Objects[0].Bmin + Vec3(250.0f, 500.0f, 250.0f);
         state->CurrentTerritoryCamPosNeedsUpdate = true;
     }
 

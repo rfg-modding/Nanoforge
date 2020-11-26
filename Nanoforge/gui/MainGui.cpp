@@ -8,7 +8,6 @@
 #include "gui/panels/ZoneList.h"
 #include "gui/panels/ZoneObjectsList.h"
 #include "gui/panels/PropertyList.h"
-#include "gui/panels/ZoneRender.h"
 #include "gui/panels/LogPanel.h"
 #include "application/project/Project.h"
 #include "Log.h"
@@ -30,7 +29,6 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     {
         GuiPanel{&StatusBar_Update, "", true},
         GuiPanel{&PropertyList_Update, "Tools/Properties", true},
-        GuiPanel{&ZoneRender_Update, "", false},
         GuiPanel{&LogPanel_Update, "Tools/Log", true},
         GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", true},
         GuiPanel{&ZoneList_Update, "Tools/Zone list", true},

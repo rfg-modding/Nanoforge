@@ -21,7 +21,7 @@ struct ZoneObjectClass
     u32 Hash = 0;
     u32 NumInstances = 0;
     //Todo: This is mixing ui logic with data. I'd like to separate this stuff out of Territory if possible
-    Vec4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
+    Vec3 Color = { 1.0f, 1.0f, 1.0f };
     bool Show = true;
     bool ShowLabel = false;
     const char* LabelIcon = "";
@@ -39,6 +39,8 @@ public:
     void LoadZoneData();
     //Reset / clear data in preparation for territory reload
     void ResetTerritoryData();
+    //Returns true if zone data has been loaded and is ready for use
+    bool Ready() { return zoneDataLoaded_; }
 
     //Whether or not this object should be shown based on filtering settings
     bool ShouldShowObjectClass(u32 classnameHash);
@@ -66,4 +68,5 @@ private:
     //Name of the vpp_pc file that zone data is loaded from at startup
     string territoryFilename_;
     string territoryShortname_;
+    bool zoneDataLoaded_ = false;
 };

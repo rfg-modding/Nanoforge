@@ -10,8 +10,6 @@
 struct PerObjectConstants
 {
     DirectX::XMMATRIX MVP;
-    //Index of this terrain subpiece on 3x3 grid that makes up the terrain of a single zone
-    int TerrainSubpieceIndex;
 };
 
 class RenderObject

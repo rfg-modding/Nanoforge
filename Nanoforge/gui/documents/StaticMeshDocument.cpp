@@ -12,12 +12,6 @@
 #include <imgui_internal.h>
 #include <optional>
 
-#ifdef DEBUG_BUILD
-    const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/";
-#else
-    const string shaderFolderPath_ = "./Assets/shaders/";
-#endif
-
 //Worker thread that loads a mesh and locates its textures in the background
 void StaticMeshDocument_WorkerThread(GuiState* state, std::shared_ptr<Document> doc);
 

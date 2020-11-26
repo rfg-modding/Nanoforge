@@ -19,6 +19,8 @@ struct TerritoryDocumentData
     bool WorkerDone = false;
     bool WorkerResourcesFreed = false;
     bool NewTerrainInstanceAdded = false;
+    bool PrimitivesNeedRedraw = true;
+    bool TerritoryDataLoaded = false;
 };
 
 

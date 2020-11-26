@@ -35,6 +35,7 @@ public:
 
     //Most recently selected territory. If you have multiple territories open this is the most recently selected window
     Territory* CurrentTerritory = nullptr;
+    bool CurrentTerritoryUpdateDebugDraw = true;
     
     //Todo: This would be better handled via an event system
     //Used to trigger camera position changes in the focused territory

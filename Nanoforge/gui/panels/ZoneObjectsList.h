@@ -16,32 +16,60 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
     {
         ImGui::Text("%s Select a zone to see the objects it contains.", ICON_FA_EXCLAMATION_CIRCLE);
     }
+    else if (!state->CurrentTerritory->Ready())
+    {
+        ImGui::Text("%s Zone data still loading. ", ICON_FA_EXCLAMATION_CIRCLE);
+    }
     else
     {
         if (ImGui::CollapsingHeader(ICON_FA_FILTER " Filters##CollapsingHeader"))
         {
+            if (ImGui::Button("Show all types"))
+            {
+                for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
+                {
+                    objectClass.Show = true;
+                }
+                state->CurrentTerritoryUpdateDebugDraw = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Hide all types"))
+            {
+                for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
+                {
+                    objectClass.Show = false;
+                }
+                state->CurrentTerritoryUpdateDebugDraw = true;
+            }
+
             //Draw object filters sub-window
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
             ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true);
 
             ImGui::Text(" " ICON_FA_EYE);
             gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
-            ImGui::SameLine();
-            ImGui::Text(" " ICON_FA_MARKER);
-            gui::TooltipOnPrevious("Toggles whether class name labels are drawn for the object class", nullptr);
+            //ImGui::SameLine();
+            //ImGui::Text(" " ICON_FA_MARKER);
+            //gui::TooltipOnPrevious("Toggles whether class name labels are drawn for the object class", nullptr);
 
             for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
             {
-                ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show);
-                ImGui::SameLine();
-                ImGui::Checkbox((string("##showLabel") + objectClass.Name).c_str(), &objectClass.ShowLabel);
+                if (ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show))
+                {
+                    state->CurrentTerritoryUpdateDebugDraw = true;
+                }
+                //ImGui::SameLine();
+                //ImGui::Checkbox((string("##showLabel") + objectClass.Name).c_str(), &objectClass.ShowLabel);
                 ImGui::SameLine();
                 ImGui::Text(objectClass.Name);
                 ImGui::SameLine();
                 ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
                 ImGui::SameLine();
                 //Todo: Use a proper string formatting lib here
-                ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+                if (ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel))
+                {
+                    state->CurrentTerritoryUpdateDebugDraw = true;
+                }
                 //ImGui::Text("|  %d instances", objectClass.NumInstances);
             }
             ImGui::EndChild();

@@ -14,10 +14,12 @@
 
 //Todo: Add build path variable that's set by cmake to the project root path for debug
 #ifdef DEBUG_BUILD
-    const string terrainShaderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/Terrain.fx";
+    const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/";
 #else
-    const string terrainShaderPath_ = "./Assets/shaders/Terrain.fx";
+    const string shaderFolderPath_ = "./Assets/shaders/";
 #endif
+const string terrainShaderPath_ = shaderFolderPath_ + "Terrain.fx";
+const string linelistShaderPath_ = shaderFolderPath_ + "Linelist.fx";
 
 //Buffer for per-frame shader constants (set once per frame)
 struct PerFrameConstants
@@ -29,6 +31,8 @@ struct PerFrameConstants
     i32 ShadeMode = 1;
     f32 Time = 0.0f;
 };
+
+const Vec3 ColorWhite(1.0f, 1.0f, 1.0f);
 
 //Scenes represent different environments or objects that are being rendered. Each frame active scenes are rendered to a texture/render target
 //which can then be used by the UI as necessary. For example, lets say you had one window with a 3d view of the campaign map, and another with sledgehammer mesh,
@@ -45,6 +49,13 @@ public:
     ID3D11ShaderResourceView* GetView() { return sceneViewTexture_.GetShaderResourceView(); }
     u32 Width() { return sceneViewWidth_; }
     u32 Height() { return sceneViewHeight_; }
+
+    //Primitive drawing functions. Must be called each frame
+    void DrawLine(const Vec3& start, const Vec3& end, const Vec3& color = ColorWhite);
+    //void DrawLineStrip(const std::vector<Vec3>& points, const Vec3& color = ColorWhite);
+    void DrawBox(const Vec3& min, const Vec3& max, const Vec3& color = ColorWhite);
+    //Clear any existing primitives and force the primitive vertex buffers to be updated
+    void ResetPrimitives();
 
     Camera Cam;
     std::vector<RenderObject> Objects = {};
@@ -75,10 +86,28 @@ private:
     //Buffer for per-object shader constants (set once per object)
     Buffer perObjectBuffer_; //Gpu side copy of the buffer
 
-    //Data that's the same for all terrain instances
+    //Vertex layout used by all meshes in this scene
     ComPtr<ID3D11InputLayout> vertexLayout_ = nullptr;
+    ComPtr<ID3D11RasterizerState> meshRasterizerState_ = nullptr;
     Shader shader_;
-
     bool shaderSet_ = false;
     bool vertexLayoutSet_ = false;
+
+    //Data used for drawing primitives
+    struct ColoredVertex //Used by primitives that need different colors per vertex
+    {
+        Vec3 Position;
+        Vec3 Color;
+    };
+
+    ComPtr<ID3D11RasterizerState> primitiveRasterizerState_ = nullptr;
+    ComPtr<ID3D11InputLayout> linelistVertexLayout_ = nullptr;
+    Shader linelistShader_;
+
+    //Primitive drawing temporary buffers. Cleared each frame
+    //Line and linestrip data. Lines are also used to draw boxes
+    std::vector<ColoredVertex> lineVertices_;
+    Buffer lineVertexBuffer_;
+    u32 numLineVertices_ = 0;
+    bool primitiveBufferNeedsUpdate_ = true;
 };
