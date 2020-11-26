@@ -13,6 +13,7 @@
 #include "Log.h"
 #include "application/Settings.h"
 #include "gui/util/WinUtil.h"
+#include "util/RfgUtil.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
@@ -43,6 +44,9 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     CheckGuiListResize();
     GenerateMenus();
     SetThemePreset(Dark);
+
+    //Check if data path contains all the expected vpp_pc files
+    showDataPathErrorPopup_ = !RfgUtil::ValidateDataPath(Settings_PackfileFolderPath, dataPathValidationErrorMessage_);
 }
 
 void MainGui::Update(f32 deltaTime)
@@ -140,6 +144,22 @@ void MainGui::Update(f32 deltaTime)
         }
 
         //Todo: Add cancel button
+        ImGui::EndPopup();
+    }
+
+    //Draw data folder error message popup. A modal is used to ensure the user sees it instead of accidentally clicking the screen and it disappearing
+    if (showDataPathErrorPopup_)
+        ImGui::OpenPopup("Data folder missing files");
+    if (ImGui::BeginPopupModal("Data folder missing files"))
+    {
+        ImGui::TextWrapped(dataPathValidationErrorMessage_.c_str());
+
+        if (ImGui::Button("Ok"))
+        {
+            showDataPathErrorPopup_ = false;
+            ImGui::CloseCurrentPopup();
+        }
+
         ImGui::EndPopup();
     }
 }
