@@ -7,6 +7,7 @@
 #include "render/resources/Mesh.h"
 #include "render/camera/Camera.h"
 #include "rfg/TerrainHelpers.h"
+#include "RfgTools++/types/Vec2.h"
 #include <filesystem>
 #include <d3d11.h>
 #include <array>
@@ -30,7 +31,9 @@ struct PerFrameConstants
     f32 ElevationFactorBias = 0.8f;
     i32 ShadeMode = 1;
     f32 Time = 0.0f;
+    Vec2 ViewportDimensions;
 };
+//
 
 const Vec3 ColorWhite(1.0f, 1.0f, 1.0f);
 

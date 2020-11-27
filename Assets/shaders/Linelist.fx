@@ -1,4 +1,28 @@
 
+#define thickness 1.8f
+#define kAntialiasing 2.0f //Disabled by default. Must uncomment code in pixel shader to enable (line 94)
+
+cbuffer cbPerFrame
+{
+    //Position of the camera
+    float3 ViewPos;
+    int Padding0; //Padding since DirectX::XMVector is really 16 bytes
+
+    //Color of the diffuse light
+    float3 DiffuseColor;
+    int Padding1; //Padding since DirectX::XMVector is really 16 bytes
+
+    //Intensity of diffuse light 
+    float DiffuseIntensity;
+    //Bias of elevation coloring in ShadeMode 1. If 0 elevation won't effect color
+    float ElevationFactorBias;
+    //Shade mode 0: Color terrain only by elevation
+    //Shade mode 1: Color terrain with basic lighting + option elevation coloring
+    int ShadeMode;
+    float Time;
+    float2 ViewportDimensions;
+};
+
 cbuffer cbPerObject
 {
     float4x4 WVP;
@@ -10,6 +34,13 @@ struct VS_OUTPUT
     float4 Color : COLOR;
 };
 
+struct PS_INPUT
+{
+    float4 Pos : SV_POSITION;
+    float4 Color : COLOR;
+    float EdgeDistance : EDGE_DISTANCE;
+};
+
 VS_OUTPUT VS(float3 inPos : POSITION, float3 inColor : COLOR)
 {
     VS_OUTPUT output;
@@ -19,7 +50,50 @@ VS_OUTPUT VS(float3 inPos : POSITION, float3 inColor : COLOR)
     return output;
 }
 
-float4 PS(VS_OUTPUT input) : SV_TARGET
+//Note: This geometry shader is based off this one from im3d: https://github.com/john-chapman/im3d/blob/0bcc8b892becdd11c49e8cbfc2fb321e0879eeec/examples/DirectX11/im3d.hlsl#L45
+//Geometry shader. Converts each line to a quad in order to create thick lines
+[maxvertexcount(4)] //Creating a quad, so 4 vertices
+void GS(line VS_OUTPUT vertices[2] : SV_POSITION, inout TriangleStream<PS_INPUT> outputStream)
 {
+    VS_OUTPUT vert0 = vertices[0];
+    VS_OUTPUT vert1 = vertices[1];
+
+    float2 pos0 = vert0.Pos.xy / vert0.Pos.w;
+	float2 pos1 = vert1.Pos.xy / vert1.Pos.w;
+	
+	float2 dir = pos0 - pos1;
+	dir = normalize(float2(dir.x, dir.y * ViewportDimensions.y / ViewportDimensions.x)); //Correct for aspect ratio
+	float2 tng0 = float2(-dir.y, dir.x);
+	float2 tng1 = tng0 * thickness / ViewportDimensions;
+	tng0 = tng0 * thickness / ViewportDimensions;
+	
+	PS_INPUT output;
+			
+	//Line start
+	output.Color = vert0.Color;
+	output.Pos = float4((pos0 - tng0) * vert0.Pos.w, vert0.Pos.zw); 
+    output.EdgeDistance = -thickness;
+	outputStream.Append(output);
+	output.Pos = float4((pos0 + tng0) * vert0.Pos.w, vert0.Pos.zw);
+    output.EdgeDistance = thickness;
+	outputStream.Append(output);
+			
+	//Line end
+	output.Color = vert1.Color;
+	output.Pos = float4((pos1 - tng1) * vert1.Pos.w, vert1.Pos.zw);
+    output.EdgeDistance = -thickness;
+	outputStream.Append(output);
+	output.Pos = float4((pos1 + tng1) * vert1.Pos.w, vert1.Pos.zw);
+    output.EdgeDistance = thickness;
+	outputStream.Append(output);
+}
+
+float4 PS(PS_INPUT input) : SV_TARGET
+{
+    //Code from im3d that can be used to anti alias the lines
+    //float d = abs(input.EdgeDistance) / thickness;
+ 	//d = smoothstep(1.0, 1.0 - (kAntialiasing / thickness), d);
+    //return input.Color * d;
+
     return input.Color;
 }

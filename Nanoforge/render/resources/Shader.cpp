@@ -3,6 +3,9 @@
 #include "util/StringHelpers.h"
 #include "render/util/DX11Helpers.h"
 #include "common/filesystem/Path.h"
+#include "common/filesystem/File.h"
+#include "common/string/String.h"
+#include "application/Settings.h"
 
 void Shader::Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device)
 {
@@ -17,7 +20,9 @@ void Shader::Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device)
 
     ComPtr<ID3D11VertexShader> vertexShader = nullptr;
     ComPtr<ID3D11PixelShader> pixelShader = nullptr;
+    ComPtr<ID3D11GeometryShader> geometryShader = nullptr;
     ComPtr<ID3DBlob> pVSBlob = nullptr;
+    ComPtr<ID3DBlob> pGSBlob = nullptr;
 
     //Compile the vertex shader
     if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "VS", "vs_4_0", pVSBlob.GetAddressOf())))
@@ -43,12 +48,33 @@ void Shader::Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device)
         return;
     }
 
+    //Check if the shader file contains the string "void GS(". If that's found attempt to load a geometry shader
+    bool geomShaderFound = String::Contains(File::ReadToString(shaderPath), "GS") && Settings_UseGeometryShaders;
+    if (geomShaderFound)
+    {
+        //Compile geometry shader if one was found. Still continues if it fails to compile since geometry shaders are optional
+        if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "GS", "gs_4_0", pGSBlob.GetAddressOf())))
+        {
+            Log->error("Failed to compile geometry shader in {}", Path::GetFileName(shaderPath_));
+        }
+        else if (FAILED(d3d11Device_->CreateGeometryShader(pGSBlob->GetBufferPointer(), pGSBlob->GetBufferSize(), nullptr, geometryShader.GetAddressOf())))
+        {
+            geomShaderFound = false;
+            Log->error("Failed to create geometry shader in {}", Path::GetFileName(shaderPath_));
+        }
+    }
+
     vertexShader_.Reset();
     pixelShader_.Reset();
     pVSBlob_.Reset();
     vertexShader_ = vertexShader;
     pixelShader_ = pixelShader;
     pVSBlob_ = pVSBlob;
+    if (geomShaderFound)
+    {
+        geometryShader_.Reset();
+        geometryShader_ = geometryShader;
+    }
     Log->info("\"{}\" reloaded.", Path::GetFileName(shaderPath_));
 }
 
@@ -68,4 +94,6 @@ void Shader::Bind(ComPtr<ID3D11DeviceContext> d3d11Context)
 {
     d3d11Context->VSSetShader(vertexShader_.Get(), nullptr, 0);
     d3d11Context->PSSetShader(pixelShader_.Get(), nullptr, 0);
+    if(Settings_UseGeometryShaders)
+        d3d11Context->GSSetShader(geometryShader_.Get(), nullptr, 0);
 }

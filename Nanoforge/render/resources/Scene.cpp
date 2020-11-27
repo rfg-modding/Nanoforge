@@ -63,6 +63,7 @@ void Scene::Draw(f32 deltaTime)
     //Update per-frame constant buffer
     perFrameStagingBuffer_.Time += deltaTime;
     perFrameStagingBuffer_.ViewPos = Cam.Position();
+    perFrameStagingBuffer_.ViewportDimensions = Vec2{ (f32)sceneViewWidth_, (f32)sceneViewHeight_ };
     perFrameBuffer_.SetData(d3d11Context_, &perFrameStagingBuffer_);
     d3d11Context_->PSSetConstantBuffers(0, 1, perFrameBuffer_.GetAddressOf());
 
@@ -117,6 +118,7 @@ void Scene::Draw(f32 deltaTime)
     constants.MVP = DirectX::XMMatrixTranspose(constants.MVP * Cam.camView * Cam.camProjection);
 
     //Set MVP matrix in shader
+    d3d11Context_->GSSetConstantBuffers(0, 1, perFrameBuffer_.GetAddressOf());
     perObjectBuffer_.SetData(d3d11Context_, &constants);
 
     //Draw linelist primitives

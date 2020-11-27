@@ -10,6 +10,8 @@ extern string Settings_TerritoryFilename;
 extern std::vector<string> Settings_RecentProjects;
 //Scale of the UI. Values larger than 1.0 make UI text and icons larger.
 extern f32 Settings_UIScale;
+//If false geometry shaders won't be used. This disabled some features like wide lines
+extern bool Settings_UseGeometryShaders;
 
 void Settings_Read();
 void Settings_Write();

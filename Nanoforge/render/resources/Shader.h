@@ -23,6 +23,7 @@ private:
     std::filesystem::file_time_type shaderWriteTime_;
     ComPtr<ID3D11VertexShader> vertexShader_ = nullptr;
     ComPtr<ID3D11PixelShader> pixelShader_ = nullptr;
+    ComPtr<ID3D11GeometryShader> geometryShader_ = nullptr;
     ComPtr<ID3D11Device> d3d11Device_ = nullptr;
     ComPtr<ID3DBlob> pVSBlob_ = nullptr;
     string shaderPath_;
