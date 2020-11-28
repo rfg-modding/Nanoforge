@@ -18,9 +18,9 @@
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager)
 {
-    State = GuiState{ fontManager, packfileVFS, renderer, project };
+    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager };
 
     //Pre-allocate gui list so we can have stable pointers to the gui
     panels_.resize(MaxGuiPanels);

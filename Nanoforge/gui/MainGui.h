@@ -34,7 +34,7 @@ enum GuiStateEnum
 class MainGui
 {
 public:
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager);
     void Update(f32 deltaTime);
     void HandleResize(u32 width, u32 height);
 

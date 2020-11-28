@@ -5,6 +5,7 @@
 #include "render/camera/Camera.h"
 #include "documents/Document.h"
 #include "common/string/String.h"
+#include "rfg/xtbl/XtblManager.h"
 #include <memory>
 
 class DX11Renderer;
@@ -31,6 +32,7 @@ public:
     //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;
     Project* CurrentProject = nullptr;
+    XtblManager* Xtbls = nullptr;
     bool Visible = true;
 
     //Most recently selected territory. If you have multiple territories open this is the most recently selected window

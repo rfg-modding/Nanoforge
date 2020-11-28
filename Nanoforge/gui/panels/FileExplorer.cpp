@@ -2,6 +2,7 @@
 #include "property_panel/PropertyPanelContent.h"
 #include "gui/documents/TextureDocument.h"
 #include "gui/documents/StaticMeshDocument.h"
+#include "gui/documents/XtblDocument.h"
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
 
@@ -346,6 +347,16 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
         state->CreateDocument(filename, &StaticMeshDocument_Init, &StaticMeshDocument_Update, &StaticMeshDocument_OnClose, new StaticMeshDocumentData
         {
             .Filename = filename,
+            .ParentName = node.ParentName,
+            .VppName = FileExplorer_VppName,
+            .InContainer = node.InContainer
+        });
+    }
+    else if (extension == ".xtbl")
+    {
+        state->CreateDocument(node.Filename, &XtblDocument_Init, &XtblDocument_Update, &XtblDocument_OnClose, new XtblDocumentData
+        {
+            .Filename = node.Filename,
             .ParentName = node.ParentName,
             .VppName = FileExplorer_VppName,
             .InContainer = node.InContainer

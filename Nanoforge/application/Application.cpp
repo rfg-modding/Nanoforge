@@ -39,10 +39,11 @@ Application::Application(HINSTANCE hInstance)
     appInstance = this;
     hInstance_ = hInstance;
     packfileVFS_.Init(Settings_PackfileFolderPath, &project_);
+    xtblManager_.Init(&packfileVFS_);
     
     InitRenderer();
     //Setup gui
-    Gui.Init(&fontManager_, &packfileVFS_, &renderer_, &project_);
+    Gui.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_);
     //Set initial territory name
     Gui.State.SetTerritory(Settings_TerritoryFilename, true);
     Gui.HandleResize(windowWidth_, windowHeight_);
