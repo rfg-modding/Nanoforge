@@ -5,6 +5,7 @@
 #include "gui/documents/XtblDocument.h"
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
+#include <regex>
 
 std::vector<FileExplorerNode> FileExplorer_FileTree = {};
 FileExplorerNode* FileExplorer_SelectedNode = nullptr;
@@ -23,6 +24,11 @@ enum FileSearchType
     MatchEnd
 };
 FileSearchType FileExplorer_SearchType = Match;
+bool FileExplorer_HideUnsupportedFormats = false;
+bool FileExplorer_RegexSearch = false;
+std::regex FileExplorer_Regex("");
+bool FileExplorer_HadRegexError = false;
+string FileExplorer_LastRegexError;
 
 //Generates file tree. Done once at startup and when files are added/removed (very rare)
 //Pre-generating data like this makes rendering and interacting with the file tree simpler
@@ -33,6 +39,10 @@ void FileExplorer_DrawFileNode(GuiState* state, FileExplorerNode& node);
 void FileExplorer_SingleClickedFile(GuiState* state, FileExplorerNode& node);
 //Called when a file is double clicked in the file explorer. Attempts to open a tool/viewer for the provided file
 void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node);
+//Returns true if extension is a format that is supported by Nanoforge. This includes partial support (viewing only)
+bool FileExplorer_FormatSupported(const string& ext);
+//Updates node search results. Stores result in FileExplorerNode::MatchesSearchTerm and FileExplorerNode::AnyChildNodeMatchesSearchTerm
+void UpdateNodeSearchResultsRecursive(FileExplorerNode& node);
 
 string FileExplorer_VppName;
 void FileExplorer_Update(GuiState* state, bool* open)
@@ -47,8 +57,25 @@ void FileExplorer_Update(GuiState* state, bool* open)
         return;
     }
 
+    //Todo: Put additional search options in popup menu or collapsing header to avoid clutter
+    if (ImGui::CollapsingHeader("Options"))
+    {
+        if (ImGui::Checkbox("Hide unsupported formats", &FileExplorer_HideUnsupportedFormats))
+            FileExplorer_SearchChanged = true;
+        if (ImGui::Checkbox("Regex", &FileExplorer_RegexSearch))
+            FileExplorer_SearchChanged = true;
+    }
     if (ImGui::InputText("Search", &FileExplorer_SearchTerm))
         FileExplorer_SearchChanged = true;
+    //Show error icon with regex error in tooltip if using regex search and it's invalid
+    if (FileExplorer_RegexSearch && FileExplorer_HadRegexError)
+    {
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.79f, 0.0f, 0.0f, 1.0f));
+        ImGui::Text(ICON_FA_EXCLAMATION_TRIANGLE);
+        ImGui::PopStyleColor();
+        gui::TooltipOnPrevious(FileExplorer_LastRegexError, state->FontManager->FontDefault.GetFont());
+    }
 
     ImGui::Separator();
 
@@ -74,6 +101,31 @@ void FileExplorer_Update(GuiState* state, bool* open)
     else if(FileExplorer_SearchChanged)
     {
         FileExplorer_SearchTermPatched = "";
+    }
+    if (FileExplorer_SearchTerm != "" && FileExplorer_SearchChanged && FileExplorer_RegexSearch)
+    {
+        //Checks if the search string is a valid regex. This is terrible but it doesn't seem that C++ provides a better way of validating a regex
+        try
+        {
+            std::regex tempRegex(FileExplorer_SearchTerm);
+            FileExplorer_Regex = tempRegex;
+            FileExplorer_HadRegexError = false;
+        }
+        catch (std::regex_error& ex)
+        {
+            FileExplorer_SearchChanged = false;
+            FileExplorer_HadRegexError = true;
+            FileExplorer_LastRegexError = ex.what();
+        }
+    }
+
+    //If the search term changed then update cached search checks. They're cached to avoid checking the search term every frame
+    if (FileExplorer_SearchChanged)
+    {
+        for (auto& node : FileExplorer_FileTree)
+        {
+            UpdateNodeSearchResultsRecursive(node);
+        }
     }
 
     //Draw nodes
@@ -193,12 +245,35 @@ void FileExplorer_GenerateFileTree(GuiState* state)
         index++;
     }
 
+    //Sort nodes alphabetically
+    //First sort vpp nodes
+    std::sort(FileExplorer_FileTree.begin(), FileExplorer_FileTree.end(), [](FileExplorerNode& a, FileExplorerNode& b) -> bool { return a.Filename < b.Filename; });
+    for (auto& packfileNode : FileExplorer_FileTree)
+    {
+        //Then sort vpp node contents
+        std::sort(packfileNode.Children.begin(), packfileNode.Children.end(), [](FileExplorerNode& a, FileExplorerNode& b) -> bool { return a.Filename < b.Filename; });
+
+        //Then sort str2 node contents
+        for (auto& containerNode : packfileNode.Children)
+        {
+            std::sort(containerNode.Children.begin(), containerNode.Children.end(), [](FileExplorerNode& a, FileExplorerNode& b) -> bool { return a.Filename < b.Filename; });
+        }
+    }
+
     state->FileTreeNeedsRegen = false;
 }
 
 //Returns true if the node text matches the current search term
 bool DoesNodeFitSearch(FileExplorerNode& node)
 {
+    //Hide unsupported formats
+    if (FileExplorer_HideUnsupportedFormats && !FileExplorer_FormatSupported(Path::GetExtension(node.Filename)))
+        return false;
+
+    if (FileExplorer_RegexSearch)
+        return std::regex_search(node.Filename, FileExplorer_Regex);
+
+    //Wildcard support
     if (FileExplorer_SearchType == Match && !String::Contains(node.Filename, FileExplorer_SearchTermPatched))
         return false;
     else if (FileExplorer_SearchType == MatchStart && !String::StartsWith(node.Filename, FileExplorer_SearchTermPatched))
@@ -234,9 +309,6 @@ void FileExplorer_DrawFileNode(GuiState* state, FileExplorerNode& node)
     static u32 maxDoubleClickTime = 500; //Max ms between 2 clicks on one item to count as a double click
     static Timer clickTimer; //Measures times between consecutive clicks on the same node. Used to determine if a double click occurred
 
-    //If the search term changed then update cached search checks. They're cached to avoid checking the search term every frame
-    if (FileExplorer_SearchChanged)
-        UpdateNodeSearchResultsRecursive(node);
     //Make sure node fits search term
     if (!node.MatchesSearchTerm && !node.AnyChildNodeMatchesSearchTerm)
         return;
@@ -362,4 +434,16 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
             .InContainer = node.InContainer
         });
     }
+}
+
+bool FileExplorer_FormatSupported(const string& ext)
+{
+    const std::vector<string> supportedFormats = { /*".vpp_pc", ".str2_pc",*/ ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc" };
+    for (auto& format : supportedFormats)
+    {
+        if (ext == format)
+            return true;
+    }
+
+    return false;
 }
