@@ -29,6 +29,7 @@ bool XtblFile::Parse(const string& path)
     auto* templates = root->FirstChildElement("TableTemplates");
     auto* description = root->FirstChildElement("TableDescription");
 
+    //Parse table description
     if (!description)
     {
         Log->error("Parsing failed for {}. <TableDescription> block not found.", Path::GetFileName(path));
@@ -40,12 +41,26 @@ bool XtblFile::Parse(const string& path)
         return false;
     }
 
-
-    if (table)
+    //Parse table
+    if (!table)
     {
-        //Todo: Parse
-        //Todo: Report warning if not present
+        Log->error("Parsing failed for {}. <Tablen> block not found.", Path::GetFileName(path));
+        return false;
     }
+    string elementString = TableDescription.Name; //Element name is the first <Name> value of the <TableDescription> section
+    auto* tableElement = table->FirstChildElement(elementString.c_str());
+    while (tableElement)
+    {
+        //Todo: Return bool, take XtblNode as input. Must set name and value of root nodes, must recursively call ParseTableNode for each value (e.g. <Weapon_Class>, <Animation_Group>)
+        //ParseTableNode(tableElement);
+        XtblNode tableNode;
+        if (tableNode.Parse(tableElement))
+            Entries.push_back(tableNode);
+
+        tableElement = tableElement->NextSiblingElement(elementString.c_str());
+    }
+
+
     if (templates)
     {
         //Todo: Parse if present. Optional section so don't warn if it isn't present

@@ -438,7 +438,7 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
 
 bool FileExplorer_FormatSupported(const string& ext)
 {
-    const std::vector<string> supportedFormats = { /*".vpp_pc", ".str2_pc",*/ ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc" };
+    const std::vector<string> supportedFormats = { /*".vpp_pc", ".str2_pc",*/ ".xtbl", ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc" };
     for (auto& format : supportedFormats)
     {
         if (ext == format)
