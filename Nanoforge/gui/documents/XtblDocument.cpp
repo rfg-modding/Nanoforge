@@ -36,17 +36,63 @@ void XtblDocument_Update(GuiState* state, Handle<Document> doc)
 
     XtblDocumentData* data = (XtblDocumentData*)doc->Data;
     Handle<XtblFile> xtbl = data->Xtbl;
-    
-    gui::LabelAndValue("Name: ", xtbl->Name);
-    gui::LabelAndValue("Num elements: ", std::to_string(xtbl->Entries.size()));
-    gui::LabelAndValue("Num descriptions: ", std::to_string(xtbl->TableDescription.Subnodes.size()));
-    gui::LabelAndValue("Element name: ", xtbl->TableDescription.Name);
 
-    //Todo: Replace with list of entries in column on left and selected entry data in column to the right. Just like texture documents
-    //Todo: Sort entries by category in entry list
-    for (auto& entry : xtbl->Entries)
-        XtblDocument_DrawXtblNode(state, doc, entry, true);
+    const f32 columnZeroWidth = 300.0f;
+    ImGui::Columns(2);
+    ImGui::SetColumnWidth(0, columnZeroWidth);
 
+    state->FontManager->FontL.Push();
+    ImGui::Text(ICON_FA_CODE " Entries");
+    state->FontManager->FontL.Pop();
+    ImGui::Separator();
+
+    //Save cursor y at start of list so we can align the entry
+    f32 baseY = ImGui::GetCursorPosY();
+    //Calculate total height of entry list. Used if less than the limit to avoid having a bunch of empty space
+    f32 entryHeight = ImGui::GetFontSize() + (ImGui::GetStyle().FramePadding.y * 2.0f);
+    f32 listHeightTotal = xtbl->Entries.size() * entryHeight;
+
+    //Todo: Organize entries by category rather than showing them as one big list
+    //Xtbl entry list
+    if (ImGui::BeginChild("##EntryList"))
+    {
+        for (u32 i = 0; i < xtbl->Entries.size(); i++)
+        {
+            XtblNode& entry = xtbl->Entries[i];
+            bool selected = data->SelectedIndex == i;
+
+            //Try to get <Name></Name> value
+            string name = entry.Name;
+            auto nameValue = entry.GetSubnodeValue("Name");
+            if (nameValue)
+                name = nameValue.value();
+
+            string selectableName = fmt::format("{}##{}", name, i);
+
+            if (ImGui::Selectable(selectableName.c_str(), selected))
+            {
+                data->SelectedIndex = i;
+            }
+        }
+        ImGui::EndChild();
+    }
+
+    //Draw the selected entry values in column 1 (to the right of the entry list)
+    ImGui::NextColumn();
+    ImGui::SetCursorPosY(baseY);
+    if (xtbl->Entries.size() != 0 && ImGui::BeginChild("##EntryView", ImVec2(ImGui::GetColumnWidth(), ImGui::GetWindowHeight())))
+    {
+        if (data->SelectedIndex >= xtbl->Entries.size())
+            data->SelectedIndex = 0;
+
+        XtblNode& entry = xtbl->Entries[data->SelectedIndex];
+        for(auto& subnode : entry.Subnodes)
+            XtblDocument_DrawXtblNode(state, doc, subnode, true);
+
+        ImGui::EndChild();
+    }
+
+    ImGui::Columns(1);
     ImGui::End();
 }
 
@@ -80,6 +126,7 @@ void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, XtblNode& 
     }
     else
     {
+        //Todo: Get description for each value and display the correct imgui element to edit that value (e.g. InputFloat for floats, InputText for strings)
         gui::LabelAndValue(name + ":", node.Value);
     }
 }

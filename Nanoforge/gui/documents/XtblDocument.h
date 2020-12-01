@@ -11,6 +11,7 @@ struct XtblDocumentData
     bool InContainer;
 
     Handle<XtblFile> Xtbl = nullptr;
+    u32 SelectedIndex = 0;
 };
 
 void XtblDocument_Init(GuiState* state, Handle<Document> doc);
