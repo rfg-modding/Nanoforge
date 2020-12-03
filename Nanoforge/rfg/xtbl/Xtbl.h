@@ -11,15 +11,17 @@ class XtblFile
 public:
     //Generate XtblNode tree by parsing an xtbl file
     bool Parse(const string& path);
+    //Get description of xtbl value
+    std::optional<XtblDescription> GetValueDescription(const string& valuePath);
 
     //Filename of the xtbl
     string Name;
     //Name of the vpp_pc file this xtbl is in
     string VppName;
     //Xml nodes inside the <Table></Table> block
-    std::vector<XtblNode> Entries;
+    std::vector<Handle<XtblNode>> Entries;
     //Xml nodes inside the <TableTemplates></TableTemplates> block
-    std::vector<XtblNode> Templates;
+    std::vector<Handle<XtblNode>> Templates;
     //Xml nodes inside the <TableDescription></TableDescription> block. Describes data in <Table>
     XtblDescription TableDescription;
 };

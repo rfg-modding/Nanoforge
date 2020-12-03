@@ -4,20 +4,19 @@
 
 enum class XtblType : u32
 {
+    None,
     Element,
     String,
     Int,
     Float,
     Vector,
     Color,
-    ColorLinear,
     Selection,
     Flags,
     List,
     Filename,
     ComboElement,
     Reference,
-    GroupReference,
     Grid,
     TableDescription
 };
@@ -36,8 +35,6 @@ static XtblType XtblTypeFromString(const string& value)
         return XtblType::Vector;
     else if (value == "Color")
         return XtblType::Color;
-    else if (value == "ColorLinear")
-        return XtblType::ColorLinear;
     else if (value == "Selection")
         return XtblType::Selection;
     else if (value == "Flags")
@@ -50,8 +47,6 @@ static XtblType XtblTypeFromString(const string& value)
         return XtblType::ComboElement;
     else if (value == "Reference")
         return XtblType::Reference;
-    else if (value == "GroupReference")
-        return XtblType::GroupReference;
     else if (value == "Grid")
         return XtblType::Grid;
     else if (value == "TableDescription")
@@ -76,8 +71,6 @@ static string to_string(XtblType value)
         return "Vector";
     case XtblType::Color:
         return "Color";
-    case XtblType::ColorLinear:
-        return "ColorLinear";
     case XtblType::Selection:
         return "Selection";
     case XtblType::Flags:
@@ -90,8 +83,6 @@ static string to_string(XtblType value)
         return "ComboElement";
     case XtblType::Reference:
         return "Reference";
-    case XtblType::GroupReference:
-        return "GroupReference";
     case XtblType::Grid:
         return "Grid";
     case XtblType::TableDescription:

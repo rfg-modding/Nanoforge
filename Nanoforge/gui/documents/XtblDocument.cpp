@@ -1,7 +1,8 @@
 #include "XtblDocument.h"
 #include "Log.h"
+#include "render/imgui/imgui_ext.h"
 
-void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, XtblNode& node, bool rootNode = false);
+void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode = false);
 
 void XtblDocument_Init(GuiState* state, Handle<Document> doc)
 {
@@ -58,12 +59,12 @@ void XtblDocument_Update(GuiState* state, Handle<Document> doc)
     {
         for (u32 i = 0; i < xtbl->Entries.size(); i++)
         {
-            XtblNode& entry = xtbl->Entries[i];
+            Handle<XtblNode> entry = xtbl->Entries[i];
             bool selected = data->SelectedIndex == i;
 
             //Try to get <Name></Name> value
-            string name = entry.Name;
-            auto nameValue = entry.GetSubnodeValue("Name");
+            string name = entry->Name;
+            auto nameValue = entry->GetSubnodeValueString("Name");
             if (nameValue)
                 name = nameValue.value();
 
@@ -85,9 +86,9 @@ void XtblDocument_Update(GuiState* state, Handle<Document> doc)
         if (data->SelectedIndex >= xtbl->Entries.size())
             data->SelectedIndex = 0;
 
-        XtblNode& entry = xtbl->Entries[data->SelectedIndex];
-        for(auto& subnode : entry.Subnodes)
-            XtblDocument_DrawXtblNode(state, doc, subnode, true);
+        Handle<XtblNode> entry = xtbl->Entries[data->SelectedIndex];
+        for(Handle<XtblNode> subnode : entry->Subnodes)
+            XtblDocument_DrawXtblNode(state, doc, subnode, xtbl, true);
 
         ImGui::EndChild();
     }
@@ -104,29 +105,97 @@ void XtblDocument_OnClose(GuiState* state, Handle<Document> doc)
     delete data;
 }
 
-void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, XtblNode& node, bool rootNode)
+void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode)
 {
-    string name = node.Name;
+    string name = node->Name;
     if (rootNode) //Try to get <Name></Name> value if this is a root node and use that as the node name
     {
-        auto nameValue = node.GetSubnodeValue("Name");
+        auto nameValue = node->GetSubnodeValueString("Name");
         if (nameValue)
             name = nameValue.value();
     }
 
-    if (node.HasSubnodes())
+    //Todo: Add support for description addons to fill in for missing descriptions. These would be separate files shipped with Nanoforge that supplement and/or replace description included with the game
+    auto maybeDesc = xtbl->GetValueDescription(node->GetPath());
+    if (maybeDesc)
     {
-        if (ImGui::TreeNode(name.c_str()))
+        ImGui::PushItemWidth(240.0f);
+        XtblDescription desc = maybeDesc.value();
+        switch (desc.Type)
         {
-            for (auto& subnode : node.Subnodes)
-                XtblDocument_DrawXtblNode(state, doc, subnode);
+        case XtblType::String:
+            ImGui::InputText(node->Name, node->Value.String);
+            break;
+        case XtblType::Int:
+            ImGui::InputInt(node->Name.c_str(), &node->Value.Int);
+            break;
+        case XtblType::Float:
+            ImGui::InputFloat(node->Name.c_str(), &node->Value.Float);
+            break;
+        case XtblType::Vector:
+            ImGui::InputFloat3(node->Name.c_str(), (f32*)&node->Value.Vector);
+            break;
+        case XtblType::Color:
+            ImGui::InputFloat3(node->Name.c_str(), (f32*)&node->Value.Vector);
+            break;
+        case XtblType::Selection:
+            ImGui::InputText(node->Name, node->Value.String); //Todo: Replace with combo listing all values of Choice vector
+            break;
+        case XtblType::Filename:
+            ImGui::InputText(node->Name, node->Value.String); //Todo: Should validate extension and try to find list of valid files
+            break;
 
-            ImGui::TreePop();
+        case XtblType::ComboElement:
+            //Todo: Determine which type is being used and list proper ui elements. This type is like a union in c/c++
+            //break;
+        case XtblType::Flags:
+            //Todo: Use list of checkboxes for each flag
+            //break;
+        case XtblType::List:
+            //Todo: List of values
+            //break;
+        case XtblType::Grid:
+            //List of elements
+            //break;
+        case XtblType::Element:
+            //Draw subnodes
+            if (ImGui::TreeNode(name.c_str()))
+            {
+                for (auto& subnode : node->Subnodes)
+                    XtblDocument_DrawXtblNode(state, doc, subnode, xtbl);
+
+                ImGui::TreePop();
+            }
+            break;
+
+
+        case XtblType::None:
+        case XtblType::Reference:
+            //Todo: Read values from other xtbl and list them 
+            //break;
+            //Default case is to display it as a constant string
+        case XtblType::TableDescription:
+        default:
+            if (node->HasSubnodes())
+            {
+                if (ImGui::TreeNode(name.c_str()))
+                {
+                    for (auto& subnode : node->Subnodes)
+                        XtblDocument_DrawXtblNode(state, doc, subnode, xtbl);
+
+                    ImGui::TreePop();
+                }
+            }
+            else
+            {
+                gui::LabelAndValue(name + ":", node->Value.String);
+            }
+            break;
         }
+        ImGui::PopItemWidth();
     }
     else
     {
-        //Todo: Get description for each value and display the correct imgui element to edit that value (e.g. InputFloat for floats, InputText for strings)
-        gui::LabelAndValue(name + ":", node.Value);
+        gui::LabelAndValue(name + ":", node->Value.String);
     }
 }

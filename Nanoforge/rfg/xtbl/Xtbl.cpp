@@ -51,10 +51,8 @@ bool XtblFile::Parse(const string& path)
     auto* tableElement = table->FirstChildElement(elementString.c_str());
     while (tableElement)
     {
-        //Todo: Return bool, take XtblNode as input. Must set name and value of root nodes, must recursively call ParseTableNode for each value (e.g. <Weapon_Class>, <Animation_Group>)
-        //ParseTableNode(tableElement);
-        XtblNode tableNode;
-        if (tableNode.Parse(tableElement))
+        Handle<XtblNode> tableNode = CreateHandle<XtblNode>();
+        if (tableNode->Parse(tableElement, *this, tableNode))
             Entries.push_back(tableNode);
 
         tableElement = tableElement->NextSiblingElement(elementString.c_str());
@@ -70,4 +68,13 @@ bool XtblFile::Parse(const string& path)
     //Todo: Read <stream2_container_description> block that's present in some xtbls
 
     return true;
+}
+
+std::optional<XtblDescription> XtblFile::GetValueDescription(const string& valuePath)
+{
+    std::vector<s_view> split = String::SplitString(valuePath, "/");
+
+    //Path should start with name of primary entry, strip this from the path
+    if(String::EqualIgnoreCase(TableDescription.Name, split[0]))
+        return TableDescription.GetValueDescription(valuePath.substr(valuePath.find_first_of("/") + 1));
 }
