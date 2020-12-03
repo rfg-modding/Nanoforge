@@ -2,6 +2,7 @@
 #include "gui/GuiState.h"
 #include "render/imgui/ImGuiConfig.h"
 #include "property_panel/PropertyPanelContent.h"
+#include "RfgTools++/formats/zones/properties/primitive/StringProperty.h"
 
 void ZoneObjectsList_DrawObjectNode(GuiState* state, ZoneObjectNode36& object);
 static u32 ZoneObjectList_ObjectIndex = 0;
@@ -110,8 +111,56 @@ void ZoneObjectsList_DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
     ZoneObjectList_ObjectIndex++; //Incremented for each node so they all have a unique id within dear imgui
     object.Selected = &object == state->SelectedObject;
 
+    //Attempt to find a human friendly name for the object
+    string name = "";
+    auto* displayName = object.Self->GetProperty<StringProperty>("display_name");
+    auto* chunkName = object.Self->GetProperty<StringProperty>("chunk_name");
+    auto* animationType = object.Self->GetProperty<StringProperty>("animation_type");
+    auto* activityType = object.Self->GetProperty<StringProperty>("activity_type");
+    auto* raidType = object.Self->GetProperty<StringProperty>("raid_type");
+    auto* courierType = object.Self->GetProperty<StringProperty>("courier_type");
+    auto* spawnSet = object.Self->GetProperty<StringProperty>("spawn_set");
+    auto* itemType = object.Self->GetProperty<StringProperty>("item_type");
+    auto* dummyType = object.Self->GetProperty<StringProperty>("dummy_type");
+    auto* weaponType = object.Self->GetProperty<StringProperty>("weapon_type");
+    auto* regionKillType = object.Self->GetProperty<StringProperty>("region_kill_type");
+    auto* deliveryType = object.Self->GetProperty<StringProperty>("delivery_type");
+    auto* squadDef = object.Self->GetProperty<StringProperty>("squad_def");
+    auto* missionInfo = object.Self->GetProperty<StringProperty>("mission_info");
+    if (displayName)
+        name = displayName->Data;
+    else if (chunkName)
+        name = chunkName->Data;
+    else if (animationType)
+        name = animationType->Data;
+    else if (activityType)
+        name = activityType->Data;
+    else if (raidType)
+        name = raidType->Data;
+    else if (courierType)
+        name = courierType->Data;
+    else if (spawnSet)
+        name = spawnSet->Data;
+    else if (itemType)
+        name = itemType->Data;
+    else if (dummyType)
+        name = dummyType->Data;
+    else if (weaponType)
+        name = weaponType->Data;
+    else if (regionKillType)
+        name = regionKillType->Data;
+    else if (deliveryType)
+        name = deliveryType->Data;
+    else if (squadDef)
+        name = squadDef->Data;
+    else if (missionInfo)
+        name = missionInfo->Data;
+
+    if (name != "")
+        name = " |   " + name;
+
     //Draw node
-    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(ZoneObjectList_ObjectIndex)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname  + "##" + std::to_string(ZoneObjectList_ObjectIndex)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
         (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
     {
         //Update selection state
@@ -121,11 +170,25 @@ void ZoneObjectsList_DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
             state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
         }
 
+        if (name != "")
+        {
+            ImGui::SameLine();
+            ImGui::TextColored(gui::SecondaryTextColor, name);
+        }
+
         //Draw child nodes
         for (auto& childObject : object.Children)
         {
             ZoneObjectsList_DrawObjectNode(state, childObject);
         }
         ImGui::TreePop();
+    }
+    else
+    {
+        if (name != "")
+        {
+            ImGui::SameLine();
+            ImGui::TextColored(gui::SecondaryTextColor, name);
+        }
     }
 }
