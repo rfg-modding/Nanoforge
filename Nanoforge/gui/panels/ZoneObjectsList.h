@@ -3,6 +3,9 @@
 #include "render/imgui/ImGuiConfig.h"
 #include "property_panel/PropertyPanelContent.h"
 
+void ZoneObjectsList_DrawObjectNode(GuiState* state, ZoneObjectNode36& object);
+static u32 ZoneObjectList_ObjectIndex = 0;
+
 //Todo: May want to move this to be under each zone in the zone window list since we'll have a third panel for per-object properties
 void ZoneObjectsList_Update(GuiState* state, bool* open)
 {
@@ -44,35 +47,28 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
 
             //Draw object filters sub-window
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
-            ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true);
-
-            ImGui::Text(" " ICON_FA_EYE);
-            gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
-            //ImGui::SameLine();
-            //ImGui::Text(" " ICON_FA_MARKER);
-            //gui::TooltipOnPrevious("Toggles whether class name labels are drawn for the object class", nullptr);
-
-            for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
+            if (ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true))
             {
-                if (ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show))
+                ImGui::Text(" " ICON_FA_EYE);
+                gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
+
+                for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
                 {
-                    state->CurrentTerritoryUpdateDebugDraw = true;
+                    if (ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show))
+                        state->CurrentTerritoryUpdateDebugDraw = true;
+
+                    ImGui::SameLine();
+                    ImGui::Text(objectClass.Name);
+                    ImGui::SameLine();
+                    ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
+                    ImGui::SameLine();
+
+                    //Todo: Use a proper string formatting lib here
+                    if (ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel))
+                        state->CurrentTerritoryUpdateDebugDraw = true;
                 }
-                //ImGui::SameLine();
-                //ImGui::Checkbox((string("##showLabel") + objectClass.Name).c_str(), &objectClass.ShowLabel);
-                ImGui::SameLine();
-                ImGui::Text(objectClass.Name);
-                ImGui::SameLine();
-                ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
-                ImGui::SameLine();
-                //Todo: Use a proper string formatting lib here
-                if (ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel))
-                {
-                    state->CurrentTerritoryUpdateDebugDraw = true;
-                }
-                //ImGui::Text("|  %d instances", objectClass.NumInstances);
+                ImGui::EndChild();
             }
-            ImGui::EndChild();
             ImGui::PopStyleColor();
         }
 
@@ -83,61 +79,53 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
-        //Object list
+        //Draw object list
+        ZoneObjectList_ObjectIndex = 0;
         auto& zone = state->CurrentTerritory->ZoneFiles[state->SelectedZone].Zone;
-        ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true);
-
-        u32 index = 0;
-        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
-
-        int node_clicked = -1;
-        for (auto& object : zone.ObjectsHierarchical)
+        if (ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true))
         {
-            auto objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
-            if (!objectClass.Show)
-                continue;
-
-            //Todo: Use a formatting lib/func here. This is bad
-            if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(index)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | 
-                (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
+            //Todo: Separate node structure from ZoneObject36 class. This should really be independent of the format since it's only relevant to Nanoforge
+            //Draw each node
+            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
+            for (auto& object : zone.ObjectsHierarchical)
             {
-                //Update selection state
-                if (ImGui::IsItemClicked())
-                {
-                    state->SetSelectedZoneObject(&object);
-                    state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
-                }
-                object.Selected = &object == state->SelectedObject;
-
-
-                for (auto& childObject : object.Children)
-                {
-                    auto childObjectClass = state->CurrentTerritory->GetObjectClass(childObject.Self->ClassnameHash);
-                    if (!childObjectClass.Show)
-                        continue;
-
-                    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + childObject.Self->Classname + "##" + std::to_string(index)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | 
-                        (childObject.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (childObject.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
-                    {
-                        //Update selection state
-                        if (ImGui::IsItemClicked())
-                        {
-                            state->SetSelectedZoneObject(&childObject);
-                            state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
-                        }
-                        childObject.Selected = &childObject == state->SelectedObject;
-                        ImGui::TreePop();
-                    }
-                    index++;
-                }
-                ImGui::TreePop();
+                ZoneObjectsList_DrawObjectNode(state, object);
             }
-            index++;
+            ImGui::PopStyleVar();
+            ImGui::EndChild();
         }
-        ImGui::PopStyleVar();
-
-        ImGui::EndChild();
     }
 
     ImGui::End();
+}
+
+void ZoneObjectsList_DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
+{
+    //Dont show node or child nodes if the object class is being hidden
+    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
+    if (!objectClass.Show)
+        return;
+
+    //Update node index and selection state
+    ZoneObjectList_ObjectIndex++; //Incremented for each node so they all have a unique id within dear imgui
+    object.Selected = &object == state->SelectedObject;
+
+    //Draw node
+    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(ZoneObjectList_ObjectIndex)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+        (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
+    {
+        //Update selection state
+        if (ImGui::IsItemClicked())
+        {
+            state->SetSelectedZoneObject(&object);
+            state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
+        }
+
+        //Draw child nodes
+        for (auto& childObject : object.Children)
+        {
+            ZoneObjectsList_DrawObjectNode(state, childObject);
+        }
+        ImGui::TreePop();
+    }
 }
