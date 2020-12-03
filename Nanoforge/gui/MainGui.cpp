@@ -10,6 +10,7 @@
 #include "gui/panels/PropertyList.h"
 #include "gui/panels/LogPanel.h"
 #include "application/project/Project.h"
+#include "gui/documents/TerritoryDocument.h"
 #include "Log.h"
 #include "application/Settings.h"
 #include "gui/util/WinUtil.h"
@@ -29,15 +30,15 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     panels_ =
     {
         GuiPanel{&StatusBar_Update, "", true},
-        GuiPanel{&PropertyList_Update, "Tools/Properties", true},
-        GuiPanel{&LogPanel_Update, "Tools/Log", true},
-        GuiPanel{&ZoneObjectsList_Update, "Tools/Zone objects", true},
-        GuiPanel{&ZoneList_Update, "Tools/Zone list", true},
-        GuiPanel{&FileExplorer_Update, "Tools/File explorer", true},
+        GuiPanel{&PropertyList_Update, "View/Properties", true},
+        GuiPanel{&LogPanel_Update, "View/Log", true},
+        GuiPanel{&ZoneObjectsList_Update, "View/Zone objects", true},
+        GuiPanel{&ZoneList_Update, "View/Zone list", true},
+        GuiPanel{&FileExplorer_Update, "View/File explorer", true},
 
         //Todo: Enable in release builds when this is a working feature
 #ifdef DEBUG_BUILD
-        GuiPanel{&ScriptxEditor_Update, "Tools/Scriptx editor", false},
+        GuiPanel{&ScriptxEditor_Update, "View/Scriptx editor", false},
 #endif
     };
 
@@ -215,14 +216,28 @@ void MainGui::DrawMainMenuBar()
         {
             menuItem.Draw();
         }
+        ImGuiMenu("Tools",
+            if (ImGui::BeginMenu("Open territory"))
+            {
+                for (const char* territory : TerritoryList)
+                {
+                    if (ImGui::MenuItem(territory))
+                    {
+                        string territoryName = string(territory);
+                        State.SetTerritory(territoryName);
+                        State.CreateDocument(territoryName, &TerritoryDocument_Init, &TerritoryDocument_Update, &TerritoryDocument_OnClose, new TerritoryDocumentData
+                        {
+                            .TerritoryName = State.CurrentTerritoryName,
+                            .TerritoryShortname = State.CurrentTerritoryShortname,
+                        });
+                    }
+                }
+                ImGui::EndMenu();
+            }
+        );
         ImGuiMenu("Theme",
             ImGuiMenuItemShort("Dark", SetThemePreset(Dark);)
             ImGuiMenuItemShort("Blue", SetThemePreset(Blue);)
-        );
-        ImGuiMenu("Help",
-            ImGuiMenuItemShort("Welcome", )
-            ImGuiMenuItemShort("Metrics", )
-            ImGuiMenuItemShort("About", )
         );
 
         //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements

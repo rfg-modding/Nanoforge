@@ -26,6 +26,12 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
     }
     else
     {
+        //Draw zone objects list
+        state->FontManager->FontL.Push();
+        ImGui::Text(ICON_FA_BOXES " Zone objects");
+        state->FontManager->FontL.Pop();
+        ImGui::Separator();
+
         if (ImGui::CollapsingHeader(ICON_FA_FILTER " Filters##CollapsingHeader"))
         {
             if (ImGui::Button("Show all types"))
@@ -71,14 +77,8 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
                 ImGui::EndChild();
             }
             ImGui::PopStyleColor();
+            ImGui::Separator();
         }
-
-        //Draw zone objects list
-        ImGui::Separator();
-        state->FontManager->FontL.Push();
-        ImGui::Text(ICON_FA_BOXES " Zone objects");
-        state->FontManager->FontL.Pop();
-        ImGui::Separator();
 
         //Draw object list
         ZoneObjectList_ObjectIndex = 0;
