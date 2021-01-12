@@ -74,10 +74,6 @@ void Territory::LoadZoneData()
 
 void Territory::ResetTerritoryData()
 {
-    for (auto& zoneFile : ZoneFiles)
-    {
-        zoneFile.Zone.Cleanup();
-    }
     ZoneFiles.clear();
     ZoneObjectClasses.clear();;
 }
