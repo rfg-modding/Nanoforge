@@ -100,12 +100,28 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
     ImGui::End();
 }
 
+bool ZoneObjectsList_ShowObjectOrChildren(GuiState* state, ZoneObjectNode36& object)
+{
+    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
+    if (objectClass.Show)
+        return true;
+
+    for (auto& child : object.Children)
+    {
+        if (ZoneObjectsList_ShowObjectOrChildren(state, child))
+            return true;
+    }
+
+    return false;
+}
+
 void ZoneObjectsList_DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
 {
-    //Dont show node or child nodes if the object class is being hidden
-    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
-    if (!objectClass.Show)
+    //Don't show node if it and it's children object types are being hidden
+    if (!ZoneObjectsList_ShowObjectOrChildren(state, object))
         return;
+
+    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
 
     //Update node index and selection state
     ZoneObjectList_ObjectIndex++; //Incremented for each node so they all have a unique id within dear imgui

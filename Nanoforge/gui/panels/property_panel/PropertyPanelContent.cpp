@@ -84,6 +84,17 @@ void PropertyPanel_ZoneObject(GuiState* state)
     else
     {
         ZoneObjectNode36& selected = *state->SelectedObject;
+        gui::LabelAndValue("Handle:", std::to_string(selected.Self->Handle));
+        gui::LabelAndValue("Num:", std::to_string(selected.Self->Num));
+        if (ImGui::Button("Copy scriptx ref to clipboard"))
+        {
+            ImGui::LogToClipboard();
+            ImGui::LogText("<object>%X\n", selected.Self->Handle);
+            ImGui::LogText("    <object_number>%d</object_number>\n", selected.Self->Num);
+            ImGui::LogText("</object>");
+            ImGui::LogFinish();
+        }
+
         for (IZoneProperty* prop : selected.Self->Properties)
         {
             //Todo: Add support for these types
