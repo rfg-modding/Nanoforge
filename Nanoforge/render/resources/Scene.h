@@ -63,6 +63,7 @@ public:
     Camera Cam;
     std::vector<RenderObject> Objects = {};
     DirectX::XMFLOAT4 ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
+    f32 TotalTime = 0.0f; //Total frame time
 
     //Buffer for per-frame shader constants (set once per frame)
     PerFrameConstants perFrameStagingBuffer_; //Cpu side copy of the buffer

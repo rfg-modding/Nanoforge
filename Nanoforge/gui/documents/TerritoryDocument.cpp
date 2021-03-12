@@ -140,6 +140,7 @@ void TerritoryDocument_Update(GuiState* state, Handle<Document> doc)
         state->CurrentTerritoryCamPosNeedsUpdate = false;
     }
     //Update debug draw regardless of focus state since we'll never be focused when using the other panels which control debug draw
+    state->CurrentTerritoryUpdateDebugDraw = true; //Now set to true permanently to support time based coloring. Quick hack, probably should remove this variable later.
     if (data->Territory.ZoneFiles.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && data->TerritoryDataLoaded)
     {
         TerritoryDocument_UpdateDebugDraw(state, doc);
@@ -287,7 +288,32 @@ void TerritoryDocument_UpdateDebugDraw(GuiState* state, Handle<Document> doc)
             if (!objectClass.Show)
                 continue;
 
-            scene->DrawBox(object.Bmin, object.Bmax, objectClass.Color);
+            //If object is selected in zone object list panel use different drawing method for visibilty
+            bool selectedInZoneObjectList = &object == state->ZoneObjectList_SelectedObject;
+            if (selectedInZoneObjectList)
+            {
+                //Calculate color that changes with time
+                Vec3 color = objectClass.Color;
+                color.x = objectClass.Color.x + powf(sin(scene->TotalTime), 2.0f); 
+                color.y = objectClass.Color.y + powf(sin(scene->TotalTime), 2.0f); 
+                color.z = objectClass.Color.z + powf(sin(scene->TotalTime), 2.0f); 
+
+                //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
+                Vec3 lineStart;
+                lineStart.x = (object.Bmin.x + object.Bmax.x) / 2.0f;
+                lineStart.y = object.Bmin.y;
+                lineStart.z = (object.Bmin.z + object.Bmax.z) / 2.0f;
+                Vec3 lineEnd = lineStart;
+                lineEnd.y += 300.0f;
+
+                //Draw object bounding box and line from it's bottom into the sky
+                scene->DrawBox(object.Bmin, object.Bmax, color);
+                scene->DrawLine(lineStart, lineEnd, color);
+            }
+            else //If not selected just draw bounding box with static color
+            {
+                scene->DrawBox(object.Bmin, object.Bmax, objectClass.Color);
+            }
         }
     }
 

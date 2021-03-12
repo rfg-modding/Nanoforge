@@ -175,6 +175,10 @@ void ZoneObjectsList_DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
     if (name != "")
         name = " |   " + name;
 
+    //Store selected object in global gui state for debug draw in TerritoryDocument.cpp, ~line 290
+    if (object.Selected)
+        state->ZoneObjectList_SelectedObject = object.Self;
+
     //Draw node
     if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(ZoneObjectList_ObjectIndex)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
         (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))

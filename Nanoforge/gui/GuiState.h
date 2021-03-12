@@ -70,6 +70,8 @@ public:
     //If true the file tree won't access packfileVFS. Used to defer tree generation until all packfiles have been scanned to reduce unecessary tree regen at startup
     bool FileTreeLocked = true;
 
+    ZoneObject36* ZoneObjectList_SelectedObject = nullptr;
+
     //Content func for property panel
     PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
