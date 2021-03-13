@@ -474,6 +474,15 @@ void LoadScriptxFile(const string& name, GuiState* state)
     //Todo: Sort all nodes so their run attributes are first and their continue attributes are last
 }
 
+u32 HexStringToUint(string str)
+{
+    u32 output;
+    std::stringstream ss;
+    ss << std::hex << str;
+    ss >> output;
+    return output;
+}
+
 void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
 {
     //Parse node
@@ -559,10 +568,11 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
     {
         //Todo: Support other function types. Right now it assumes they all return a handle as a dumb filler for initial testing
         //Create function node
+        IAttribute* outputNode = (nodeText == "and" || nodeText == "or") ? (IAttribute*)new OutputAttribute_Bool : (IAttribute*)new OutputAttribute_Handle;
         auto* newFunctionNode = AddNode(nodeText,
-            { new OutputAttribute_Handle }
+            { outputNode }
         )->SetCustomTitlebarColor(FunctionColor);
-
+        
         //Todo: Support types other than object handle here. Use function definitions list
         //Create new input attribute to take the function input
         auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle);
@@ -645,7 +655,7 @@ void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent)
 
         if (objectNumberNodeTypeName == "object_number")
         {
-            auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle(std::stof(nodeText), std::stof(objectNumberNodeText)));
+            auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle(HexStringToUint(nodeText), std::stoul(objectNumberNodeText)));
         }
     }
     else
@@ -688,7 +698,7 @@ void ScriptxEditor_Update(GuiState* state, bool* open)
 
     static bool firstCall = true;
     static bool needAutoLayout = false;
-    static string targetScriptx = "terr01_tutorial.scriptx";
+    static string targetScriptx = "terr01_guerrillacamp.scriptx";
     static string targetScriptxBuffer = targetScriptx;
     //Todo: Have list of valid scriptx files here instead of a text input
     ImGui::InputText("Scriptx", &targetScriptxBuffer);
