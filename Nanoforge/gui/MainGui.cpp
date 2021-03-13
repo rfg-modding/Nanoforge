@@ -506,6 +506,13 @@ void MainGui::SetThemePreset(ThemePreset preset)
     }
 }
 
+//Set string to defaultValue string if it's empty or only whitespace
+void EnsureNotWhitespaceOrEmpty(string& target, string defaultValue)
+{
+    if (target.empty() || target.find_first_not_of(' ') == string::npos)
+        target = defaultValue;
+}
+
 void MainGui::DrawNewProjectWindow()
 {
     if (!showNewProjectWindow_)
@@ -518,6 +525,7 @@ void MainGui::DrawNewProjectWindow()
         static string projectDescription;
         static string projectAuthor;
         static bool createProjectFolder = true;
+        static bool pathNotSetError = false;
 
         //Project name/path/etc input
         ImGui::PushItemWidth(230.0f);
@@ -534,35 +542,51 @@ void MainGui::DrawNewProjectWindow()
         ImGui::InputText("Author: ", &projectAuthor);
         ImGui::Checkbox("Create project folder", &createProjectFolder);
 
+        if (pathNotSetError)
+        {
+            ImGui::TextColored(gui::Red, "Path not valid");
+        }
+
         //Create project from inputs
         if (ImGui::Button("Create"))
         {
+            if (projectPath.empty() || projectPath.find_first_not_of(' ') == string::npos || !std::filesystem::exists(projectPath))
+            {
+                pathNotSetError = true;
+            }
+            else
+            {
+                pathNotSetError = false;
+                //Set project and save
+                string endPath = createProjectFolder ?
+                    projectPath + "\\" + projectName + "\\" :
+                    projectPath + "\\";
+                if (createProjectFolder)
+                    std::filesystem::create_directory(endPath);
+
+                EnsureNotWhitespaceOrEmpty(projectName, "ProjectNameNotSet" + std::to_string(time(NULL)));
+                EnsureNotWhitespaceOrEmpty(projectDescription, "Not set");
+                EnsureNotWhitespaceOrEmpty(projectAuthor, "Not set");
+
+                State.CurrentProject->Name = projectName;
+                State.CurrentProject->Path = endPath;
+                State.CurrentProject->Description = projectDescription;
+                State.CurrentProject->Author = projectAuthor;
+                State.CurrentProject->ProjectFilename = projectName + ".nanoproj";
+                State.CurrentProject->UnsavedChanges = false;
+                State.CurrentProject->Save();
+                State.CurrentProject->Load(endPath + projectName + ".nanoproj");
+
+                //If in welcome screen switch to main screen upon creating a new project
+                if (StateEnum == Welcome)
+                    StateEnum = Main;
+
+                //Add project to recent projects list if unique
+                Settings_AddRecentProjectPathUnique(endPath + projectName + ".nanoproj");
+                Settings_Write();
+                showNewProjectWindow_ = false;
+            }
             //Todo: Add save check for existing project
-
-            //Set project and save
-            string endPath = createProjectFolder ? 
-                             projectPath + "\\" + projectName + "\\" :
-                             projectPath + "\\";
-            if(createProjectFolder)
-                std::filesystem::create_directory(endPath);
-
-            State.CurrentProject->Name = projectName;
-            State.CurrentProject->Path = endPath;
-            State.CurrentProject->Description = projectDescription;
-            State.CurrentProject->Author = projectAuthor;
-            State.CurrentProject->ProjectFilename = projectName + ".nanoproj";
-            State.CurrentProject->UnsavedChanges = false;
-            State.CurrentProject->Save();
-            State.CurrentProject->Load(endPath + projectName + ".nanoproj");
-
-            //If in welcome screen switch to main screen upon creating a new project
-            if (StateEnum == Welcome)
-                StateEnum = Main;
-
-            //Add project to recent projects list if unique
-            Settings_AddRecentProjectPathUnique(endPath + projectName + ".nanoproj");
-            Settings_Write();
-            showNewProjectWindow_ = false;
         }
 
         ImGui::End();
