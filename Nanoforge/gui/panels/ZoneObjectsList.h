@@ -5,6 +5,7 @@
 #include "RfgTools++/formats/zones/properties/primitive/StringProperty.h"
 
 void ZoneObjectsList_DrawObjectNode(GuiState* state, ZoneObjectNode36& object);
+bool ZoneObjectsList_ZoneAnyChildObjectsVisible(GuiState* state, ZoneData& zone);
 static u32 ZoneObjectList_ObjectIndex = 0;
 
 //Todo: May want to move this to be under each zone in the zone window list since we'll have a third panel for per-object properties
@@ -87,10 +88,26 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
         {
             //Todo: Separate node structure from ZoneObject36 class. This should really be independent of the format since it's only relevant to Nanoforge
             //Draw each node
+
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
-            for (auto& object : zone.ObjectsHierarchical)
+            //Loop through visible zones
+            for (auto& zone : state->CurrentTerritory->ZoneFiles)
             {
-                ZoneObjectsList_DrawObjectNode(state, object);
+                if (!zone.RenderBoundingBoxes)
+                    continue;
+
+                //Close zone node if none of it's child objects a visible (based on object type filters)
+                bool anyChildrenVisible = ZoneObjectsList_ZoneAnyChildObjectsVisible(state, zone);
+                if (ImGui::TreeNodeEx(zone.Name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+                    (!anyChildrenVisible ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)))
+                {
+                    for (auto& object : zone.Zone.ObjectsHierarchical)
+                    {
+                        ZoneObjectsList_DrawObjectNode(state, object);
+                    }
+                    ImGui::TreePop();
+                }
+
             }
             ImGui::PopStyleVar();
             ImGui::EndChild();
@@ -112,6 +129,16 @@ bool ZoneObjectsList_ShowObjectOrChildren(GuiState* state, ZoneObjectNode36& obj
             return true;
     }
 
+    return false;
+}
+
+bool ZoneObjectsList_ZoneAnyChildObjectsVisible(GuiState* state, ZoneData& zone)
+{
+    for (auto& object : zone.Zone.ObjectsHierarchical)
+    {
+        if (ZoneObjectsList_ShowObjectOrChildren(state, object))
+            return true;
+    }
     return false;
 }
 
