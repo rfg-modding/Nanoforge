@@ -294,9 +294,22 @@ void TerritoryDocument_UpdateDebugDraw(GuiState* state, Handle<Document> doc)
             {
                 //Calculate color that changes with time
                 Vec3 color = objectClass.Color;
-                color.x = objectClass.Color.x + powf(sin(scene->TotalTime), 2.0f); 
-                color.y = objectClass.Color.y + powf(sin(scene->TotalTime), 2.0f); 
-                color.z = objectClass.Color.z + powf(sin(scene->TotalTime), 2.0f); 
+                f32 colorMagnitude = objectClass.Color.Magnitude();
+                //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
+                f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
+                color.x = objectClass.Color.x + powf(sin(scene->TotalTime * 2.0f), 2.0f) * multiplier;
+                color.y = objectClass.Color.y + powf(sin(scene->TotalTime), 2.0f) * multiplier;
+                color.z = objectClass.Color.z + powf(sin(scene->TotalTime), 2.0f) * multiplier;
+
+                //Keep color in a certain range so it stays visible against the terrain
+                f32 magnitudeMin = 0.20f;
+                f32 colorMin = 0.20f;
+                if (color.Magnitude() < magnitudeMin)
+                {
+                    color.x = std::max(color.x, colorMin);
+                    color.y = std::max(color.y, colorMin);
+                    color.z = std::max(color.z, colorMin);
+                }
 
                 //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
                 Vec3 lineStart;
