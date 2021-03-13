@@ -685,33 +685,83 @@ void ScriptxEditor_Cleanup(GuiState* state)
 
 void ScriptxEditor_Update(GuiState* state, bool* open)
 {
-    if (!ImGui::Begin("Scriptx editor", open))
+    if (!ImGui::Begin("Scriptx viewer", open))
     {
         ImGui::End();
         return;
     }
 
     state->FontManager->FontL.Push();
-    ImGui::Text(ICON_FA_PROJECT_DIAGRAM "Scriptx editor");
+    ImGui::Text(ICON_FA_PROJECT_DIAGRAM "Scriptx viewer");
     state->FontManager->FontL.Pop();
     ImGui::Separator();
 
     static bool firstCall = true;
     static bool needAutoLayout = false;
-    static string targetScriptx = "terr01_guerrillacamp.scriptx";
-    static string targetScriptxBuffer = targetScriptx;
-    //Todo: Have list of valid scriptx files here instead of a text input
-    ImGui::InputText("Scriptx", &targetScriptxBuffer);
-    ImGui::SameLine();
-    if (ImGui::Button("Reload##ReloadTargetScriptx"))
+    static string targetScriptxList = ""; //All scriptx names separated by null terminators. Dumb way of doing this but ImGui likes it
+    static int targetScriptxCurrentItem = 0;
+    //Lambda to extract target script name from the list of scriptx files
+    auto getTargetScriptxName = [&]() -> string
+    {
+        Log->info("targetScriptxCurrentItem: {}\n", targetScriptxCurrentItem);
+        string targetScriptxName = "";
+        if (targetScriptxCurrentItem == 0)
+        {
+            targetScriptxName = targetScriptxList.substr(0, targetScriptxList.find_first_of('\0'));
+        }
+        else
+        {
+            u32 startPos = 0;
+            u32 endPos = 0;
+            u32 currentPos = 0;
+            for (u32 i = 0; i <= targetScriptxCurrentItem; i++)
+            {
+                while (targetScriptxList[currentPos] != '\0')
+                    currentPos++;
+                if (targetScriptxList[currentPos] == '\0')
+                    currentPos++;
+
+                if (i == targetScriptxCurrentItem - 1)
+                {
+                    startPos = currentPos;
+                }
+                else if (i == targetScriptxCurrentItem)
+                {
+                    endPos = currentPos - 1;
+                }
+            }
+            targetScriptxName = targetScriptxList.substr(startPos, endPos - startPos);
+        }
+        return targetScriptxName;
+    };
+
+    if (firstCall)
+    {
+        auto scriptxFiles = state->PackfileVFS->GetFiles("*.scriptx", false, false);
+        for (auto& scriptx : scriptxFiles)
+            targetScriptxList += scriptx.Filename() + '\0';
+    }
+    if (ImGui::Combo("Scriptx", &targetScriptxCurrentItem, (const char*)targetScriptxList.data()))
     {
         SetTargetScript(0);
         ScriptxEditor_Cleanup(state);
-        targetScriptx = targetScriptxBuffer;
+
         ScriptList = "";
+        string targetScriptx = getTargetScriptxName();
         LoadScriptxFile(targetScriptx, state);
         needAutoLayout = true;
     }
+
+    //ImGui::SameLine();
+    //if (ImGui::Button("Reload##ReloadTargetScriptx"))
+    //{
+    //    SetTargetScript(0);
+    //    ScriptxEditor_Cleanup(state);
+    //    targetScriptxList = targetScriptxBuffer;
+    //    ScriptList = "";
+    //    LoadScriptxFile(targetScriptxList, state);
+    //    needAutoLayout = true;
+    //}
 
     if (firstCall)
     {
@@ -719,6 +769,7 @@ void ScriptxEditor_Update(GuiState* state, bool* open)
         //Todo: Clear imnodes state and free attributes when finished with them
         firstCall = false;
 
+        string targetScriptx = getTargetScriptxName();
         LoadScriptxFile(targetScriptx, state);
     }
     //Todo: Destroy imnodes context later
@@ -731,6 +782,7 @@ void ScriptxEditor_Update(GuiState* state, bool* open)
     {
         SetTargetScript(currentItem);
         ScriptxEditor_Cleanup(state);
+        string targetScriptx = getTargetScriptxName();
         LoadScriptxFile(targetScriptx, state);
         needAutoLayout = true;
     }

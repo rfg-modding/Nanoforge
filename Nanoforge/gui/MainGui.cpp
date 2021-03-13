@@ -35,11 +35,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
         GuiPanel{&ZoneObjectsList_Update, "View/Zone objects", true},
         GuiPanel{&ZoneList_Update, "View/Zone list", true},
         GuiPanel{&FileExplorer_Update, "View/File explorer", true},
-
-        //Todo: Enable in release builds when this is a working feature
-#ifdef DEBUG_BUILD
-        GuiPanel{&ScriptxEditor_Update, "View/Scriptx editor", false},
-#endif
+        GuiPanel{&ScriptxEditor_Update, "View/Scriptx viewer (WIP)", false},
     };
 
     CheckGuiListResize();
@@ -73,6 +69,7 @@ void MainGui::Update(f32 deltaTime)
         if (firstDraw)
         {
             ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
+            ImGuiID dockLeftBottomId = ImGui::DockBuilderSplitNode(dockLeftId, ImGuiDir_Down, 0.5f, nullptr, &dockLeftId);
             ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.15f, nullptr, &dockspaceId);
             ImGuiID dockCentralId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
             ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockCentralId, ImGuiDir_Down, 0.20f, nullptr, &dockCentralId);
@@ -81,10 +78,10 @@ void MainGui::Update(f32 deltaTime)
             ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
             ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
             ImGui::DockBuilderDockWindow("Zones", dockLeftId);
-            ImGui::DockBuilderDockWindow("Zone objects", dockLeftId);
+            ImGui::DockBuilderDockWindow("Zone objects", dockLeftBottomId);
             ImGui::DockBuilderDockWindow("Properties", dockRightId);
             ImGui::DockBuilderDockWindow("Render settings", dockRightId);
-            ImGui::DockBuilderDockWindow("Scriptx editor", dockCentralId);
+            ImGui::DockBuilderDockWindow("Scriptx viewer (WIP)", dockCentralId);
             ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
 
             ImGui::DockBuilderFinish(dockspaceId);
