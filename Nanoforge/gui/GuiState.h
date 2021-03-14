@@ -103,10 +103,8 @@ public:
             return;
         }
 
-        //Otherwise select zone and update any data reliant on the selected zone
+        //Otherwise select zone
         SelectedZone = index;
-        if(CurrentTerritory)
-            CurrentTerritory->UpdateObjectClassInstanceCounts(SelectedZone);
     }
     void SetSelectedZoneObject(ZoneObjectNode36* object)
     {

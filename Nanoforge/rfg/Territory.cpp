@@ -48,6 +48,60 @@ void Territory::LoadZoneData()
         delete[] fileBuffer.value().data();
     }
 
+    //Get mission and activity zones (layer_pc files) if territory has any
+    std::vector<FileHandle> missionLayerFiles = {};
+    std::vector<FileHandle> activityLayerFiles = {};
+    if (String::Contains(territoryFilename_, "terr01"))
+    {
+        missionLayerFiles = packfileVFS_->GetFiles("missions.vpp_pc", "*.layer_pc", true, false);
+        activityLayerFiles = packfileVFS_->GetFiles("activities.vpp_pc", "*.layer_pc", true, false);
+    }
+    else if (String::Contains(territoryFilename_, "dlc01"))
+    {
+        missionLayerFiles = packfileVFS_->GetFiles("dlcp01_missions.vpp_pc", "*.layer_pc", true, false);
+        activityLayerFiles = packfileVFS_->GetFiles("dlcp01_activities.vpp_pc", "*.layer_pc", true, false);
+    }
+
+    //Load mission zones
+    for (auto& layerFile : missionLayerFiles)
+    {
+        auto fileBuffer = layerFile.Get();
+        BinaryReader reader(fileBuffer);
+
+        ZoneData& zoneFile = ZoneFiles.emplace_back();
+        zoneFile.Name = Path::GetFileNameNoExtension(layerFile.ContainerName()) + " - " + Path::GetFileNameNoExtension(layerFile.Filename()).substr(7);
+        zoneFile.Zone.SetName(zoneFile.Name);
+        zoneFile.Zone.Read(reader);
+        zoneFile.Zone.GenerateObjectHierarchy();
+        zoneFile.MissionLayer = true;
+        zoneFile.ActivityLayer = false;
+        if (String::StartsWith(zoneFile.Name, "p_"))
+            zoneFile.Persistent = true;
+
+        SetZoneShortName(zoneFile);
+        delete[] fileBuffer.data();
+    }
+
+    //Load activity zones
+    for (auto& layerFile : activityLayerFiles)
+    {
+        auto fileBuffer = layerFile.Get();
+        BinaryReader reader(fileBuffer);
+
+        ZoneData& zoneFile = ZoneFiles.emplace_back();
+        zoneFile.Name = Path::GetFileNameNoExtension(layerFile.ContainerName()) + " - " + Path::GetFileNameNoExtension(layerFile.Filename()).substr(7);
+        zoneFile.Zone.SetName(zoneFile.Name);
+        zoneFile.Zone.Read(reader);
+        zoneFile.Zone.GenerateObjectHierarchy();
+        zoneFile.MissionLayer = false;
+        zoneFile.ActivityLayer = true;
+        if (String::StartsWith(zoneFile.Name, "p_"))
+            zoneFile.Persistent = true;
+
+        SetZoneShortName(zoneFile);
+        delete[] fileBuffer.data();
+    }
+
     //Sort vector by object count for convenience
     std::sort(ZoneFiles.begin(), ZoneFiles.end(),
     [](const ZoneData& a, const ZoneData& b)
@@ -104,22 +158,28 @@ bool Territory::ObjectClassRegistered(u32 classnameHash, u32& outIndex)
     return false;
 }
 
-void Territory::UpdateObjectClassInstanceCounts(u32 selectedZone)
+void Territory::UpdateObjectClassInstanceCounts()
 {
     //Zero instance counts for each object class
     for (auto& objectClass : ZoneObjectClasses)
         objectClass.NumInstances = 0;
 
-    //Update instance count for each object class
-    auto& zone = ZoneFiles[selectedZone].Zone;
-    for (auto& object : zone.Objects)
+    //Update instance count for each object class in visible zones
+    for (auto& zoneFile : ZoneFiles)
     {
-        for (auto& objectClass : ZoneObjectClasses)
+        if (!zoneFile.RenderBoundingBoxes)
+            continue;
+
+        auto& zone = zoneFile.Zone;
+        for (auto& object : zone.Objects)
         {
-            if (objectClass.Hash == object.ClassnameHash)
+            for (auto& objectClass : ZoneObjectClasses)
             {
-                objectClass.NumInstances++;
-                break;
+                if (objectClass.Hash == object.ClassnameHash)
+                {
+                    objectClass.NumInstances++;
+                    break;
+                }
             }
         }
     }

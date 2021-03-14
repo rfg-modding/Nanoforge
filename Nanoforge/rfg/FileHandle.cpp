@@ -68,6 +68,7 @@ Packfile3* FileHandle::GetContainer()
     //Parse container and get file byte buffer
     Packfile3* container = new Packfile3(containerBytes.value());
     container->ReadMetadata();
+    container->SetName(containerName_);
 
     return container;
 }

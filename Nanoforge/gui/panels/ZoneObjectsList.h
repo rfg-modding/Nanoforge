@@ -17,13 +17,9 @@ void ZoneObjectsList_Update(GuiState* state, bool* open)
         return;
     }
 
-    if (state->SelectedZone == InvalidZoneIndex || state->SelectedZone >= state->CurrentTerritory->ZoneFiles.size())
+    if (!state->CurrentTerritory || !state->CurrentTerritory->Ready())
     {
-        ImGui::Text("%s Select a zone to see the objects it contains.", ICON_FA_EXCLAMATION_CIRCLE);
-    }
-    else if (!state->CurrentTerritory->Ready())
-    {
-        ImGui::Text("%s Zone data still loading. ", ICON_FA_EXCLAMATION_CIRCLE);
+        ImGui::TextWrapped("%s Zone data still loading or no territory has been opened (Tools > Open Territory > Terr01 for main campaign). ", ICON_FA_EXCLAMATION_CIRCLE);
     }
     else
     {
