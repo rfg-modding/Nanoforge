@@ -16,6 +16,14 @@ void Territory::Init(PackfileVFS* packfileVFS, const string& territoryFilename, 
 
 void Territory::LoadZoneData()
 {
+    //Todo: Add a popup to warn the user that the thread running this is waiting for packfiles to be done loading
+    //Spinlock until all packfiles have been read. This can fail to read zone data if all the packfiles haven't been read.
+    //This should only really happen on slow computers and debug builds.
+    while (!packfileVFS_->Ready())
+    {
+
+    }
+
     Log->info("Loading zone data from {}", territoryFilename_);
     Packfile3* zonescriptVpp = packfileVFS_->GetPackfile(territoryFilename_);
     if (!zonescriptVpp)
