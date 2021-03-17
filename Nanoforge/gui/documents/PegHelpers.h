@@ -1,6 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "TextureDocumentState.h"
+#include "RfgTools++/formats/textures/PegFile10.h"
 #include <dxgiformat.h>
 
 //Todo: Move this into RfgTools++. Not done yet since we're relying on DirectXTex for some image import/export work

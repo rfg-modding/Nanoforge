@@ -100,13 +100,10 @@ void MainGui::Update(f32 deltaTime)
     auto iter = State.Documents.begin();
     while (iter != State.Documents.end())
     {
-        Handle<Document> document = *iter;
+        Handle<IDocument> document = *iter;
         //If document is no longer open, erase it
-        if (!document->Open)
+        if (!document->Open())
         {
-            if (document->OnClose)
-                document->OnClose(&State, document);
-            
             iter = State.Documents.erase(iter);
             continue;
         }
@@ -118,7 +115,7 @@ void MainGui::Update(f32 deltaTime)
         }
 
         //Draw the document if it's still open
-        document->Update(&State, document);
+        document->Update(&State);
         document->FirstDraw = false;
         iter++;
         counter++;
@@ -222,11 +219,7 @@ void MainGui::DrawMainMenuBar()
                     {
                         string territoryName = string(territory);
                         State.SetTerritory(territoryName);
-                        State.CreateDocument(territoryName, &TerritoryDocument_Init, &TerritoryDocument_Update, &TerritoryDocument_OnClose, new TerritoryDocumentData
-                        {
-                            .TerritoryName = State.CurrentTerritoryName,
-                            .TerritoryShortname = State.CurrentTerritoryShortname,
-                        });
+                        State.CreateDocument(territoryName, CreateHandle<TerritoryDocument>(&State, State.CurrentTerritoryName, State.CurrentTerritoryShortname));
                     }
                 }
                 ImGui::EndMenu();

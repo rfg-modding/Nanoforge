@@ -394,13 +394,7 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
         else if(extension == ".gvbm_pc")
             filename = Path::GetFileNameNoExtension(node.Filename) + ".cvbm_pc";
 
-        state->CreateDocument(filename, &TextureDocument_Init, &TextureDocument_Update, &TextureDocument_OnClose, new TextureDocumentData
-        {
-            .Filename = filename,
-            .ParentName = node.ParentName,
-            .VppName = FileExplorer_VppName,
-            .InContainer = node.InContainer
-        });
+        state->CreateDocument(filename, CreateHandle<TextureDocument>(state, filename, node.ParentName, FileExplorer_VppName, node.InContainer));
     }
     else if (extension == ".csmesh_pc" || extension == ".gsmesh_pc" || extension == ".ccmesh_pc" || extension == ".gcmesh_pc")
     {
@@ -415,13 +409,7 @@ void FileExplorer_DoubleClickedFile(GuiState* state, FileExplorerNode& node)
         else if (extension == ".gcmesh_pc")
             filename = Path::GetFileNameNoExtension(node.Filename) + ".ccmesh_pc";
 
-        state->CreateDocument(filename, &StaticMeshDocument_Init, &StaticMeshDocument_Update, &StaticMeshDocument_OnClose, new StaticMeshDocumentData
-        {
-            .Filename = filename,
-            .ParentName = node.ParentName,
-            .VppName = FileExplorer_VppName,
-            .InContainer = node.InContainer
-        });
+        state->CreateDocument(filename, CreateHandle<StaticMeshDocument>(state, filename, node.ParentName, FileExplorer_VppName, node.InContainer));
     }
 }
 
