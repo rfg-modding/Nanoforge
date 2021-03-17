@@ -49,7 +49,6 @@ void ZoneList_Update(GuiState* state, bool* open)
         ImGui::Separator();
     }
 
-    ImGui::BeginChild("##Zone file list", ImVec2(0, 0), true);
     if (ImGui::Button("Show all"))
     {
         for (auto& zone : state->CurrentTerritory->ZoneFiles)
@@ -73,7 +72,7 @@ void ZoneList_Update(GuiState* state, bool* open)
     ImGui::Separator();
     ImGui::InputText("Search", &ZoneList_SearchTerm);
 
-    if (ImGui::BeginTable("Zone list table", 5, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
+    if (ImGui::BeginTable("Zone list table", 5, ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
                                               | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable))
     {
         //Todo: Test what this func does
@@ -86,7 +85,7 @@ void ZoneList_Update(GuiState* state, bool* open)
         ImGui::TableSetupColumn("District", ImGuiTableColumnFlags_None);
         ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_None);
         ImGui::TableHeadersRow();
-
+        
         u32 i = 0;
         for (auto& zone : state->CurrentTerritory->ZoneFiles)
         {
