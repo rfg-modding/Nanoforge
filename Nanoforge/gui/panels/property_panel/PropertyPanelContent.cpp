@@ -99,7 +99,7 @@ void PropertyPanel_ZoneObject(GuiState* state)
         {
             //Todo: Add support for these types
             //Ignore these types for now since they're not yet supported
-            if (prop->DataType == ZonePropertyType::NavpointData || prop->DataType == ZonePropertyType::List || prop->DataType == ZonePropertyType::ConstraintTemplate)
+            if (!prop || prop->DataType == ZonePropertyType::NavpointData || prop->DataType == ZonePropertyType::List || prop->DataType == ZonePropertyType::ConstraintTemplate)
                 continue;
 
             ImGui::Separator();
