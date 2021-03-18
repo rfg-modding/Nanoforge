@@ -2,12 +2,12 @@
 #include "common/Typedefs.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "render/imgui/imgui_ext.h"
-#include "gui/panels/FileExplorer.h"
-#include "gui/panels/ScriptxEditor.h"
+#include "gui/panels/file_explorer/FileExplorer.h"
+#include "gui/panels/scriptx_editor/ScriptxEditor.h"
 #include "gui/panels/StatusBar.h"
 #include "gui/panels/ZoneList.h"
 #include "gui/panels/ZoneObjectsList.h"
-#include "gui/panels/PropertyList.h"
+#include "gui/panels/property_panel/PropertyPanel.h"
 #include "gui/panels/LogPanel.h"
 #include "application/project/Project.h"
 #include "gui/documents/TerritoryDocument.h"
@@ -15,6 +15,7 @@
 #include "application/Settings.h"
 #include "gui/util/WinUtil.h"
 #include "util/RfgUtil.h"
+#include "render/backend/DX11Renderer.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
@@ -24,19 +25,16 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     State = GuiState{ fontManager, packfileVFS, renderer, project };
 
     //Pre-allocate gui list so we can have stable pointers to the gui
-    panels_.resize(MaxGuiPanels);
+    panels_.reserve(MaxGuiPanels);
 
-    //Register all gui panels
-    panels_ =
-    {
-        GuiPanel{&StatusBar_Update, "", true},
-        GuiPanel{&PropertyList_Update, "View/Properties", true},
-        GuiPanel{&LogPanel_Update, "View/Log", true},
-        GuiPanel{&ZoneObjectsList_Update, "View/Zone objects", true},
-        GuiPanel{&ZoneList_Update, "View/Zone list", true},
-        GuiPanel{&FileExplorer_Update, "View/File explorer", true},
-        GuiPanel{&ScriptxEditor_Update, "View/Scriptx viewer (WIP)", false},
-    };
+    //Create all gui panels
+    AddPanel("", true, CreateHandle<StatusBar>());
+    AddPanel("View/Properties", true, CreateHandle<PropertyPanel>());
+    AddPanel("View/Log", true, CreateHandle<LogPanel> ());
+    AddPanel("View/Zone objects", true, CreateHandle<ZoneObjectsList>());
+    AddPanel("View/Zone list", true, CreateHandle<ZoneList>());
+    AddPanel("View/File explorer", true, CreateHandle<FileExplorer>());
+    AddPanel("View/Scriptx viewer (WIP)", false, CreateHandle<ScriptxEditor>(&State));
 
     CheckGuiListResize();
     GenerateMenus();
@@ -68,7 +66,7 @@ void MainGui::Update(f32 deltaTime)
     {
         if (firstDraw)
         {
-            ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.20f, nullptr, &dockspaceId);
+            ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
             ImGuiID dockLeftBottomId = ImGui::DockBuilderSplitNode(dockLeftId, ImGuiDir_Down, 0.5f, nullptr, &dockLeftId);
             ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.15f, nullptr, &dockspaceId);
             ImGuiID dockCentralId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
@@ -81,7 +79,7 @@ void MainGui::Update(f32 deltaTime)
             ImGui::DockBuilderDockWindow("Zone objects", dockLeftBottomId);
             ImGui::DockBuilderDockWindow("Properties", dockRightId);
             ImGui::DockBuilderDockWindow("Render settings", dockRightId);
-            ImGui::DockBuilderDockWindow("Scriptx viewer (WIP)", dockCentralId);
+            ImGui::DockBuilderDockWindow("Scriptx viewer", dockCentralId);
             ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
 
             ImGui::DockBuilderFinish(dockspaceId);
@@ -89,10 +87,10 @@ void MainGui::Update(f32 deltaTime)
             firstDraw = false;
         }
 
-        if (!panel.Open)
+        if (!panel->Open)
             continue;
 
-        panel.Update(&State, &panel.Open);
+        panel->Update(&State, &panel->Open);
     }
 
     //Draw documents
@@ -163,6 +161,23 @@ void MainGui::HandleResize(u32 width, u32 height)
 {
     windowWidth_ = width;
     windowHeight_ = height;
+}
+
+void MainGui::AddPanel(string menuPos, bool open, Handle<IGuiPanel> panel)
+{
+    //Make sure panel with same menu position doesn't already exist
+    for (auto& guiPanel : panels_)
+    {
+        if (String::EqualIgnoreCase(guiPanel->MenuPos, menuPos))
+        {
+            return;
+        }
+    }
+
+    //Add panel to list
+    panel->MenuPos = menuPos;
+    panel->Open = open;
+    panels_.emplace_back(panel);
 }
 
 void MainGui::DrawMainMenuBar()
@@ -302,14 +317,14 @@ void MainGui::GenerateMenus()
     for (auto& panel : panels_)
     {
         //If empty then the panel is always open and doesn't have a menu entry
-        if (panel.MenuPos == "")
+        if (panel->MenuPos == "")
         {
-            panel.Open = true;
+            panel->Open = true;
             continue;
         }
 
         //Split menu path into components
-        std::vector<string> menuParts = split(panel.MenuPos, "/");
+        std::vector<string> menuParts = split(panel->MenuPos, "/");
         string menuName = menuParts[0];
 
         //Get or create menu
@@ -334,7 +349,7 @@ void MainGui::GenerateMenus()
             curMenuItem = nextItem;
         }
 
-        curMenuItem->panel = &panel;
+        curMenuItem->panel = panel;
     }
 }
 

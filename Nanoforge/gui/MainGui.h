@@ -1,7 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "GuiState.h"
-#include "GuiBase.h"
+#include "IGuiPanel.h"
 #include "MenuItem.h"
 #include <ext/WindowsWrapper.h>
 #include <vector>
@@ -37,6 +37,7 @@ public:
     void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project);
     void Update(f32 deltaTime);
     void HandleResize(u32 width, u32 height);
+    void AddPanel(string menuPos, bool open, Handle<IGuiPanel> panel);
 
     GuiState State;
     GuiStateEnum StateEnum = Welcome;
@@ -56,7 +57,7 @@ private:
     void DrawWelcomeWindow();
 
     //Size is pre-allocated with MaxGuiPanels elements. Crashes if it resizes beyond this
-    std::vector<GuiPanel> panels_ = {};
+    std::vector<Handle<IGuiPanel>> panels_ = {};
     std::vector<MenuItem> menuItems_ = {};
 
     //Docking data

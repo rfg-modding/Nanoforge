@@ -20,6 +20,7 @@ enum GuiStatus
 
 class GuiState;
 class Project;
+struct FileExplorerNode;
 //Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
 using PropertyPanelContentFunc = void(GuiState* state);
 
@@ -77,6 +78,9 @@ public:
 
     //Documents that are currently open
     std::vector<Handle<IDocument>> Documents = {};
+
+    //The last node that was clicked in the file explorer
+    FileExplorerNode* FileExplorer_SelectedNode = nullptr;
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)

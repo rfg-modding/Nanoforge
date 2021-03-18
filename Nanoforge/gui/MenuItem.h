@@ -1,6 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "GuiBase.h"
+#include "IGuiPanel.h"
 #include <vector>
 
 struct MenuItem
@@ -8,7 +8,7 @@ struct MenuItem
     string Text;
     std::vector<MenuItem> Items = {};
     //Todo: Must update if we resize MainGui::panels_. Currently do not do this
-    GuiPanel* panel = nullptr;
+    Handle<IGuiPanel> panel = nullptr;
 
     MenuItem* GetItem(const string& text)
     {
