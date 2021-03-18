@@ -3,7 +3,7 @@
 #include "rfg/PackfileVFS.h"
 #include "rfg/Territory.h"
 #include "render/camera/Camera.h"
-#include "documents/Document.h"
+#include "documents/IDocument.h"
 #include "common/string/String.h"
 #include <memory>
 
@@ -20,6 +20,7 @@ enum GuiStatus
 
 class GuiState;
 class Project;
+struct FileExplorerNode;
 //Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
 using PropertyPanelContentFunc = void(GuiState* state);
 
@@ -76,7 +77,10 @@ public:
     PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
     //Documents that are currently open
-    std::vector<Handle<Document>> Documents = {};
+    std::vector<Handle<IDocument>> Documents = {};
+
+    //The last node that was clicked in the file explorer
+    FileExplorerNode* FileExplorer_SelectedNode = nullptr;
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
@@ -126,22 +130,19 @@ public:
             ReloadNeeded = true;
     }
     //Create and init a document
-    void CreateDocument(string title, DocumentInitFunction* init, DocumentUpdateFunc* update, DocumentOnCloseFunc* onClose, void* data = nullptr)
+    void CreateDocument(string title, Handle<IDocument> document)
     {
         //Make sure document with same title doesn't already exist
         for (auto& doc : Documents)
         {
             if (String::EqualIgnoreCase(doc->Title, title))
             {
-                if (data)
-                    delete data;
-
                 return;
             }
         }
 
-        //Create document
-        Handle<Document> document = Documents.emplace_back(new Document(title, init, update, onClose, data));
-        document->Init(this, document);
+        //Add document to list
+        document->Title = title;
+        Documents.emplace_back(document);
     }
 };

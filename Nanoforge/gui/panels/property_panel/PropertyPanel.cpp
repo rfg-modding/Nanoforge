@@ -1,7 +1,16 @@
-#pragma once
-#include "gui/GuiState.h"
+#include "PropertyPanel.h"
 
-void PropertyList_Update(GuiState* state, bool* open)
+PropertyPanel::PropertyPanel()
+{
+
+}
+
+PropertyPanel::~PropertyPanel()
+{
+
+}
+
+void PropertyPanel::Update(GuiState* state, bool* open)
 {
     if (!ImGui::Begin("Properties", open))
     {
