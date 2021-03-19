@@ -276,7 +276,7 @@ void MainGui::DrawDockspace()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin("DockSpace parent window", &State.Visible, window_flags);
+    ImGui::Begin("DockSpace parent window", nullptr, window_flags);
     ImGui::PopStyleVar(3);
     
     //DockSpace

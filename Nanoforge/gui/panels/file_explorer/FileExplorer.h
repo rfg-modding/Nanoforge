@@ -20,6 +20,8 @@ public:
     void Update(GuiState* state, bool* open) override;
 
 private:
+    //Update search bar and check which nodes meet search term
+    void UpdateSearchBar(GuiState* state);
     //Generates file tree. Done once at startup and when files are added/removed (very rare)
     //Pre-generating data like this makes rendering and interacting with the file tree simpler
     void GenerateFileTree(GuiState* state);
@@ -63,4 +65,5 @@ private:
     bool HadRegexError = false;
     string LastRegexError;
     string VppName;
+    bool fileTreeNeedsRegen_ = true;
 };

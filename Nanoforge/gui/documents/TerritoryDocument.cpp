@@ -36,7 +36,6 @@ TerritoryDocument::~TerritoryDocument()
     if (state_->CurrentTerritory == &Territory)
     {
         state_->CurrentTerritory = nullptr;
-        state_->SetSelectedZone(0);
         state_->SetSelectedZoneObject(nullptr);
     }
 
@@ -330,7 +329,6 @@ void TerritoryDocument::WorkerThread(GuiState* state)
     Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname);
     Territory.LoadZoneData();
     state->CurrentTerritoryUpdateDebugDraw = true;
-    state->SetSelectedZone(0);
     TerritoryDataLoaded = true;
 
     std::vector<ZoneData>& zoneFiles = Territory.ZoneFiles;

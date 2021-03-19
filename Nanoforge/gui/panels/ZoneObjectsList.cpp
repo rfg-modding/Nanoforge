@@ -84,7 +84,6 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
 
         //Draw object list
         objectIndex_ = 0;
-        auto& zone = state->CurrentTerritory->ZoneFiles[state->SelectedZone].Zone;
         if (ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true))
         {
             //Todo: Separate node structure from ZoneObject36 class. This should really be independent of the format since it's only relevant to Nanoforge

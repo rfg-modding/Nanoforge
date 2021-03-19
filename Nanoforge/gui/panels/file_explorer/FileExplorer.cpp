@@ -18,17 +18,13 @@ FileExplorer::~FileExplorer()
 
 void FileExplorer::Update(GuiState* state, bool* open)
 {
-    //Regen node tree if necessary
-    if (state->FileTreeNeedsRegen)
-        GenerateFileTree(state);
-
     if (!ImGui::Begin("File explorer", open))
     {
         ImGui::End();
         return;
     }
 
-    //Todo: Put additional search options in popup menu or collapsing header to avoid clutter
+    //Options
     if (ImGui::CollapsingHeader("Options"))
     {
         if (ImGui::Checkbox("Hide unsupported formats", &HideUnsupportedFormats))
@@ -36,8 +32,44 @@ void FileExplorer::Update(GuiState* state, bool* open)
         if (ImGui::Checkbox("Regex", &RegexSearch))
             SearchChanged = true;
     }
+
+    //Don't update or draw file tree until the worker thread has finished reading packfile metadata
+    if (!state->PackfileVFS->Ready())
+    {
+        ImGui::TextWrapped("%s Waiting for packfile reading", ICON_FA_EXCLAMATION_CIRCLE);
+        ImGui::End();
+        return;
+    }
+
+    //Regen node tree if necessary
+    if (fileTreeNeedsRegen_)
+        GenerateFileTree(state);
+
+    //Search bar
+    UpdateSearchBar(state);
+
+    //Draw nodes
+    if (ImGui::BeginChild("FileExplorerList"))
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
+        for (auto& node : FileTree)
+        {
+            VppName = node.Filename;
+            DrawFileNode(state, node);
+        }
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+    }
+    SearchChanged = false;
+
+    ImGui::End();
+}
+
+void FileExplorer::UpdateSearchBar(GuiState* state)
+{
     if (ImGui::InputText("Search", &SearchTerm))
         SearchChanged = true;
+
     //Show error icon with regex error in tooltip if using regex search and it's invalid
     if (RegexSearch && HadRegexError)
     {
@@ -98,29 +130,10 @@ void FileExplorer::Update(GuiState* state, bool* open)
             UpdateNodeSearchResultsRecursive(node);
         }
     }
-
-    //Draw nodes
-    if (ImGui::BeginChild("FileExplorerList"))
-    {
-        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
-        for (auto& node : FileTree)
-        {
-            VppName = node.Filename;
-            DrawFileNode(state, node);
-        }
-        ImGui::PopStyleVar();
-        ImGui::EndChild();
-    }
-    SearchChanged = false;
-
-    ImGui::End();
 }
 
 void FileExplorer::GenerateFileTree(GuiState* state)
 {
-    if (state->FileTreeLocked)
-        return;
-
     //Clear current tree and selected node
     FileTree.clear();
     state->FileExplorer_SelectedNode = nullptr;
@@ -183,7 +196,7 @@ void FileExplorer::GenerateFileTree(GuiState* state)
         }
     }
 
-    state->FileTreeNeedsRegen = false;
+    fileTreeNeedsRegen_ = false;
 }
 
 void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
