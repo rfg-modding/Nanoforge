@@ -6,21 +6,10 @@
 #include <tinyxml2/tinyxml2.h>
 #include <vector>
 #include <optional>
+#include <variant>
 
 class XtblFile;
-
-union XtblValue
-{
-    XtblValue() { }
-    ~XtblValue() { } //Todo: Will this cause a memory leak if XtblValue is a string?
-
-    string String;
-    i32 Int;
-    f32 Float;
-    Vec3 Vector;
-    Vec3 Color;
-    u32 Flags;
-};
+using XtblValue = std::variant<string, i32, f32, Vec3, u32>;
 
 //Represent an xml element in an xtbl file
 class XtblNode

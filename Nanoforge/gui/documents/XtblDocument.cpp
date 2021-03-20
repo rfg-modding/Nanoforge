@@ -115,25 +115,25 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
         switch (desc.Type)
         {
         case XtblType::String:
-            ImGui::InputText(node->Name, node->Value.String);
+            ImGui::InputText(node->Name, std::get<string>(node->Value));
             break;
         case XtblType::Int:
-            ImGui::InputInt(node->Name.c_str(), &node->Value.Int);
+            ImGui::InputInt(node->Name.c_str(), &std::get<i32>(node->Value));
             break;
         case XtblType::Float:
-            ImGui::InputFloat(node->Name.c_str(), &node->Value.Float);
+            ImGui::InputFloat(node->Name.c_str(), &std::get<f32>(node->Value));
             break;
         case XtblType::Vector:
-            ImGui::InputFloat3(node->Name.c_str(), (f32*)&node->Value.Vector);
+            ImGui::InputFloat3(node->Name.c_str(), (f32*)&std::get<Vec3>(node->Value));
             break;
         case XtblType::Color:
-            ImGui::InputFloat3(node->Name.c_str(), (f32*)&node->Value.Vector);
+            ImGui::ColorPicker3(node->Name.c_str(), (f32*)&std::get<Vec3>(node->Value));
             break;
         case XtblType::Selection:
-            ImGui::InputText(node->Name, node->Value.String); //Todo: Replace with combo listing all values of Choice vector
+            ImGui::InputText(node->Name, std::get<string>(node->Value)); //Todo: Replace with combo listing all values of Choice vector
             break;
         case XtblType::Filename:
-            ImGui::InputText(node->Name, node->Value.String); //Todo: Should validate extension and try to find list of valid files
+            ImGui::InputText(node->Name, std::get<string>(node->Value)); //Todo: Should validate extension and try to find list of valid files
             break;
 
         case XtblType::ComboElement:
@@ -179,7 +179,7 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
             }
             else
             {
-                gui::LabelAndValue(name + ":", node->Value.String);
+                gui::LabelAndValue(name + ":", std::get<string>(node->Value));
             }
             break;
         }
@@ -187,6 +187,6 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
     }
     else
     {
-        gui::LabelAndValue(name + ":", node->Value.String);
+        gui::LabelAndValue(name + ":", std::get<string>(node->Value));
     }
 }

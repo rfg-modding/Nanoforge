@@ -15,28 +15,30 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
         switch (Type)
         {
         case XtblType::String:
-            //Todo: See if switching Value union to a std::variant fixes string fuckery
-        {string text(node->GetText());
-        printf("%s\n", text.c_str());
-        Value.String = text; }
+            {
+                Value = string(node->GetText());
+            }
             break;
         case XtblType::Int:
-            Value.Int = node->IntText();
+            Value = node->IntText();
             break;
         case XtblType::Float:
-            Value.Float = node->FloatText();
+            Value = node->FloatText();
             break;
         case XtblType::Vector:
             {
                 auto* x = node->FirstChildElement("X");
                 auto* y = node->FirstChildElement("Y");
                 auto* z = node->FirstChildElement("Z");
+                Vec3 vec = { 0.0f, 0.0f, 0.0f };
                 if (x)
-                    Value.Vector.x = x->FloatText();
+                    vec.x = x->FloatText();
                 if (y)
-                    Value.Vector.y = y->FloatText();
+                    vec.y = y->FloatText();
                 if (z)
-                    Value.Vector.z = z->FloatText();
+                    vec.z = z->FloatText();
+
+                Value = vec;
             }
             break;
         case XtblType::Color:
@@ -44,22 +46,25 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
                 auto* r = node->FirstChildElement("R");
                 auto* g = node->FirstChildElement("G");
                 auto* b = node->FirstChildElement("B");
+                Vec3 vec = { 0.0f, 0.0f, 0.0f };
                 if (r)
-                    Value.Color.x = ((f32)r->IntText() / 255.0f);
+                    vec.x = ((f32)r->IntText() / 255.0f);
                 if (g)
-                    Value.Color.y = ((f32)g->IntText() / 255.0f);
+                    vec.y = ((f32)g->IntText() / 255.0f);
                 if (b)
-                    Value.Color.z = ((f32)b->IntText() / 255.0f);
+                    vec.z = ((f32)b->IntText() / 255.0f);
+
+                Value = vec;
             }
             break;
         case XtblType::Selection: //This is a string with restricted choices listed in TableDescription
-            Value.String = node->GetText();
+            Value = node->GetText();
             break;
         case XtblType::Filename:
-            Value.String = node->GetText();
+            Value = node->GetText();
             break;
         case XtblType::Reference: //References data in another xtbl
-            Value.String = node->GetText();
+            Value = node->GetText();
             break;
 
             //Todo: Not yet implemented. Using default behavior for now
@@ -82,7 +87,7 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
         default:
             if (!node->FirstChildElement() && node->GetText())
             {
-                Value.String = node->GetText();
+                Value = node->GetText();
             }
             else //Recursively parse subnodes if there are any
             {
@@ -126,7 +131,7 @@ std::optional<string> XtblNode::GetSubnodeValueString(const string& subnodeName)
             continue;
 
         if (subnode->Name == subnodeName)
-            return subnode->Value.String;
+            return std::get<string>(subnode->Value);
     }
     return {};
 }
