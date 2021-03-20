@@ -2,6 +2,7 @@
 #include "gui/panels/property_panel/PropertyPanelContent.h"
 #include "gui/documents/TextureDocument.h"
 #include "gui/documents/StaticMeshDocument.h"
+#include "gui/documents/XtblDocument.h"
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
 #include <regex>
@@ -307,11 +308,16 @@ void FileExplorer::DoubleClickedFile(GuiState* state, FileExplorerNode& node)
 
         state->CreateDocument(filename, CreateHandle<StaticMeshDocument>(state, filename, node.ParentName, VppName, node.InContainer));
     }
+    else if (extension == ".xtbl")
+    {
+        state->CreateDocument(node.Filename, CreateHandle<XtblDocument>(state, node.Filename, node.ParentName, VppName, node.InContainer));
+    }
 }
 
 bool FileExplorer::FormatSupported(const string& ext)
 {
-    const std::vector<string> supportedFormats = { /*".vpp_pc", ".str2_pc",*/ ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc" };
+    const std::vector<string> supportedFormats = { /*".vpp_pc", ".str2_pc",*/ ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc",
+                                                   ".xtbl"};
     for (auto& format : supportedFormats)
     {
         if (ext == format)

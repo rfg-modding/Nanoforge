@@ -1,42 +1,41 @@
 #include "XtblDocument.h"
 #include "Log.h"
 #include "render/imgui/imgui_ext.h"
+#include "gui/GuiState.h"
 
-void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode = false);
-
-void XtblDocument_Init(GuiState* state, Handle<Document> doc)
+XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
+    : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
 {
-    XtblDocumentData* data = (XtblDocumentData*)doc->Data;
-
-    bool result = state->Xtbls->ParseXtbl(data->VppName, data->Filename);
+    bool result = state->Xtbls->ParseXtbl(VppName, Filename);
     if (!result)
     {
-        Log->error("Failed to parse {}. Closing xtbl document.", data->Filename);
-        doc->Open = false;
+        Log->error("Failed to parse {}. Closing xtbl document.", Filename);
+        open_ = false;
         return;
     }
 
-    auto optional = state->Xtbls->GetXtbl(data->VppName, data->Filename);
+    auto optional = state->Xtbls->GetXtbl(VppName, Filename);
     if (!optional)
     {
-        Log->error("Failed to get {} from XtblManager. Closing xtbl document.", data->Filename);
-        doc->Open = false;
+        Log->error("Failed to get {} from XtblManager. Closing xtbl document.", Filename);
+        open_ = false;
         return;
     }
 
-    data->Xtbl = optional.value();
+    Xtbl = optional.value();
 }
 
-void XtblDocument_Update(GuiState* state, Handle<Document> doc)
+XtblDocument::~XtblDocument()
 {
-    if (!ImGui::Begin(doc->Title.c_str(), &doc->Open))
+}
+
+void XtblDocument::Update(GuiState* state)
+{
+    if (!ImGui::Begin(Title.c_str(), &open_))
     {
         ImGui::End();
         return;
     }
-
-    XtblDocumentData* data = (XtblDocumentData*)doc->Data;
-    Handle<XtblFile> xtbl = data->Xtbl;
 
     const f32 columnZeroWidth = 300.0f;
     ImGui::Columns(2);
@@ -51,16 +50,16 @@ void XtblDocument_Update(GuiState* state, Handle<Document> doc)
     f32 baseY = ImGui::GetCursorPosY();
     //Calculate total height of entry list. Used if less than the limit to avoid having a bunch of empty space
     f32 entryHeight = ImGui::GetFontSize() + (ImGui::GetStyle().FramePadding.y * 2.0f);
-    f32 listHeightTotal = xtbl->Entries.size() * entryHeight;
+    f32 listHeightTotal = Xtbl->Entries.size() * entryHeight;
 
     //Todo: Organize entries by category rather than showing them as one big list
     //Xtbl entry list
     if (ImGui::BeginChild("##EntryList"))
     {
-        for (u32 i = 0; i < xtbl->Entries.size(); i++)
+        for (u32 i = 0; i < Xtbl->Entries.size(); i++)
         {
-            Handle<XtblNode> entry = xtbl->Entries[i];
-            bool selected = data->SelectedIndex == i;
+            Handle<XtblNode> entry = Xtbl->Entries[i];
+            bool selected = SelectedIndex == i;
 
             //Try to get <Name></Name> value
             string name = entry->Name;
@@ -72,7 +71,7 @@ void XtblDocument_Update(GuiState* state, Handle<Document> doc)
 
             if (ImGui::Selectable(selectableName.c_str(), selected))
             {
-                data->SelectedIndex = i;
+                SelectedIndex = i;
             }
         }
         ImGui::EndChild();
@@ -81,14 +80,14 @@ void XtblDocument_Update(GuiState* state, Handle<Document> doc)
     //Draw the selected entry values in column 1 (to the right of the entry list)
     ImGui::NextColumn();
     ImGui::SetCursorPosY(baseY);
-    if (xtbl->Entries.size() != 0 && ImGui::BeginChild("##EntryView", ImVec2(ImGui::GetColumnWidth(), ImGui::GetWindowHeight())))
+    if (Xtbl->Entries.size() != 0 && ImGui::BeginChild("##EntryView", ImVec2(ImGui::GetColumnWidth(), ImGui::GetWindowHeight())))
     {
-        if (data->SelectedIndex >= xtbl->Entries.size())
-            data->SelectedIndex = 0;
+        if (SelectedIndex >= Xtbl->Entries.size())
+            SelectedIndex = 0;
 
-        Handle<XtblNode> entry = xtbl->Entries[data->SelectedIndex];
-        for(Handle<XtblNode> subnode : entry->Subnodes)
-            XtblDocument_DrawXtblNode(state, doc, subnode, xtbl, true);
+        Handle<XtblNode> entry = Xtbl->Entries[SelectedIndex];
+        for (Handle<XtblNode> subnode : entry->Subnodes)
+            DrawXtblNode(state, subnode, Xtbl, true);
 
         ImGui::EndChild();
     }
@@ -97,15 +96,7 @@ void XtblDocument_Update(GuiState* state, Handle<Document> doc)
     ImGui::End();
 }
 
-void XtblDocument_OnClose(GuiState* state, Handle<Document> doc)
-{
-    XtblDocumentData* data = (XtblDocumentData*)doc->Data;
-
-    //Free document data
-    delete data;
-}
-
-void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode)
+void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode)
 {
     string name = node->Name;
     if (rootNode) //Try to get <Name></Name> value if this is a root node and use that as the node name
@@ -162,7 +153,7 @@ void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, Handle<Xtb
             if (ImGui::TreeNode(name.c_str()))
             {
                 for (auto& subnode : node->Subnodes)
-                    XtblDocument_DrawXtblNode(state, doc, subnode, xtbl);
+                    DrawXtblNode(state, subnode, xtbl);
 
                 ImGui::TreePop();
             }
@@ -181,7 +172,7 @@ void XtblDocument_DrawXtblNode(GuiState* state, Handle<Document> doc, Handle<Xtb
                 if (ImGui::TreeNode(name.c_str()))
                 {
                     for (auto& subnode : node->Subnodes)
-                        XtblDocument_DrawXtblNode(state, doc, subnode, xtbl);
+                        DrawXtblNode(state, subnode, xtbl);
 
                     ImGui::TreePop();
                 }
