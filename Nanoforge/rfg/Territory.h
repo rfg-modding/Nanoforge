@@ -12,6 +12,8 @@ struct ZoneData
     ZonePc36 Zone;
     bool RenderBoundingBoxes = false;
     bool Persistent = false;
+    bool MissionLayer = false; //If true the zone is from a mission layer file
+    bool ActivityLayer = false; //If true the zone is from a activity layer file
 };
 
 //Used by Territory to filter objects list by class type
@@ -46,8 +48,8 @@ public:
     bool ShouldShowObjectClass(u32 classnameHash);
     //Checks if a object class is in the selected zones class list
     bool ObjectClassRegistered(u32 classnameHash, u32& outIndex);
-    //Update number of instances of each object class for selected zone
-    void UpdateObjectClassInstanceCounts(u32 selectedZone);
+    //Update number of instances of each object class for visible zones
+    void UpdateObjectClassInstanceCounts();
     //Scans all zone objects for any object class types that aren't known. Used for filtering and coloring purposes
     void InitObjectClassData();
     ZoneObjectClass& GetObjectClass(u32 classnameHash);

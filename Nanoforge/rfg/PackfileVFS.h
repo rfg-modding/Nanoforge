@@ -30,6 +30,8 @@ public:
     std::vector<FileHandle> GetFiles(const std::vector<string>& searchFilters, bool recursive, bool oneResultPerFilter = false);
     std::vector<FileHandle> GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool oneResultPerFilter = false);
     std::vector<FileHandle> GetFiles(const string& filter, bool recursive, bool oneResultPerFilter = false);
+    //Overload that only searches in a single packfile
+    std::vector<FileHandle> GetFiles(const string& packfileName, const string& filter, bool recursive, bool oneResultPerFilter = false);
 
     //Todo: Ensure these stay valid if we start changing packfiles_ after init. May want some handle class that can return packfiles
     //Attempt to get a packfile. Returns nullptr if it fails to find the packfile

@@ -49,7 +49,7 @@ Application::Application(HINSTANCE hInstance)
     Gui.HandleResize(windowWidth_, windowHeight_);
 
     //Start worker thread and capture it's future. If future isn't captured it won't actually run async
-    workerFuture_ = std::async(std::launch::async, &WorkerThread, &Gui.State, false);
+    workerFuture_ = std::async(std::launch::async, &WorkerThread, &Gui.State);
 
     //Init frame timing variables
     deltaTime_ = maxFrameRateDelta;

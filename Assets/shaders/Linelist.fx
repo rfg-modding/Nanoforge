@@ -1,5 +1,5 @@
 
-#define thickness 1.8f
+#define thickness 3.0f
 #define kAntialiasing 2.0f //Disabled by default. Must uncomment code in pixel shader to enable (line 94)
 
 cbuffer cbPerFrame

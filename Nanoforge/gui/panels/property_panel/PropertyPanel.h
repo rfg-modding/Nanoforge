@@ -1,14 +1,12 @@
 #pragma once
 #include "gui/GuiState.h"
-#include "Log.h"
-#include <spdlog/sinks/ringbuffer_sink.h>
 #include "gui/IGuiPanel.h"
 
-class LogPanel : public IGuiPanel
+class PropertyPanel : public IGuiPanel
 {
 public:
-    LogPanel();
-    ~LogPanel();
+    PropertyPanel();
+    ~PropertyPanel();
 
     void Update(GuiState* state, bool* open) override;
 

@@ -111,6 +111,71 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchF
     return handles;
 }
 
+std::vector<FileHandle> PackfileVFS::GetFiles(const string& packfileName, const string& filter, bool recursive, bool oneResultPerFilter)
+{
+    //Vector for our file handles
+    std::vector<FileHandle> handles = {};
+
+    //By default just match the filename to the search string
+    SearchType searchType = SearchType::Direct;
+    s_view filter0 = filter; //Adjusted search string
+
+    //Search filtering options
+    if (filter0.front() == '*') //Ex: *.rfgzone_pc (Finds filenames that end with .rfgzone_pc)
+    {
+        searchType = SearchType::AnyStart;
+        filter0 = filter0.substr(1);
+    }
+    else if (filter0.back() == '*') //Ex: always_loaded.* (Finds filenames with any extension that is named always_loaded)
+    {
+        searchType = SearchType::AnyEnd;
+        filter0 = filter0.substr(0, filter0.size() - 2);
+    }
+
+    //Get packfile
+    Packfile3* packfile = GetPackfile(packfileName);
+    if (!packfile || (packfile->Compressed && packfile->Condensed))
+        return handles;
+
+    //Loop through all files in the packfile
+    for (u32 i = 0; i < packfile->Entries.size(); i++)
+    {
+        if (!CheckSearchMatch(packfile->EntryNames[i], filter0, searchType))
+            continue;
+
+        handles.emplace_back(packfile, packfile->EntryNames[i]);
+        //Break out to the top loop since we only want one result per filter
+        if (oneResultPerFilter)
+            goto continueRoot;
+    }
+
+    //Stop here if we're not doing a recursive search
+    if (recursive)
+    {
+        //Do recursive search. Use asmFile data instead of opening each str2 to avoid unnecessary parsing
+        for (auto& asmFile : packfile->AsmFiles)
+        {
+            for (auto& container : asmFile.Containers)
+            {
+                for (auto& primitive : container.Primitives)
+                {
+                    if (!CheckSearchMatch(primitive.Name, filter0, searchType))
+                        continue;
+
+                    handles.emplace_back(packfile, primitive.Name, container.Name + ".str2_pc");
+                    //Break out to the top loop since we only want one result per filter
+                    if (oneResultPerFilter)
+                        goto continueRoot;
+                }
+            }
+        }
+    continueRoot:;
+    }
+
+    //Return handles to files which matched the search filters
+    return handles;
+}
+
 std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool findOne)
 {
     return GetFiles(std::vector<string>(searchFilters), recursive, findOne);

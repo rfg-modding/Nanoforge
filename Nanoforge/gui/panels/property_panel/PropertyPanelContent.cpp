@@ -1,5 +1,5 @@
 #include "PropertyPanelContent.h"
-#include "gui/panels/FileExplorer.h"
+#include "gui/panels/file_explorer/FileExplorer.h"
 #include "render/imgui/imgui_ext.h"
 #include "RfgTools++/formats/zones/properties/primitive/StringProperty.h"
 #include "RfgTools++/formats/zones/properties/primitive/BoolProperty.h"
@@ -28,16 +28,16 @@ void DrawPackfileData(GuiState* state, Packfile3* packfile)
 
 void PropertyPanel_VppContent(GuiState* state)
 {
-    if (!FileExplorer_SelectedNode)
+    if (!state->FileExplorer_SelectedNode)
         return;
 
     //Cache packfile, only find again if selected node changes
     static FileExplorerNode* lastSelectedNode = nullptr;
     static Packfile3* packfile = nullptr;
-    if (FileExplorer_SelectedNode != lastSelectedNode)
+    if (state->FileExplorer_SelectedNode != lastSelectedNode)
     {
-        lastSelectedNode = FileExplorer_SelectedNode;
-        packfile = state->PackfileVFS->GetPackfile(FileExplorer_SelectedNode->Filename);
+        lastSelectedNode = state->FileExplorer_SelectedNode;
+        packfile = state->PackfileVFS->GetPackfile(state->FileExplorer_SelectedNode->Filename);
     }
 
     //Draw packfile data if we've got it
@@ -49,21 +49,21 @@ void PropertyPanel_VppContent(GuiState* state)
 
 void PropertyPanel_Str2Content(GuiState* state)
 {
-    if (!FileExplorer_SelectedNode)
+    if (!state->FileExplorer_SelectedNode)
         return;
 
     //Cache container, only find again if selected node changes
     static FileExplorerNode* lastSelectedNode = nullptr;
     static Packfile3* container = nullptr;
-    if (FileExplorer_SelectedNode != lastSelectedNode)
+    if (state->FileExplorer_SelectedNode != lastSelectedNode)
     {
-        lastSelectedNode = FileExplorer_SelectedNode;
+        lastSelectedNode = state->FileExplorer_SelectedNode;
         
         //Containers aren't stored long term by the packfileVFS so we must delete it ourselves once done with it
         if (container)
             delete container;
 
-        container = state->PackfileVFS->GetContainer(FileExplorer_SelectedNode->Filename, FileExplorer_SelectedNode->ParentName);
+        container = state->PackfileVFS->GetContainer(state->FileExplorer_SelectedNode->Filename, state->FileExplorer_SelectedNode->ParentName);
         if (!container)
             return;
     }
@@ -84,11 +84,22 @@ void PropertyPanel_ZoneObject(GuiState* state)
     else
     {
         ZoneObjectNode36& selected = *state->SelectedObject;
+        gui::LabelAndValue("Handle:", std::to_string(selected.Self->Handle));
+        gui::LabelAndValue("Num:", std::to_string(selected.Self->Num));
+        if (ImGui::Button("Copy scriptx ref to clipboard"))
+        {
+            ImGui::LogToClipboard();
+            ImGui::LogText("<object>%X\n", selected.Self->Handle);
+            ImGui::LogText("    <object_number>%d</object_number>\n", selected.Self->Num);
+            ImGui::LogText("</object>");
+            ImGui::LogFinish();
+        }
+
         for (IZoneProperty* prop : selected.Self->Properties)
         {
             //Todo: Add support for these types
             //Ignore these types for now since they're not yet supported
-            if (prop->DataType == ZonePropertyType::NavpointData || prop->DataType == ZonePropertyType::List || prop->DataType == ZonePropertyType::ConstraintTemplate)
+            if (!prop || prop->DataType == ZonePropertyType::NavpointData || prop->DataType == ZonePropertyType::List || prop->DataType == ZonePropertyType::ConstraintTemplate)
                 continue;
 
             ImGui::Separator();

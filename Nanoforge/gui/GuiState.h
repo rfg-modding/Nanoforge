@@ -3,7 +3,7 @@
 #include "rfg/PackfileVFS.h"
 #include "rfg/Territory.h"
 #include "render/camera/Camera.h"
-#include "documents/Document.h"
+#include "documents/IDocument.h"
 #include "common/string/String.h"
 #include "rfg/xtbl/XtblManager.h"
 #include <memory>
@@ -21,6 +21,7 @@ enum GuiStatus
 
 class GuiState;
 class Project;
+struct FileExplorerNode;
 //Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
 using PropertyPanelContentFunc = void(GuiState* state);
 
@@ -32,8 +33,6 @@ public:
     //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;
     Project* CurrentProject = nullptr;
-    XtblManager* Xtbls = nullptr;
-    bool Visible = true;
 
     //Most recently selected territory. If you have multiple territories open this is the most recently selected window
     Territory* CurrentTerritory = nullptr;
@@ -48,35 +47,22 @@ public:
     string CustomStatusMessage = "";
     f32 StatusBarHeight = 25.0f;
 
-    f32 BoundingBoxThickness = 3.0f;
-    f32 LabelTextSize = 1.0f;
-    Vec4 LabelTextColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-    bool DrawParentConnections = false;
-
-    u32 SelectedZone = InvalidZoneIndex;
-
-    bool GridFollowCamera = true;
-    bool DrawGrid = false;
-    int GridSpacing = 10;
-    int GridSize = 100;
-
     ZoneObjectNode36* SelectedObject = nullptr;
 
     //Used to trigger and reload and load a different territory
-    bool ReloadNeeded = false;
     string CurrentTerritoryName;
     string CurrentTerritoryShortname;
 
-    //If true the file explorer will regenerate it's tree
-    bool FileTreeNeedsRegen = true;
-    //If true the file tree won't access packfileVFS. Used to defer tree generation until all packfiles have been scanned to reduce unecessary tree regen at startup
-    bool FileTreeLocked = true;
+    ZoneObject36* ZoneObjectList_SelectedObject = nullptr;
 
     //Content func for property panel
     PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
     //Documents that are currently open
-    std::vector<Handle<Document>> Documents = {};
+    std::vector<Handle<IDocument>> Documents = {};
+
+    //The last node that was clicked in the file explorer
+    FileExplorerNode* FileExplorer_SelectedNode = nullptr;
 
     //Set status message and enum
     void SetStatus(const string& message, GuiStatus status = None)
@@ -92,21 +78,6 @@ public:
     {
         Status = Ready;
         CustomStatusMessage = "";
-    }
-    //Set selected zone and update any cached data about it's objects
-    void SetSelectedZone(u32 index)
-    {
-        //Deselect if selecting already selected zone
-        if (index == SelectedZone)
-        {
-            SelectedZone = InvalidZoneIndex;
-            return;
-        }
-
-        //Otherwise select zone and update any data reliant on the selected zone
-        SelectedZone = index;
-        if(CurrentTerritory)
-            CurrentTerritory->UpdateObjectClassInstanceCounts(SelectedZone);
     }
     void SetSelectedZoneObject(ZoneObjectNode36* object)
     {
@@ -124,26 +95,21 @@ public:
         
         CurrentTerritoryName = terr;
         CurrentTerritoryShortname = newTerritory;
-        if (!firstLoad)
-            ReloadNeeded = true;
     }
     //Create and init a document
-    void CreateDocument(string title, DocumentInitFunction* init, DocumentUpdateFunc* update, DocumentOnCloseFunc* onClose, void* data = nullptr)
+    void CreateDocument(string title, Handle<IDocument> document)
     {
         //Make sure document with same title doesn't already exist
         for (auto& doc : Documents)
         {
             if (String::EqualIgnoreCase(doc->Title, title))
             {
-                if (data)
-                    delete data;
-
                 return;
             }
         }
 
-        //Create document
-        Handle<Document> document = Documents.emplace_back(new Document(title, init, update, onClose, data));
-        document->Init(this, document);
+        //Add document to list
+        document->Title = title;
+        Documents.emplace_back(document);
     }
 };

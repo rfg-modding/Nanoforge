@@ -22,6 +22,7 @@ add_executable (Nanoforge ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_demo.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_draw.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_widgets.cpp
+    ${CMAKE_SOURCE_DIR}/dependencies/imgui/imgui_tables.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/backends/imgui_impl_win32.cpp
     ${CMAKE_SOURCE_DIR}/dependencies/imgui/backends/imgui_impl_dx11.cpp
     # tinyxml2 files

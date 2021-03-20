@@ -2,12 +2,12 @@
 #include "common/Typedefs.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "render/imgui/imgui_ext.h"
-#include "gui/panels/FileExplorer.h"
-#include "gui/panels/ScriptxEditor.h"
+#include "gui/panels/file_explorer/FileExplorer.h"
+#include "gui/panels/scriptx_editor/ScriptxEditor.h"
 #include "gui/panels/StatusBar.h"
 #include "gui/panels/ZoneList.h"
 #include "gui/panels/ZoneObjectsList.h"
-#include "gui/panels/PropertyList.h"
+#include "gui/panels/property_panel/PropertyPanel.h"
 #include "gui/panels/LogPanel.h"
 #include "application/project/Project.h"
 #include "gui/documents/TerritoryDocument.h"
@@ -15,6 +15,7 @@
 #include "application/Settings.h"
 #include "gui/util/WinUtil.h"
 #include "util/RfgUtil.h"
+#include "render/backend/DX11Renderer.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
@@ -24,23 +25,16 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager };
 
     //Pre-allocate gui list so we can have stable pointers to the gui
-    panels_.resize(MaxGuiPanels);
+    panels_.reserve(MaxGuiPanels);
 
-    //Register all gui panels
-    panels_ =
-    {
-        GuiPanel{&StatusBar_Update, "", true},
-        GuiPanel{&PropertyList_Update, "View/Properties", true},
-        GuiPanel{&LogPanel_Update, "View/Log", true},
-        GuiPanel{&ZoneObjectsList_Update, "View/Zone objects", true},
-        GuiPanel{&ZoneList_Update, "View/Zone list", true},
-        GuiPanel{&FileExplorer_Update, "View/File explorer", true},
-
-        //Todo: Enable in release builds when this is a working feature
-#ifdef DEBUG_BUILD
-        GuiPanel{&ScriptxEditor_Update, "View/Scriptx editor", false},
-#endif
-    };
+    //Create all gui panels
+    AddPanel("", true, CreateHandle<StatusBar>());
+    AddPanel("View/Properties", true, CreateHandle<PropertyPanel>());
+    AddPanel("View/Log", true, CreateHandle<LogPanel> ());
+    AddPanel("View/Zone objects", true, CreateHandle<ZoneObjectsList>());
+    AddPanel("View/Zone list", true, CreateHandle<ZoneList>());
+    AddPanel("View/File explorer", true, CreateHandle<FileExplorer>());
+    AddPanel("View/Scriptx viewer (WIP)", false, CreateHandle<ScriptxEditor>(&State));
 
     CheckGuiListResize();
     GenerateMenus();
@@ -73,6 +67,7 @@ void MainGui::Update(f32 deltaTime)
         if (firstDraw)
         {
             ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
+            ImGuiID dockLeftBottomId = ImGui::DockBuilderSplitNode(dockLeftId, ImGuiDir_Down, 0.5f, nullptr, &dockLeftId);
             ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.15f, nullptr, &dockspaceId);
             ImGuiID dockCentralId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
             ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockCentralId, ImGuiDir_Down, 0.20f, nullptr, &dockCentralId);
@@ -81,10 +76,10 @@ void MainGui::Update(f32 deltaTime)
             ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
             ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
             ImGui::DockBuilderDockWindow("Zones", dockLeftId);
-            ImGui::DockBuilderDockWindow("Zone objects", dockLeftId);
+            ImGui::DockBuilderDockWindow("Zone objects", dockLeftBottomId);
             ImGui::DockBuilderDockWindow("Properties", dockRightId);
             ImGui::DockBuilderDockWindow("Render settings", dockRightId);
-            ImGui::DockBuilderDockWindow("Scriptx editor", dockCentralId);
+            ImGui::DockBuilderDockWindow("Scriptx viewer", dockCentralId);
             ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
 
             ImGui::DockBuilderFinish(dockspaceId);
@@ -92,10 +87,10 @@ void MainGui::Update(f32 deltaTime)
             firstDraw = false;
         }
 
-        if (!panel.Open)
+        if (!panel->Open)
             continue;
 
-        panel.Update(&State, &panel.Open);
+        panel->Update(&State, &panel->Open);
     }
 
     //Draw documents
@@ -103,13 +98,10 @@ void MainGui::Update(f32 deltaTime)
     auto iter = State.Documents.begin();
     while (iter != State.Documents.end())
     {
-        Handle<Document> document = *iter;
+        Handle<IDocument> document = *iter;
         //If document is no longer open, erase it
-        if (!document->Open)
+        if (!document->Open())
         {
-            if (document->OnClose)
-                document->OnClose(&State, document);
-            
             iter = State.Documents.erase(iter);
             continue;
         }
@@ -121,7 +113,7 @@ void MainGui::Update(f32 deltaTime)
         }
 
         //Draw the document if it's still open
-        document->Update(&State, document);
+        document->Update(&State);
         document->FirstDraw = false;
         iter++;
         counter++;
@@ -169,6 +161,23 @@ void MainGui::HandleResize(u32 width, u32 height)
 {
     windowWidth_ = width;
     windowHeight_ = height;
+}
+
+void MainGui::AddPanel(string menuPos, bool open, Handle<IGuiPanel> panel)
+{
+    //Make sure panel with same menu position doesn't already exist
+    for (auto& guiPanel : panels_)
+    {
+        if (String::EqualIgnoreCase(guiPanel->MenuPos, menuPos))
+        {
+            return;
+        }
+    }
+
+    //Add panel to list
+    panel->MenuPos = menuPos;
+    panel->Open = open;
+    panels_.emplace_back(panel);
 }
 
 void MainGui::DrawMainMenuBar()
@@ -225,11 +234,7 @@ void MainGui::DrawMainMenuBar()
                     {
                         string territoryName = string(territory);
                         State.SetTerritory(territoryName);
-                        State.CreateDocument(territoryName, &TerritoryDocument_Init, &TerritoryDocument_Update, &TerritoryDocument_OnClose, new TerritoryDocumentData
-                        {
-                            .TerritoryName = State.CurrentTerritoryName,
-                            .TerritoryShortname = State.CurrentTerritoryShortname,
-                        });
+                        State.CreateDocument(territoryName, CreateHandle<TerritoryDocument>(&State, State.CurrentTerritoryName, State.CurrentTerritoryShortname));
                     }
                 }
                 ImGui::EndMenu();
@@ -271,7 +276,7 @@ void MainGui::DrawDockspace()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin("DockSpace parent window", &State.Visible, window_flags);
+    ImGui::Begin("DockSpace parent window", nullptr, window_flags);
     ImGui::PopStyleVar(3);
     
     //DockSpace
@@ -312,14 +317,14 @@ void MainGui::GenerateMenus()
     for (auto& panel : panels_)
     {
         //If empty then the panel is always open and doesn't have a menu entry
-        if (panel.MenuPos == "")
+        if (panel->MenuPos == "")
         {
-            panel.Open = true;
+            panel->Open = true;
             continue;
         }
 
         //Split menu path into components
-        std::vector<string> menuParts = split(panel.MenuPos, "/");
+        std::vector<string> menuParts = split(panel->MenuPos, "/");
         string menuName = menuParts[0];
 
         //Get or create menu
@@ -344,7 +349,7 @@ void MainGui::GenerateMenus()
             curMenuItem = nextItem;
         }
 
-        curMenuItem->panel = &panel;
+        curMenuItem->panel = panel;
     }
 }
 
@@ -509,6 +514,13 @@ void MainGui::SetThemePreset(ThemePreset preset)
     }
 }
 
+//Set string to defaultValue string if it's empty or only whitespace
+void EnsureNotWhitespaceOrEmpty(string& target, string defaultValue)
+{
+    if (target.empty() || target.find_first_not_of(' ') == string::npos)
+        target = defaultValue;
+}
+
 void MainGui::DrawNewProjectWindow()
 {
     if (!showNewProjectWindow_)
@@ -521,6 +533,7 @@ void MainGui::DrawNewProjectWindow()
         static string projectDescription;
         static string projectAuthor;
         static bool createProjectFolder = true;
+        static bool pathNotSetError = false;
 
         //Project name/path/etc input
         ImGui::PushItemWidth(230.0f);
@@ -537,35 +550,51 @@ void MainGui::DrawNewProjectWindow()
         ImGui::InputText("Author: ", &projectAuthor);
         ImGui::Checkbox("Create project folder", &createProjectFolder);
 
+        if (pathNotSetError)
+        {
+            ImGui::TextColored(gui::Red, "Path not valid");
+        }
+
         //Create project from inputs
         if (ImGui::Button("Create"))
         {
+            if (projectPath.empty() || projectPath.find_first_not_of(' ') == string::npos || !std::filesystem::exists(projectPath))
+            {
+                pathNotSetError = true;
+            }
+            else
+            {
+                pathNotSetError = false;
+                //Set project and save
+                string endPath = createProjectFolder ?
+                    projectPath + "\\" + projectName + "\\" :
+                    projectPath + "\\";
+                if (createProjectFolder)
+                    std::filesystem::create_directory(endPath);
+
+                EnsureNotWhitespaceOrEmpty(projectName, "ProjectNameNotSet" + std::to_string(time(NULL)));
+                EnsureNotWhitespaceOrEmpty(projectDescription, "Not set");
+                EnsureNotWhitespaceOrEmpty(projectAuthor, "Not set");
+
+                State.CurrentProject->Name = projectName;
+                State.CurrentProject->Path = endPath;
+                State.CurrentProject->Description = projectDescription;
+                State.CurrentProject->Author = projectAuthor;
+                State.CurrentProject->ProjectFilename = projectName + ".nanoproj";
+                State.CurrentProject->UnsavedChanges = false;
+                State.CurrentProject->Save();
+                State.CurrentProject->Load(endPath + projectName + ".nanoproj");
+
+                //If in welcome screen switch to main screen upon creating a new project
+                if (StateEnum == Welcome)
+                    StateEnum = Main;
+
+                //Add project to recent projects list if unique
+                Settings_AddRecentProjectPathUnique(endPath + projectName + ".nanoproj");
+                Settings_Write();
+                showNewProjectWindow_ = false;
+            }
             //Todo: Add save check for existing project
-
-            //Set project and save
-            string endPath = createProjectFolder ? 
-                             projectPath + "\\" + projectName + "\\" :
-                             projectPath + "\\";
-            if(createProjectFolder)
-                std::filesystem::create_directory(endPath);
-
-            State.CurrentProject->Name = projectName;
-            State.CurrentProject->Path = endPath;
-            State.CurrentProject->Description = projectDescription;
-            State.CurrentProject->Author = projectAuthor;
-            State.CurrentProject->ProjectFilename = projectName + ".nanoproj";
-            State.CurrentProject->UnsavedChanges = false;
-            State.CurrentProject->Save();
-            State.CurrentProject->Load(endPath + projectName + ".nanoproj");
-
-            //If in welcome screen switch to main screen upon creating a new project
-            if (StateEnum == Welcome)
-                StateEnum = Main;
-
-            //Add project to recent projects list if unique
-            Settings_AddRecentProjectPathUnique(endPath + projectName + ".nanoproj");
-            Settings_Write();
-            showNewProjectWindow_ = false;
         }
 
         ImGui::End();

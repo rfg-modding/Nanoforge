@@ -45,6 +45,8 @@ void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
 
 void Scene::Draw(f32 deltaTime)
 {
+    TotalTime += deltaTime;
+
     //Don't draw scene if critical data not set
     if (!shaderSet_ || !vertexLayoutSet_)
         return;
