@@ -184,6 +184,7 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
             //Draw subnodes
             if (ImGui::TreeNode(name.c_str()))
             {
+                gui::TooltipOnPrevious(desc.Description, nullptr);
                 for (auto& subnode : node->Subnodes)
                     DrawXtblNode(state, subnode, xtbl);
 
@@ -203,6 +204,7 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
             {
                 if (ImGui::TreeNode(name.c_str()))
                 {
+                    gui::TooltipOnPrevious(desc.Description, nullptr);
                     for (auto& subnode : node->Subnodes)
                         DrawXtblNode(state, subnode, xtbl);
 
@@ -215,6 +217,7 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
             }
             break;
         }
+        gui::TooltipOnPrevious(desc.Description, nullptr);
         ImGui::PopItemWidth();
     }
     else if(name != "_Editor")
