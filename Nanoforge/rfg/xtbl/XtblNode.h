@@ -20,6 +20,7 @@ public:
     XtblType Type = XtblType::None;
     std::vector<Handle<XtblNode>> Subnodes;
     Handle<XtblNode> Parent = nullptr;
+    bool CategorySet = false; //Used by XtblFile to track which nodes are uncategorized
 
     bool HasValue() { return Subnodes.size() == 0; }
     bool HasSubnodes() { return Subnodes.size() != 0; }

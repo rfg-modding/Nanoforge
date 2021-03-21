@@ -52,41 +52,29 @@ void XtblDocument::Update(GuiState* state)
     f32 entryHeight = ImGui::GetFontSize() + (ImGui::GetStyle().FramePadding.y * 2.0f);
     f32 listHeightTotal = Xtbl->Entries.size() * entryHeight;
 
-    //Todo: Organize entries by category rather than showing them as one big list
     //Xtbl entry list
     if (ImGui::BeginChild("##EntryList"))
     {
-        for (u32 i = 0; i < Xtbl->Entries.size(); i++)
-        {
-            Handle<XtblNode> entry = Xtbl->Entries[i];
-            bool selected = SelectedIndex == i;
+        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
 
-            //Try to get <Name></Name> value
-            string name = entry->Name;
-            auto nameValue = entry->GetSubnodeValueString("Name");
-            if (nameValue)
-                name = nameValue.value();
+        //Draw subcategories
+        for (auto& subcategory : Xtbl->RootCategory->SubCategories)
+            DrawXtblCategory(state, subcategory);
 
-            string selectableName = fmt::format("{}##{}", name, i);
+        //Draw subnodes
+        for (auto& subnode : Xtbl->RootCategory->Nodes)
+            DrawXtblNodeEntry(state, subnode);
 
-            if (ImGui::Selectable(selectableName.c_str(), selected))
-            {
-                SelectedIndex = i;
-            }
-        }
+        ImGui::PopStyleVar();
         ImGui::EndChild();
     }
 
     //Draw the selected entry values in column 1 (to the right of the entry list)
     ImGui::NextColumn();
     ImGui::SetCursorPosY(baseY);
-    if (Xtbl->Entries.size() != 0 && ImGui::BeginChild("##EntryView", ImVec2(ImGui::GetColumnWidth(), ImGui::GetWindowHeight())))
+    if (Xtbl->Entries.size() != 0 && selectedNode_ && ImGui::BeginChild("##EntryView", ImVec2(ImGui::GetColumnWidth(), ImGui::GetWindowHeight())))
     {
-        if (SelectedIndex >= Xtbl->Entries.size())
-            SelectedIndex = 0;
-
-        Handle<XtblNode> entry = Xtbl->Entries[SelectedIndex];
-        for (Handle<XtblNode> subnode : entry->Subnodes)
+        for (Handle<XtblNode> subnode : selectedNode_->Subnodes)
             DrawXtblNode(state, subnode, Xtbl, true);
 
         ImGui::EndChild();
@@ -94,6 +82,50 @@ void XtblDocument::Update(GuiState* state)
 
     ImGui::Columns(1);
     ImGui::End();
+}
+
+void XtblDocument::DrawXtblCategory(GuiState* state, Handle<XtblCategory> category, bool openByDefault)
+{
+    //Draw category node
+    bool nodeOpen = ImGui::TreeNodeEx(fmt::format("{} {}",ICON_FA_FOLDER, category->Name).c_str(),
+        //Make full node width clickable
+        ImGuiTreeNodeFlags_SpanAvailWidth
+        //If the node has no children make it a leaf node (a node which can't be expanded)
+        | (category->SubCategories.size() + category->Nodes.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None 
+        | (openByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0)));
+
+    //Draw subcategories and subnodes
+    if (nodeOpen)
+    {
+        //Draw subcategories and their nodes recursively
+        for (auto& subcategory : category->SubCategories)
+            DrawXtblCategory(state, subcategory);
+
+        //Draw subnodes
+        for (auto& subnode : category->Nodes)
+            DrawXtblNodeEntry(state, subnode);
+
+        ImGui::TreePop();
+    }
+}
+
+void XtblDocument::DrawXtblNodeEntry(GuiState* state, Handle<XtblNode> node)
+{
+    //Try to get <Name></Name> value
+    string name = node->Name;
+    auto nameValue = node->GetSubnodeValueString("Name");
+    if (nameValue)
+        name = nameValue.value();
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf 
+                               | (selectedNode_ == node ? ImGuiTreeNodeFlags_Selected : 0);
+    if (ImGui::TreeNodeEx(fmt::format("{} {}", ICON_FA_CODE, name).c_str(), flags))
+    {
+        if (ImGui::IsItemClicked())
+            selectedNode_ = node;
+
+        ImGui::TreePop();
+    }
 }
 
 void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode)
@@ -163,8 +195,8 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
         case XtblType::None:
         case XtblType::Reference:
             //Todo: Read values from other xtbl and list them 
-            //break;
-            //Default case is to display it as a constant string
+            gui::LabelAndValue(name + ":", std::get<string>(node->Value) + " (reference)");
+            break;
         case XtblType::TableDescription:
         default:
             if (node->HasSubnodes())
@@ -185,7 +217,7 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
         }
         ImGui::PopItemWidth();
     }
-    else
+    else if(name != "_Editor")
     {
         gui::LabelAndValue(name + ":", std::get<string>(node->Value));
     }

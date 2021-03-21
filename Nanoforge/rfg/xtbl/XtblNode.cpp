@@ -8,7 +8,16 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
     Name = node->Value();
 
     std::optional<XtblDescription> maybeDesc = xtbl.GetValueDescription(GetPath());
-    if (maybeDesc)
+    if (Name == "_Editor")
+    {
+        //Set category of parent node if one is specified
+        auto* category = node->FirstChildElement("Category");
+        if (category)
+        {
+            xtbl.SetNodeCategory(Parent, category->GetText());
+        }
+    }
+    else if (maybeDesc)
     {
         XtblDescription desc = maybeDesc.value();
         Type = desc.Type;
@@ -61,10 +70,15 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
             Value = node->GetText();
             break;
         case XtblType::Filename:
-            Value = node->GetText();
+            {
+                auto* filename = node->FirstChildElement("Filename");
+                if (filename && filename->GetText())
+                    Value = filename->GetText();
+            }
             break;
         case XtblType::Reference: //References data in another xtbl
             Value = node->GetText();
+            //Todo: Support loading data from other xtbls and jumping to specific xtbls and entries that are referenced
             break;
 
             //Todo: Not yet implemented. Using default behavior for now
