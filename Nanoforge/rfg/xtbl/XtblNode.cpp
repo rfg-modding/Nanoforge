@@ -25,7 +25,10 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
         {
         case XtblType::String:
             {
-                Value = string(node->GetText());
+                if (node->GetText())
+                    Value = node->GetText();
+                else
+                    Value = "";
             }
             break;
         case XtblType::Int:
@@ -67,25 +70,34 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
             }
             break;
         case XtblType::Selection: //This is a string with restricted choices listed in TableDescription
-            Value = node->GetText();
+            {
+                if (node->GetText())
+                    Value = node->GetText();
+                else
+                    Value = "";
+            }
             break;
         case XtblType::Filename:
             {
                 auto* filename = node->FirstChildElement("Filename");
                 if (filename && filename->GetText())
                     Value = filename->GetText();
+                else
+                    Value = "";
             }
             break;
         case XtblType::Reference: //References data in another xtbl
-            Value = node->GetText();
             //Todo: Support loading data from other xtbls and jumping to specific xtbls and entries that are referenced
+            {
+                if (node->GetText())
+                    Value = node->GetText();
+                else
+                    Value = "";
+            }
             break;
 
             //Todo: Not yet implemented. Using default behavior for now
         case XtblType::Flags: //Bitflags
-            //Todo: Implement
-            //break;
-        case XtblType::List: //List of a single value (e.g. string, float, int)
             //Todo: Implement
             //break;
         case XtblType::Grid: //List of elements
@@ -96,6 +108,7 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
             //break;
 
             //These types require the subnodes to be parsed
+        case XtblType::List: //List of a single value (e.g. string, float, int)
         case XtblType::Element:
         case XtblType::TableDescription:
         default:
@@ -141,7 +154,8 @@ std::optional<string> XtblNode::GetSubnodeValueString(const string& subnodeName)
 {
     for (auto& subnode : Subnodes)
     {
-        if (subnode->Type != XtblType::String)
+        //Todo: Add Subtype value for references and check that the reference subtype is String
+        if (subnode->Type != XtblType::String && subnode->Type != XtblType::Reference)
             continue;
 
         if (subnode->Name == subnodeName)

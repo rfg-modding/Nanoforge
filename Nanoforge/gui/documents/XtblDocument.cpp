@@ -128,10 +128,14 @@ void XtblDocument::DrawXtblNodeEntry(GuiState* state, Handle<XtblNode> node)
     }
 }
 
-void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode)
+void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode, const char* nameOverride)
 {
     string name = node->Name;
-    if (rootNode) //Try to get <Name></Name> value if this is a root node and use that as the node name
+    if (nameOverride)
+    {
+        name = nameOverride;
+    }
+    else if (rootNode) //Try to get <Name></Name> value if this is a root node and use that as the node name
     {
         auto nameValue = node->GetSubnodeValueString("Name");
         if (nameValue)
@@ -175,8 +179,24 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
             //Todo: Use list of checkboxes for each flag
             //break;
         case XtblType::List:
-            //Todo: List of values
-            //break;
+            //Draw subnodes
+            if (ImGui::TreeNode(name.c_str()))
+            {
+                gui::TooltipOnPrevious(desc.Description, nullptr);
+                for (auto& subnode : node->Subnodes)
+                {
+                    //Try to get <Name></Name> value
+                    string subnodeName = subnode->Name;
+                    auto nameValue = subnode->GetSubnodeValueString("Name");
+                    if (nameValue)
+                        subnodeName = nameValue.value();
+
+                    DrawXtblNode(state, subnode, xtbl, false, subnodeName.c_str());
+                }
+
+                ImGui::TreePop();
+            }
+            break;
         case XtblType::Grid:
             //List of elements
             //break;

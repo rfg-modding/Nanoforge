@@ -74,7 +74,7 @@ public:
         }
 
         //If Type == TableDescription, then this is the root node. Parse all subnodes. Doesn't have other values
-        if (Type == XtblType::TableDescription)
+        if (Type == XtblType::TableDescription || Type == XtblType::List)
         {
             //Parse all <Element> nodes inside the root node
             auto* nextNode = node->FirstChildElement("Element");
