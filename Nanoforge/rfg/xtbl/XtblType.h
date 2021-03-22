@@ -18,7 +18,8 @@ enum class XtblType : u32
     ComboElement,
     Reference,
     Grid,
-    TableDescription
+    TableDescription,
+    Flag
 };
 
 static XtblType XtblTypeFromString(const string& value)
@@ -51,6 +52,8 @@ static XtblType XtblTypeFromString(const string& value)
         return XtblType::Grid;
     else if (value == "TableDescription")
         return XtblType::TableDescription;
+    else if (value == "Flag")
+        return XtblType::Flag;
     else
         THROW_EXCEPTION("Invalid string \"{}\" passed to XtblTypeFromString", value);
 }
@@ -87,6 +90,8 @@ static string to_string(XtblType value)
         return "Grid";
     case XtblType::TableDescription:
         return "TableDescription";
+    case XtblType::Flag:
+        return "Flag";
     default:
         THROW_EXCEPTION("Invalid value for XtblType \"{}\" passed to to_string in XtblType.h", value);
     }

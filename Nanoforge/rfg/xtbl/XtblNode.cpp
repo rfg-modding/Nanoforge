@@ -17,6 +17,14 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
             xtbl.SetNodeCategory(Parent, category->GetText());
         }
     }
+    else if (Name == "Flag")
+    {
+        Type = XtblType::Flag;
+        if (node->GetText())
+            Value = node->GetText();
+        else
+            Value = ""; //Todo: Change Value to a bool and store flag name in another variable
+    }
     else if (maybeDesc)
     {
         XtblDescription desc = maybeDesc.value();
@@ -95,11 +103,6 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
                     Value = "";
             }
             break;
-
-            //Todo: Not yet implemented. Using default behavior for now
-        case XtblType::Flags: //Bitflags
-            //Todo: Implement
-            //break;
         case XtblType::Grid: //List of elements
             //Todo: Implement
             //break;
@@ -108,6 +111,7 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
             //break;
 
             //These types require the subnodes to be parsed
+        case XtblType::Flags: //Bitflags
         case XtblType::List: //List of a single value (e.g. string, float, int)
         case XtblType::Element:
         case XtblType::TableDescription:

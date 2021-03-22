@@ -31,7 +31,7 @@ XtblDocument::~XtblDocument()
 
 void XtblDocument::Update(GuiState* state)
 {
-    if (!ImGui::Begin(Title.c_str(), &open_))
+    if (!ImGui::Begin(Title.c_str(), &open_, ImGuiWindowFlags_NoScrollbar))
     {
         ImGui::End();
         return;
@@ -72,7 +72,7 @@ void XtblDocument::Update(GuiState* state)
     //Draw the selected entry values in column 1 (to the right of the entry list)
     ImGui::NextColumn();
     ImGui::SetCursorPosY(baseY);
-    if (Xtbl->Entries.size() != 0 && selectedNode_ && ImGui::BeginChild("##EntryView", ImVec2(ImGui::GetColumnWidth(), ImGui::GetWindowHeight())))
+    if (Xtbl->Entries.size() != 0 && selectedNode_ && ImGui::BeginChild("##EntryView"))
     {
         for (Handle<XtblNode> subnode : selectedNode_->Subnodes)
             DrawXtblNode(state, subnode, Xtbl, true);
@@ -141,6 +141,8 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
         if (nameValue)
             name = nameValue.value();
     }
+    string nameNoId = name; //Store copy of name without unique ID appended. A few types use ImGui elements that don't support ##IDs
+    name += fmt::format("##{}", (u64)node.get()); //Append unique ID. Uses address of node since that value is unique and unchanging.
 
     //Todo: Add support for description addons to fill in for missing descriptions. These would be separate files shipped with Nanoforge that supplement and/or replace description included with the game
     auto maybeDesc = xtbl->GetValueDescription(node->GetPath());
@@ -151,38 +153,59 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
         switch (desc.Type)
         {
         case XtblType::String:
-            ImGui::InputText(node->Name, std::get<string>(node->Value));
+            ImGui::InputText(name, std::get<string>(node->Value));
             break;
         case XtblType::Int:
-            ImGui::InputInt(node->Name.c_str(), &std::get<i32>(node->Value));
+            ImGui::InputInt(name.c_str(), &std::get<i32>(node->Value));
             break;
         case XtblType::Float:
-            ImGui::InputFloat(node->Name.c_str(), &std::get<f32>(node->Value));
+            ImGui::InputFloat(name.c_str(), &std::get<f32>(node->Value));
             break;
         case XtblType::Vector:
-            ImGui::InputFloat3(node->Name.c_str(), (f32*)&std::get<Vec3>(node->Value));
+            ImGui::InputFloat3(name.c_str(), (f32*)&std::get<Vec3>(node->Value));
             break;
         case XtblType::Color:
-            ImGui::ColorPicker3(node->Name.c_str(), (f32*)&std::get<Vec3>(node->Value));
+            ImGui::ColorPicker3(name.c_str(), (f32*)&std::get<Vec3>(node->Value));
             break;
         case XtblType::Selection:
-            ImGui::InputText(node->Name, std::get<string>(node->Value)); //Todo: Replace with combo listing all values of Choice vector
+            ImGui::InputText(name, std::get<string>(node->Value)); //Todo: Replace with combo listing all values of Choice vector
             break;
         case XtblType::Filename:
-            ImGui::InputText(node->Name, std::get<string>(node->Value)); //Todo: Should validate extension and try to find list of valid files
+            ImGui::InputText(name, std::get<string>(node->Value)); //Todo: Should validate extension and try to find list of valid files
             break;
 
         case XtblType::ComboElement:
             //Todo: Determine which type is being used and list proper ui elements. This type is like a union in c/c++
             //break;
+        case XtblType::Flag: //Todo: Use checkbox instead of just listing the string value
+            gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value));
+            break;
         case XtblType::Flags:
             //Todo: Use list of checkboxes for each flag
-            //break;
+            if (ImGui::TreeNode(name.c_str()))
+            {
+                if (desc.Description != "")
+                    gui::TooltipOnPrevious(desc.Description, nullptr);
+                for (auto& subnode : node->Subnodes)
+                {
+                    //Try to get <Name></Name> value
+                    string subnodeName = subnode->Name;
+                    auto nameValue = subnode->GetSubnodeValueString("Name");
+                    if (nameValue)
+                        subnodeName = nameValue.value();
+
+                    DrawXtblNode(state, subnode, xtbl, false, subnodeName.c_str());
+                }
+
+                ImGui::TreePop();
+            }
+            break;
         case XtblType::List:
             //Draw subnodes
             if (ImGui::TreeNode(name.c_str()))
             {
-                gui::TooltipOnPrevious(desc.Description, nullptr);
+                if (desc.Description != "")
+                    gui::TooltipOnPrevious(desc.Description, nullptr);
                 for (auto& subnode : node->Subnodes)
                 {
                     //Try to get <Name></Name> value
@@ -204,7 +227,8 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
             //Draw subnodes
             if (ImGui::TreeNode(name.c_str()))
             {
-                gui::TooltipOnPrevious(desc.Description, nullptr);
+                if(desc.Description != "")
+                    gui::TooltipOnPrevious(desc.Description, nullptr);
                 for (auto& subnode : node->Subnodes)
                     DrawXtblNode(state, subnode, xtbl);
 
@@ -216,7 +240,7 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
         case XtblType::None:
         case XtblType::Reference:
             //Todo: Read values from other xtbl and list them 
-            gui::LabelAndValue(name + ":", std::get<string>(node->Value) + " (reference)");
+            gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value) + " (reference)");
             break;
         case XtblType::TableDescription:
         default:
@@ -224,7 +248,8 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
             {
                 if (ImGui::TreeNode(name.c_str()))
                 {
-                    gui::TooltipOnPrevious(desc.Description, nullptr);
+                    if (desc.Description != "")
+                        gui::TooltipOnPrevious(desc.Description, nullptr);
                     for (auto& subnode : node->Subnodes)
                         DrawXtblNode(state, subnode, xtbl);
 
@@ -233,15 +258,16 @@ void XtblDocument::DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<X
             }
             else
             {
-                gui::LabelAndValue(name + ":", std::get<string>(node->Value));
+                gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value));
             }
             break;
         }
-        gui::TooltipOnPrevious(desc.Description, nullptr);
+        if (desc.Description != "")
+            gui::TooltipOnPrevious(desc.Description, nullptr);
         ImGui::PopItemWidth();
     }
-    else if(name != "_Editor")
+    else if(nameNoId != "_Editor")
     {
-        gui::LabelAndValue(name + ":", std::get<string>(node->Value));
+        gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value));
     }
 }
