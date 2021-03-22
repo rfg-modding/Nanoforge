@@ -14,15 +14,15 @@ public:
     void Update(GuiState* state) override;
 
 private:
-    void DrawXtblCategory(GuiState* state, Handle<XtblCategory> category, bool openByDefault = false);
-    void DrawXtblNodeEntry(GuiState* state, Handle<XtblNode> node); //Draw xtbl node in entry list
-    void DrawXtblNode(GuiState* state, Handle<XtblNode> node, Handle<XtblFile> xtbl, bool rootNode = false, const char* nameOverride = nullptr);
+    void DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault = false);
+    void DrawXtblNodeEntry(Handle<XtblNode> node); //Draw xtbl node in entry list
+    void DrawXtblNode(Handle<XtblNode> node, const char* nameOverride = nullptr);
 
-    string Filename;
-    string ParentName;
-    string VppName;
-    bool InContainer;
+    string filename_;
+    string parentName_;
+    string vppName_;
+    bool inContainer_;
 
-    Handle<XtblFile> Xtbl = nullptr;
+    Handle<XtblFile> xtbl_ = nullptr;
     Handle<XtblNode> selectedNode_ = nullptr;
 };
