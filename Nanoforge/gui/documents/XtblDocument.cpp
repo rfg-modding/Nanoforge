@@ -139,7 +139,11 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
     else
         node = xtbl_->GetSubnode(descPath.substr(descPath.find_first_of('/') + 1), selectedNode_);
 
-    bool nodePresent = node != nullptr;
+    bool nodePresent = true;
+    if (node == nullptr)
+        nodePresent = false;
+    else if (!node->Enabled)
+        nodePresent = false;
 
     if (!desc->Required)
     {
@@ -150,6 +154,10 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
             {
                 xtbl_->EnsureEntryExists(desc, selectedNode_);
                 return;
+            }
+            else
+            {
+                node->Enabled = false;
             }
         }
         ImGui::SameLine();

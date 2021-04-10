@@ -186,7 +186,10 @@ Handle<XtblNode> XtblFile::GetRootNodeByName(const string& name)
 
 void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<XtblNode> node)
 {
-    auto subnode = CreateHandle<XtblNode>();
+    string descPath = desc->GetPath();
+    descPath = descPath.substr(descPath.find_first_of('/') + 1);
+    auto maybeSubnode = GetSubnode(descPath, node);
+    auto subnode = maybeSubnode ? maybeSubnode : CreateHandle<XtblNode>();
     subnode->Name = desc->Name;
     subnode->Type = desc->Type;
     subnode->Parent = node;
