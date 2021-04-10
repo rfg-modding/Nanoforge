@@ -9,7 +9,12 @@
 #include <variant>
 
 class XtblFile;
-using XtblValue = std::variant<string, i32, f32, Vec3, u32>;
+struct XtblFlag
+{
+    string Name;
+    bool Value;
+};
+using XtblValue = std::variant<string, i32, f32, Vec3, u32, XtblFlag>;
 
 //Represent an xml element in an xtbl file
 class XtblNode

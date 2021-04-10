@@ -197,23 +197,18 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
     case XtblType::ComboElement:
         //Todo: Determine which type is being used and list proper ui elements. This type is like a union in c/c++
         //break;
-    case XtblType::Flag: //Todo: Use checkbox instead of just listing the string value
+    case XtblType::Flag: //Note: This shouldn't ever be reached since the XtblType::Flags case should handle this
         gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value));
         break;
     case XtblType::Flags:
-        //Todo: Use list of checkboxes for each flag
         if (ImGui::TreeNode(name.c_str()))
         {
             if (desc->Description != "")
                 gui::TooltipOnPrevious(desc->Description, nullptr);
             for (auto& subnode : node->Subnodes)
             {
-                //Gets parent node name and current node name in path
-                string subdescPath = subnode->GetPath();
-                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
-                Handle<XtblDescription> subdesc = xtbl_->GetValueDescription(subdescPath, desc);
-                if (subdesc)
-                    DrawXtblEntry(subdesc, subdesc->DisplayName.c_str(), subnode);
+                auto& value = std::get<XtblFlag>(subnode->Value);
+                ImGui::Checkbox(value.Name.c_str(), &value.Value);
             }
 
             ImGui::TreePop();
@@ -245,7 +240,7 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
             ImGui::TreePop();
         }
         break;
-    case XtblType::Grid:
+    case XtblType::Grid: //Todo: Add support for this type
         //List of elements
         //break;
     case XtblType::Element:

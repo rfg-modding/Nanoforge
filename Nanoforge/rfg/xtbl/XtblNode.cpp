@@ -21,9 +21,9 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
     {
         Type = XtblType::Flag;
         if (node->GetText())
-            Value = node->GetText();
+            Value = XtblFlag{ .Name = node->GetText(), .Value = true };
         else
-            Value = ""; //Todo: Change Value to a bool and store flag name in another variable
+            Value = XtblFlag{ .Name = "", .Value = true };
     }
     else if (desc)
     {
@@ -111,6 +111,50 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
 
             //These types require the subnodes to be parsed
         case XtblType::Flags: //Bitflags
+            {
+                //Parse flags that are present
+                auto* flag = node->FirstChildElement("Flag");
+                while (flag)
+                {
+                    Handle<XtblNode> flagSubnode = CreateHandle<XtblNode>();
+                    flagSubnode->Parent = self;
+                    if (flagSubnode->Parse(flag, xtbl, flagSubnode))
+                        Subnodes.push_back(flagSubnode);
+
+                    flag = flag->NextSiblingElement();
+                }
+
+                //Ensure there's a node for every flag listed in <TableDescription>
+                for (auto& flagDesc : desc->Flags)
+                {
+                    //Check if flag is present
+                    Handle<XtblNode> flagNode = nullptr;
+                    for (auto& flag : Subnodes)
+                    {
+                        auto value = std::get<XtblFlag>(flag->Value);
+                        if (value.Name == flagDesc)
+                        {
+                            flagNode = flag;
+                            break;
+                        }
+                    }
+
+                    //If flag isn't present create a subnode for it
+                    if (!flagNode)
+                    {
+                        auto subnode = CreateHandle<XtblNode>();
+                        subnode->Name = "Flag";
+                        subnode->Type = XtblType::Flag;
+                        subnode->Parent = self;
+                        subnode->CategorySet = false;
+                        subnode->HasDescription = true;
+                        subnode->Enabled = true;
+                        subnode->Value = XtblFlag{ .Name = flagDesc, .Value = false };
+                        Subnodes.push_back(subnode);
+                    }
+                }
+            }
+            break;
         case XtblType::List: //List of a single value (e.g. string, float, int)
         case XtblType::Element:
         case XtblType::TableDescription:
