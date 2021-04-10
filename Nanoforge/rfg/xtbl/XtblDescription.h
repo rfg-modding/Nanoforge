@@ -28,12 +28,13 @@ public:
     XtblType Type;
     string DisplayName;
     string Description;
-    bool Required;
-    bool Unique;
+    bool Required = true;
+    bool Unique = false;
     string Default;
     i32 MaxCount;
 
-    std::vector<XtblDescription> Subnodes;
+    Handle<XtblDescription> Parent = nullptr;
+    std::vector<Handle<XtblDescription>> Subnodes;
     std::vector<string> Choices;
     std::vector<string> Flags;
     XtblReference Reference;
@@ -45,7 +46,7 @@ public:
     i32 MaxChildren;
     i32 NumDisplayRows;
 
-    bool Parse(tinyxml2::XMLElement* node)
+    bool Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> self)
     {
         //First read node value (the string between the <>), <Name>, and <Type>
         auto* name = node->FirstChildElement("Name");
@@ -73,6 +74,12 @@ public:
             return false;
         }
 
+        auto* displayName = node->FirstChildElement("Display_Name");
+        if (displayName)
+            DisplayName = displayName->GetText();
+        else
+            DisplayName = Name;
+
         //If Type == TableDescription, then this is the root node. Parse all subnodes. Doesn't have other values
         if (Type == XtblType::TableDescription || Type == XtblType::List)
         {
@@ -80,10 +87,11 @@ public:
             auto* nextNode = node->FirstChildElement("Element");
             while (nextNode)
             {
-                XtblDescription nextDesc;
-                if (!nextDesc.Parse(nextNode))
+                Handle<XtblDescription> nextDesc = CreateHandle<XtblDescription>();
+                if (!nextDesc->Parse(nextNode, nextDesc))
                     return false;
 
+                nextDesc->Parent = self;
                 Subnodes.push_back(nextDesc);
                 nextNode = nextNode->NextSiblingElement("Element");
             }
@@ -107,10 +115,6 @@ public:
             auto* reference = node->FirstChildElement("Reference");
 
             //Parse values
-            if (displayName)
-                DisplayName = displayName->GetText();
-            else
-                DisplayName = Name;
             if (description)
                 Description = description->GetText();
             if (required)
@@ -162,10 +166,11 @@ public:
                 auto* nextNode = node->FirstChildElement("Element");
                 while (nextNode)
                 {
-                    XtblDescription nextDesc;
-                    if (!nextDesc.Parse(nextNode))
+                    Handle<XtblDescription> nextDesc = CreateHandle<XtblDescription>();
+                    if (!nextDesc->Parse(nextNode, nextDesc))
                         return false;
 
+                    nextDesc->Parent = self;
                     Subnodes.push_back(nextDesc);
                     nextNode = nextNode->NextSiblingElement("Element");
                 }
@@ -191,21 +196,12 @@ public:
         return true;
     }
 
-    //Get description of xtbl value
-    std::optional<XtblDescription> GetValueDescription(const string& valuePath)
+    //Returns the path of the value. This is this nodes name prepended with the names of it's parents
+    string GetPath()
     {
-        //Split path into components
-        std::vector<s_view> split = String::SplitString(valuePath, "/");
-
-        //If path only has one component and matches current description then return this
-        if (split.size() == 1 && String::EqualIgnoreCase(Name, split[0]))
-            return *this;
-
-        //Otherwise loop through subnodes and try to find next component of the path
-        for (auto& subnode : Subnodes)
-            if (String::EqualIgnoreCase(subnode.Name, split[0]))
-                return subnode.GetValueDescription(valuePath.substr(valuePath.find_first_of("/") + 1));
-
-        return {};
+        if (Parent)
+            return Parent->GetPath() + "/" + Name;
+        else
+            return Name;
     }
 };

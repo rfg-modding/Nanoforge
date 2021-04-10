@@ -66,13 +66,15 @@ void XtblDocument::Update(GuiState* state)
     }
 
     //Draw the selected entry values in column 1 (to the right of the entry list)
-    ImGui::NextColumn();
     ImGui::SetCursorPosY(baseY);
+    ImGui::NextColumn();
     if (xtbl_->Entries.size() != 0 && selectedNode_ && ImGui::BeginChild("##EntryView"))
     {
-        for (auto& subnode : selectedNode_->Subnodes)
-            DrawXtblNode(subnode);
-
+        //Todo: Report/log elements without documentation so we know to supplement it
+        //Draw subnodes with descriptions so empty optional elements are visible
+        for (auto& subnode : xtbl_->TableDescription->Subnodes)
+            DrawXtblEntry(subnode);
+    
         ImGui::EndChild();
     }
 
@@ -124,26 +126,44 @@ void XtblDocument::DrawXtblNodeEntry(Handle<XtblNode> node)
     }
 }
 
-void XtblDocument::DrawXtblNode(Handle<XtblNode> node, const char* nameOverride)
+void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameOverride, Handle<XtblNode> nodeOverride)
 {
-    //Get name
-    string nameNoId = nameOverride ? nameOverride : node->Name; //Store copy of name without unique ID appended. A few types use ImGui elements that don't support ##IDs
-    string name = nameNoId + fmt::format("##{}", (u64)node.get()); //Append unique ID. Uses address of node since that value is unique and unchanging.
-    if (nameNoId == "_Editor") //Don't draw editor settings block. Usually just has category used by entry list on the sidebar
-        return;
+    string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
+    string path(desc->GetPath());
+    string checkboxId = fmt::format("##{}", (u64)desc.get());
+    string descPath = desc->GetPath();
 
-    //Get description. Use default draw method if no description is present
-    auto maybeDesc = xtbl_->GetValueDescription(node->GetPath());
-    if (!maybeDesc)
+    Handle<XtblNode> node = nullptr;
+    if (nodeOverride)
+        node = nodeOverride;
+    else
+        node = xtbl_->GetSubnode(descPath.substr(descPath.find_first_of('/') + 1), selectedNode_);
+
+    bool nodePresent = node != nullptr;
+
+    if (!desc->Required)
     {
-        gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value));
+        if (ImGui::Checkbox(checkboxId.c_str(), &nodePresent))
+        {
+            //When checkbox is set to true ensure elements exist in node
+            if (nodePresent)
+            {
+                xtbl_->EnsureEntryExists(desc, selectedNode_);
+                return;
+            }
+        }
+        ImGui::SameLine();
+    }
+    if (!nodePresent)
+    {
+        ImGui::Text(nameNoId);
         return;
     }
+    string name = nameNoId + fmt::format("##{}", (u64)node.get());
 
     //Draw node
     ImGui::PushItemWidth(240.0f);
-    XtblDescription desc = maybeDesc.value();
-    switch (desc.Type)
+    switch (desc->Type)
     {
     case XtblType::String:
         ImGui::InputText(name, std::get<string>(node->Value));
@@ -176,17 +196,16 @@ void XtblDocument::DrawXtblNode(Handle<XtblNode> node, const char* nameOverride)
         //Todo: Use list of checkboxes for each flag
         if (ImGui::TreeNode(name.c_str()))
         {
-            if (desc.Description != "")
-                gui::TooltipOnPrevious(desc.Description, nullptr);
+            if (desc->Description != "")
+                gui::TooltipOnPrevious(desc->Description, nullptr);
             for (auto& subnode : node->Subnodes)
             {
-                //Try to get <Name></Name> value
-                string subnodeName = subnode->Name;
-                auto nameValue = subnode->GetSubnodeValueString("Name");
-                if (nameValue)
-                    subnodeName = nameValue.value();
-
-                DrawXtblNode(subnode, subnodeName.c_str());
+                //Gets parent node name and current node name in path
+                string subdescPath = subnode->GetPath();
+                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
+                Handle<XtblDescription> subdesc = xtbl_->GetValueDescription(subdescPath, desc);
+                if (subdesc)
+                    DrawXtblEntry(subdesc, subdesc->DisplayName.c_str(), subnode);
             }
 
             ImGui::TreePop();
@@ -196,17 +215,23 @@ void XtblDocument::DrawXtblNode(Handle<XtblNode> node, const char* nameOverride)
         //Draw subnodes
         if (ImGui::TreeNode(name.c_str()))
         {
-            if (desc.Description != "")
-                gui::TooltipOnPrevious(desc.Description, nullptr);
+            if (desc->Description != "")
+                gui::TooltipOnPrevious(desc->Description, nullptr);
             for (auto& subnode : node->Subnodes)
             {
+                //auto& subnode = node->Subnodes[0];
                 //Try to get <Name></Name> value
                 string subnodeName = subnode->Name;
                 auto nameValue = subnode->GetSubnodeValueString("Name");
                 if (nameValue)
                     subnodeName = nameValue.value();
 
-                DrawXtblNode(subnode, subnodeName.c_str());
+                //Gets parent node name and current node name in path
+                string subdescPath = subnode->GetPath();
+                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
+                Handle<XtblDescription> subdesc = xtbl_->GetValueDescription(subdescPath, desc);
+                if (subdesc)
+                    DrawXtblEntry(subdesc, subnodeName.c_str(), subnode);
             }
 
             ImGui::TreePop();
@@ -219,10 +244,17 @@ void XtblDocument::DrawXtblNode(Handle<XtblNode> node, const char* nameOverride)
         //Draw subnodes
         if (ImGui::TreeNode(name.c_str()))
         {
-            if (desc.Description != "")
-                gui::TooltipOnPrevious(desc.Description, nullptr);
+            if (desc->Description != "")
+                gui::TooltipOnPrevious(desc->Description, nullptr);
             for (auto& subnode : node->Subnodes)
-                DrawXtblNode(subnode);
+            {
+                //Gets parent node name and current node name in path
+                string subdescPath = subnode->GetPath();
+                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
+                Handle<XtblDescription> subdesc = xtbl_->GetValueDescription(subdescPath, desc);
+                if (subdesc)
+                    DrawXtblEntry(subdesc, subdesc->DisplayName.c_str(), subnode);
+            }
 
             ImGui::TreePop();
         }
@@ -240,10 +272,17 @@ void XtblDocument::DrawXtblNode(Handle<XtblNode> node, const char* nameOverride)
         {
             if (ImGui::TreeNode(name.c_str()))
             {
-                if (desc.Description != "")
-                    gui::TooltipOnPrevious(desc.Description, nullptr);
+                if (desc->Description != "")
+                    gui::TooltipOnPrevious(desc->Description, nullptr);
                 for (auto& subnode : node->Subnodes)
-                    DrawXtblNode(subnode);
+                {
+                //Gets parent node name and current node name in path
+                string subdescPath = subnode->GetPath();
+                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
+                Handle<XtblDescription> subdesc = xtbl_->GetValueDescription(subdescPath, desc);
+                    if (subdesc)
+                        DrawXtblEntry(subdesc, subdesc->DisplayName.c_str(), subnode);
+                }
 
                 ImGui::TreePop();
             }
@@ -256,8 +295,8 @@ void XtblDocument::DrawXtblNode(Handle<XtblNode> node, const char* nameOverride)
     }
 
     //Draw tooltip if not empty
-    if (desc.Description != "")
-        gui::TooltipOnPrevious(desc.Description, nullptr);
+    if (desc->Description != "")
+        gui::TooltipOnPrevious(desc->Description, nullptr);
 
     ImGui::PopItemWidth();
 }

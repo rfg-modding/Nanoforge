@@ -7,7 +7,7 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
     //Each XtblNode has a Name and Value. E.g. <Unique_ID>110</Unique_ID>. Value = 110 and Name = Unique_ID
     Name = node->Value();
 
-    std::optional<XtblDescription> maybeDesc = xtbl.GetValueDescription(GetPath());
+    Handle<XtblDescription> desc = xtbl.GetValueDescription(GetPath());
     if (Name == "_Editor")
     {
         //Set category of parent node if one is specified
@@ -25,10 +25,9 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
         else
             Value = ""; //Todo: Change Value to a bool and store flag name in another variable
     }
-    else if (maybeDesc)
+    else if (desc)
     {
-        XtblDescription desc = maybeDesc.value();
-        Type = desc.Type;
+        Type = desc->Type;
         switch (Type)
         {
         case XtblType::String:
@@ -151,6 +150,7 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
         }
     }
 
+    HasDescription = xtbl.GetValueDescription(GetPath()) != nullptr;
     return true;
 }
 

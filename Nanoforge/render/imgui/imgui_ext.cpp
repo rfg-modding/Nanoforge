@@ -30,7 +30,6 @@ static int InputTextCallback(ImGuiInputTextCallbackData* data)
 
 bool ImGui::InputText(const std::string& label, std::string& str, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
 {
-    IM_ASSERT((flags & ImGuiInputTextFlags_CallbackResize) == 0);
     flags |= ImGuiInputTextFlags_CallbackResize;
 
     InputTextCallback_UserData cb_user_data;
@@ -42,7 +41,6 @@ bool ImGui::InputText(const std::string& label, std::string& str, ImGuiInputText
 
 bool ImGui::InputText(const char* label, std::string* str, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
 {
-    IM_ASSERT((flags & ImGuiInputTextFlags_CallbackResize) == 0);
     flags |= ImGuiInputTextFlags_CallbackResize;
 
     InputTextCallback_UserData cb_user_data;
@@ -54,7 +52,6 @@ bool ImGui::InputText(const char* label, std::string* str, ImGuiInputTextFlags f
 
 bool ImGui::InputTextMultiline(const char* label, std::string* str, const ImVec2& size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
 {
-    IM_ASSERT((flags & ImGuiInputTextFlags_CallbackResize) == 0);
     flags |= ImGuiInputTextFlags_CallbackResize;
 
     InputTextCallback_UserData cb_user_data;
