@@ -189,7 +189,16 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
         ImGui::ColorPicker3(name.c_str(), (f32*)&std::get<Vec3>(node->Value));
         break;
     case XtblType::Selection:
-        ImGui::InputText(name, std::get<string>(node->Value)); //Todo: Replace with combo listing all values of Choice vector
+        if (ImGui::BeginCombo(nameNoId.c_str(), std::get<string>(node->Value).c_str()))
+        {
+            for (auto& choice : desc->Choices)
+            {
+                bool selected = choice == std::get<string>(node->Value);
+                if (ImGui::Selectable(choice.c_str(), &selected))
+                    node->Value = choice;
+            }
+            ImGui::EndCombo();
+        }
         break;
     case XtblType::Filename:
         ImGui::InputText(name, std::get<string>(node->Value)); //Todo: Should validate extension and try to find list of valid files
@@ -197,6 +206,13 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
     case XtblType::ComboElement:
         //Todo: Determine which type is being used and list proper ui elements. This type is like a union in c/c++
         //break;
+    case XtblType::Grid: //Todo: Add support for this type
+        //List of elements
+        //break;
+    case XtblType::Reference:
+        //Todo: Read values from other xtbl and list them 
+        gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value) + " (reference)");
+        break;
     case XtblType::Flag: //Note: This shouldn't ever be reached since the XtblType::Flags case should handle this
         gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value));
         break;
@@ -240,9 +256,6 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
             ImGui::TreePop();
         }
         break;
-    case XtblType::Grid: //Todo: Add support for this type
-        //List of elements
-        //break;
     case XtblType::Element:
         //Draw subnodes
         if (ImGui::TreeNode(name.c_str()))
@@ -262,13 +275,7 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
             ImGui::TreePop();
         }
         break;
-
-
     case XtblType::None:
-    case XtblType::Reference:
-        //Todo: Read values from other xtbl and list them 
-        gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value) + " (reference)");
-        break;
     case XtblType::TableDescription:
     default:
         if (node->HasSubnodes())

@@ -215,6 +215,8 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<XtblNode> 
         subnode->Value = Vec3(0.0f, 0.0f, 0.0f);
         break;
     case XtblType::Selection:
+        subnode->Value = desc->DefaultChoice;
+        break;
     case XtblType::Reference:
     case XtblType::Grid:
     case XtblType::ComboElement:

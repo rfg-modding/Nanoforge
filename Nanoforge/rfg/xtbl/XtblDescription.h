@@ -36,6 +36,7 @@ public:
     Handle<XtblDescription> Parent = nullptr;
     std::vector<Handle<XtblDescription>> Subnodes;
     std::vector<string> Choices;
+    string DefaultChoice;
     std::vector<string> Flags;
     XtblReference Reference;
     string Extension;
@@ -178,11 +179,16 @@ public:
 
             //Read choices if present
             auto* nextChoice = node->FirstChildElement("Choice");
+            //Get default choice
+            tinyxml2::XMLElement* defaultChoice = nullptr;
+            if (nextChoice)
+                defaultChoice = node->FirstChildElement("Default");
             while (nextChoice)
             {
                 Choices.push_back(nextChoice->GetText());
                 nextChoice = nextChoice->NextSiblingElement("Choice");
             }
+            DefaultChoice = defaultChoice ? defaultChoice->GetText() : (Choices.size() > 0 ? Choices[0] : "");
 
             //Read flags if present
             auto* nextFlag = node->FirstChildElement("Flag");
