@@ -101,8 +101,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
             auto* refFile = reference->FirstChildElement("File");
             auto* refType = reference->FirstChildElement("Type");
             auto* refOpenSeparate = reference->FirstChildElement("OpenSeparate");
-
-            if (!refFile || !refType || !refOpenSeparate)
+            if (!refFile || !refType)
             {
                 Log->error("Invalid <Reference> detected. Doesn't have all required data.");
                 return false;
@@ -113,7 +112,11 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
             Reference->File = refFile->GetText();
             Reference->File = Reference->File.substr(Reference->File.find_first_of('\\') + 1); //Strip additional paths from filename. Likely remnant of dev tools working with loose files in folders
             Reference->Path = refType->GetText();
-            Reference->OpenSeparate = String::EqualIgnoreCase(string(refOpenSeparate->GetText()), "True") ? true : false;
+            if (refOpenSeparate)
+                Reference->OpenSeparate = String::EqualIgnoreCase(string(refOpenSeparate->GetText()), "True") ? true : false;
+            else
+                Reference->OpenSeparate = false;
+
             //Replace . with / in reference variable path
             for (u32 i = 0; i < Reference->Path.size(); i++)
                 if (Reference->Path[i] == '.')
@@ -121,7 +124,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
         }
 
         //If type is Element it means it has subnodes
-        if (Type == XtblType::Element)
+        if (Type == XtblType::Element || Type == XtblType::Grid)
         {
             //Parse all <Element> nodes inside current node
             auto* nextNode = node->FirstChildElement("Element");

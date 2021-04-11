@@ -33,6 +33,7 @@ public:
     bool HasSubnodes() { return Subnodes.size() != 0; }
     bool Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode> self);
     std::optional<string> GetSubnodeValueString(const string& subnodeName);
+    Handle<XtblNode> GetSubnode(const string& subnodeName);
     //Returns the path of the value. This is this nodes name prepended with the names of it's parents
     string GetPath();
 };

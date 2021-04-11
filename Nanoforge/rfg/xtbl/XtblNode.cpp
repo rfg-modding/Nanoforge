@@ -94,7 +94,6 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
             }
             break;
         case XtblType::Reference: //References data in another xtbl
-            //Todo: Support loading data from other xtbls and jumping to specific xtbls and entries that are referenced
             {
                 if (node->GetText())
                     Value = node->GetText();
@@ -103,8 +102,24 @@ bool XtblNode::Parse(tinyxml2::XMLElement* node, XtblFile& xtbl, Handle<XtblNode
             }
             break;
         case XtblType::Grid: //List of elements
-            //Todo: Implement
-            //break;
+            if (!node->FirstChildElement() && node->GetText())
+            {
+                Value = node->GetText();
+            }
+            else //Recursively parse subnodes if there are any
+            {
+                auto* subnode = node->FirstChildElement();
+                while (subnode)
+                {
+                    Handle<XtblNode> xtblSubnode = CreateHandle<XtblNode>();
+                    xtblSubnode->Parent = self;
+                    if (xtblSubnode->Parse(subnode, xtbl, xtblSubnode))
+                        Subnodes.push_back(xtblSubnode);
+
+                    subnode = subnode->NextSiblingElement();
+                }
+            }
+            break;
         case XtblType::ComboElement: //This is similar to a union in c/c++
             //Todo: Implement
             //break;
@@ -210,6 +225,16 @@ std::optional<string> XtblNode::GetSubnodeValueString(const string& subnodeName)
             return std::get<string>(subnode->Value);
     }
     return {};
+}
+
+Handle<XtblNode> XtblNode::GetSubnode(const string& subnodeName)
+{
+    for (auto& subnode : Subnodes)
+    {
+        if (subnode->Name == subnodeName)
+            return subnode;
+    }
+    return nullptr;
 }
 
 string XtblNode::GetPath()

@@ -220,14 +220,41 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
             ImGui::EndCombo();
         }
         break;
-    case XtblType::Filename: //Todo: Add support for this type
-        ImGui::InputText(name, std::get<string>(node->Value)); //Todo: Should validate extension and try to find list of valid files
+    case XtblType::Filename:
+        //Todo: Get a list of files with correct format for this node and list those instead of having the player type names out
+        ImGui::InputText(name, std::get<string>(node->Value)); 
         break;
-    case XtblType::ComboElement: //Todo: Add support for this type
-        //Todo: Determine which type is being used and list proper ui elements. This type is like a union in c/c++
+    case XtblType::ComboElement: //Todo: Add support for this type. It's like a c/c++ union
         break;
-    case XtblType::Grid: //Todo: Add support for this type
-        //Table of elements
+    case XtblType::Grid: //Table of values
+        {
+            ImGui::Text("%s:", node->Name.c_str());
+            if (ImGui::BeginTable(name.c_str(), desc->Subnodes[0]->Subnodes.size(), ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter 
+                | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable))
+            {
+                //Setup columns
+                ImGui::TableSetupScrollFreeze(0, 1);
+                for (auto& subdesc : desc->Subnodes[0]->Subnodes)
+                    ImGui::TableSetupColumn(subdesc->Name.c_str(), ImGuiTableColumnFlags_None, 240.0f);
+                
+                //Fill table data
+                ImGui::TableHeadersRow();
+                for (auto& subnode : node->Subnodes)
+                {
+                    ImGui::TableNextRow();
+                    for (auto& subdesc : desc->Subnodes[0]->Subnodes)
+                    {
+                        ImGui::TableNextColumn();
+                        string rowName = subdesc->Name;
+                        auto rowSubnode = subnode->GetSubnode(rowName);
+                        string rowId = fmt::format("##{}", (u64)rowSubnode.get());
+                        DrawXtblEntry(subdesc, rowId.c_str(), rowSubnode);
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+        }
         break;
     case XtblType::Reference: //Variable that references another xtbl
         {
