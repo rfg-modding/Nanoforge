@@ -4,6 +4,7 @@
 #include "rfg/xtbl/Xtbl.h"
 #include <vector>
 
+class XtblManager;
 
 class XtblDocument final : public IDocument
 {
@@ -25,4 +26,5 @@ private:
 
     Handle<XtblFile> xtbl_ = nullptr;
     Handle<XtblNode> selectedNode_ = nullptr;
+    XtblManager* xtblManager_ = nullptr;
 };

@@ -38,7 +38,7 @@ bool XtblFile::Parse(const string& path)
         Log->error("Parsing failed for {}. <TableDescription> block not found.", Path::GetFileName(path));
         return false;
     }
-    if (!TableDescription->Parse(description, TableDescription))
+    if (!TableDescription->Parse(description, TableDescription, *this))
     {
         Log->error("Parsing failed for {} <TableDescription> block.", Path::GetFileName(path));
         return false;

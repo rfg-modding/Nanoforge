@@ -14,14 +14,19 @@ bool XtblManager::ParseXtbl(const string& vppName, const string& xtblName)
     if (GetXtbl(vppName, xtblName))
         return true;
 
-    //Get or create xtbl group
+    //Get or create xtbl group + create new XtblFile
     Handle<XtblGroup> group = AddGroup(vppName);
-
-    //Get xtbl path and parse file
     Handle<XtblFile> file = CreateHandle<XtblFile>();
     file->VppName = vppName;
     file->Name = xtblName;
-    string xtblPath = packfileVFS_->GetFile(vppName, xtblName);
+    
+    //Parsing fails if xtbl doesn't exist
+    auto maybeXtblPath = packfileVFS_->GetFilePath(vppName, xtblName);
+    if (!maybeXtblPath)
+        return false;
+
+    //Parse
+    string xtblPath = maybeXtblPath.value();
     bool parseResult = file->Parse(xtblPath);
 
     //If parse successful add xtbl to group for it's vpp, else log an error message
@@ -34,33 +39,45 @@ bool XtblManager::ParseXtbl(const string& vppName, const string& xtblName)
     return parseResult;
 }
 
-std::optional<Handle<XtblFile>> XtblManager::GetXtbl(const string& vppName, const string& xtblName)
+Handle<XtblFile> XtblManager::GetXtbl(const string& vppName, const string& xtblName)
 {
     auto group = GetGroup(vppName);
     if (!group)
-        return {};
+        return nullptr;
 
-    for (auto& xtbl : group.value()->Files)
+    for (auto& xtbl : group->Files)
         if (xtbl->Name == xtblName)
             return xtbl;
 
-    return {};
+    //Xtbl hasn't been parsed. Parse it and try to get it again. Will return nullptr if there's a parsing error.
+    return nullptr;
 }
 
-std::optional<Handle<XtblManager::XtblGroup>> XtblManager::GetGroup(const string& vppName)
+Handle<XtblFile> XtblManager::GetOrCreateXtbl(const string& vppName, const string& xtblName)
+{
+    auto group = GetGroup(vppName);
+    if (!group)
+        group = AddGroup(vppName);
+
+    for (auto& xtbl : group->Files)
+        if (xtbl->Name == xtblName)
+            return xtbl;
+
+    //Xtbl hasn't been parsed. Parse it and try to get it again. Will return nullptr if there's a parsing error.
+    return ParseXtbl(vppName, xtblName) ? GetXtbl(vppName, xtblName) : nullptr;
+}
+
+Handle<XtblManager::XtblGroup> XtblManager::GetGroup(const string& vppName)
 {
     for (auto& group : groups_)
         if (group->VppName == vppName)
             return group;
 
-    return {};
+    return nullptr;
 }
 
 Handle<XtblManager::XtblGroup> XtblManager::AddGroup(const string& vppName)
 {
     auto group = GetGroup(vppName);
-    if (group)
-        return group.value();
-
-    return groups_.emplace_back(CreateHandle<XtblManager::XtblGroup>(vppName, std::vector<Handle<XtblFile>>{}));
+    return group ? group : groups_.emplace_back(CreateHandle<XtblManager::XtblGroup>(vppName, std::vector<Handle<XtblFile>>{}));
 }

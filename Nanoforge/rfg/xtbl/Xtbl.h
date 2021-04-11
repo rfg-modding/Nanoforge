@@ -49,4 +49,6 @@ public:
     Handle<XtblDescription> TableDescription = CreateHandle<XtblDescription>();
     //Root category
     Handle<XtblCategory> RootCategory = CreateHandle<XtblCategory>("Entries");
+    //References to other xtbl files
+    std::vector<Handle<XtblReference>> References;
 };

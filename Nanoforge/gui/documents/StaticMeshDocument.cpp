@@ -349,12 +349,31 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
 
     //Get path to cpu file and gpu file in cache
-    CpuFilePath = InContainer ?
-        state->PackfileVFS->GetFile(VppName, ParentName, Filename) :
-        state->PackfileVFS->GetFile(VppName, Filename);
-    GpuFilePath = InContainer ?
-        state->PackfileVFS->GetFile(VppName, ParentName, gpuFileName) :
-        state->PackfileVFS->GetFile(VppName, gpuFileName);
+    auto maybeCpuFilePath = InContainer ?
+        state->PackfileVFS->GetFilePath(VppName, ParentName, Filename) :
+        state->PackfileVFS->GetFilePath(VppName, Filename);
+    auto maybeGpuFilePath = InContainer ?
+        state->PackfileVFS->GetFilePath(VppName, ParentName, gpuFileName) :
+        state->PackfileVFS->GetFilePath(VppName, gpuFileName);
+
+    //Error handling for when cpu or gpu file aren't found
+    if (!maybeCpuFilePath)
+    {
+        Log->error("Static mesh worker thread encountered error! Failed to find cpu file: \"{}\" in \"{}\"", Filename, InContainer ? VppName + "/" + ParentName : VppName);
+        WorkerStatusString = "Error encountered. Check log.";
+        WorkerDone = true;
+        return;
+    }
+    if (!maybeGpuFilePath)
+    {
+        Log->error("Static mesh worker thread encountered error! Failed to find gpu file: \"{}\" in \"{}\"", gpuFileName, InContainer ? VppName + "/" + ParentName : VppName);
+        WorkerStatusString = "Error encountered. Check log.";
+        WorkerDone = true;
+        return;
+    }
+
+    CpuFilePath = maybeCpuFilePath.value();
+    GpuFilePath = maybeGpuFilePath.value();
 
     //Read cpu file
     BinaryReader cpuFileReader(CpuFilePath);
@@ -650,10 +669,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::FindTexture(GuiState* state, co
 
         //Return high res variant if it was found
         if (texture)
-        {
-            Log->info("Found high res variant of {}: {}", name, highResName);
             return texture;
-        }
     }
     //Check if the document was closed. If so, end worker thread early
     DocumentClosedCheck();
@@ -680,29 +696,32 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTexture(GuiState* state, con
     }
 
     //Then search parent vpp
-    DocumentClosedCheck(); //Exit early if document was closed
-    Packfile3* parentPackfile = state->PackfileVFS->GetPackfile(VppName);
-    if (!parentPackfile)
-        return {};
-
     DocumentClosedCheck();
-    auto parentSearchResult = GetTextureFromPackfile(state, parentPackfile, textureName); //Return regardless here since it's our last search option
+    auto parentSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile(VppName), textureName);
     if (parentSearchResult)
         return parentSearchResult;
 
-    //Last resort is to search dlc01_precache.vpp_pc since it has many textures including ones used by MP, WC, and the main campaign
-    DocumentClosedCheck(); //Exit early if document was closed
-    Packfile3* dlc01Precache = state->PackfileVFS->GetPackfile("dlc01_precache.vpp_pc");
-    if (!dlc01Precache)
-        return {};
+    //Last resort is to search dlc01_precache, terr01_l0, and terr01_l1
+    DocumentClosedCheck();
+    auto dlcPrecacheSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("dlc01_precache.vpp_pc"), textureName); 
+    if (dlcPrecacheSearchResult)
+        return dlcPrecacheSearchResult;
 
     DocumentClosedCheck();
-    return GetTextureFromPackfile(state, dlc01Precache, textureName); //Return regardless here since it's our last search option
+    auto terrL0SearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("terr01_l0.vpp_pc"), textureName);
+    if (terrL0SearchResult)
+        return terrL0SearchResult;
+
+    DocumentClosedCheck();
+    return GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("terr01_l1.vpp_pc"), textureName);
 }
 
 //Tries to find a cpeg with a subtexture with the provided name and create a Texture2D from it. Searches all cpeg/cvbm files in packfile. First checks pegs then searches in str2s
 std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState* state, Packfile3* packfile, const string& textureName, bool isStr2)
 {
+    if (!packfile)
+        return {};
+
     //First search top level cpeg/cvbm files
     for (u32 i = 0; i < packfile->Entries.size(); i++)
     {
@@ -768,13 +787,20 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* sta
     //Get gpu filename
     string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(pegName);
 
-    //Get paths to cpu file and gpu file in cache
-    string cpuFilePath = inContainer ?
-        state->PackfileVFS->GetFile(VppName, parentName, pegName) :
-        state->PackfileVFS->GetFile(VppName, pegName);
-    string gpuFilePath = inContainer ?
-        state->PackfileVFS->GetFile(VppName, parentName, gpuFilename) :
-        state->PackfileVFS->GetFile(VppName, gpuFilename);
+    //Get path to cpu file and gpu file in cache
+    auto maybeCpuFilePath = inContainer ?
+        state->PackfileVFS->GetFilePath(VppName, parentName, pegName) :
+        state->PackfileVFS->GetFilePath(VppName, pegName);
+    auto maybeGpuFilePath = inContainer ?
+        state->PackfileVFS->GetFilePath(VppName, parentName, gpuFilename) :
+        state->PackfileVFS->GetFilePath(VppName, gpuFilename);
+
+    //Error handling for when cpu or gpu file aren't found
+    if (!maybeCpuFilePath || !maybeGpuFilePath)
+        return {};
+
+    string cpuFilePath = maybeCpuFilePath.value();
+    string gpuFilePath = maybeGpuFilePath.value();
 
     //Parse peg file
     std::optional<Texture2D_Ext> out = {};

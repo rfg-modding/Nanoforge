@@ -2,10 +2,13 @@
 #include "Log.h"
 #include "render/imgui/imgui_ext.h"
 #include "gui/GuiState.h"
+#include "rfg/xtbl/XtblManager.h"
+#include "rfg/xtbl/Xtbl.h"
 
 XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer)
 {
+    xtblManager_ = state->Xtbls;
     bool result = state->Xtbls->ParseXtbl(vppName_, filename_);
     if (!result)
     {
@@ -14,15 +17,13 @@ XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, 
         return;
     }
 
-    auto optional = state->Xtbls->GetXtbl(vppName_, filename_);
-    if (!optional)
+    xtbl_ = state->Xtbls->GetXtbl(vppName_, filename_);
+    if (!xtbl_)
     {
         Log->error("Failed to get {} from XtblManager. Closing xtbl document.", filename_);
         open_ = false;
         return;
     }
-
-    xtbl_ = optional.value();
 }
 
 XtblDocument::~XtblDocument()
@@ -64,6 +65,14 @@ void XtblDocument::Update(GuiState* state)
         ImGui::PopStyleVar();
         ImGui::EndChild();
     }
+
+    //Todo: Things to do:
+    //Todo: Add button to jump to xtbl references
+    //Todo: Add support for remaining xtbl types
+    //Todo: Track xtbl changes
+    //Todo: Add xtbl packaging so you can edit xtbls in Nanoforge and generate a MM mod
+    //Todo: Add support for description addons to fill in for missing descriptions
+    //Todo: Add difference viewer for xtbl files
 
     //Draw the selected entry values in column 1 (to the right of the entry list)
     ImGui::SetCursorPosY(baseY);
@@ -200,18 +209,56 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
             ImGui::EndCombo();
         }
         break;
-    case XtblType::Filename:
+    case XtblType::Filename: //Todo: Add support for this type
         ImGui::InputText(name, std::get<string>(node->Value)); //Todo: Should validate extension and try to find list of valid files
         break;
-    case XtblType::ComboElement:
+    case XtblType::ComboElement: //Todo: Add support for this type
         //Todo: Determine which type is being used and list proper ui elements. This type is like a union in c/c++
-        //break;
+        break;
     case XtblType::Grid: //Todo: Add support for this type
-        //List of elements
-        //break;
-    case XtblType::Reference:
-        //Todo: Read values from other xtbl and list them 
-        gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value) + " (reference)");
+        //Table of elements
+        break;
+    case XtblType::Reference: //Variable that references another xtbl
+        {
+            //Get referenced xtbl
+            auto refXtbl = xtblManager_->GetOrCreateXtbl(xtbl_->VppName, desc->Reference->File);
+            auto split = String::SplitString(desc->Reference->Path, "/");
+            string variablePath = desc->Reference->Path.substr(desc->Reference->Path.find_first_of('/') + 1);
+
+            //Fill combo with valid values for node
+            if (refXtbl && ImGui::BeginCombo(nameNoId.c_str(), std::get<string>(node->Value).c_str()))
+            {
+                //Find subnodes in referenced xtbl which match reference path
+                for (auto& subnode : refXtbl->Entries)
+                {
+                    if (!String::EqualIgnoreCase(subnode->Name, split[0]))
+                        continue;
+
+                    //Get list of matching subnodes. Some files like human_team_names.xtbl use lists instead of separate elements
+                    auto variables = refXtbl->GetSubnodes(variablePath, subnode);
+                    if (variables.size() == 0)
+                        continue;
+
+                    //Add combo option for each variable
+                    for (auto& variable : variables)
+                    {
+                        if (variable->Type == XtblType::String)
+                        {
+                            string variableValue = std::get<string>(variable->Value);
+                            string& nodeValue = std::get<string>(node->Value);
+                            bool selected = variableValue == nodeValue;
+                            if (ImGui::Selectable(variableValue.c_str(), &selected))
+                                nodeValue = variableValue;
+                        }
+                        else
+                        {
+                            gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value) + " (reference) | Unsupported XtblType: " + to_string(variable->Type));
+                        }
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        }
         break;
     case XtblType::Flag: //Note: This shouldn't ever be reached since the XtblType::Flags case should handle this
         gui::LabelAndValue(nameNoId + ":", std::get<string>(node->Value));

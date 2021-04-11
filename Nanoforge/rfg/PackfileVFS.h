@@ -45,9 +45,11 @@ public:
     //packfileName: the name of the .vpp_pc file the target file is in
     //filename1: Either the target file or the str2_pc file that contains it
     //filename2: Either the target name or an empty string ""
-    string GetFile(const string& packfileName, const string& filename1, const string& filename2 = "");
-    //Adds file to global cache. Arguments follow same rules as ::GetFile()
-    void AddFileToCache(const string& packfileName, const string& filename1, const string& filename2);
+    std::optional<string> GetFilePath(const string& packfileName, const string& filename1, const string& filename2 = "");
+    //Returns if the provided file exists
+    bool Exists(const string& packfileName, const string& filename1, const string& filename2 = "");
+    //Adds file to global cache. Arguments follow same rules as ::GetFile(). Returns false if file caching fails
+    bool AddFileToCache(const string& packfileName, const string& filename1, const string& filename2);
 
     std::vector<Packfile3> packfiles_ = {};
 

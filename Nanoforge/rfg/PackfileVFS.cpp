@@ -215,16 +215,21 @@ Packfile3* PackfileVFS::GetContainer(const string& name, const string& parentNam
     return container;
 }
 
-string PackfileVFS::GetFile(const string& packfileName, const string& filename1, const string& filename2)
+std::optional<string> PackfileVFS::GetFilePath(const string& packfileName, const string& filename1, const string& filename2)
 {    
     bool inContainer = filename2 != "";
     string filePath = packfileName + "\\" + filename1;
     if (inContainer)
         filePath += "\\" + filename2;
 
+    //Fails if file doesn't exist
+    if (!Exists(packfileName, filename1, filename2))
+        return {};
+
     //If file is in project cache use that version. Otherwise operate on global cache
     if(project_ && project_->Cache.IsCached(filePath))
         return std::filesystem::absolute(project_->GetCachePath() + filePath).string();
+    
     //Cache the file if it isn't already
     if (!globalFileCache_.IsCached(filePath))
         AddFileToCache(packfileName, filename1, filename2);
@@ -232,8 +237,28 @@ string PackfileVFS::GetFile(const string& packfileName, const string& filename1,
     return std::filesystem::absolute(globalCachePath_ + filePath).string();
 }
 
-void PackfileVFS::AddFileToCache(const string& packfileName, const string& filename1, const string& filename2)
+bool PackfileVFS::Exists(const string& packfileName, const string& filename1, const string& filename2)
 {
+    //filename2 is only used for files that are inside str2_pc files
+    bool inContainer = filename2 != "";
+    Packfile3* parent = inContainer ? GetContainer(filename1, packfileName) : GetPackfile(packfileName);
+    string filePath = packfileName + "\\" + filename1;
+    if (inContainer)
+        filePath += "\\" + filename2;
+
+    for (const char* entryName : parent->EntryNames)
+        if (String::EqualIgnoreCase(entryName, inContainer ? filename2 : filename1))
+            return true;
+
+    return false;
+}
+
+bool PackfileVFS::AddFileToCache(const string& packfileName, const string& filename1, const string& filename2)
+{
+    //Stop if file doesn't exist
+    if (!Exists(packfileName, filename1, filename2))
+        return false;
+
     //filename2 is only used for files that are inside str2_pc files
     bool inContainer = filename2 != "";
     Packfile3* parent = inContainer ? GetContainer(filename1, packfileName) : GetPackfile(packfileName);
@@ -245,10 +270,14 @@ void PackfileVFS::AddFileToCache(const string& packfileName, const string& filen
     if (parent->CanExtractSingleFile())
     {
         auto bytes = inContainer ?
-            parent->ExtractSingleFile(filename2).value() :
-            parent->ExtractSingleFile(filename1).value();
-        globalFileCache_.AddFile(filePath, bytes);
-        delete[] bytes.data();
+            parent->ExtractSingleFile(filename2) :
+            parent->ExtractSingleFile(filename1);
+
+        if (bytes)
+        {
+            globalFileCache_.AddFile(filePath, bytes.value());
+            delete[] bytes.value().data();
+        }
     }
     else //Otherwise must extract all files
     {
@@ -289,6 +318,8 @@ void PackfileVFS::AddFileToCache(const string& packfileName, const string& filen
 
     if (inContainer)
         delete parent;
+    
+    return true;
 }
 
 bool PackfileVFS::CheckSearchMatch(s_view target, s_view filter, SearchType searchType)
