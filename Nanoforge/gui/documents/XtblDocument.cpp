@@ -174,6 +174,9 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
     if (!nodePresent)
     {
         ImGui::Text(nameNoId);
+        if (desc->Description != "") //Draw tooltip if not empty
+            gui::TooltipOnPrevious(desc->Description, nullptr);
+
         return;
     }
     string name = nameNoId + fmt::format("##{}", (u64)node.get());
