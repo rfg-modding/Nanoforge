@@ -186,10 +186,18 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
         ImGui::InputText(name, std::get<string>(node->Value));
         break;
     case XtblType::Int:
-        ImGui::InputInt(name.c_str(), &std::get<i32>(node->Value));
+        if(desc->Min && desc->Max)
+            ImGui::SliderInt(name.c_str(), &std::get<i32>(node->Value), (i32)desc->Min.value(), (i32)desc->Max.value());
+        else
+            ImGui::InputInt(name.c_str(), &std::get<i32>(node->Value));
+
         break;
     case XtblType::Float:
-        ImGui::InputFloat(name.c_str(), &std::get<f32>(node->Value));
+        if (desc->Min && desc->Max)
+            ImGui::SliderFloat(name.c_str(), &std::get<f32>(node->Value), desc->Min.value(), desc->Max.value());
+        else
+            ImGui::InputFloat(name.c_str(), &std::get<f32>(node->Value));
+        
         break;
     case XtblType::Vector:
         ImGui::InputFloat3(name.c_str(), (f32*)&std::get<Vec3>(node->Value));

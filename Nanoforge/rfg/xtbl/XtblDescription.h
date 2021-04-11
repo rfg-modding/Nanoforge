@@ -4,6 +4,7 @@
 #include "Common/string/String.h"
 #include <tinyxml2/tinyxml2.h>
 #include <vector>
+#include <optional>
 
 namespace tinyxml2
 {
@@ -43,8 +44,8 @@ public:
     string Extension;
     string StartingPath;
     bool ShowPreload;
-    f32 Min;
-    f32 Max;
+    std::optional<f32> Min = {};
+    std::optional<f32> Max = {};
     i32 MaxChildren;
     i32 NumDisplayRows;
 
