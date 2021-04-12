@@ -181,8 +181,10 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
     }
     string name = nameNoId + fmt::format("##{}", (u64)node.get());
 
+    //Todo: See if this can be done by implementing some IXtblNode abstract interface for each XtblType value. Would likely be much cleaner code
     //Draw node
-    ImGui::PushItemWidth(240.0f);
+    f32 nodeWidth = 240.0f;
+    ImGui::PushItemWidth(nodeWidth);
     switch (desc->Type)
     {
     case XtblType::String:
@@ -209,7 +211,7 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
         ImGui::ColorPicker3(name.c_str(), (f32*)&std::get<Vec3>(node->Value));
         break;
     case XtblType::Selection:
-        if (ImGui::BeginCombo(nameNoId.c_str(), std::get<string>(node->Value).c_str()))
+        if (ImGui::BeginCombo(name.c_str(), std::get<string>(node->Value).c_str()))
         {
             for (auto& choice : desc->Choices)
             {
@@ -224,18 +226,19 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
         //Todo: Get a list of files with correct format for this node and list those instead of having the player type names out
         ImGui::InputText(name, std::get<string>(node->Value)); 
         break;
-    case XtblType::ComboElement: //Todo: Add support for this type. It's like a c/c++ union
+    case XtblType::ComboElement:
+        //Todo: Add support for this type. It's like a c/c++ union
         break;
     case XtblType::Grid: //Table of values
         {
             ImGui::Text("%s:", node->Name.c_str());
-            if (ImGui::BeginTable(name.c_str(), desc->Subnodes[0]->Subnodes.size(), ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter 
+            if (ImGui::BeginTable(name.c_str(), desc->Subnodes[0]->Subnodes.size(), ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_BordersOuter 
                 | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable))
             {
                 //Setup columns
                 ImGui::TableSetupScrollFreeze(0, 1);
                 for (auto& subdesc : desc->Subnodes[0]->Subnodes)
-                    ImGui::TableSetupColumn(subdesc->Name.c_str(), ImGuiTableColumnFlags_None, 240.0f);
+                    ImGui::TableSetupColumn(subdesc->Name.c_str(), ImGuiTableColumnFlags_None, nodeWidth * 1.14f);
                 
                 //Fill table data
                 ImGui::TableHeadersRow();
@@ -245,10 +248,7 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
                     for (auto& subdesc : desc->Subnodes[0]->Subnodes)
                     {
                         ImGui::TableNextColumn();
-                        string rowName = subdesc->Name;
-                        auto rowSubnode = subnode->GetSubnode(rowName);
-                        string rowId = fmt::format("##{}", (u64)rowSubnode.get());
-                        DrawXtblEntry(subdesc, rowId.c_str(), rowSubnode);
+                        DrawXtblEntry(subdesc, "", subnode->GetSubnode(subdesc->Name));
                     }
                 }
 
@@ -264,7 +264,7 @@ void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameO
             string variablePath = desc->Reference->Path.substr(desc->Reference->Path.find_first_of('/') + 1);
 
             //Fill combo with valid values for node
-            if (refXtbl && ImGui::BeginCombo(nameNoId.c_str(), std::get<string>(node->Value).c_str()))
+            if (refXtbl && ImGui::BeginCombo(name.c_str(), std::get<string>(node->Value).c_str()))
             {
                 //Find subnodes in referenced xtbl which match reference path
                 for (auto& subnode : refXtbl->Entries)
