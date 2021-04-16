@@ -77,4 +77,5 @@ private:
     DirectX::XMFLOAT4 clearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 
     bool initialized_ = false;
+    u32 drawCount_ = 0;
 };
