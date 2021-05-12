@@ -47,11 +47,11 @@ private:
 
     //Data used for file tree searches
     //Buffer used by search text bar
-    string SearchTerm = "";
+    string SearchTerm = "weapons";
     //Search string that's passed directly to string comparison functions. Had * at start or end of search term removed
     string SearchTermPatched = "";
     //If true, search term changed and need to recheck all nodes for search match
-    bool SearchChanged = false;
+    bool SearchChanged = true;
     enum FileSearchType
     {
         Match,
@@ -59,7 +59,7 @@ private:
         MatchEnd
     };
     FileSearchType SearchType = FileSearchType::Match;
-    bool HideUnsupportedFormats = false;
+    bool HideUnsupportedFormats = true;
     bool RegexSearch = false;
     std::regex SearchRegex {""};
     bool HadRegexError = false;

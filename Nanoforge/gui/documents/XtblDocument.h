@@ -16,8 +16,8 @@ public:
 
 private:
     void DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault = false);
-    void DrawXtblNodeEntry(Handle<XtblNode> node); //Draw xtbl node in entry list
-    void DrawXtblEntry(Handle<XtblDescription> desc, const char* nameOverride = nullptr, Handle<XtblNode> nodeOverride = nullptr);
+    void DrawXtblNodeEntry(Handle<IXtblNode> node); //Draw xtbl node in entry list
+    void DrawXtblEntry(Handle<XtblDescription> desc, const char* nameOverride = nullptr, Handle<IXtblNode> nodeOverride = nullptr);
 
     string filename_;
     string parentName_;
@@ -25,6 +25,6 @@ private:
     bool inContainer_;
 
     Handle<XtblFile> xtbl_ = nullptr;
-    Handle<XtblNode> selectedNode_ = nullptr;
+    Handle<IXtblNode> selectedNode_ = nullptr;
     XtblManager* xtblManager_ = nullptr;
 };

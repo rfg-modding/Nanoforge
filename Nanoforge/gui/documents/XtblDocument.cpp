@@ -28,6 +28,7 @@ XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, 
 
 XtblDocument::~XtblDocument()
 {
+
 }
 
 void XtblDocument::Update(GuiState* state)
@@ -67,22 +68,22 @@ void XtblDocument::Update(GuiState* state)
     }
 
     //Todo: Things to do:
-    //Todo: Add button to jump to xtbl references
-    //Todo: Add support for remaining xtbl types
-    //Todo: Track xtbl changes
-    //Todo: Add xtbl packaging so you can edit xtbls in Nanoforge and generate a MM mod
-    //Todo: Add support for description addons to fill in for missing descriptions
-    //Todo: Add difference viewer for xtbl files
+        //Todo: Add button to jump to xtbl references
+        //Todo: Track xtbl changes
+        //Todo: Add modinfo generation based on xtbl changes
+        //Todo: Validate that values marked as unique in desc are actually unique
+        //Todo: Report errors and warnings to user somewhere
+        //Todo: Add support for description addons to fill in for missing descriptions
+        //Todo: Add difference viewer for xtbl files
 
     //Draw the selected entry values in column 1 (to the right of the entry list)
     ImGui::SetCursorPosY(baseY);
     ImGui::NextColumn();
     if (xtbl_->Entries.size() != 0 && selectedNode_ && ImGui::BeginChild("##EntryView"))
     {
-        //Todo: Report/log elements without documentation so we know to supplement it
         //Draw subnodes with descriptions so empty optional elements are visible
-        for (auto& subnode : xtbl_->TableDescription->Subnodes)
-            DrawXtblEntry(subnode);
+        for (auto& desc : xtbl_->TableDescription->Subnodes)
+            DrawXtblEntry(desc);
     
         ImGui::EndChild();
     }
@@ -116,7 +117,7 @@ void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDe
     }
 }
 
-void XtblDocument::DrawXtblNodeEntry(Handle<XtblNode> node)
+void XtblDocument::DrawXtblNodeEntry(Handle<IXtblNode> node)
 {
     //Try to get <Name></Name> value
     string name = node->Name;
@@ -135,14 +136,14 @@ void XtblDocument::DrawXtblNodeEntry(Handle<XtblNode> node)
     }
 }
 
-void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameOverride, Handle<XtblNode> nodeOverride)
+void XtblDocument::DrawXtblEntry(Handle<XtblDescription> desc, const char* nameOverride, Handle<IXtblNode> nodeOverride)
 {
     string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
     string path(desc->GetPath());
     string checkboxId = fmt::format("##{}", (u64)desc.get());
     string descPath = desc->GetPath();
 
-    Handle<XtblNode> node = nullptr;
+    Handle<IXtblNode> node = nullptr;
     if (nodeOverride)
         node = nodeOverride;
     else

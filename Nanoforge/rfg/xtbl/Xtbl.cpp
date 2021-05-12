@@ -1,11 +1,21 @@
 #include "Xtbl.h"
 #include "Log.h"
+#include "XtblNodes.h"
 #include "common/filesystem/Path.h"
 #include "Common/string/String.h"
 #include <tinyxml2/tinyxml2.h>
 #include <filesystem>
 #include <algorithm>
 #include <iterator>
+
+XtblFile::~XtblFile()
+{
+    //Delete all nodes. Need to be manually deleted since theres circular references between parent and child nodes
+    for (auto& node : Entries)
+        node->DeleteSubnodes();
+
+    Entries.clear();
+}
 
 bool XtblFile::Parse(const string& path)
 {
@@ -54,9 +64,10 @@ bool XtblFile::Parse(const string& path)
     auto* tableElement = table->FirstChildElement(elementString.c_str());
     while (tableElement)
     {
-        Handle<XtblNode> tableNode = CreateHandle<XtblNode>();
-        if (tableNode->Parse(tableElement, *this, tableNode))
-            Entries.push_back(tableNode);
+        string path = tableElement->Value();
+        auto node = ParseNode(tableElement, nullptr, path);
+        if (node)
+            Entries.push_back(node);
 
         tableElement = tableElement->NextSiblingElement(elementString.c_str());
     }
@@ -80,6 +91,227 @@ bool XtblFile::Parse(const string& path)
     return true;
 }
 
+Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNode> parent, string& path)
+{
+    //Handle editor config nodes
+    if (node->Value() == string("_Editor"))
+    {
+        //Set category of parent node if one is specified
+        auto* category = node->FirstChildElement("Category");
+        if (category)
+        {
+            SetNodeCategory(parent, category->GetText());
+        }
+        return nullptr;
+    }
+
+    //Get description and create default node of that XtblType::
+    Handle<XtblDescription> desc = GetValueDescription(path);
+    if (!desc)
+    {
+        //TODO: Report missing description somewhere so we know when description addons are needed
+        return nullptr;
+    }
+    Handle<IXtblNode> xtblNode = CreateDefaultNode(desc);
+    xtblNode->Name = node->Value();
+    
+    if (xtblNode->Name == "Flag")
+    {
+
+        xtblNode->Type = XtblType::Flag;
+        if (node->GetText())
+            xtblNode->Value = XtblFlag{ .Name = node->GetText(), .Value = true };
+        else
+            xtblNode->Value = XtblFlag{ .Name = "", .Value = true };
+    }
+    else if (desc)
+    {
+        xtblNode->Type = desc->Type;
+        switch (xtblNode->Type)
+        {
+        case XtblType::String:
+        {
+            if (node->GetText())
+                xtblNode->Value = node->GetText();
+            else
+                xtblNode->Value = "";
+        }
+        break;
+        case XtblType::Int:
+            xtblNode->Value = node->IntText();
+            break;
+        case XtblType::Float:
+            xtblNode->Value = node->FloatText();
+            break;
+        case XtblType::Vector:
+        {
+            auto* x = node->FirstChildElement("X");
+            auto* y = node->FirstChildElement("Y");
+            auto* z = node->FirstChildElement("Z");
+            Vec3 vec = { 0.0f, 0.0f, 0.0f };
+            if (x)
+                vec.x = x->FloatText();
+            if (y)
+                vec.y = y->FloatText();
+            if (z)
+                vec.z = z->FloatText();
+
+            xtblNode->Value = vec;
+        }
+        break;
+        case XtblType::Color:
+        {
+            auto* r = node->FirstChildElement("R");
+            auto* g = node->FirstChildElement("G");
+            auto* b = node->FirstChildElement("B");
+            Vec3 vec = { 0.0f, 0.0f, 0.0f };
+            if (r)
+                vec.x = ((f32)r->IntText() / 255.0f);
+            if (g)
+                vec.y = ((f32)g->IntText() / 255.0f);
+            if (b)
+                vec.z = ((f32)b->IntText() / 255.0f);
+
+            xtblNode->Value = vec;
+        }
+        break;
+        case XtblType::Selection: //This is a string with restricted choices listed in TableDescription
+        {
+            if (node->GetText())
+                xtblNode->Value = node->GetText();
+            else
+                xtblNode->Value = "";
+        }
+        break;
+        case XtblType::Filename:
+        {
+            auto* filename = node->FirstChildElement("Filename");
+            if (filename && filename->GetText())
+                xtblNode->Value = filename->GetText();
+            else
+                xtblNode->Value = "";
+        }
+        break;
+        case XtblType::Reference: //References data in another xtbl
+        {
+            if (node->GetText())
+                xtblNode->Value = node->GetText();
+            else
+                xtblNode->Value = "";
+        }
+        break;
+        case XtblType::Grid: //List of elements
+            if (!node->FirstChildElement() && node->GetText())
+            {
+                xtblNode->Value = node->GetText();
+            }
+            else //Recursively parse subnodes if there are any
+            {
+                auto* subnode = node->FirstChildElement();
+                while (subnode)
+                {
+                    string newPath = path + "/" + subnode->Value();
+                    Handle<IXtblNode> xtblSubnode = ParseNode(subnode, xtblNode, newPath);
+                    if (xtblSubnode)
+                        xtblNode->Subnodes.push_back(xtblSubnode);
+
+                    subnode = subnode->NextSiblingElement();
+                }
+            }
+            break;
+        case XtblType::ComboElement: //This is similar to a union in c/c++
+            //Todo: Implement
+            //break;
+
+            //These types require the subnodes to be parsed
+        case XtblType::Flags: //Bitflags
+        {
+            //Parse flags that are present
+            auto* flag = node->FirstChildElement("Flag");
+            while (flag)
+            {
+                string newPath = path + "/" + flag->Value();
+                Handle<IXtblNode> xtblSubnode = ParseNode(flag, xtblNode, newPath);
+                if (xtblSubnode)
+                    xtblNode->Subnodes.push_back(xtblSubnode);
+
+                flag = flag->NextSiblingElement();
+            }
+
+            //Ensure there's a node for every flag listed in <TableDescription>
+            for (auto& flagDesc : desc->Flags)
+            {
+                //Check if flag is present
+                Handle<IXtblNode> flagNode = nullptr;
+                for (auto& flag : xtblNode->Subnodes)
+                {
+                    auto value = std::get<XtblFlag>(flag->Value);
+                    if (value.Name == flagDesc)
+                    {
+                        flagNode = flag;
+                        break;
+                    }
+                }
+
+                //If flag isn't present create a subnode for it
+                if (!flagNode)
+                {
+                    auto subnode = CreateDefaultNode(XtblType::Flag);
+                    subnode->Name = "Flag";
+                    subnode->Type = XtblType::Flag;
+                    subnode->Parent = xtblNode;
+                    subnode->CategorySet = false;
+                    subnode->HasDescription = true;
+                    subnode->Enabled = true;
+                    subnode->Value = XtblFlag{ .Name = flagDesc, .Value = false };
+                    xtblNode->Subnodes.push_back(subnode);
+                }
+            }
+        }
+        break;
+        case XtblType::List: //List of a single value (e.g. string, float, int)
+        case XtblType::Element:
+        case XtblType::TableDescription:
+        default:
+            if (!node->FirstChildElement() && node->GetText())
+            {
+                xtblNode->Value = node->GetText();
+            }
+            else //Recursively parse subnodes if there are any
+            {
+                auto* subnode = node->FirstChildElement();
+                while (subnode)
+                {
+                    string newPath = path + "/" + subnode->Value();
+                    Handle<IXtblNode> xtblSubnode = ParseNode(subnode, xtblNode, newPath);
+                    if (xtblSubnode)
+                        xtblNode->Subnodes.push_back(xtblSubnode);
+
+                    subnode = subnode->NextSiblingElement();
+                }
+            }
+            break;
+        }
+    }
+    else //If can't find a description just parse the nodes as they are so we have the data in memory
+    {
+        xtblNode->Type = XtblType::None;
+        auto* subnode = node->FirstChildElement();
+        while (subnode)
+        {
+            string newPath = path + "/" + subnode->Value();
+            Handle<IXtblNode> xtblSubnode = ParseNode(subnode, xtblNode, newPath);
+            if (xtblSubnode)
+                xtblNode->Subnodes.push_back(xtblSubnode);
+
+            subnode = subnode->NextSiblingElement();
+        }
+    }
+
+    xtblNode->HasDescription = true;
+    return xtblNode;
+}
+
 //Get description of xtbl value
 Handle<XtblDescription> XtblFile::GetValueDescription(const string& valuePath, Handle<XtblDescription> desc)
 {
@@ -100,7 +332,7 @@ Handle<XtblDescription> XtblFile::GetValueDescription(const string& valuePath, H
     return nullptr;
 }
 
-void XtblFile::SetNodeCategory(Handle<XtblNode> node, s_view categoryPath)
+void XtblFile::SetNodeCategory(Handle<IXtblNode> node, s_view categoryPath)
 {
     //Get category and add node to it. Takes substr that strips Entries: from the front of the path
     auto category = categoryPath.find(":") == s_view::npos ? RootCategory : GetOrCreateCategory(categoryPath.substr(categoryPath.find_first_of(":") + 1));
@@ -134,7 +366,7 @@ Handle<XtblCategory> XtblFile::GetOrCreateCategory(s_view categoryPath, Handle<X
     return split.size() == 1 ? subcategory : GetOrCreateCategory(categoryPath.substr(categoryPath.find_first_of(":") + 1), subcategory);
 }
 
-Handle<XtblNode> XtblFile::GetSubnode(const string& nodePath, Handle<XtblNode> searchNode)
+Handle<IXtblNode> XtblFile::GetSubnode(const string& nodePath, Handle<IXtblNode> searchNode)
 {
     //Split path into components
     std::vector<s_view> split = String::SplitString(nodePath, "/");
@@ -151,9 +383,9 @@ Handle<XtblNode> XtblFile::GetSubnode(const string& nodePath, Handle<XtblNode> s
     return nullptr;
 }
 
-std::vector<Handle<XtblNode>> XtblFile::GetSubnodes(const string& nodePath, Handle<XtblNode> searchNode, std::vector<Handle<XtblNode>>* nodes)
+std::vector<Handle<IXtblNode>> XtblFile::GetSubnodes(const string& nodePath, Handle<IXtblNode> searchNode, std::vector<Handle<IXtblNode>>* nodes)
 {
-    std::vector<Handle<XtblNode>> _nodes;
+    std::vector<Handle<IXtblNode>> _nodes;
     if (!nodes)
         nodes = &_nodes;
 
@@ -175,7 +407,7 @@ std::vector<Handle<XtblNode>> XtblFile::GetSubnodes(const string& nodePath, Hand
     return *nodes;
 }
 
-Handle<XtblNode> XtblFile::GetRootNodeByName(const string& name)
+Handle<IXtblNode> XtblFile::GetRootNodeByName(const string& name)
 {
     for (auto& subnode : Entries)
         if (String::EqualIgnoreCase(subnode->Name, name))
@@ -184,51 +416,73 @@ Handle<XtblNode> XtblFile::GetRootNodeByName(const string& name)
     return nullptr;
 }
 
-void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<XtblNode> node)
+void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode> node)
 {
+    //Try to get pre-existing subnode
     string descPath = desc->GetPath();
     descPath = descPath.substr(descPath.find_first_of('/') + 1);
     auto maybeSubnode = GetSubnode(descPath, node);
-    auto subnode = maybeSubnode ? maybeSubnode : CreateHandle<XtblNode>();
-    subnode->Name = desc->Name;
-    subnode->Type = desc->Type;
-    subnode->Parent = node;
-    subnode->CategorySet = false;
-    subnode->HasDescription = true;
-    subnode->Enabled = true;
-    switch (subnode->Type)
+    bool subnodeExists = maybeSubnode != nullptr;
+
+    //Get subnode or create default one if it doesn't exist
+    auto subnode = subnodeExists ? maybeSubnode : CreateDefaultNode(desc);
+    if (!subnodeExists)
     {
-    case XtblType::Filename:
-    case XtblType::String:
-        subnode->Value = "";
-        break;
-    case XtblType::Int:
-        subnode->Value = 0;
-        break;
-    case XtblType::Float:
-        subnode->Value = 0.0f;
-        break;
-    case XtblType::Vector:
-        subnode->Value = Vec3(0.0f, 0.0f, 0.0f);
-        break;
-    case XtblType::Color:
-        subnode->Value = Vec3(0.0f, 0.0f, 0.0f);
-        break;
-    case XtblType::Selection:
-        subnode->Value = desc->DefaultChoice;
-        break;
-    case XtblType::Reference:
-    case XtblType::Grid:
-    case XtblType::ComboElement:
-    case XtblType::Flags:
-    case XtblType::List:
-    case XtblType::Element:
-    case XtblType::TableDescription:
-    default:
-        break;
+        subnode->Name = desc->Name;
+        subnode->Type = desc->Type;
+        subnode->Parent = node;
+        subnode->CategorySet = false;
+        subnode->HasDescription = true;
+        subnode->Enabled = true;
+        node->Subnodes.push_back(subnode);
     }
-    node->Subnodes.push_back(subnode);
 
     for (auto& subdesc : desc->Subnodes)
         EnsureEntryExists(subdesc, subnode);
+
+    //auto subnode = subnodeExists ? maybeSubnode : CreateHandle<IXtblNode>();
+
+    //subnode->Name = desc->Name;
+    //subnode->Type = desc->Type;
+    //subnode->Parent = node;
+    //subnode->CategorySet = false;
+    //subnode->HasDescription = true;
+    //subnode->Enabled = true;
+    //switch (subnode->Type)
+    //{
+    //case XtblType::Filename:
+    //case XtblType::String:
+    //    subnode->Value = "";
+    //    break;
+    //case XtblType::Int:
+    //    subnode->Value = 0;
+    //    break;
+    //case XtblType::Float:
+    //    subnode->Value = 0.0f;
+    //    break;
+    //case XtblType::Vector:
+    //    subnode->Value = Vec3(0.0f, 0.0f, 0.0f);
+    //    break;
+    //case XtblType::Color:
+    //    subnode->Value = Vec3(0.0f, 0.0f, 0.0f);
+    //    break;
+    //case XtblType::Selection:
+    //    subnode->Value = desc->DefaultChoice;
+    //    break;
+    //case XtblType::Reference:
+    //case XtblType::Grid:
+    //case XtblType::ComboElement:
+    //case XtblType::Flags:
+    //case XtblType::List:
+    //case XtblType::Element:
+    //case XtblType::TableDescription:
+    //default:
+    //    break;
+    //}
+
+    //if(!subnodeExists)
+    //    node->Subnodes.push_back(subnode);
+
+    //for (auto& subdesc : desc->Subnodes)
+    //    EnsureEntryExists(subdesc, subnode);
 }
