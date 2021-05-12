@@ -308,6 +308,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
         }
     }
 
+    xtblNode->Parent = parent;
     xtblNode->HasDescription = true;
     return xtblNode;
 }

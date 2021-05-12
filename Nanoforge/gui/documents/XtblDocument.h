@@ -17,7 +17,6 @@ public:
 private:
     void DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault = false);
     void DrawXtblNodeEntry(Handle<IXtblNode> node); //Draw xtbl node in entry list
-    void DrawXtblEntry(Handle<XtblDescription> desc, const char* nameOverride = nullptr, Handle<IXtblNode> nodeOverride = nullptr);
 
     string filename_;
     string parentName_;
