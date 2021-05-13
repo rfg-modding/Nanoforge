@@ -61,6 +61,9 @@ public:
 
     //Documents that are currently open
     std::vector<Handle<IDocument>> Documents = {};
+    //Documents that were created this frame. 
+    //Moved to main vector next frame so creating a document during gui update doesn't invalidate the iterator at MainGui::Update()
+    std::vector<Handle<IDocument>> NewDocuments = {};
 
     //The last node that was clicked in the file explorer
     FileExplorerNode* FileExplorer_SelectedNode = nullptr;
@@ -102,15 +105,25 @@ public:
     {
         //Make sure document with same title doesn't already exist
         for (auto& doc : Documents)
-        {
             if (String::EqualIgnoreCase(doc->Title, title))
-            {
                 return;
-            }
-        }
+        for (auto& doc : NewDocuments)
+            if (String::EqualIgnoreCase(doc->Title, title))
+                return;
 
         //Add document to list
         document->Title = title;
-        Documents.emplace_back(document);
+        NewDocuments.emplace_back(document);
+    }
+    //Get document by title. Returns nullptr if document doesn't exist
+    Handle<IDocument> GetDocument(string& title)
+    {
+        //Get document if it exists.
+        for (auto& doc : Documents)
+            if (String::EqualIgnoreCase(doc->Title, title))
+                return doc;
+
+        //Return nullptr if it doesn't exist
+        return nullptr;
     }
 };

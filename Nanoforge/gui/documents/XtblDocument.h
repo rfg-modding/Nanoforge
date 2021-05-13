@@ -9,11 +9,12 @@ class XtblManager;
 class XtblDocument final : public IDocument
 {
 public:
-    XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer);
+    XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, Handle<IXtblNode> startingNode = nullptr);
     ~XtblDocument();
 
     void Update(GuiState* state) override;
 
+    Handle<IXtblNode> SelectedNode = nullptr;
 private:
     void DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault = false);
     void DrawXtblNodeEntry(Handle<IXtblNode> node); //Draw xtbl node in entry list
@@ -24,6 +25,5 @@ private:
     bool inContainer_;
 
     Handle<XtblFile> xtbl_ = nullptr;
-    Handle<IXtblNode> selectedNode_ = nullptr;
     XtblManager* xtblManager_ = nullptr;
 };

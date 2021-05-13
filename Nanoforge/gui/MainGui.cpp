@@ -93,6 +93,13 @@ void MainGui::Update(f32 deltaTime)
         panel->Update(&State, &panel->Open);
     }
 
+    //Move newly created documents into main vector. Done to avoid iterator invalidation when documents are created by other documents
+    for (auto& doc : State.NewDocuments)
+    {
+        State.Documents.push_back(doc);
+    }
+    State.NewDocuments.clear();
+
     //Draw documents
     u32 counter = 0;
     auto iter = State.Documents.begin();

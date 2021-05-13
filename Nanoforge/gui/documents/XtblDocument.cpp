@@ -6,7 +6,7 @@
 #include "rfg/xtbl/XtblManager.h"
 #include "rfg/xtbl/Xtbl.h"
 
-XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
+XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, Handle<IXtblNode> startingNode)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer)
 {
     xtblManager_ = state->Xtbls;
@@ -25,6 +25,8 @@ XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, 
         open_ = false;
         return;
     }
+
+    SelectedNode = startingNode;
 }
 
 XtblDocument::~XtblDocument()
@@ -67,12 +69,12 @@ void XtblDocument::Update(GuiState* state)
     //Draw values of the selected entry
     ImGui::SetCursorPosY(baseY);
     ImGui::NextColumn();
-    if (xtbl_->Entries.size() != 0 && selectedNode_ && ImGui::BeginChild("##EntryView"))
+    if (xtbl_->Entries.size() != 0 && SelectedNode && ImGui::BeginChild("##EntryView"))
     {
         //Draw subnodes with descriptions so empty optional elements are visible
         ImGui::PushItemWidth(NodeGuiWidth);
         for (auto& desc : xtbl_->TableDescription->Subnodes)
-            DrawNodeByDescription(xtblManager_, xtbl_, desc, selectedNode_);
+            DrawNodeByDescription(state, xtbl_, desc, SelectedNode);
     
         ImGui::PopItemWidth();
         ImGui::EndChild();
@@ -116,11 +118,11 @@ void XtblDocument::DrawXtblNodeEntry(Handle<IXtblNode> node)
         name = nameValue.value();
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf 
-                               | (selectedNode_ == node ? ImGuiTreeNodeFlags_Selected : 0);
+                               | (SelectedNode == node ? ImGuiTreeNodeFlags_Selected : 0);
     if (ImGui::TreeNodeEx(fmt::format("{} {}", ICON_FA_CODE, name).c_str(), flags))
     {
         if (ImGui::IsItemClicked())
-            selectedNode_ = node;
+            SelectedNode = node;
 
         ImGui::TreePop();
     }

@@ -8,7 +8,7 @@
 #include <optional>
 #include <variant>
 
-class XtblManager;
+class GuiState;
 class XtblFile;
 struct XtblFlag
 {
@@ -24,7 +24,7 @@ public:
     //IXtblNode interface functions
     virtual ~IXtblNode() {}
     //Draw editor for node using Dear ImGui
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr) = 0;
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr) = 0;
     //Initialize node with default values for it's data type
     virtual void InitDefault() = 0;
 
