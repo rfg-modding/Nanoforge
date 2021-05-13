@@ -85,7 +85,7 @@ void XtblDocument::Update(GuiState* state)
 void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault)
 {
     //Draw category node
-    bool nodeOpen = ImGui::TreeNodeEx(fmt::format("{} {}",ICON_FA_FOLDER, category->Name).c_str(),
+    bool nodeOpen = ImGui::TreeNodeEx(fmt::format("{} {}", ICON_FA_FOLDER, category->Name).c_str(),
         //Make full node width clickable
         ImGuiTreeNodeFlags_SpanAvailWidth
         //If the node has no children make it a leaf node (a node which can't be expanded)

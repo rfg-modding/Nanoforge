@@ -17,10 +17,6 @@
 /*This file has all the IXtblNode implementations. One implementation per XtblType enum value.*/
 static f32 NodeGuiWidth = 240.0f;
 
-//TODO: [REMOVE_BEFORE_COMMIT]
-//Not yet implemented:
-//TableDescription,
-
 class ElementXtblNode : public IXtblNode
 {
 public:
@@ -424,8 +420,9 @@ public:
                 for (auto& subdesc : desc->Subnodes[0]->Subnodes)
                 {
                     ImGui::TableNextColumn();
-                    //subdesc->DrawEditor(xtblManager, xtbl);
-                    subnode->GetSubnode(subdesc->Name)->DrawEditor(xtblManager, xtbl);
+                    auto subnode2 = subnode->GetSubnode(subdesc->Name);
+                    if(subnode2)
+                        subnode2->DrawEditor(xtblManager, xtbl);
                 }
             }
 
@@ -439,7 +436,6 @@ public:
     }
 };
 
-//TODO: [REMOVE_BEFORE_COMMIT] Check if this is even used
 class TableDescriptionXtblNode : public IXtblNode
 {
 public:
@@ -450,28 +446,7 @@ public:
 
     virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
-
-        if (HasSubnodes())
-        {
-            if (ImGui::TreeNode(name.c_str()))
-            {
-                if (desc->Description != "")
-                    gui::TooltipOnPrevious(desc->Description, nullptr);
-                for (auto& subnode : Subnodes)
-                {
-                    subnode->DrawEditor(xtblManager, xtbl);
-                }
-
-                ImGui::TreePop();
-            }
-        }
-        else
-        {
-            gui::LabelAndValue(nameNoId + ":", std::get<string>(Value));
-        }
+        
     }
 
     virtual void InitDefault()
@@ -480,7 +455,6 @@ public:
     }
 };
 
-//TODO: [REMOVE_BEFORE_COMMIT] Check if can be removed. Should be handled by FlagsXtblNode
 class FlagXtblNode : public IXtblNode
 {
 public:
@@ -491,11 +465,7 @@ public:
 
     virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
-
-        gui::LabelAndValue(nameNoId + ":", std::get<string>(Value));
+        
     }
 
     virtual void InitDefault()
