@@ -17,6 +17,70 @@
 /*This file has all the IXtblNode implementations. One implementation per XtblType enum value.*/
 static f32 NodeGuiWidth = 240.0f;
 
+//Use descriptions to draw nodes so non-existant optional nodes are drawn
+//Also handles drawing description tooltips and checkboxes for optional nodes
+static void DrawNodeByDescription(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<XtblDescription> desc, Handle<IXtblNode> rootNode, 
+                                  const char* nameOverride = nullptr, Handle<IXtblNode> nodeOverride = nullptr)
+{
+    //Use lambda to get node since we need this logic multiple times
+    string descPath = desc->GetPath();
+    auto getNode = [&]() -> Handle<IXtblNode>
+    {
+        return nodeOverride ? nodeOverride : xtbl->GetSubnode(descPath.substr(descPath.find_first_of('/') + 1), rootNode);
+    };
+    Handle<IXtblNode> node = getNode();
+    bool nodePresent = (node != nullptr && node->Enabled);
+
+    //IDs used by dear imgui elements
+    string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
+    string checkboxId = fmt::format("##{}", (u64)desc.get()); //Using pointer address as ID since it's unique
+
+    //Draw checkbox for optional elements
+    if (!desc->Required)
+    {
+        if (ImGui::Checkbox(checkboxId.c_str(), &nodePresent))
+        {
+            //When checkbox is set to true ensure elements exist in node
+            if (nodePresent)
+            {
+                xtbl->EnsureEntryExists(desc, rootNode);
+                node = getNode();
+                node->Enabled = nodePresent;
+                return;
+            }
+            else
+            {
+                node->Enabled = false;
+            }
+            Handle<IXtblNode> node2 = xtbl->GetSubnode(descPath.substr(descPath.find_first_of('/') + 1), rootNode);
+            if (node2)
+                printf("node2->Name: %s\n", node2->Name);
+            else
+                printf("node2 == nullptr\n");
+        }
+        ImGui::SameLine();
+    }
+    
+    //If an optional element isn't present draw it's display name
+    if (!nodePresent)
+    {
+        ImGui::Text(nameNoId);
+        if (desc->Description != "") //Draw tooltip if not empty
+            gui::TooltipOnPrevious(desc->Description, nullptr);
+
+        return;
+    }
+
+    //If a node is present draw it.
+    if(nodePresent)
+        node->DrawEditor(xtblManager, xtbl, rootNode, nameOverride);
+
+    //Draw tooltip if not empty
+    if (desc->Description != "")
+        gui::TooltipOnPrevious(desc->Description, nullptr);
+}
+
+//A node that contains many other nodes. Usually the root node of an entry is an element node. E.g. each <Vehicle> block is vehicles.xtbl is an element node.
 class ElementXtblNode : public IXtblNode
 {
 public:
@@ -25,7 +89,7 @@ public:
     
     }
     
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -38,7 +102,12 @@ public:
                 gui::TooltipOnPrevious(desc->Description, nullptr);
             for (auto& subnode : Subnodes)
             {
-                subnode->DrawEditor(xtblManager, xtbl);
+                //Gets parent node name and current node name in path
+                string subdescPath = subnode->GetPath();
+                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
+                Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
+                if (subdesc)
+                    DrawNodeByDescription(xtblManager, xtbl, subdesc, rootNode, subdesc->DisplayName.c_str());
             }
 
             ImGui::TreePop();
@@ -59,7 +128,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -82,7 +151,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -108,7 +177,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -134,7 +203,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -157,7 +226,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -180,7 +249,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -212,7 +281,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -246,7 +315,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -266,7 +335,12 @@ public:
                 if (nameValue)
                     subnodeName = nameValue.value();
 
-                subnode->DrawEditor(xtblManager, xtbl, subnodeName.c_str());
+                //Gets parent node name and current node name in path
+                string subdescPath = subnode->GetPath();
+                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
+                Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
+                if (subdesc)
+                    DrawNodeByDescription(xtblManager, xtbl, subdesc, rootNode, subnodeName.c_str());
             }
 
             ImGui::TreePop();
@@ -287,7 +361,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -311,7 +385,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -334,7 +408,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -394,7 +468,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -420,9 +494,7 @@ public:
                 for (auto& subdesc : desc->Subnodes[0]->Subnodes)
                 {
                     ImGui::TableNextColumn();
-                    auto subnode2 = subnode->GetSubnode(subdesc->Name);
-                    if(subnode2)
-                        subnode2->DrawEditor(xtblManager, xtbl);
+                    DrawNodeByDescription(xtblManager, xtbl, subdesc, rootNode, nullptr, subnode->GetSubnode(subdesc->Name));
                 }
             }
 
@@ -444,7 +516,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         
     }
@@ -463,7 +535,7 @@ public:
 
     }
 
-    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, const char* nameOverride = nullptr)
+    virtual void DrawEditor(XtblManager* xtblManager, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         
     }

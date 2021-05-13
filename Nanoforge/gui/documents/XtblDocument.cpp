@@ -71,8 +71,8 @@ void XtblDocument::Update(GuiState* state)
     {
         //Draw subnodes with descriptions so empty optional elements are visible
         ImGui::PushItemWidth(NodeGuiWidth);
-        for (auto& node : selectedNode_->Subnodes)
-            node->DrawEditor(state->Xtbls, xtbl_);
+        for (auto& desc : xtbl_->TableDescription->Subnodes)
+            DrawNodeByDescription(xtblManager_, xtbl_, desc, selectedNode_);
     
         ImGui::PopItemWidth();
         ImGui::EndChild();
