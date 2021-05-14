@@ -3,6 +3,7 @@
 #include "gui/documents/TextureDocument.h"
 #include "gui/documents/StaticMeshDocument.h"
 #include "gui/documents/XtblDocument.h"
+#include "gui/documents/AsmDocument.h"
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
 #include <regex>
@@ -312,12 +313,16 @@ void FileExplorer::DoubleClickedFile(GuiState* state, FileExplorerNode& node)
     {
         state->CreateDocument(node.Filename, CreateHandle<XtblDocument>(state, node.Filename, node.ParentName, VppName, node.InContainer));
     }
+    else if (extension == ".asm_pc")
+    {
+        state->CreateDocument(node.Filename, CreateHandle<AsmDocument>(state, node.Filename, node.ParentName, VppName, node.InContainer));
+    }
 }
 
 bool FileExplorer::FormatSupported(const string& ext)
 {
-    const std::vector<string> supportedFormats = { /*".vpp_pc", ".str2_pc",*/ ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc",
-                                                   ".xtbl"};
+    static const std::vector<string> supportedFormats = { /*".vpp_pc", ".str2_pc",*/ ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc",
+                                                            ".xtbl", ".asm_pc"};
     for (auto& format : supportedFormats)
     {
         if (ext == format)
