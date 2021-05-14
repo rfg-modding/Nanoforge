@@ -19,6 +19,10 @@
 /*This file has all the IXtblNode implementations. One implementation per XtblType enum value.*/
 static f32 NodeGuiWidth = 240.0f;
 
+//Create node from XtblType using default value for that type
+static Handle<IXtblNode> CreateDefaultNode(XtblType type);
+static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool addSubnodes = false);
+
 //Use descriptions to draw nodes so non-existant optional nodes are drawn
 //Also handles drawing description tooltips and checkboxes for optional nodes
 static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Handle<XtblDescription> desc, Handle<IXtblNode> rootNode, 
@@ -345,7 +349,7 @@ public:
                 subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
                 Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
                 if (subdesc)
-                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, subnodeName.c_str());
+                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, subnodeName.c_str(), subnode);
             }
 
             ImGui::TreePop();
@@ -383,7 +387,7 @@ public:
     }
 };
 
-//Node that can have multiple values. Similar to a union in C/C++
+//Node that can have multiple value types. Similar to a union in C/C++
 class ComboElementXtblNode : public IXtblNode
 {
 public:
@@ -398,7 +402,65 @@ public:
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
-        //Todo: Add support for this type. It's like a c/c++ union
+        //This type of xtbl node acts like a C/C++ Union, so multiple types can be chosen
+        if (ImGui::TreeNode(name.c_str()))
+        {
+            if (desc->Description != "")
+                gui::TooltipOnPrevious(desc->Description, nullptr);
+
+            //Get current type. Only one type from the desc is present
+            u32 currentType = 0xFFFFFFFF;
+            for (u32 i = 0; i < desc->Subnodes.size(); i++)
+                for (auto& subnode : Subnodes)
+                    if (String::EqualIgnoreCase(desc->Subnodes[i]->Name, subnode->Name))
+                        currentType = i;
+
+            //Draw a radio button for each type
+            for (u32 i = 0; i < desc->Subnodes.size(); i++)
+            {
+                bool active = i == currentType;
+                if (ImGui::RadioButton(desc->Subnodes[i]->Name.c_str(), active))
+                {
+                    //If different type is selected activate new node and delete current one
+                    if (!active)
+                    {
+                        //Delete current nodes
+                        for (auto& subnode : Subnodes)
+                        {
+                            subnode->DeleteSubnodes();
+                            subnode->Parent = nullptr;
+                        }
+                        Subnodes.clear();
+
+                        //Create default node
+                        auto subdesc = desc->Subnodes[i];
+                        auto subnode = CreateDefaultNode(subdesc, true);
+                        subnode->Name = subdesc->Name;
+                        subnode->Type = subdesc->Type;
+                        subnode->Parent = Parent->GetSubnode(Name);
+                        subnode->CategorySet = false;
+                        subnode->HasDescription = true;
+                        subnode->Enabled = true;
+                        Subnodes.push_back(subnode);
+                    }
+                }
+                if (i != desc->Subnodes.size() - 1)
+                    ImGui::SameLine();
+            }
+
+            //Draw current type
+            for (auto& subnode : Subnodes)
+            {
+                //Gets parent node name and current node name in path
+                string subdescPath = subnode->GetPath();
+                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
+                Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
+                if (subdesc)
+                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, subdesc->DisplayName.c_str());
+            }
+
+            ImGui::TreePop();
+        }
     }
 
     virtual void InitDefault()
@@ -481,7 +543,7 @@ public:
                     {
                         //Find parent element of variable
                         Handle<IXtblNode> documentRoot = node;
-                        while (String::Contains(documentRoot->GetPath(), "/") && documentRoot->Parent)// && documentRoot->Parent->Parent)
+                        while (String::Contains(documentRoot->GetPath(), "/") && documentRoot->Parent)
                         {
                             documentRoot = documentRoot->Parent;
                         }
@@ -525,6 +587,7 @@ public:
 
     }
 
+    //Todo: Optimize this. Some grids cause serious performance issues. E.g. Open player.xtbl and scroll down to the bottom of the grid
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
@@ -647,13 +710,25 @@ static Handle<IXtblNode> CreateDefaultNode(XtblType type)
 }
 
 //Create node from XtblDescription using default value from that description entry
-static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc)
+static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool addSubnodes)
 {
     Handle<IXtblNode> node = nullptr;
     switch (desc->Type)
     {
     case XtblType::Element:
         node = CreateHandle<ElementXtblNode>();
+        if (addSubnodes)
+        {
+            for (auto& subdesc : desc->Subnodes)
+            {
+                auto subnode = CreateDefaultNode(subdesc);
+                if (subnode)
+                {
+                    subnode->Parent = node;
+                    node->Subnodes.push_back(subnode);
+                }
+            }
+        }
         break;
     case XtblType::String:
         node = CreateHandle<StringXtblNode>();
@@ -737,5 +812,8 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc)
         THROW_EXCEPTION("Invalid value for XtblType \"{}\" passed to CreateDefaultNode() in XtblNodes.h", desc->Type);
     }
 
+    node->Name = desc->Name;
+    node->Type = desc->Type;
+    node->HasDescription = true;
     return node;
 }

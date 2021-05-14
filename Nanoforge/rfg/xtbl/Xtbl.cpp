@@ -115,10 +115,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
 
     //Parse node from xml and set members
     Handle<IXtblNode> xtblNode = CreateDefaultNode(desc);
-    xtblNode->Name = node->Value();
-    xtblNode->Type = desc->Type;
     xtblNode->Parent = parent;
-    xtblNode->HasDescription = true;
     
     switch (xtblNode->Type)
     {
@@ -213,10 +210,16 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
         }
         break;
     case XtblType::ComboElement: //This is similar to a union in c/c++
-        //Todo: Implement
-        //break;
+        {
+            auto* subnode = node->FirstChildElement();
+            string newPath = path + "/" + subnode->Value();
+            Handle<IXtblNode> xtblSubnode = ParseNode(subnode, xtblNode, newPath);
+            if (xtblSubnode)
+                xtblNode->Subnodes.push_back(xtblSubnode);
+        }
+        break;
 
-        //These types require the subnodes to be parsed
+    //These types require the subnodes to be parsed
     case XtblType::Flags: //Bitflags
     {
         //Parse flags that are present

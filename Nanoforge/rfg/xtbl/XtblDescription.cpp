@@ -124,7 +124,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
         }
 
         //If type is Element it means it has subnodes
-        if (Type == XtblType::Element || Type == XtblType::Grid)
+        if (Type == XtblType::Element || Type == XtblType::Grid || Type == XtblType::ComboElement)
         {
             //Parse all <Element> nodes inside current node
             auto* nextNode = node->FirstChildElement("Element");
