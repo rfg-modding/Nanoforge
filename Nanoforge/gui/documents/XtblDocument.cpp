@@ -26,7 +26,7 @@ XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, 
         return;
     }
 
-    SelectedNode = startingNode;
+    SelectedNode = startingNode ? startingNode : xtbl_->Entries[0];
 }
 
 XtblDocument::~XtblDocument()
