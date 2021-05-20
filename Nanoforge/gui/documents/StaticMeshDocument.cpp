@@ -538,9 +538,9 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
                 if (texture)
                 {
                     if (notInCache)
-                        Log->info("Found diffuse texture {} for {}", textureNameLower, Filename);
+                        Log->info("Found diffuse texture {} for {}", texture->Texture.Name, Filename);
                     else
-                        Log->info("Using cached copy of {} for {}", textureNameLower, Filename);
+                        Log->info("Using cached copy of {} for {}", texture->Texture.Name, Filename);
 
                     std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                     renderObject.UseTextures = true;
@@ -575,9 +575,9 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
                 if (texture)
                 {
                     if (notInCache)
-                        Log->info("Found normal map {} for {}", textureNameLower, Filename);
+                        Log->info("Found normal map {} for {}", texture->Texture.Name, Filename);
                     else
-                        Log->info("Using cached copy of {} for {}", textureNameLower, Filename);
+                        Log->info("Using cached copy of {} for {}", texture->Texture.Name, Filename);
 
                     std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                     renderObject.UseTextures = true;
@@ -612,9 +612,9 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
                 if (texture)
                 {
                     if (notInCache)
-                        Log->info("Found specular map {} for {}", textureNameLower, Filename);
+                        Log->info("Found specular map {} for {}", texture->Texture.Name, Filename);
                     else
-                        Log->info("Using cached copy of {} for {}", textureNameLower, Filename);
+                        Log->info("Using cached copy of {} for {}", texture->Texture.Name, Filename);
 
                     std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                     renderObject.UseTextures = true;
