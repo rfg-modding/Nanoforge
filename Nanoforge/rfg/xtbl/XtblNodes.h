@@ -49,7 +49,8 @@ static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Han
             //When checkbox is set to true ensure elements exist in node
             if (nodePresent)
             {
-                xtbl->EnsureEntryExists(desc, rootNode);
+                //Ensure entry and it's subnodes exist. Newly created optional subnodes will created but disabled by default
+                xtbl->EnsureEntryExists(desc, rootNode, false);
                 node = getNode();
                 node->Enabled = nodePresent;
                 return;
@@ -58,6 +59,8 @@ static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Han
             {
                 node->Enabled = false;
             }
+            
+            node->Edited = true;
         }
         ImGui::SameLine();
     }
@@ -136,7 +139,8 @@ public:
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
-        ImGui::InputText(name, std::get<string>(Value));
+        if (ImGui::InputText(name, std::get<string>(Value)))
+            Edited = true;
     }
 
     virtual void InitDefault()
@@ -161,9 +165,15 @@ public:
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
         if (desc->Min && desc->Max)
-            ImGui::SliderInt(name.c_str(), &std::get<i32>(Value), (i32)desc->Min.value(), (i32)desc->Max.value());
+        {
+            if (ImGui::SliderInt(name.c_str(), &std::get<i32>(Value), (i32)desc->Min.value(), (i32)desc->Max.value()))
+                Edited = true;
+        }
         else
-            ImGui::InputInt(name.c_str(), &std::get<i32>(Value));
+        {
+            if(ImGui::InputInt(name.c_str(), &std::get<i32>(Value)))
+                Edited = true;
+        }
     }
 
     virtual void InitDefault()
@@ -188,9 +198,15 @@ public:
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
         if (desc->Min && desc->Max)
-            ImGui::SliderFloat(name.c_str(), &std::get<f32>(Value), desc->Min.value(), desc->Max.value());
+        {
+            if(ImGui::SliderFloat(name.c_str(), &std::get<f32>(Value), desc->Min.value(), desc->Max.value()))
+                Edited = true;
+        }
         else
-            ImGui::InputFloat(name.c_str(), &std::get<f32>(Value));
+        {
+            if(ImGui::InputFloat(name.c_str(), &std::get<f32>(Value)))
+                Edited = true;
+        }
     }
 
     virtual void InitDefault()
@@ -214,7 +230,8 @@ public:
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
-        ImGui::InputFloat3(name.c_str(), (f32*)&std::get<Vec3>(Value));
+        if(ImGui::InputFloat3(name.c_str(), (f32*)&std::get<Vec3>(Value)))
+            Edited = true;
     }
 
     virtual void InitDefault()
@@ -238,7 +255,8 @@ public:
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
-        ImGui::ColorPicker3(name.c_str(), (f32*)&std::get<Vec3>(Value));
+        if(ImGui::ColorPicker3(name.c_str(), (f32*)&std::get<Vec3>(Value)))
+            Edited = true;
     }
 
     virtual void InitDefault()
@@ -261,14 +279,23 @@ public:
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
+        string& nodeValue = std::get<string>(Value);
 
+        //Select the first choice if one hasn't been selected
+        if (nodeValue == "")
+            nodeValue = desc->Choices[0];
+
+        //Draw combo with all possible choices
         if (ImGui::BeginCombo(name.c_str(), std::get<string>(Value).c_str()))
         {
             for (auto& choice : desc->Choices)
             {
-                bool selected = choice == std::get<string>(Value);
+                bool selected = choice == nodeValue;
                 if (ImGui::Selectable(choice.c_str(), &selected))
+                {
                     Value = choice;
+                    Edited = true;
+                }
             }
             ImGui::EndCombo();
         }
@@ -302,7 +329,8 @@ public:
             for (auto& subnode : Subnodes)
             {
                 auto& value = std::get<XtblFlag>(subnode->Value);
-                ImGui::Checkbox(value.Name.c_str(), &value.Value);
+                if(ImGui::Checkbox(value.Name.c_str(), &value.Value))
+                    Edited = true;
             }
 
             ImGui::TreePop();
@@ -378,7 +406,8 @@ public:
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
         //Todo: Get a list of files with correct format for this node and list those instead of having the player type names out
-        ImGui::InputText(name, std::get<string>(Value));
+        if(ImGui::InputText(name, std::get<string>(Value)))
+            Edited = true;
     }
 
     virtual void InitDefault()
@@ -421,6 +450,7 @@ public:
                 bool active = i == currentType;
                 if (ImGui::RadioButton(desc->Subnodes[i]->Name.c_str(), active))
                 {
+                    Edited = true;
                     //If different type is selected activate new node and delete current one
                     if (!active)
                     {
@@ -491,20 +521,28 @@ public:
         //Find referenced values
         std::vector<Handle<IXtblNode>> referencedNodes = {};
         auto split = String::SplitString(desc->Reference->Path, "/");
-        string variablePath = desc->Reference->Path.substr(desc->Reference->Path.find_first_of('/') + 1);
+        string optionPath = desc->Reference->Path.substr(desc->Reference->Path.find_first_of('/') + 1);
         for (auto& subnode : refXtbl->Entries)
         {
             if (!String::EqualIgnoreCase(subnode->Name, split[0]))
                 continue;
 
             //Get list of matching subnodes. Some files like human_team_names.xtbl use lists instead of separate elements
-            auto variables = refXtbl->GetSubnodes(variablePath, subnode);
-            if (variables.size() == 0)
+            auto options = refXtbl->GetSubnodes(optionPath, subnode);
+            if (options.size() == 0)
                 continue;
 
-            for (auto& variable : variables)
-                referencedNodes.push_back(variable);
+            for (auto& option : options)
+                referencedNodes.push_back(option);
         }
+
+        //Exit early if there are no referenced nodes or the reference type isn't string (all other types aren't yet supported)
+        if (referencedNodes.size() == 0 || referencedNodes[0]->Type != XtblType::String)
+        {
+            gui::LabelAndValue(nameNoId + ":", std::get<string>(Value) + " [Error: Unsupported reference type]");
+            return;
+        }
+        string& nodeValue = std::get<string>(Value);
 
         //Find largest reference name to align combo buttons
         ImVec2 maxReferenceSize = { 0.0f, 0.0f };
@@ -522,49 +560,48 @@ public:
         static f32 comboButtonHeight = 25.0f;
         static f32 comboButtonOffsetY = -5.0f;
 
+        //Select the first option if one hasn't been selected
+        if (nodeValue == "")
+            nodeValue = std::get<string>(referencedNodes[0]->Value);
+
         //Draw combo with an option for each referenced value
         if (ImGui::BeginCombo(name.c_str(), std::get<string>(Value).c_str()))
         {
-            for (auto& node : referencedNodes)
+            for (auto& option : referencedNodes)
             {
-                if (node->Type == XtblType::String)
+                //Draw option
+                string variableValue = std::get<string>(option->Value);
+                bool selected = variableValue == nodeValue;
+                if (ImGui::Selectable(variableValue.c_str(), &selected, 0, maxReferenceSize))
                 {
-                    //Draw node name selectable
-                    string variableValue = std::get<string>(node->Value);
-                    string& nodeValue = std::get<string>(Value);
-                    bool selected = variableValue == nodeValue;
-                    if (ImGui::Selectable(variableValue.c_str(), &selected, 0, maxReferenceSize))
-                        nodeValue = variableValue;
-
-                    //Draw button to jump to file being referenced
-                    ImGui::SameLine();
-                    ImGui::SetCursorPos({ ImGui::GetCursorPosX(), ImGui::GetCursorPosY() + comboButtonOffsetY });
-                    if (ImGui::Button(fmt::format("{}##{}", ICON_FA_EXTERNAL_LINK_ALT, (u64)node.get()).c_str(), ImVec2(comboButtonWidth, comboButtonHeight)))
-                    {
-                        //Find parent element of variable
-                        Handle<IXtblNode> documentRoot = node;
-                        while (String::Contains(documentRoot->GetPath(), "/") && documentRoot->Parent)
-                        {
-                            documentRoot = documentRoot->Parent;
-                        }
-
-                        //Jump to referenced xtbl and select current node
-                        auto document = std::dynamic_pointer_cast<XtblDocument>(guiState->GetDocument(refXtbl->Name));
-                        if (document)
-                        {
-                            document->SelectedNode = documentRoot;
-                            ImGui::SetWindowFocus(document->Title.c_str());
-                        }
-                        else
-                        {
-                            document = CreateHandle<XtblDocument>(guiState, refXtbl->Name, refXtbl->VppName, refXtbl->VppName, false, documentRoot);
-                            guiState->CreateDocument(refXtbl->Name, document);
-                        }
-                    }
+                    nodeValue = variableValue;
+                    Edited = true;
                 }
-                else
+
+                //Draw button to jump to xtbl being referenced
+                ImGui::SameLine();
+                ImGui::SetCursorPos({ ImGui::GetCursorPosX(), ImGui::GetCursorPosY() + comboButtonOffsetY });
+                if (ImGui::Button(fmt::format("{}##{}", ICON_FA_EXTERNAL_LINK_ALT, (u64)option.get()).c_str(), ImVec2(comboButtonWidth, comboButtonHeight)))
                 {
-                    gui::LabelAndValue(nameNoId + ":", std::get<string>(Value) + " (reference) | Unsupported XtblType: " + to_string(node->Type));
+                    //Find parent element of variable
+                    Handle<IXtblNode> documentRoot = option;
+                    while (String::Contains(documentRoot->GetPath(), "/") && documentRoot->Parent)
+                    {
+                        documentRoot = documentRoot->Parent;
+                    }
+
+                    //Jump to referenced xtbl and select current node
+                    auto document = std::dynamic_pointer_cast<XtblDocument>(guiState->GetDocument(refXtbl->Name));
+                    if (document)
+                    {
+                        document->SelectedNode = documentRoot;
+                        ImGui::SetWindowFocus(document->Title.c_str());
+                    }
+                    else
+                    {
+                        document = CreateHandle<XtblDocument>(guiState, refXtbl->Name, refXtbl->VppName, refXtbl->VppName, false, documentRoot);
+                        guiState->CreateDocument(refXtbl->Name, document);
+                    }
                 }
             }
 
@@ -671,42 +708,61 @@ public:
 //Create node from XtblType using default value for that type
 static Handle<IXtblNode> CreateDefaultNode(XtblType type)
 {
+    Handle<IXtblNode> node = nullptr;
     switch (type)
     {
     case XtblType::Element:
-        return CreateHandle<ElementXtblNode>();
+        node = CreateHandle<ElementXtblNode>();
+        break;
     case XtblType::String:
-        return CreateHandle<StringXtblNode>();
+        node = CreateHandle<StringXtblNode>();
+        break;
     case XtblType::Int:
-        return CreateHandle<IntXtblNode>();
+        node = CreateHandle<IntXtblNode>();
+        break;
     case XtblType::Float:
-        return CreateHandle<FloatXtblNode>();
+        node = CreateHandle<FloatXtblNode>();
+        break;
     case XtblType::Vector:
-        return CreateHandle<VectorXtblNode>();
+        node = CreateHandle<VectorXtblNode>();
+        break;
     case XtblType::Color:
-        return CreateHandle<ColorXtblNode>();
+        node = CreateHandle<ColorXtblNode>();
+        break;
     case XtblType::Selection:
-        return CreateHandle<SelectionXtblNode>();
+        node = CreateHandle<SelectionXtblNode>();
+        break;
     case XtblType::Flags:
-        return CreateHandle<FlagsXtblNode>();
+        node = CreateHandle<FlagsXtblNode>();
+        break;
     case XtblType::List:
-        return CreateHandle<ListXtblNode>();
+        node = CreateHandle<ListXtblNode>();
+        break;
     case XtblType::Filename:
-        return CreateHandle<FilenameXtblNode>();
+        node = CreateHandle<FilenameXtblNode>();
+        break;
     case XtblType::ComboElement:
-        return CreateHandle<ComboElementXtblNode>();
+        node = CreateHandle<ComboElementXtblNode>();
+        break;
     case XtblType::Reference:
-        return CreateHandle<ReferenceXtblNode>();
+        node = CreateHandle<ReferenceXtblNode>();
+        break;
     case XtblType::Grid:
-        return CreateHandle<GridXtblNode>();
+        node = CreateHandle<GridXtblNode>();
+        break;
     case XtblType::TableDescription:
-        return CreateHandle<TableDescriptionXtblNode>();
+        node = CreateHandle<TableDescriptionXtblNode>();
+        break;
     case XtblType::Flag:
-        return CreateHandle<FlagXtblNode>();
+        node = CreateHandle<FlagXtblNode>();
+        break;
     case XtblType::None:
     default:
         THROW_EXCEPTION("Invalid value for XtblType \"{}\" passed to CreateDefaultNode() in XtblNodes.h", type);
     }
+
+    node->InitDefault();
+    return node;
 }
 
 //Create node from XtblDescription using default value from that description entry
@@ -737,6 +793,7 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
     case XtblType::Int:
         node = CreateHandle<IntXtblNode>();
         node->Value = std::stoi(desc->Default);
+        node->InitDefault();
         break;
     case XtblType::Float:
         node = CreateHandle<FloatXtblNode>();
@@ -744,9 +801,11 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         break;
     case XtblType::Vector:
         node = CreateHandle<VectorXtblNode>();
+        node->InitDefault();
         break;
     case XtblType::Color:
         node = CreateHandle<ColorXtblNode>();
+        node->InitDefault();
         break;
     case XtblType::Selection:
         node = CreateHandle<SelectionXtblNode>();
@@ -786,6 +845,7 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         break;
     case XtblType::List:
         node = CreateHandle<ListXtblNode>();
+        node->InitDefault();
         break;
     case XtblType::Filename:
         node = CreateHandle<FilenameXtblNode>();
@@ -793,6 +853,7 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         break;
     case XtblType::ComboElement:
         node = CreateHandle<ComboElementXtblNode>();
+        node->InitDefault();
         break;
     case XtblType::Reference:
         node = CreateHandle<ReferenceXtblNode>();
@@ -800,12 +861,15 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         break;
     case XtblType::Grid:
         node = CreateHandle<GridXtblNode>();
+        node->InitDefault();
         break;
     case XtblType::TableDescription:
         node = CreateHandle<TableDescriptionXtblNode>();
+        node->InitDefault();
         break;
     case XtblType::Flag:
         node = CreateHandle<FlagXtblNode>();
+        node->InitDefault();
         break;
     case XtblType::None:
     default:

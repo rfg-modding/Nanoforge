@@ -46,4 +46,5 @@ public:
     bool CategorySet = false; //Used by XtblFile to track which nodes are uncategorized
     bool Enabled = true; //Whether or not the node should be included in the file xtbl (for non-required nodes)
     bool HasDescription = false; //Whether or not the XtblNode has a description. Either in the <TableDescription> block or one provided by modders
+    bool Edited = false; //Set to true if edited
 };

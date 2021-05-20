@@ -38,8 +38,8 @@ public:
     Handle<IXtblNode> GetSubnode(const string& nodePath, Handle<IXtblNode> node);
     //Get root node by <Name> subnode value
     Handle<IXtblNode> GetRootNodeByName(const string& name);
-    //Ensure elements of provided description exist on XtblNode
-    void EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode> node);
+    //Ensure elements of provided description exist on XtblNode. If enableOptionalSubnodes = false then optional subnodes will be created but disabled.
+    void EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode> node, bool enableOptionalSubnodes = true);
 
     //Filename of the xtbl
     string Name;

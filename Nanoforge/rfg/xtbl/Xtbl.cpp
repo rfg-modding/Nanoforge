@@ -396,7 +396,7 @@ Handle<IXtblNode> XtblFile::GetRootNodeByName(const string& name)
     return nullptr;
 }
 
-void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode> node)
+void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode> node, bool enableOptionalSubnodes)
 {
     //Try to get pre-existing subnode
     string descPath = desc->GetPath();
@@ -413,10 +413,10 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode>
         subnode->Parent = node;
         subnode->CategorySet = false;
         subnode->HasDescription = true;
-        subnode->Enabled = true;
+        subnode->Enabled = desc->Required || enableOptionalSubnodes;
         node->Subnodes.push_back(subnode);
     }
 
     for (auto& subdesc : desc->Subnodes)
-        EnsureEntryExists(subdesc, subnode);
+        EnsureEntryExists(subdesc, subnode, enableOptionalSubnodes);
 }
