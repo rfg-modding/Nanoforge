@@ -437,10 +437,16 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
     //Write xtbl edits to modinfo.xml
     for (auto& xtbl : editedXtbls)
     {
-        //Add <Edit File="data\xxx.vpp\xxx.xtbl LIST_ACTION="COMBINE_BY_FIELD:Name,_Editor\Category"> each xtbl being edited
+        //Add <Edit> block for each xtbl being edited
+        bool hasCategory = xtbl->GetNodeCategory(xtbl->Entries[0]) != "";
         auto* edit = changes->InsertNewChildElement("Edit");
         edit->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(xtbl->VppName), xtbl->Name).c_str());
-        edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name,_Editor\\Category"); //Todo: Add support for xtbls without _Editor/Category node
+
+        //Determine how the mod manager should identify each entry. Category is only used if the node has one set.
+        if(hasCategory)
+            edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name,_Editor\\Category");
+        else
+            edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name");
 
         //Find and write edits
         for (auto& node : xtbl->Entries)

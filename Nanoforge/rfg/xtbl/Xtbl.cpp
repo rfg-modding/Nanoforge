@@ -327,7 +327,7 @@ void XtblFile::SetNodeCategory(Handle<IXtblNode> node, s_view categoryPath)
 string XtblFile::GetNodeCategory(Handle<IXtblNode> node)
 {
     auto find = categoryMap_.find(node);
-    return find == categoryMap_.end() ? "Entries" : find->second;
+    return find == categoryMap_.end() ? "" : find->second;
 }
 
 Handle<XtblCategory> XtblFile::GetOrCreateCategory(s_view categoryPath, Handle<XtblCategory> parent)
