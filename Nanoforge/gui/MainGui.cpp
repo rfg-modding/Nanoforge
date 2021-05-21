@@ -202,7 +202,7 @@ void MainGui::DrawMainMenuBar()
                 if (State.PackfileVFS->Ready() && State.CurrentProject)
                 {
                     State.SetStatus("Packing mod...", GuiStatus::Working);
-                    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);
+                    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS, State.Xtbls);
                     State.ClearStatus();
                 }
             })

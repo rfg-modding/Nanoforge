@@ -19,7 +19,6 @@ public:
     //Returns true if ready for use
     bool Ready() { return initialized_; }
 
-private:
     //A set of xtbl files that are all in the same vpp_pc
     struct XtblGroup
     {
@@ -32,8 +31,9 @@ private:
     Handle<XtblGroup> AddGroup(const string& vppName);
 
     //Groups of xtbl files that are in the same vpp_pc. Xtbls are only parsed when requested
-    std::vector<Handle<XtblGroup>> groups_;
-    PackfileVFS* packfileVFS_ = nullptr;
+    std::vector<Handle<XtblGroup>> XtblGroups;
 
+private:
+    PackfileVFS* packfileVFS_ = nullptr;
     bool initialized_ = false;
 };

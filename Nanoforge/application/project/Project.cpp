@@ -3,8 +3,8 @@
 #include "common/string/String.h"
 #include "common/filesystem/File.h"
 #include "util/RfgUtil.h"
+#include "rfg/xtbl/XtblManager.h"
 #include "Log.h"
-#include <tinyxml2/tinyxml2.h>
 #include <spdlog/fmt/fmt.h>
 #include "RfgTools++/RfgTools++/formats/packfiles/Packfile3.h"
 #include "RfgTools++/RfgTools++/formats/asm/AsmFile5.h"
@@ -49,10 +49,10 @@ bool Project::Save()
     return true;
 }
 
-void Project::PackageMod(const string& outputPath, PackfileVFS* vfs)
+void Project::PackageMod(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     WorkerRunning = true;
-    WorkerResult = std::async(std::launch::async, &Project::PackageModThread, this, std::ref(outputPath), vfs);
+    WorkerResult = std::async(std::launch::async, &Project::PackageModThread, this, outputPath, vfs, xtblManager);
 }
 
 string Project::GetCachePath()
@@ -139,7 +139,7 @@ bool Project::LoadProjectFile(const string& projectFilePath)
     return true;
 }
 
-bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
+bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     //Reset public thread state
     WorkerState = "";
@@ -164,8 +164,8 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
     // - Repack str2_pc files (if texture is in str2_pc)
     // - Update asm_pc files (if texture is in str2_pc)
     // - Copy edited files to output folder
-    f32 numSteps = (f32)(Edits.size() * 3); //This will need to be done a better way once more edit types are supported
-    f32 stepSize = 1.0f / numSteps;
+    f32 numPackagingSteps = (f32)(Edits.size() * 3) + 1; //This will need to be done a better way once more edit types are supported
+    f32 packagingStepSize = 1.0f / numPackagingSteps;
 
     //Loop through edits
     for (auto& edit : Edits)
@@ -242,7 +242,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                     return false;
                 }
                 WorkerState = fmt::format("Updating {}...", asmName);
-                WorkerPercentage += stepSize;
+                WorkerPercentage += packagingStepSize;
 
                 //Check if cancel button was pressed. Added to middle of edit step since they can sometimes take quite a while
                 if (PackagingCancelled)
@@ -311,7 +311,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                 newAsmFile.Write(asmOutputPath);
 
                 WorkerState = fmt::format("Copying edited files to output folder...");
-                WorkerPercentage += stepSize;
+                WorkerPercentage += packagingStepSize;
 
                 //Copy new str2 and asm files to output folder. Also copy asm to project folder
                 std::filesystem::copy_file(packOutputPath, outputPath + str2Filename, copyOptions);
@@ -331,7 +331,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                 replaceAsm->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), asmName).c_str());
                 replaceAsm->SetAttribute("NewFile", asmName.c_str());
 
-                WorkerPercentage += stepSize;
+                WorkerPercentage += packagingStepSize;
             }
             else
             {
@@ -352,16 +352,128 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                 replaceGpuFile->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), gpuFilename).c_str());
                 replaceGpuFile->SetAttribute("NewFile", gpuFilename.c_str());
 
-                WorkerPercentage += 3.0f * stepSize;
+                WorkerPercentage += 3.0f * packagingStepSize;
             }
         }
     }
 
+    //Package xtbl edits
+    WorkerState = fmt::format("Writing xtbl edits...");
+    PackageXtblEdits(changes, vfs, xtblManager);
+    WorkerPercentage += packagingStepSize;
+
     //Save modinfo.xml
-    modinfo.InsertFirstChild(modBlock);
-    modinfo.SaveFile((outputPath + "modinfo.xml").c_str());
+    string modinfoPath = outputPath + "modinfo.xml";
+    modinfo.InsertEndChild(modBlock);
+    modinfo.SaveFile(modinfoPath.c_str());
 
     WorkerRunning = false;
+
+    return true;
+}
+
+//Propagate edited nodes "Edited" state to their parents recursively
+//That way if a parent is set "Edited" we know one of the child nodes is edited
+bool PropagateXtblEdits(Handle<IXtblNode> node)
+{
+    //If node is edited mark all of it's parents as edited
+    if (node->Edited)
+    {
+        Handle<IXtblNode> parent = node->Parent;
+        while (parent)
+        {
+            parent->Edited = true;
+            parent = parent->Parent;
+        }
+    }
+
+    //Check if subnodes have been edited
+    bool anySubnodeEdited = false;
+    for (auto& subnode : node->Subnodes)
+    {
+        if (PropagateXtblEdits(subnode))
+        {
+            anySubnodeEdited = true;
+
+            //Special case for list variables nodes. Set name nodes as edited so they're written to the modinfo.
+            //Their needed to differentiate each list entry from each other
+            if (node->Type == XtblType::List)
+            {
+                auto nameNode = subnode->GetSubnode("Name");
+                if (nameNode)
+                    nameNode->Edited = true;
+            }
+        }
+    }
+
+    //Return true if this node or any of it's subnodes were edited
+    return anySubnodeEdited || node->Edited;
+}
+
+bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager)
+{
+    //List of xtbl files with edits
+    std::vector<Handle<XtblFile>> editedXtbls = {};
+
+    //Propagate xtbl edits for easy edit checks and get list of edited xtbls
+    for (auto& group : xtblManager->XtblGroups)
+    {
+        for (auto& xtbl : group->Files)
+        {
+            bool anySubnodeEdited = false;
+            for (auto& subnode : xtbl->Entries)
+                if (PropagateXtblEdits(subnode))
+                    anySubnodeEdited = true;
+
+            if (anySubnodeEdited)
+                editedXtbls.push_back(xtbl);
+        }
+    }
+
+    //Write xtbl edits to modinfo.xml
+    for (auto& xtbl : editedXtbls)
+    {
+        //Add <Edit File="data\xxx.vpp\xxx.xtbl LIST_ACTION="COMBINE_BY_FIELD:Name,_Editor\Category"> each xtbl being edited
+        auto* edit = changes->InsertNewChildElement("Edit");
+        edit->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(xtbl->VppName), xtbl->Name).c_str());
+        edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name,_Editor\\Category"); //Todo: Add support for xtbls without _Editor/Category node
+
+        //Find and write edits
+        for (auto& node : xtbl->Entries)
+        {
+            if (!node->Edited)
+                continue;
+
+            auto* entry = edit->InsertNewChildElement(node->Name.c_str());
+            auto name = node->GetSubnode("Name");
+            string category = xtbl->GetNodeCategory(node);
+
+            //Write name and category which are used to identify nodes
+            if (name)
+            {
+                auto* nameXml = entry->InsertNewChildElement("Name");
+                nameXml->SetText(std::get<string>(name->Value).c_str());
+            }
+            auto* editorXml = entry->InsertNewChildElement("_Editor");
+            auto* categoryXml = editorXml->InsertNewChildElement("Category");
+            categoryXml->SetText(category.c_str());
+
+            //Write edits for each edited subnode
+            for (auto& subnode : node->Subnodes)
+            {
+                //Skip unedited nodes
+                if (!subnode->Edited)
+                    continue;
+
+                //Writes edits based on implementation of IXtblNode::WriteModinfoEdits()
+                if (!node->WriteModinfoEdits(entry))
+                {
+                    Log->error("Xtbl modinfo packing failed for subnode: \"{}\"", subnode->GetPath());
+                    return false;
+                }
+            }
+        }
+    }
 
     return true;
 }

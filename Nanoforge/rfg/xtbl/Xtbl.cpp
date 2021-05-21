@@ -10,6 +10,9 @@
 
 XtblFile::~XtblFile()
 {
+    //Clear category map
+    categoryMap_.clear();
+
     //Delete all nodes. Need to be manually deleted since theres circular references between parent and child nodes
     for (auto& node : Entries)
         node->DeleteSubnodes();
@@ -318,6 +321,13 @@ void XtblFile::SetNodeCategory(Handle<IXtblNode> node, s_view categoryPath)
     auto category = categoryPath.find(":") == s_view::npos ? RootCategory : GetOrCreateCategory(categoryPath.substr(categoryPath.find_first_of(":") + 1));
     category->Nodes.push_back(node);
     node->CategorySet = true;
+    categoryMap_[node] = categoryPath;
+}
+
+string XtblFile::GetNodeCategory(Handle<IXtblNode> node)
+{
+    auto find = categoryMap_.find(node);
+    return find == categoryMap_.end() ? "Entries" : find->second;
 }
 
 Handle<XtblCategory> XtblFile::GetOrCreateCategory(s_view categoryPath, Handle<XtblCategory> parent)

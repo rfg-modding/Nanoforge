@@ -27,6 +27,8 @@ public:
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr) = 0;
     //Initialize node with default values for it's data type
     virtual void InitDefault() = 0;
+    //Write edited node data to modinfo.xml. Returns false if it encounters an error and true if it succeeds.
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry) = 0;
 
     //Functions that all nodes have
     bool HasValue() { return Subnodes.size() == 0; }

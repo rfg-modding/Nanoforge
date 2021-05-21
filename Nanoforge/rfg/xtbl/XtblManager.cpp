@@ -69,7 +69,7 @@ Handle<XtblFile> XtblManager::GetOrCreateXtbl(const string& vppName, const strin
 
 Handle<XtblManager::XtblGroup> XtblManager::GetGroup(const string& vppName)
 {
-    for (auto& group : groups_)
+    for (auto& group : XtblGroups)
         if (group->VppName == vppName)
             return group;
 
@@ -79,5 +79,5 @@ Handle<XtblManager::XtblGroup> XtblManager::GetGroup(const string& vppName)
 Handle<XtblManager::XtblGroup> XtblManager::AddGroup(const string& vppName)
 {
     auto group = GetGroup(vppName);
-    return group ? group : groups_.emplace_back(CreateHandle<XtblManager::XtblGroup>(vppName, std::vector<Handle<XtblFile>>{}));
+    return group ? group : XtblGroups.emplace_back(CreateHandle<XtblManager::XtblGroup>(vppName, std::vector<Handle<XtblFile>>{}));
 }

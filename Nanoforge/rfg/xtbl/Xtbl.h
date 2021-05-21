@@ -3,6 +3,7 @@
 #include "XtblType.h"
 #include "IXtblNode.h"
 #include "XtblDescription.h"
+#include <unordered_map>
 #include <vector>
 
 //Categories specified by <_Editor><Category>...</Category></_Editor> blocks
@@ -30,6 +31,8 @@ public:
     Handle<XtblDescription> GetValueDescription(const string& valuePath, Handle<XtblDescription> desc = nullptr);
     //Add node to provided category. Category will be created if it doesn't already exist
     void SetNodeCategory(Handle<IXtblNode> node, s_view categoryPath);
+    //Get path of category that the node is in. E.g. Entries:EDF
+    string GetNodeCategory(Handle<IXtblNode> node);
     //Get category and create it if it doesn't already exist
     Handle<XtblCategory> GetOrCreateCategory(s_view categoryPath, Handle<XtblCategory> parent = nullptr);
     //Get subnodes of search node
@@ -55,4 +58,8 @@ public:
     Handle<XtblCategory> RootCategory = CreateHandle<XtblCategory>("Entries");
     //References to other xtbl files
     std::vector<Handle<XtblReference>> References;
+
+private:
+    //Easy way to get a nodes category with needing to search the category tree
+    std::unordered_map<Handle<IXtblNode>, string> categoryMap_;
 };

@@ -122,6 +122,27 @@ public:
     {
     
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        //Make another xml element and write edited subnodes to it
+        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        for (auto& subnode : Subnodes)
+        {
+            if (!subnode->Edited)
+                continue;
+
+            //Stop early if any node fails to write
+            bool result = subnode->WriteModinfoEdits(elementXml);
+            if (!result)
+            {
+                Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
+                return false;
+            }
+        }
+
+        return true;
+    }
 };
 
 //Node with a string value
@@ -146,6 +167,13 @@ public:
     virtual void InitDefault()
     {
         Value = "";
+    }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        auto* xml = entry->InsertNewChildElement(Name.c_str());
+        xml->SetText(std::get<string>(Value).c_str());
+        return true;
     }
 };
 
@@ -180,6 +208,13 @@ public:
     {
         Value = 0;
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        auto* xml = entry->InsertNewChildElement(Name.c_str());
+        xml->SetText(std::to_string(std::get<i32>(Value)).c_str());
+        return true;
+    }
 };
 
 //Node with a floating point value
@@ -213,6 +248,13 @@ public:
     {
         Value = 0.0f;
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        auto* xml = entry->InsertNewChildElement(Name.c_str());
+        xml->SetText(std::to_string(std::get<f32>(Value)).c_str());
+        return true;
+    }
 };
 
 //Node with a 3d vector value
@@ -238,6 +280,23 @@ public:
     {
         Value = Vec3(0.0f, 0.0f, 0.0f);
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        //Make another xml element with <X> <Y> <Z> sub elements
+        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        auto* x = elementXml->InsertNewChildElement("X");
+        auto* y = elementXml->InsertNewChildElement("Y");
+        auto* z = elementXml->InsertNewChildElement("Z");
+
+        //Write values to xml
+        Vec3 vec = std::get<Vec3>(Value);
+        x->SetText(std::to_string(vec.x).c_str());
+        y->SetText(std::to_string(vec.y).c_str());
+        z->SetText(std::to_string(vec.z).c_str());
+
+        return true;
+    }
 };
 
 //Node with a RGB color value
@@ -262,6 +321,25 @@ public:
     virtual void InitDefault()
     {
         Value = Vec3(0.0f, 0.0f, 0.0f);
+    }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        //Make another xml element with <R> <G> <B> <A> sub elements
+        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        auto* r = elementXml->InsertNewChildElement("R");
+        auto* g = elementXml->InsertNewChildElement("G");
+        auto* b = elementXml->InsertNewChildElement("B");
+        auto* a = elementXml->InsertNewChildElement("A");
+
+        //Write values to xml as u8s [0, 255]
+        Vec3 vec = std::get<Vec3>(Value);
+        r->SetText(std::to_string((u8)vec.x).c_str());
+        g->SetText(std::to_string((u8)vec.y).c_str());
+        b->SetText(std::to_string((u8)vec.z).c_str());
+        a->SetText("255");
+
+        return true;
     }
 };
 
@@ -305,6 +383,13 @@ public:
     {
         Value = "";
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        auto* xml = entry->InsertNewChildElement(Name.c_str());
+        xml->SetText(std::get<string>(Value).c_str());
+        return true;
+    }
 };
 
 //Node with set of flags that can be true or false. Flags are described in xtbl description block
@@ -340,6 +425,25 @@ public:
     virtual void InitDefault()
     {
 
+    }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        //Make another xml element and write enabled flags to it
+        auto* flagsXml = entry->InsertNewChildElement(Name.c_str());
+        for (auto& flag : Subnodes)
+        {
+            //Skip disabled flags
+            XtblFlag flagValue = std::get<XtblFlag>(flag->Value);
+            if (!flagValue.Value)
+                continue;
+
+            //Write flag to xml
+            auto* flagXml = flagsXml->InsertNewChildElement("Flag");
+            flagXml->SetText(flagValue.Name.c_str());
+        }
+
+        return true;
     }
 };
 
@@ -388,6 +492,28 @@ public:
     {
 
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        //Make another xml element and write edited subnodes to it
+        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        for (auto& subnode : Subnodes)
+        {
+            //Don't write unedited node unless it's the Name node which is used for identification of list elements
+            if (!subnode->Edited)
+                continue;
+
+            //Stop early if any node fails to write
+            bool result = subnode->WriteModinfoEdits(elementXml);
+            if (!result)
+            {
+                Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
+                return false;
+            }
+        }
+
+        return true;
+    }
 };
 
 //Node with the name of an RFG asset file
@@ -413,6 +539,13 @@ public:
     virtual void InitDefault()
     {
         Value = "";
+    }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        auto* xml = entry->InsertNewChildElement(Name.c_str());
+        xml->SetText(std::get<string>(Value).c_str());
+        return true;
     }
 };
 
@@ -496,6 +629,12 @@ public:
     virtual void InitDefault()
     {
 
+    }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        return Subnodes[0]->WriteModinfoEdits(elementXml); //Each combo element node should only have 1 subnode
     }
 };
 
@@ -613,6 +752,13 @@ public:
     {
 
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        auto* xml = entry->InsertNewChildElement(Name.c_str());
+        xml->SetText(std::get<string>(Value).c_str());
+        return true;
+    }
 };
 
 //Node which is a table of values with one or more rows and columns
@@ -663,6 +809,27 @@ public:
     {
 
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        //Make another xml element and write edited subnodes to it
+        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        for (auto& subnode : Subnodes)
+        {
+            if (!subnode->Edited)
+                continue;
+
+            //Stop early if any node fails to write
+            bool result = subnode->WriteModinfoEdits(elementXml);
+            if (!result)
+            {
+                Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
+                return false;
+            }
+        }
+
+        return true;
+    }
 };
 
 //Node found in xtbl description block found at the end of xtbl files
@@ -683,6 +850,25 @@ public:
     {
 
     }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        //Write subnodes to modinfo
+        for (auto& subnode : Subnodes)
+        {
+            if (!subnode->Edited)
+                continue;
+
+            //Stop early if any node fails to write
+            bool result = subnode->WriteModinfoEdits(entry);
+            if (!result)
+            {
+                Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
+                return false;
+            }
+        }
+        return true;
+    }
 };
 
 //Flag node. Contained by FlagsXtblNode
@@ -702,6 +888,12 @@ public:
     virtual void InitDefault()
     {
 
+    }
+
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    {
+        //Handled by FlagsXtblNode
+        return true;
     }
 };
 
