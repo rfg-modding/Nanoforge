@@ -85,8 +85,19 @@ void Application::Run()
         UpdateGui();
         renderer_.DoFrame(deltaTime_);
 
+        //Sleep until target framerate is reached
         while (FrameTimer.ElapsedSecondsPrecise() < maxFrameRateDelta)
-            deltaTime_ = FrameTimer.ElapsedSecondsPrecise();
+        {
+            /*
+                Sleep is used here instead of busy waiting to minimize cpu usage. With Sleep we're slightly off the target FPS
+                but have lower CPU usage for most of the runtime. Busy waiting would get us very close to the target FPS but 
+                fully utilize a core until Nanoforge closes, even when it's idling. That's not good for people who might have
+                other editing software or the game open at the same time as Nanoforge. It should be unobtrusive when minimized.
+            */ 
+            f32 timeToTargetFramerateMs = (maxFrameRateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f;
+            Sleep((DWORD)timeToTargetFramerateMs);
+        }
+        deltaTime_ = FrameTimer.ElapsedSecondsPrecise();
     }
 }
 
