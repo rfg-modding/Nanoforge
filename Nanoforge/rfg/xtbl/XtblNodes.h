@@ -160,8 +160,17 @@ public:
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
-        if (ImGui::InputText(name, std::get<string>(Value)))
-            Edited = true;
+        //Todo: Add way to change names and auto-update any references. Likely would do this in the XtblDocument entry sidebar. 
+        //Name nodes uneditable for the time being since they're use by xtbl references
+        if (nameNoId == "Name")
+        {
+            return;
+        }
+        else
+        {
+            if (ImGui::InputText(name, std::get<string>(Value)))
+                Edited = true;
+        }
     }
 
     virtual void InitDefault()
@@ -325,19 +334,17 @@ public:
 
     virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
     {
-        //Make another xml element with <R> <G> <B> <A> sub elements
+        //Make another xml element with <R> <G> <B> sub elements
         auto* elementXml = entry->InsertNewChildElement(Name.c_str());
         auto* r = elementXml->InsertNewChildElement("R");
         auto* g = elementXml->InsertNewChildElement("G");
         auto* b = elementXml->InsertNewChildElement("B");
-        auto* a = elementXml->InsertNewChildElement("A");
 
         //Write values to xml as u8s [0, 255]
         Vec3 vec = std::get<Vec3>(Value);
-        r->SetText(std::to_string((u8)vec.x).c_str());
-        g->SetText(std::to_string((u8)vec.y).c_str());
-        b->SetText(std::to_string((u8)vec.z).c_str());
-        a->SetText("255");
+        r->SetText(std::to_string((u8)(vec.x * 255.0f)).c_str());
+        g->SetText(std::to_string((u8)(vec.y * 255.0f)).c_str());
+        b->SetText(std::to_string((u8)(vec.z * 255.0f)).c_str());
 
         return true;
     }

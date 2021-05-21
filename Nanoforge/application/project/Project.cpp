@@ -149,6 +149,10 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
     //Create output path
     std::filesystem::create_directories(outputPath);
     std::filesystem::copy_options copyOptions = std::filesystem::copy_options::overwrite_existing;
+    
+    //Delete files and folders from previous runs
+    for(auto& path : std::filesystem::directory_iterator(outputPath))
+        std::filesystem::remove_all(path);
 
     //Create modinfo.xml and fill out basic info
     tinyxml2::XMLDocument modinfo;

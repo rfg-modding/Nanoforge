@@ -45,13 +45,14 @@ void XtblDocument::Update(GuiState* state)
     ImGui::Columns(2);
     ImGui::SetColumnWidth(0, 300.0f);
 
+    f32 headerY = ImGui::GetCursorPosY();
     state->FontManager->FontL.Push();
-    ImGui::Text(ICON_FA_CODE " Entries");
+    ImGui::Text(ICON_FA_FILE_ALT " Entries");
     state->FontManager->FontL.Pop();
     ImGui::Separator();
 
     //Save cursor y at start of list to align columns
-    f32 baseY = ImGui::GetCursorPosY();
+    f32 dataY = ImGui::GetCursorPosY();
 
     //Draw sidebar with list of entries
     if (ImGui::BeginChild("##EntryList"))
@@ -66,18 +67,33 @@ void XtblDocument::Update(GuiState* state)
         ImGui::EndChild();
     }
 
-    //Draw values of the selected entry
-    ImGui::SetCursorPosY(baseY);
+    //Draw editor for selected node
     ImGui::NextColumn();
-    if (xtbl_->Entries.size() != 0 && SelectedNode && ImGui::BeginChild("##EntryView"))
+    if (xtbl_->Entries.size() != 0 && SelectedNode)
     {
-        //Draw subnodes with descriptions so empty optional elements are visible
-        ImGui::PushItemWidth(NodeGuiWidth);
-        for (auto& desc : xtbl_->TableDescription->Subnodes)
-            DrawNodeByDescription(state, xtbl_, desc, SelectedNode);
-    
-        ImGui::PopItemWidth();
-        ImGui::EndChild();
+        //Draw the name of the node if it has one
+        ImGui::SetCursorPosY(headerY);
+        auto selectedNodeName = SelectedNode->GetSubnodeValueString("Name");
+        if (selectedNodeName)
+        {
+            state->FontManager->FontL.Push();
+            ImGui::Text(fmt::format("{} {}", ICON_FA_CODE, selectedNodeName.value()).c_str());
+            state->FontManager->FontL.Pop();
+            //ImGui::Separator();
+        }
+
+        //Draw editors for subnodes
+        ImGui::SetCursorPosY(dataY);
+        if (ImGui::BeginChild("##EntryView"))
+        {
+            //Subnodes are drawn by description so empty optional elements are visible
+            ImGui::PushItemWidth(NodeGuiWidth);
+            for (auto& desc : xtbl_->TableDescription->Subnodes)
+                DrawNodeByDescription(state, xtbl_, desc, SelectedNode);
+
+            ImGui::PopItemWidth();
+            ImGui::EndChild();
+        }
     }
 
     ImGui::Columns(1);
