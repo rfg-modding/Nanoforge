@@ -43,6 +43,8 @@ public:
     Handle<IXtblNode> GetRootNodeByName(const string& name);
     //Ensure elements of provided description exist on XtblNode. If enableOptionalSubnodes = false then optional subnodes will be created but disabled.
     void EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode> node, bool enableOptionalSubnodes = true);
+    //Write all nodes to xtbl file
+    void WriteXtbl(const string& outPath);
 
     //Filename of the xtbl
     string Name;

@@ -18,6 +18,8 @@ public:
 private:
     void DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault = false);
     void DrawXtblNodeEntry(Handle<IXtblNode> node); //Draw xtbl node in entry list
+    //Void xtbl to project cache
+    void Save();
 
     string filename_;
     string parentName_;
@@ -26,4 +28,5 @@ private:
 
     Handle<XtblFile> xtbl_ = nullptr;
     XtblManager* xtblManager_ = nullptr;
+    GuiState* state_ = nullptr;
 };

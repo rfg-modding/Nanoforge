@@ -40,7 +40,7 @@ bool Project::Save()
         auto* editPath = editElement->InsertNewChildElement("Path");
         
         editType->SetText(edit.EditType.c_str());
-        editPath->SetText(edit.EditedFile.c_str());
+        editPath->SetText(edit.EditedFilePath.c_str());
     }
 
     project.InsertFirstChild(projectBlock);
@@ -182,7 +182,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
         }
 
         //Split edited file cache path
-        std::vector<s_view> split = String::SplitString(edit.EditedFile, "\\");
+        std::vector<s_view> split = String::SplitString(edit.EditedFilePath, "\\");
         bool inContainer = split.size() == 3;
 
         //Todo: Define IAction interface that each edit/action will be implemented as. Put this behavior in that
@@ -193,7 +193,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
             if (inContainer)
             {
                 //Copy edited str2_pc contents to temp folder
-                string parentPath = edit.EditedFile.substr(0, edit.EditedFile.find_last_of("\\"));
+                string parentPath = edit.EditedFilePath.substr(0, edit.EditedFilePath.find_last_of("\\"));
                 string tempPath = Path + "\\Temp\\" + parentPath + "\\";
                 string str2Filename = string(split[1]);
                 WorkerState = fmt::format("Repacking {}...", str2Filename);
@@ -344,7 +344,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
                 WorkerState = fmt::format("Copying edited files to output folder...");
                 string cpuFilename = string(split.back());
                 string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(cpuFilename);
-                std::filesystem::copy_file(GetCachePath() + edit.EditedFile, outputPath + cpuFilename, copyOptions);
+                std::filesystem::copy_file(GetCachePath() + edit.EditedFilePath, outputPath + cpuFilename, copyOptions);
                 std::filesystem::copy_file(fmt::format("{}{}\\{}", GetCachePath(), split[0], gpuFilename), outputPath + gpuFilename, copyOptions);
 
                 //Add <Replace> blocks for the cpu file and the gpu file
@@ -416,6 +416,17 @@ bool PropagateXtblEdits(Handle<IXtblNode> node)
 
 bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager)
 {
+    //Ensure that all xtbls in the edit list so edits from previous sessions are handled
+    for (auto& edit : Edits)
+    {
+        if (edit.EditType != "Xtbl")
+            continue;
+        
+        string xtblName = Path::GetFileName(edit.EditedFilePath);
+        string vppName(String::SplitString(edit.EditedFilePath, "\\")[0]);
+        xtblManager->ParseXtbl(vppName, xtblName);
+    }
+
     //List of xtbl files with edits
     std::vector<Handle<XtblFile>> editedXtbls = {};
 
@@ -432,6 +443,35 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
             if (anySubnodeEdited)
                 editedXtbls.push_back(xtbl);
         }
+    }
+
+    //Ensure edited xtbls are in the edit list and resave the nanoproj file
+    for (auto& xtbl : editedXtbls)
+    {
+        bool found = false;
+        for (auto& edit : Edits)
+            if (edit.EditType == "Xtbl" && edit.EditedFilePath == xtbl->Name)
+                found = true;
+
+        if (!found)
+            Edits.push_back({ "Xtbl", fmt::format("{}\\{}", xtbl->VppName, xtbl->Name) });
+    }
+    Save();
+
+    //Todo: Make a general purpose saving/change tracking system for all documents that would handle this and warn the user when data is unsaved
+    //Save edited xtbls to project cache
+    for (auto& xtbl : editedXtbls)
+    {
+        //Path to output folder in the project cache
+        string outputFolderPath = GetCachePath() + xtbl->VppName + "\\";
+        string outputFilePath = outputFolderPath + xtbl->Name;
+
+        //Ensure output folder exists
+        std::filesystem::create_directories(outputFolderPath);
+
+        //Save xtbl project cache and rescan cache to see edited files in it
+        xtbl->WriteXtbl(outputFilePath);
+        RescanCache();
     }
 
     //Write xtbl edits to modinfo.xml
@@ -455,32 +495,28 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
                 continue;
 
             auto* entry = edit->InsertNewChildElement(node->Name.c_str());
-            auto name = node->GetSubnode("Name");
+            auto nameNode = node->GetSubnode("Name");
+            string name = nameNode ? std::get<string>(nameNode->Value) : "";
             string category = xtbl->GetNodeCategory(node);
 
             //Write name and category which are used to identify nodes
-            if (name)
+            if (nameNode)
             {
                 auto* nameXml = entry->InsertNewChildElement("Name");
-                nameXml->SetText(std::get<string>(name->Value).c_str());
+                nameXml->SetText(name.c_str());
             }
-            auto* editorXml = entry->InsertNewChildElement("_Editor");
-            auto* categoryXml = editorXml->InsertNewChildElement("Category");
-            categoryXml->SetText(category.c_str());
-
-            //Write edits for each edited subnode
-            for (auto& subnode : node->Subnodes)
+            if (hasCategory)
             {
-                //Skip unedited nodes
-                if (!subnode->Edited)
-                    continue;
+                auto* editorXml = entry->InsertNewChildElement("_Editor");
+                auto* categoryXml = editorXml->InsertNewChildElement("Category");
+                categoryXml->SetText(category.c_str());
+            }
 
-                //Writes edits based on implementation of IXtblNode::WriteModinfoEdits()
-                if (!node->WriteModinfoEdits(entry))
-                {
-                    Log->error("Xtbl modinfo packing failed for subnode: \"{}\"", subnode->GetPath());
-                    return false;
-                }
+            //Writes edits based on implementation of IXtblNode::WriteModinfoEdits()
+            if (!node->WriteModinfoEdits(entry))
+            {
+                Log->error("Xtbl modinfo packing failed for subnode: \"{}\\{}\"", node->GetPath(), name);
+                return false;
             }
         }
     }

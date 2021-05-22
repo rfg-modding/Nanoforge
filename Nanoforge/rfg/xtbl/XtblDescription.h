@@ -29,11 +29,11 @@ public:
     string Name;
     XtblType Type;
     string DisplayName;
-    string Description;
-    bool Required = true;
-    bool Unique = false;
-    string Default;
-    i32 MaxCount;
+    std::optional<string> Description;
+    std::optional<bool> Required = true;
+    std::optional<bool> Unique = false;
+    std::optional<string> Default;
+    std::optional<i32> MaxCount;
 
     Handle<XtblDescription> Parent = nullptr;
     std::vector<Handle<XtblDescription>> Subnodes;
@@ -41,15 +41,18 @@ public:
     string DefaultChoice;
     std::vector<string> Flags;
     Handle<XtblReference> Reference = nullptr;
-    string Extension;
-    string StartingPath;
-    bool ShowPreload;
+    std::optional<string> Extension;
+    std::optional<string> StartingPath;
+    std::optional<bool> ShowPreload;
     std::optional<f32> Min = {};
     std::optional<f32> Max = {};
-    i32 MaxChildren;
-    i32 NumDisplayRows;
+    std::optional<i32> MaxChildren;
+    std::optional<i32> NumDisplayRows;
 
+    //Parse description from xml
     bool Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> self, XtblFile& file);
+    //Write description to xml
+    bool WriteXml(tinyxml2::XMLElement* xml);
     //Returns the path of the value. This is this nodes name prepended with the names of it's parents
     string GetPath();
 };

@@ -142,7 +142,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
 
         //Read choices if present
         auto* nextChoice = node->FirstChildElement("Choice");
-        //Get default choice
+        //Get default flag
         tinyxml2::XMLElement* defaultChoice = nullptr;
         if (nextChoice)
             defaultChoice = node->FirstChildElement("Default");
@@ -163,6 +163,114 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
     }
 
     return true;
+}
+
+bool XtblDescription::WriteXml(tinyxml2::XMLElement* xml)
+{
+    //All descriptions have a name and type
+    auto* nameXml = xml->InsertNewChildElement("Name");
+    auto* typeXml = xml->InsertNewChildElement("Type");
+    nameXml->SetText(Name.c_str());
+    typeXml->SetText(to_string(Type).c_str());
+
+    //Write display name if it has one. It's set to Name on load if it's empty so we compare them
+    if (DisplayName != Name)
+    {
+        auto* displayNameXml = xml->InsertNewChildElement("Display_Name");
+        displayNameXml->SetText(DisplayName.c_str());
+    }
+
+    //Write other data if present
+    if (Description.has_value())
+    {
+        auto* descriptionXml = xml->InsertNewChildElement("Description");
+        descriptionXml->SetText(Description.value().c_str());
+    }
+    if (Required.has_value())
+    {
+        auto* requiredXml = xml->InsertNewChildElement("Required");
+        requiredXml->SetText(Required.value() ? "true" : "false");
+    }
+    if (Unique.has_value())
+    {
+        auto* uniqueXml = xml->InsertNewChildElement("Unique");
+        uniqueXml->SetText(Unique.value() ? "true" : "false");
+    }
+    if (Default.has_value())
+    {
+        auto* defaultXml = xml->InsertNewChildElement("Default");
+        defaultXml->SetText(Default.value().c_str());
+    }
+    if (MaxCount.has_value())
+    {
+        auto* maxCountXml = xml->InsertNewChildElement("MaxCount");
+        maxCountXml->SetText(std::to_string(MaxCount.value()).c_str());
+    }
+    if (Extension.has_value())
+    {
+        auto* extensionXml = xml->InsertNewChildElement("Extension");
+        extensionXml->SetText(Extension.value().c_str());
+    }
+    if (StartingPath.has_value())
+    {
+        auto* startingPathXml = xml->InsertNewChildElement("StartingPath");
+        startingPathXml->SetText(StartingPath.value().c_str());
+    }
+    if (ShowPreload.has_value())
+    {
+        auto* showPreloadXml = xml->InsertNewChildElement("ShowPreload");
+        showPreloadXml->SetText(ShowPreload.value() ? "true" : "false");
+    }
+    if (Min.has_value())
+    {
+        auto* minXml = xml->InsertNewChildElement("MinValue");
+        minXml->SetText(std::to_string(Min.value()).c_str());
+    }
+    if (Max.has_value())
+    {
+        auto* maxXml = xml->InsertNewChildElement("MaxValue");
+        maxXml->SetText(std::to_string(Max.value()).c_str());
+    }
+    if (MaxChildren.has_value())
+    {
+        auto* maxChildrenXml = xml->InsertNewChildElement("Max_Children");
+        maxChildrenXml->SetText(std::to_string(MaxChildren.value()).c_str());
+    }
+    if (NumDisplayRows.has_value())
+    {
+        auto* numDisplayRowsXml = xml->InsertNewChildElement("Num_Display_Rows");
+        numDisplayRowsXml->SetText(std::to_string(NumDisplayRows.value()).c_str());
+    }
+    for (auto& choice : Choices)
+    {
+        auto* choiceXml = xml->InsertNewChildElement("Choice");
+        choiceXml->SetText(choice.c_str());
+    }
+    for (auto& flag : Flags)
+    {
+        auto* flagXml = xml->InsertNewChildElement("Flag");
+        flagXml->SetText(flag.c_str());
+    }
+    if (Reference)
+    {
+        auto* referenceXml = xml->InsertNewChildElement("Reference");
+        auto* fileXml = referenceXml->InsertNewChildElement("File");
+        auto* typeXml = referenceXml->InsertNewChildElement("Type");
+        auto* openSeparateXml = referenceXml->InsertNewChildElement("OpenSeparate");
+
+        fileXml->SetText(Reference->File.c_str());
+        typeXml->SetText(Reference->Path.c_str());
+        openSeparateXml->SetText(Reference->OpenSeparate ? "true" : "false");
+    }
+
+    //Write subdesc data
+    for (auto& subdesc : Subnodes)
+    {
+        auto* subXml = xml->InsertNewChildElement("Element");
+        subdesc->WriteXml(subXml);
+    }
+
+    return false;
 }
 
 //Returns the path of the value. This is this nodes name prepended with the names of it's parents

@@ -119,6 +119,11 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
     //Parse node from xml and set members
     Handle<IXtblNode> xtblNode = CreateDefaultNode(desc);
     xtblNode->Parent = parent;
+
+    //Reach nanoforge metadata if it's present
+    auto* editedAttribute = node->FindAttribute("__NanoforgeEdited");
+    if (editedAttribute)
+        xtblNode->Edited = editedAttribute->BoolValue();
     
     switch (xtblNode->Type)
     {
@@ -429,4 +434,40 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode>
 
     for (auto& subdesc : desc->Subnodes)
         EnsureEntryExists(subdesc, subnode, enableOptionalSubnodes);
+}
+
+void XtblFile::WriteXtbl(const string& outPath)
+{
+    //Create XmlDocument, root node, and main sections of xtbl
+    tinyxml2::XMLDocument document;
+    auto* root = document.NewElement("root");
+    document.InsertFirstChild(root);
+    auto* table = root->InsertNewChildElement("Table");
+    //auto* templates = root->InsertNewChildElement("TableTemplates");
+    auto* description = root->InsertNewChildElement("TableDescription");
+
+    //Write entry data
+    for (auto& entry : Entries)
+    {
+        auto* entryXml = table->InsertNewChildElement(entry->Name.c_str());
+        entry->WriteXml(entryXml); 
+
+        //Write category if entry has one
+        string category = GetNodeCategory(entry);
+        if (category != "")
+        {
+            auto* editorXml = entryXml->InsertNewChildElement("_Editor");
+            auto* categoryXml = editorXml->InsertNewChildElement("Category");
+            categoryXml->SetText(category.c_str());
+        }
+    }
+
+    //Todo: Implement
+    //Write templates
+
+    //Write descriptions
+    TableDescription->WriteXml(description);
+
+    //Write xml to output path
+    document.SaveFile(outPath.c_str());
 }

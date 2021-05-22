@@ -42,14 +42,14 @@ static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Han
     string checkboxId = fmt::format("##{}", (u64)desc.get()); //Using pointer address as ID since it's unique
 
     //Draw checkbox for optional elements
-    if (!desc->Required)
+    if (desc->Required.has_value() && !desc->Required.value())
     {
         if (ImGui::Checkbox(checkboxId.c_str(), &nodePresent))
         {
             //When checkbox is set to true ensure elements exist in node
             if (nodePresent)
             {
-                //Ensure entry and it's subnodes exist. Newly created optional subnodes will created but disabled by default
+                //Ensure stringXml and it's subnodes exist. Newly created optional subnodes will created but disabled by default
                 xtbl->EnsureEntryExists(desc, rootNode, false);
                 node = getNode();
                 node->Enabled = nodePresent;
@@ -69,8 +69,8 @@ static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Han
     if (!nodePresent)
     {
         ImGui::Text(nameNoId);
-        if (desc->Description != "") //Draw tooltip if not empty
-            gui::TooltipOnPrevious(desc->Description, nullptr);
+        if (desc->Description.has_value() && desc->Description != "") //Draw tooltip if not empty
+            gui::TooltipOnPrevious(desc->Description.value(), nullptr);
 
         return;
     }
@@ -80,11 +80,11 @@ static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Han
         node->DrawEditor(guiState, xtbl, rootNode, nameOverride);
 
     //Draw tooltip if not empty
-    if (desc->Description != "")
-        gui::TooltipOnPrevious(desc->Description, nullptr);
+    if (desc->Description.has_value() && desc->Description != "")
+        gui::TooltipOnPrevious(desc->Description.value(), nullptr);
 }
 
-//A node that contains many other nodes. Usually the root node of an entry is an element node. E.g. each <Vehicle> block is vehicles.xtbl is an element node.
+//A node that contains many other nodes. Usually the root node of an stringXml is an element node. E.g. each <Vehicle> block is vehicles.xtbl is an element node.
 class ElementXtblNode : public IXtblNode
 {
 public:
@@ -102,8 +102,8 @@ public:
         //Draw subnodes
         if (ImGui::TreeNode(name.c_str()))
         {
-            if (desc->Description != "")
-                gui::TooltipOnPrevious(desc->Description, nullptr);
+            if (desc->Description.has_value() && desc->Description != "")
+                gui::TooltipOnPrevious(desc->Description.value(), nullptr);
             for (auto& subnode : Subnodes)
             {
                 //Gets parent node name and current node name in path
@@ -123,10 +123,10 @@ public:
     
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
         //Make another xml element and write edited subnodes to it
-        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        auto* elementXml = xml->InsertNewChildElement(Name.c_str());
         for (auto& subnode : Subnodes)
         {
             if (!subnode->Edited)
@@ -139,6 +139,30 @@ public:
                 Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        //Make another xml element and write subnodes to it
+        auto* elementXml = xml->InsertNewChildElement(Name.c_str());
+        for (auto& subnode : Subnodes)
+        {
+            //Stop early if any node fails to write
+            bool result = subnode->WriteXml(elementXml);
+            if (!result)
+            {
+                Log->error("Failed to write xml data for xtbl node \"{}\"", subnode->GetPath());
+                return false;
+            }
+        }
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            elementXml->SetAttribute("__NanoforgeEdited", Edited);
         }
 
         return true;
@@ -160,7 +184,7 @@ public:
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
-        //Todo: Add way to change names and auto-update any references. Likely would do this in the XtblDocument entry sidebar. 
+        //Todo: Add way to change names and auto-update any references. Likely would do this in the XtblDocument stringXml sidebar. 
         //Name nodes uneditable for the time being since they're use by xtbl references
         if (nameNoId == "Name")
         {
@@ -178,10 +202,22 @@ public:
         Value = "";
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
-        auto* xml = entry->InsertNewChildElement(Name.c_str());
-        xml->SetText(std::get<string>(Value).c_str());
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        auto* stringXml = xml->InsertNewChildElement(Name.c_str());
+        stringXml->SetText(std::get<string>(Value).c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            stringXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
+
         return true;
     }
 };
@@ -218,10 +254,22 @@ public:
         Value = 0;
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
-        auto* xml = entry->InsertNewChildElement(Name.c_str());
-        xml->SetText(std::to_string(std::get<i32>(Value)).c_str());
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        auto* intXml = xml->InsertNewChildElement(Name.c_str());
+        intXml->SetText(std::to_string(std::get<i32>(Value)).c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            intXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
+
         return true;
     }
 };
@@ -258,10 +306,22 @@ public:
         Value = 0.0f;
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
-        auto* xml = entry->InsertNewChildElement(Name.c_str());
-        xml->SetText(std::to_string(std::get<f32>(Value)).c_str());
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        auto* floatXml = xml->InsertNewChildElement(Name.c_str());
+        floatXml->SetText(std::to_string(std::get<f32>(Value)).c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            floatXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
+
         return true;
     }
 };
@@ -290,19 +350,30 @@ public:
         Value = Vec3(0.0f, 0.0f, 0.0f);
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
+    {
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
     {
         //Make another xml element with <X> <Y> <Z> sub elements
-        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
-        auto* x = elementXml->InsertNewChildElement("X");
-        auto* y = elementXml->InsertNewChildElement("Y");
-        auto* z = elementXml->InsertNewChildElement("Z");
+        auto* vectorXml = xml->InsertNewChildElement(Name.c_str());
+        auto* x = vectorXml->InsertNewChildElement("X");
+        auto* y = vectorXml->InsertNewChildElement("Y");
+        auto* z = vectorXml->InsertNewChildElement("Z");
 
         //Write values to xml
         Vec3 vec = std::get<Vec3>(Value);
         x->SetText(std::to_string(vec.x).c_str());
         y->SetText(std::to_string(vec.y).c_str());
         z->SetText(std::to_string(vec.z).c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            vectorXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
 
         return true;
     }
@@ -332,19 +403,30 @@ public:
         Value = Vec3(0.0f, 0.0f, 0.0f);
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
+    {
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
     {
         //Make another xml element with <R> <G> <B> sub elements
-        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
-        auto* r = elementXml->InsertNewChildElement("R");
-        auto* g = elementXml->InsertNewChildElement("G");
-        auto* b = elementXml->InsertNewChildElement("B");
+        auto* colorXml = xml->InsertNewChildElement(Name.c_str());
+        auto* r = colorXml->InsertNewChildElement("R");
+        auto* g = colorXml->InsertNewChildElement("G");
+        auto* b = colorXml->InsertNewChildElement("B");
 
         //Write values to xml as u8s [0, 255]
         Vec3 vec = std::get<Vec3>(Value);
         r->SetText(std::to_string((u8)(vec.x * 255.0f)).c_str());
         g->SetText(std::to_string((u8)(vec.y * 255.0f)).c_str());
         b->SetText(std::to_string((u8)(vec.z * 255.0f)).c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            colorXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
 
         return true;
     }
@@ -391,10 +473,22 @@ public:
         Value = "";
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
-        auto* xml = entry->InsertNewChildElement(Name.c_str());
-        xml->SetText(std::get<string>(Value).c_str());
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        auto* selectionXml = xml->InsertNewChildElement(Name.c_str());
+        selectionXml->SetText(std::get<string>(Value).c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            selectionXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
+
         return true;
     }
 };
@@ -416,8 +510,8 @@ public:
 
         if (ImGui::TreeNode(name.c_str()))
         {
-            if (desc->Description != "")
-                gui::TooltipOnPrevious(desc->Description, nullptr);
+            if (desc->Description.has_value() && desc->Description.value() != "")
+                gui::TooltipOnPrevious(desc->Description.value(), nullptr);
             for (auto& subnode : Subnodes)
             {
                 auto& value = std::get<XtblFlag>(subnode->Value);
@@ -434,10 +528,15 @@ public:
 
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
+    {
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
     {
         //Make another xml element and write enabled flags to it
-        auto* flagsXml = entry->InsertNewChildElement(Name.c_str());
+        auto* flagsXml = xml->InsertNewChildElement(Name.c_str());
         for (auto& flag : Subnodes)
         {
             //Skip disabled flags
@@ -448,6 +547,12 @@ public:
             //Write flag to xml
             auto* flagXml = flagsXml->InsertNewChildElement("Flag");
             flagXml->SetText(flagValue.Name.c_str());
+        }
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            flagsXml->SetAttribute("__NanoforgeEdited", Edited);
         }
 
         return true;
@@ -472,8 +577,8 @@ public:
         //Draw subnodes
         if (ImGui::TreeNode(name.c_str()))
         {
-            if (desc->Description != "")
-                gui::TooltipOnPrevious(desc->Description, nullptr);
+            if (desc->Description.has_value() && desc->Description.value() != "")
+                gui::TooltipOnPrevious(desc->Description.value(), nullptr);
 
             for (auto& subnode : Subnodes)
             {
@@ -500,10 +605,10 @@ public:
 
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
         //Make another xml element and write edited subnodes to it
-        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        auto* listXml = xml->InsertNewChildElement(Name.c_str());
         for (auto& subnode : Subnodes)
         {
             //Don't write unedited node unless it's the Name node which is used for identification of list elements
@@ -511,12 +616,36 @@ public:
                 continue;
 
             //Stop early if any node fails to write
-            bool result = subnode->WriteModinfoEdits(elementXml);
+            bool result = subnode->WriteModinfoEdits(listXml);
             if (!result)
             {
                 Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        //Make another xml element and write edited subnodes to it
+        auto* listXml = xml->InsertNewChildElement(Name.c_str());
+        for (auto& subnode : Subnodes)
+        {
+            //Stop early if any node fails to write
+            bool result = subnode->WriteXml(listXml);
+            if (!result)
+            {
+                Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
+                return false;
+            }
+        }
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            listXml->SetAttribute("__NanoforgeEdited", Edited);
         }
 
         return true;
@@ -548,10 +677,22 @@ public:
         Value = "";
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
-        auto* xml = entry->InsertNewChildElement(Name.c_str());
-        xml->SetText(std::get<string>(Value).c_str());
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        auto* filenameXml = xml->InsertNewChildElement(Name.c_str());
+        filenameXml->SetText(std::get<string>(Value).c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            filenameXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
+
         return true;
     }
 };
@@ -574,8 +715,8 @@ public:
         //This type of xtbl node acts like a C/C++ Union, so multiple types can be chosen
         if (ImGui::TreeNode(name.c_str()))
         {
-            if (desc->Description != "")
-                gui::TooltipOnPrevious(desc->Description, nullptr);
+            if (desc->Description.has_value() && desc->Description.value() != "")
+                gui::TooltipOnPrevious(desc->Description.value(), nullptr);
 
             //Get current type. Only one type from the desc is present
             u32 currentType = 0xFFFFFFFF;
@@ -638,10 +779,22 @@ public:
 
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
-        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
-        return Subnodes[0]->WriteModinfoEdits(elementXml); //Each combo element node should only have 1 subnode
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        auto* comboElementXml = xml->InsertNewChildElement(Name.c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            comboElementXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
+
+        return Subnodes[0]->WriteXml(comboElementXml); //Each combo element node should only have 1 subnode
     }
 };
 
@@ -660,6 +813,11 @@ public:
         Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
+        if (!desc->Reference)
+        {
+            gui::LabelAndValue(nameNoId + ":", std::get<string>(Value) + " [Error: Null reference]");
+            return;
+        }
         auto refXtbl = guiState->Xtbls->GetOrCreateXtbl(xtbl->VppName, desc->Reference->File);
         if (!refXtbl)
             return;
@@ -760,10 +918,22 @@ public:
 
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
-        auto* xml = entry->InsertNewChildElement(Name.c_str());
-        xml->SetText(std::get<string>(Value).c_str());
+        return WriteXml(xml, false);
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        auto* referenceXml = xml->InsertNewChildElement(Name.c_str());
+        referenceXml->SetText(std::get<string>(Value).c_str());
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            referenceXml->SetAttribute("__NanoforgeEdited", Edited);
+        }
+
         return true;
     }
 };
@@ -817,22 +987,46 @@ public:
 
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
         //Make another xml element and write edited subnodes to it
-        auto* elementXml = entry->InsertNewChildElement(Name.c_str());
+        auto* gridXml = xml->InsertNewChildElement(Name.c_str());
         for (auto& subnode : Subnodes)
         {
             if (!subnode->Edited)
                 continue;
 
             //Stop early if any node fails to write
-            bool result = subnode->WriteModinfoEdits(elementXml);
+            bool result = subnode->WriteModinfoEdits(gridXml);
             if (!result)
             {
                 Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        //Make another xml element and write edited subnodes to it
+        auto* gridXml = xml->InsertNewChildElement(Name.c_str());
+        for (auto& subnode : Subnodes)
+        {
+            //Stop early if any node fails to write
+            bool result = subnode->WriteXml(gridXml);
+            if (!result)
+            {
+                Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
+                return false;
+            }
+        }
+
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            gridXml->SetAttribute("__NanoforgeEdited", Edited);
         }
 
         return true;
@@ -858,7 +1052,7 @@ public:
 
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
     {
         //Write subnodes to modinfo
         for (auto& subnode : Subnodes)
@@ -867,10 +1061,32 @@ public:
                 continue;
 
             //Stop early if any node fails to write
-            bool result = subnode->WriteModinfoEdits(entry);
+            bool result = subnode->WriteModinfoEdits(xml);
             if (!result)
             {
                 Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
+    {
+        //Store edited state if metadata is enabled
+        if (writeNanoforgeMetadata)
+        {
+            xml->SetAttribute("__NanoforgeEdited", Edited);
+        }
+
+        //Write subnodes to xml
+        for (auto& subnode : Subnodes)
+        {
+            //Stop early if any node fails to write
+            bool result = subnode->WriteXml(xml);
+            if (!result)
+            {
+                Log->error("Failed to write xml data for xtbl node \"{}\"", subnode->GetPath());
                 return false;
             }
         }
@@ -897,7 +1113,13 @@ public:
 
     }
 
-    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* entry)
+    virtual bool WriteModinfoEdits(tinyxml2::XMLElement* xml)
+    {
+        //Handled by FlagsXtblNode
+        return true;
+    }
+
+    virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
     {
         //Handled by FlagsXtblNode
         return true;
@@ -964,7 +1186,7 @@ static Handle<IXtblNode> CreateDefaultNode(XtblType type)
     return node;
 }
 
-//Create node from XtblDescription using default value from that description entry
+//Create node from XtblDescription using default value from that description stringXml
 static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool addSubnodes)
 {
     Handle<IXtblNode> node = nullptr;
@@ -987,16 +1209,16 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         break;
     case XtblType::String:
         node = CreateHandle<StringXtblNode>();
-        node->Value = desc->Default;
+        node->Value = desc->Default.has_value() ? desc->Default.value() : "";
         break;
     case XtblType::Int:
         node = CreateHandle<IntXtblNode>();
-        node->Value = std::stoi(desc->Default);
+        node->Value = std::stoi(desc->Default.has_value() ? desc->Default.value() : "0");
         node->InitDefault();
         break;
     case XtblType::Float:
         node = CreateHandle<FloatXtblNode>();
-        node->Value = std::stof(desc->Default);
+        node->Value = std::stof(desc->Default.has_value() ? desc->Default.value() : "0.0");
         break;
     case XtblType::Vector:
         node = CreateHandle<VectorXtblNode>();
@@ -1008,7 +1230,7 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         break;
     case XtblType::Selection:
         node = CreateHandle<SelectionXtblNode>();
-        node->Value = desc->Default;
+        node->Value = desc->Default.has_value() ? desc->Default.value() : "";
         break;
     case XtblType::Flags:
         node = CreateHandle<FlagsXtblNode>();
@@ -1048,7 +1270,7 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         break;
     case XtblType::Filename:
         node = CreateHandle<FilenameXtblNode>();
-        node->Value = desc->Default;
+        node->Value = desc->Default.has_value() ? desc->Default.value() : "";
         break;
     case XtblType::ComboElement:
         node = CreateHandle<ComboElementXtblNode>();
@@ -1056,7 +1278,7 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         break;
     case XtblType::Reference:
         node = CreateHandle<ReferenceXtblNode>();
-        node->Value = desc->Default;
+        node->Value = desc->Default.has_value() ? desc->Default.value() : "";
         break;
     case XtblType::Grid:
         node = CreateHandle<GridXtblNode>();

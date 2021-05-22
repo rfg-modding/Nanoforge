@@ -1,13 +1,14 @@
 #include "XtblDocument.h"
 #include "Log.h"
 #include "render/imgui/imgui_ext.h"
+#include "application/project/Project.h"
 #include "gui/GuiState.h"
 #include "rfg/xtbl/XtblNodes.h"
 #include "rfg/xtbl/XtblManager.h"
 #include "rfg/xtbl/Xtbl.h"
 
 XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, Handle<IXtblNode> startingNode)
-    : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer)
+    : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer), state_(state)
 {
     xtblManager_ = state->Xtbls;
     bool result = state->Xtbls->ParseXtbl(vppName_, filename_);
@@ -31,7 +32,9 @@ XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, 
 
 XtblDocument::~XtblDocument()
 {
-
+    //Todo: Replace this with a more robust saving system where the user is warned when they have unsaved data and each document can be saved separately
+    //Auto save xtbl on close to the project cache
+    Save();
 }
 
 void XtblDocument::Update(GuiState* state)
@@ -79,7 +82,14 @@ void XtblDocument::Update(GuiState* state)
             state->FontManager->FontL.Push();
             ImGui::Text(fmt::format("{} {}", ICON_FA_CODE, selectedNodeName.value()).c_str());
             state->FontManager->FontL.Pop();
-            //ImGui::Separator();
+
+            //Save button + tooltip describing how xtbl saving works at the moment
+            ImGui::SameLine();
+            if (ImGui::Button("Save"))
+            {
+                Save();
+            }
+            gui::TooltipOnPrevious("Xtbl documents are automatically saved when you close them or package your mod. Press this to manually save them. An upcoming release will have a better save system along with warnings when you have unsaved data.", state->FontManager->FontDefault.GetFont());
         }
 
         //Draw editors for subnodes
@@ -141,5 +151,22 @@ void XtblDocument::DrawXtblNodeEntry(Handle<IXtblNode> node)
             SelectedNode = node;
 
         ImGui::TreePop();
+    }
+}
+
+void XtblDocument::Save()
+{
+    if (xtbl_)
+    {
+        //Path to output folder in the project cache
+        string outputFolderPath = state_->CurrentProject->GetCachePath() + xtbl_->VppName + "\\";
+        string outputFilePath = outputFolderPath + xtbl_->Name;
+
+        //Ensure output folder exists
+        std::filesystem::create_directories(outputFolderPath);
+
+        //Save xtbl project cache and rescan cache to see edited files in it
+        xtbl_->WriteXtbl(outputFilePath);
+        state_->CurrentProject->RescanCache();
     }
 }

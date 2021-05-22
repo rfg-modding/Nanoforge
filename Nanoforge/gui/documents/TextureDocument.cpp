@@ -81,7 +81,6 @@ void TextureDocument::Update(GuiState* state)
     const f32 columnZeroWidth = 300.0f;
     ImGui::Columns(2);
     //Todo: Add confirmation when closing an edited file before saving it
-    //Todo: Require a project to be opened to even open textures
     if (ImGui::Button("Save"))
     {
         //Read all texture data from unedited gpu file
