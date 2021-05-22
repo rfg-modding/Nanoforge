@@ -190,6 +190,16 @@ public:
         {
             return;
         }
+        else if (nameNoId == "Description" && (xtbl->Name == "dlc01_tweak_table.xtbl" || xtbl->Name == "online_tweak_table.xtbl" || xtbl->Name == "tweak_table.xtbl"))
+        {
+            //Todo: Come up with a better way of handling this. Maybe get give all strings big wrapped blocks so they're fully visible
+            //Special case for tweak table descriptions
+            ImGui::Text("Description:");
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Text, gui::SecondaryTextColor);
+            ImGui::TextWrapped(std::get<string>(Value).c_str());
+            ImGui::PopStyleColor();
+        }
         else
         {
             if (ImGui::InputText(name, std::get<string>(Value)))

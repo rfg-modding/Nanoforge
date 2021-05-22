@@ -46,7 +46,8 @@ void XtblDocument::Update(GuiState* state)
     }
 
     ImGui::Columns(2);
-    ImGui::SetColumnWidth(0, 300.0f);
+    if (FirstDraw)
+        ImGui::SetColumnWidth(0, 300.0f);
 
     f32 headerY = ImGui::GetCursorPosY();
     state->FontManager->FontL.Push();
