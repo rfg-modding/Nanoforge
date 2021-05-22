@@ -104,15 +104,9 @@ public:
         {
             if (desc->Description.has_value() && desc->Description != "")
                 gui::TooltipOnPrevious(desc->Description.value(), nullptr);
-            for (auto& subnode : Subnodes)
-            {
-                //Gets parent node name and current node name in path
-                string subdescPath = subnode->GetPath();
-                subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
-                Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
-                if (subdesc)
-                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, subdesc->DisplayName.c_str(), subnode);
-            }
+
+            for (auto& subdesc : desc->Subnodes)
+                DrawNodeByDescription(guiState, xtbl, subdesc, rootNode);
 
             ImGui::TreePop();
         }
@@ -850,8 +844,12 @@ public:
                 referencedNodes.push_back(option);
         }
 
-        //Exit early if there are no referenced nodes or the reference type isn't string (all other types aren't yet supported)
-        if (referencedNodes.size() == 0 || referencedNodes[0]->Type != XtblType::String)
+        //Check if the reference is supported
+        bool supported = referencedNodes.size() > 0 || //Must have some references
+                         referencedNodes[0]->Type == XtblType::String || //Strings are supported
+                         //Support for reference to a reference to a string as seen in ambient prop info
+                         (referencedNodes[0]->Type == XtblType::Reference && std::holds_alternative<string>(referencedNodes[0]->Value));
+        if (!supported)
         {
             gui::LabelAndValue(nameNoId + ":", std::get<string>(Value) + " [Error: Unsupported reference type]");
             return;
@@ -1260,7 +1258,7 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
             }
 
             //If flag isn't present create a subnode for it
-            if (!flagNode)
+            if (!flagNode && addSubnodes)
             {
                 auto subnode = CreateDefaultNode(XtblType::Flag);
                 subnode->Name = "Flag";

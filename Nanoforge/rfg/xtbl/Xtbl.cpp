@@ -117,7 +117,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
     }
 
     //Parse node from xml and set members
-    Handle<IXtblNode> xtblNode = CreateDefaultNode(desc);
+    Handle<IXtblNode> xtblNode = CreateDefaultNode(desc, false);
     xtblNode->Parent = parent;
 
     //Reach nanoforge metadata if it's present
@@ -235,9 +235,15 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
         while (flag)
         {
             string newPath = path + "/" + flag->Value();
-            Handle<IXtblNode> xtblSubnode = ParseNode(flag, xtblNode, newPath);
-            if (xtblSubnode)
-                xtblNode->Subnodes.push_back(xtblSubnode);
+            Handle<IXtblNode> xtblSubnode = CreateDefaultNode(XtblType::Flag);
+            xtblSubnode->Name = "Flag";
+            xtblSubnode->Type = XtblType::Flag;
+            xtblSubnode->Parent = xtblNode;
+            xtblSubnode->CategorySet = false;
+            xtblSubnode->HasDescription = true;
+            xtblSubnode->Enabled = true;
+            xtblSubnode->Value = XtblFlag{ .Name = flag->GetText(), .Value = true };
+            xtblNode->Subnodes.push_back(xtblSubnode);
 
             flag = flag->NextSiblingElement();
         }
@@ -322,6 +328,10 @@ Handle<XtblDescription> XtblFile::GetValueDescription(const string& valuePath, H
 
 void XtblFile::SetNodeCategory(Handle<IXtblNode> node, s_view categoryPath)
 {
+    //Strip extraneous colon. Colon should always be followed by more subcategories. Otherwise would break other code that parses categories. 
+    if (categoryPath.back() == ':')
+        categoryPath = { categoryPath.data(), categoryPath.size() - 1 };
+
     //Get category and add node to it. Takes substr that strips Entries: from the front of the path
     auto category = categoryPath.find(":") == s_view::npos ? RootCategory : GetOrCreateCategory(categoryPath.substr(categoryPath.find_first_of(":") + 1));
     category->Nodes.push_back(node);
@@ -420,7 +430,7 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode>
     bool subnodeExists = maybeSubnode != nullptr;
 
     //Get subnode or create default one if it doesn't exist
-    auto subnode = subnodeExists ? maybeSubnode : CreateDefaultNode(desc);
+    auto subnode = subnodeExists ? maybeSubnode : CreateDefaultNode(desc, true);
     if (!subnodeExists)
     {
         subnode->Name = desc->Name;
