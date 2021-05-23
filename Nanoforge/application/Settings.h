@@ -12,6 +12,8 @@ extern std::vector<string> Settings_RecentProjects;
 extern f32 Settings_UIScale;
 //If false geometry shaders won't be used. This disabled some features like wide lines
 extern bool Settings_UseGeometryShaders;
+//If true the FPS will be drawn on the main menu bar
+extern bool Settings_ShowFPS;
 
 void Settings_Read();
 void Settings_Write();

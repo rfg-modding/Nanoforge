@@ -252,13 +252,16 @@ void MainGui::DrawMainMenuBar()
             ImGuiMenuItemShort("Blue", SetThemePreset(Blue);)
         );
 
-        //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements
-        auto* drawList = ImGui::GetWindowDrawList();
-        string framerate = std::to_string(ImGui::GetIO().Framerate);
-        u64 decimal = framerate.find('.');
-        const char* labelAndSeparator = "|    FPS: ";
-        drawList->AddText(ImVec2(ImGui::GetCursorPosX(), 3.0f), 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
-        drawList->AddText(ImVec2(ImGui::GetCursorPosX() + (49.0f * Settings_UIScale), 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+        if (Settings_ShowFPS)
+        {
+            //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements
+            auto* drawList = ImGui::GetWindowDrawList();
+            string framerate = std::to_string(ImGui::GetIO().Framerate);
+            u64 decimal = framerate.find('.');
+            const char* labelAndSeparator = "|    FPS: ";
+            drawList->AddText(ImVec2(ImGui::GetCursorPosX(), 3.0f), 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
+            drawList->AddText(ImVec2(ImGui::GetCursorPosX() + (49.0f * Settings_UIScale), 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+        }
 
         ImGui::EndMainMenuBar();
     }

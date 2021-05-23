@@ -10,6 +10,7 @@ string Settings_TerritoryFilename = "zonescript_terr01.vpp_pc";
 std::vector<string> Settings_RecentProjects = {};
 f32 Settings_UIScale = 1.0f;
 bool Settings_UseGeometryShaders = true;
+bool Settings_ShowFPS = false;
 
 void Settings_Read()
 {
@@ -31,11 +32,13 @@ void Settings_Read()
 
     const char* uiScale = settings.FirstChildElement("UI_Scale")->GetText();
     const char* useGeometryShaders = settings.FirstChildElement("UseGeometryShaders")->GetText();
+    auto* showFPS = settings.FirstChildElement("ShowFPS");
 
     Settings_PackfileFolderPath = string(dataPath);
     Settings_TerritoryFilename = string(territoryFile);
     Settings_UIScale = std::stof(string(uiScale));
     Settings_UseGeometryShaders = String::EqualIgnoreCase(string(useGeometryShaders), "true") ? true : false;
+    Settings_ShowFPS = showFPS ? showFPS->BoolText() : true;
 
     //Temporary compatibility patches for convenience. Previous versions expected vpp_pc files instead of shorthand names
     if (Settings_TerritoryFilename == "zonescript_terr01.vpp_pc")
@@ -90,6 +93,10 @@ void Settings_Write()
     auto* useGeometryShaders = settings.NewElement("UseGeometryShaders");
     settings.InsertEndChild(useGeometryShaders);
     useGeometryShaders->SetText(Settings_UseGeometryShaders ? "True" : "False");
+
+    auto* showFPS = settings.NewElement("ShowFPS");
+    settings.InsertEndChild(showFPS);
+    showFPS->SetText(Settings_ShowFPS ? "True" : "False");
 
     settings.SaveFile("./Settings.xml");
 }
