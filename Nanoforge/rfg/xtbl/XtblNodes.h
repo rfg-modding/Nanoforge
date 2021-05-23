@@ -835,7 +835,7 @@ public:
                 Edited = true;
 
             ImGui::SameLine();
-            ImGui::TextColored(gui::SecondaryTextColor, " [Error: " + desc->Reference->File + " not found!]");
+            ImGui::TextColored(gui::SecondaryTextColor, " [Error: " + desc->Reference->File + " not found! Cannot fill reference list.]");
             return;
         }
 
@@ -1001,8 +1001,10 @@ public:
                     ImGui::TableNextColumn();
                     
                     //Draw row data with empty name since the name is already in the column header
+                    ImGui::PushItemWidth(NodeGuiWidth);
                     auto nodeOverride = hasSingleColumn ? subnode : subnode->GetSubnode(subdesc->Name);
                     DrawNodeByDescription(guiState, xtbl, subdesc, subnode->shared_from_this(), "", nodeOverride);
+                    ImGui::PopItemWidth();
                 }
             }
 

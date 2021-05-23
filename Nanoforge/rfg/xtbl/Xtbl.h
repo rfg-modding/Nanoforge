@@ -30,7 +30,7 @@ public:
     //Get description of xtbl value
     Handle<XtblDescription> GetValueDescription(const string& valuePath, Handle<XtblDescription> desc = nullptr);
     //Add node to provided category. Category will be created if it doesn't already exist
-    void SetNodeCategory(Handle<IXtblNode> node, s_view categoryPath);
+    void SetNodeCategory(Handle<IXtblNode> node, string categoryPath);
     //Get path of category that the node is in. E.g. Entries:EDF
     string GetNodeCategory(Handle<IXtblNode> node);
     //Get category and create it if it doesn't already exist

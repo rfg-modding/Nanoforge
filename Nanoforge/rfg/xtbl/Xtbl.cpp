@@ -326,14 +326,17 @@ Handle<XtblDescription> XtblFile::GetValueDescription(const string& valuePath, H
     return nullptr;
 }
 
-void XtblFile::SetNodeCategory(Handle<IXtblNode> node, s_view categoryPath)
+void XtblFile::SetNodeCategory(Handle<IXtblNode> node, string categoryPath)
 {
+    //Ensure path starts with "Entries:" so it's parsed properly. Some xtbls do this and some don't.
+    if (!String::StartsWith(categoryPath, "Entries"))
+        categoryPath.insert(0, "Entries:");
     //Strip extraneous colon. Colon should always be followed by more subcategories. Otherwise would break other code that parses categories. 
     if (categoryPath.back() == ':')
         categoryPath = { categoryPath.data(), categoryPath.size() - 1 };
 
     //Get category and add node to it. Takes substr that strips Entries: from the front of the path
-    auto category = categoryPath.find(":") == s_view::npos ? RootCategory : GetOrCreateCategory(categoryPath.substr(categoryPath.find_first_of(":") + 1));
+    auto category = categoryPath.find(":") == string::npos ? RootCategory : GetOrCreateCategory(categoryPath.substr(categoryPath.find_first_of(":") + 1));
     category->Nodes.push_back(node);
     node->CategorySet = true;
     categoryMap_[node] = categoryPath;
