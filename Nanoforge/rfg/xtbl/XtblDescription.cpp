@@ -13,14 +13,17 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
     }
     if (!type)
     {
-        Log->error("Failed to get <Type> from xtbl description \"{}\"", name->GetText());
+        Log->error("Failed to get <Type> from xtbl description \"{}\"", name->GetText() ? name->GetText() : "<Name not set>");
         return false;
     }
 
-    Name = name->GetText();
+    Name = name->GetText() ? name->GetText() : "";
     //Parse <Type>. Can throw if invalid value passed to it
     try
     {
+        if (!type->GetText())
+            throw std::runtime_error("<Type> node was empty in <TableDescription> section!");
+
         Type = XtblTypeFromString(type->GetText());
     }
     catch (std::runtime_error& ex)
@@ -30,7 +33,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
     }
 
     auto* displayName = node->FirstChildElement("Display_Name");
-    if (displayName)
+    if (displayName && displayName->GetText())
         DisplayName = displayName->GetText();
     else
         DisplayName = Name;
@@ -70,29 +73,40 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
         auto* reference = node->FirstChildElement("Reference");
 
         //Parse values
-        if (description)
+        if (description && description->GetText())
             Description = description->GetText();
-        if (required)
+
+        if (required && required->GetText())
             Required = String::EqualIgnoreCase(string(required->GetText()), "True") ? true : false;
-        if (unique)
+
+        if (unique && unique->GetText())
             Unique = String::EqualIgnoreCase(string(unique->GetText()), "True") ? true : false;
-        if (def)
+
+        if (def && def->GetText())
             Default = def->GetText();
-        if (maxCount)
+
+        if (maxCount && maxCount->GetText())
             MaxCount = std::stoi(maxCount->GetText());
-        if (extension)
+
+        if (extension && extension->GetText())
             Extension = extension->GetText();
-        if (startingPath)
+
+        if (startingPath && startingPath->GetText())
             StartingPath = startingPath->GetText();
-        if (showPreload)
+
+        if (showPreload && showPreload->GetText())
             ShowPreload = String::EqualIgnoreCase(string(showPreload->GetText()), "True") ? true : false;
-        if (minValue)
+
+        if (minValue && minValue->GetText())
             Min = minValue->FloatText();
-        if (maxValue)
+
+        if (maxValue && maxValue->GetText())
             Max = maxValue->FloatText();
-        if (maxChildren)
+
+        if (maxChildren && maxChildren->GetText())
             MaxChildren = maxChildren->IntText();
-        if (numDisplayRows)
+
+        if (numDisplayRows && numDisplayRows->GetText())
             NumDisplayRows = numDisplayRows->IntText();
 
         //Parse references if present
@@ -101,19 +115,22 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
             auto* refFile = reference->FirstChildElement("File");
             auto* refType = reference->FirstChildElement("Type");
             auto* refOpenSeparate = reference->FirstChildElement("OpenSeparate");
-            if (!refFile || !refType)
+            if (!refFile || !refType || !refOpenSeparate)
             {
                 Log->error("Invalid <Reference> detected. Doesn't have all required data.");
                 return false;
             }
 
+            const char* fileText = refFile->GetText();
+            const char* pathText = refType->GetText();
+            const char* openSeparateText = refOpenSeparate->GetText();
             Reference = file.References.emplace_back(CreateHandle<XtblReference>());
             Reference->Used = true;
-            Reference->File = refFile->GetText();
+            Reference->File = fileText ? fileText : "";
             Reference->File = Reference->File.substr(Reference->File.find_first_of('\\') + 1); //Strip additional paths from filename. Likely remnant of dev tools working with loose files in folders
-            Reference->Path = refType->GetText();
+            Reference->Path = pathText ? pathText : "";
             if (refOpenSeparate)
-                Reference->OpenSeparate = String::EqualIgnoreCase(string(refOpenSeparate->GetText()), "True") ? true : false;
+                Reference->OpenSeparate = String::EqualIgnoreCase(string(openSeparateText ? openSeparateText : ""), "True") ? true : false;
             else
                 Reference->OpenSeparate = false;
 
@@ -142,22 +159,30 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
 
         //Read choices if present
         auto* nextChoice = node->FirstChildElement("Choice");
-        //Get default flag
-        tinyxml2::XMLElement* defaultChoice = nullptr;
-        if (nextChoice)
-            defaultChoice = node->FirstChildElement("Default");
         while (nextChoice)
         {
-            Choices.push_back(nextChoice->GetText());
+            const char* choiceText = nextChoice->GetText();
+            if(choiceText)
+                Choices.push_back(choiceText);
+
             nextChoice = nextChoice->NextSiblingElement("Choice");
         }
-        DefaultChoice = defaultChoice ? defaultChoice->GetText() : (Choices.size() > 0 ? Choices[0] : "");
+
+        //Get default choice
+        tinyxml2::XMLElement* defaultChoice = node->FirstChildElement("Default");
+        if (defaultChoice && defaultChoice->GetText())
+            DefaultChoice = defaultChoice->GetText();
+        else
+            DefaultChoice = Choices.size() > 0 ? Choices[0] : "";
 
         //Read flags if present
         auto* nextFlag = node->FirstChildElement("Flag");
         while (nextFlag)
         {
-            Flags.push_back(nextFlag->GetText());
+            const char* nextFlagText = nextFlag->GetText();
+            if(nextFlagText)
+                Flags.push_back(nextFlagText);
+        
             nextFlag = nextFlag->NextSiblingElement("Flag");
         }
     }

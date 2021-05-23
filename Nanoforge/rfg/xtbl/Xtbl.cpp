@@ -426,22 +426,61 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode>
     //Try to get pre-existing subnode
     string descPath = desc->GetPath();
     descPath = descPath.substr(descPath.find_first_of('/') + 1);
+    auto split = String::SplitString(descPath, "/");
     auto maybeSubnode = GetSubnode(descPath, node);
     bool subnodeExists = maybeSubnode != nullptr;
 
+    //Get parent node. Might be several levels deep
+    auto parent = split.size() == 1 ? node : GetSubnode(string(split[0]), node);
+
     //Get subnode or create default one if it doesn't exist
-    auto subnode = subnodeExists ? maybeSubnode : CreateDefaultNode(desc, true);
+    auto subnode = subnodeExists ? maybeSubnode : CreateDefaultNode(desc, false);
     if (!subnodeExists)
     {
         subnode->Name = desc->Name;
         subnode->Type = desc->Type;
-        subnode->Parent = node;
+        subnode->Parent = parent;
         subnode->CategorySet = false;
         subnode->HasDescription = true;
         subnode->Enabled = desc->Required || enableOptionalSubnodes;
-        node->Subnodes.push_back(subnode);
+        parent->Subnodes.push_back(subnode);
     }
 
+    //Make sure all Flags are present for Flags nodes. Missing ones are added but disabled.
+    if (subnode->Type == XtblType::Flags)
+    {
+        //Ensure there's a subnode for every flag listed in <TableDescription>
+        for (auto& flagDesc : desc->Flags)
+        {
+            //Check for flag
+            Handle<IXtblNode> flagNode = nullptr;
+            for (auto& flag : subnode->Subnodes)
+            {
+                auto value = std::get<XtblFlag>(flag->Value);
+                if (value.Name == flagDesc)
+                {
+                    flagNode = flag;
+                    break;
+                }
+            }
+
+            //If flag isn't present create a subnode for it
+            if (!flagNode)
+            {
+                flagNode = CreateDefaultNode(XtblType::Flag);
+                flagNode->Name = "Flag";
+                flagNode->Type = XtblType::Flag;
+                flagNode->Parent = subnode;
+                flagNode->CategorySet = false;
+                flagNode->HasDescription = true;
+                flagNode->Enabled = true;
+                flagNode->Value = XtblFlag{ .Name = flagDesc, .Value = false };
+                subnode->Subnodes.push_back(flagNode);
+            }
+        }
+    }
+
+    //Make sure all subnodes are present
     for (auto& subdesc : desc->Subnodes)
         EnsureEntryExists(subdesc, subnode, enableOptionalSubnodes);
 }

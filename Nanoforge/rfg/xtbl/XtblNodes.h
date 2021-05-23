@@ -42,7 +42,7 @@ static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Han
     string checkboxId = fmt::format("##{}", (u64)desc.get()); //Using pointer address as ID since it's unique
 
     //Draw checkbox for optional elements
-    if (desc->Required.has_value() && !desc->Required.value())
+    if (desc->Required.has_value() && !desc->Required.value() || !nodePresent)
     {
         if (ImGui::Checkbox(checkboxId.c_str(), &nodePresent))
         {
@@ -106,7 +106,7 @@ public:
                 gui::TooltipOnPrevious(desc->Description.value(), nullptr);
 
             for (auto& subdesc : desc->Subnodes)
-                DrawNodeByDescription(guiState, xtbl, subdesc, rootNode);
+                DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, nullptr, GetSubnode(subdesc->Name));
 
             ImGui::TreePop();
         }
@@ -688,13 +688,15 @@ public:
 
     virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
     {
-        auto* filenameXml = xml->InsertNewChildElement(Name.c_str());
+        //Create element with sub-element <Filename>
+        auto* nodeXml = xml->InsertNewChildElement(Name.c_str());
+        auto* filenameXml = nodeXml->InsertNewChildElement("Filename");
         filenameXml->SetText(std::get<string>(Value).c_str());
 
         //Store edited state if metadata is enabled
         if (writeNanoforgeMetadata)
         {
-            filenameXml->SetAttribute("__NanoforgeEdited", Edited);
+            nodeXml->SetAttribute("__NanoforgeEdited", Edited);
         }
 
         return true;
@@ -798,7 +800,10 @@ public:
             comboElementXml->SetAttribute("__NanoforgeEdited", Edited);
         }
 
-        return Subnodes[0]->WriteXml(comboElementXml); //Each combo element node should only have 1 subnode
+        if (Subnodes.size() > 0)
+            return Subnodes[0]->WriteXml(comboElementXml); //Each combo element node should only have 1 subnode
+        else
+            return true;
     }
 };
 
@@ -824,7 +829,15 @@ public:
         }
         auto refXtbl = guiState->Xtbls->GetOrCreateXtbl(xtbl->VppName, desc->Reference->File);
         if (!refXtbl)
+        {
+            //If reference xtbl isn't found allow manual editing but report the error
+            if (std::holds_alternative<string>(Value) && ImGui::InputText(name, std::get<string>(Value)))
+                Edited = true;
+
+            ImGui::SameLine();
+            ImGui::TextColored(gui::SecondaryTextColor, " [Error: " + desc->Reference->File + " not found!]");
             return;
+        }
 
         //Find referenced values
         std::vector<Handle<IXtblNode>> referencedNodes = {};
@@ -966,28 +979,35 @@ public:
                                 | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable 
                                 | ImGuiTableFlags_Hideable;
 
+        //Get column data
+        const bool hasSingleColumn = desc->Subnodes[0]->Subnodes.size() == 0;
+        auto& columnDescs = hasSingleColumn ? desc->Subnodes : desc->Subnodes[0]->Subnodes;
+        
         ImGui::Text("%s:", nameNoId.c_str());
-        if (ImGui::BeginTable(name.c_str(), desc->Subnodes[0]->Subnodes.size(), flags))
+        if (ImGui::BeginTable(name.c_str(), columnDescs.size(), flags))
         {
             //Setup columns
             ImGui::TableSetupScrollFreeze(0, 1);
-            for (auto& subdesc : desc->Subnodes[0]->Subnodes)
-                ImGui::TableSetupColumn(subdesc->Name.c_str(), ImGuiTableColumnFlags_None, NodeGuiWidth * 1.14f);
+            for (auto& subdesc : columnDescs)
+                ImGui::TableSetupColumn(subdesc->DisplayName.c_str(), ImGuiTableColumnFlags_None, NodeGuiWidth * 1.14f);
 
             //Fill table data
             ImGui::TableHeadersRow();
             for (auto& subnode : Subnodes)
             {
                 ImGui::TableNextRow();
-                for (auto& subdesc : desc->Subnodes[0]->Subnodes)
+                for (auto& subdesc : columnDescs)
                 {
-                    ImGui::TableNextColumn();
-                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, nullptr, subnode->GetSubnode(subdesc->Name));
+                    if(!hasSingleColumn)
+                        ImGui::TableNextColumn();
+                    
+                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, nullptr, hasSingleColumn ? subnode : subnode->GetSubnode(subdesc->Name));
                 }
             }
 
             ImGui::EndTable();
         }
+        ImGui::Separator();
     }
 
     virtual void InitDefault()
