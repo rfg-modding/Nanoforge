@@ -977,7 +977,7 @@ public:
 
         ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_BordersOuter
                                 | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable 
-                                | ImGuiTableFlags_Hideable;
+                                | ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingStretchProp;
 
         //Get column data
         const bool hasSingleColumn = desc->Subnodes[0]->Subnodes.size() == 0;
@@ -989,7 +989,7 @@ public:
             //Setup columns
             ImGui::TableSetupScrollFreeze(0, 1);
             for (auto& subdesc : columnDescs)
-                ImGui::TableSetupColumn(subdesc->DisplayName.c_str(), ImGuiTableColumnFlags_None, NodeGuiWidth * 1.14f);
+                ImGui::TableSetupColumn(subdesc->DisplayName.c_str(), ImGuiTableColumnFlags_None);
 
             //Fill table data
             ImGui::TableHeadersRow();
@@ -1001,7 +1001,9 @@ public:
                     if(!hasSingleColumn)
                         ImGui::TableNextColumn();
                     
-                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, nullptr, hasSingleColumn ? subnode : subnode->GetSubnode(subdesc->Name));
+                    //Draw row data with empty name since the name is already in the column header
+                    auto nodeOverride = hasSingleColumn ? subnode : subnode->GetSubnode(subdesc->Name);
+                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, fmt::format("##{}", (u64)this).c_str(), nodeOverride);
                 }
             }
 
