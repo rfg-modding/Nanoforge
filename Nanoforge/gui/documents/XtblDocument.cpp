@@ -96,7 +96,7 @@ void XtblDocument::Update(GuiState* state)
 
         //Draw editors for subnodes
         ImGui::SetCursorPosY(dataY);
-        if (ImGui::BeginChild("##EntryView"))
+        if (ImGui::BeginChild("##EntryView", { 0, 0 }, false, ImGuiWindowFlags_HorizontalScrollbar))
         {
             //Subnodes are drawn by description so empty optional elements are visible
             ImGui::PushItemWidth(NodeGuiWidth);

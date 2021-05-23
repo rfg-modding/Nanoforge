@@ -975,7 +975,7 @@ public:
         string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
         string name = nameNoId + fmt::format("##{}", (u64)this);
 
-        ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_BordersOuter
+        ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter
                                 | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable 
                                 | ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingStretchProp;
 
@@ -998,12 +998,11 @@ public:
                 ImGui::TableNextRow();
                 for (auto& subdesc : columnDescs)
                 {
-                    if(!hasSingleColumn)
-                        ImGui::TableNextColumn();
+                    ImGui::TableNextColumn();
                     
                     //Draw row data with empty name since the name is already in the column header
                     auto nodeOverride = hasSingleColumn ? subnode : subnode->GetSubnode(subdesc->Name);
-                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, fmt::format("##{}", (u64)this).c_str(), nodeOverride);
+                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, fmt::format("##{}", (u64)nodeOverride.get()).c_str(), nodeOverride);
                 }
             }
 
