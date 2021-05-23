@@ -425,7 +425,7 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode>
 {
     //Try to get pre-existing subnode
     string descPath = desc->GetPath();
-    descPath = descPath.substr(descPath.find_first_of('/') + 1);
+    descPath = descPath.substr(descPath.find_last_of('/') + 1);
     auto split = String::SplitString(descPath, "/");
     auto maybeSubnode = GetSubnode(descPath, node);
     bool subnodeExists = maybeSubnode != nullptr;

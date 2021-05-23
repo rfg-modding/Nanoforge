@@ -18,7 +18,7 @@ struct XtblFlag
 using XtblValue = std::variant<string, i32, f32, Vec3, u32, XtblFlag>;
 
 //Interface used by all xtbl nodes. Includes data that all nodes have. Separate implementations must be written for each node data type (e.g. float, int, reference, etc)
-class IXtblNode
+class IXtblNode : public std::enable_shared_from_this<IXtblNode>
 {
 public:
     //IXtblNode interface functions

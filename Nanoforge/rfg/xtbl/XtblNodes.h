@@ -32,7 +32,7 @@ static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Han
     string descPath = desc->GetPath();
     auto getNode = [&]() -> Handle<IXtblNode>
     {
-        return nodeOverride ? nodeOverride : xtbl->GetSubnode(descPath.substr(descPath.find_first_of('/') + 1), rootNode);
+        return nodeOverride ? nodeOverride : xtbl->GetSubnode(descPath.substr(descPath.find_last_of('/') + 1), rootNode);
     };
     Handle<IXtblNode> node = getNode();
     bool nodePresent = (node != nullptr && node->Enabled);
@@ -106,7 +106,7 @@ public:
                 gui::TooltipOnPrevious(desc->Description.value(), nullptr);
 
             for (auto& subdesc : desc->Subnodes)
-                DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, nullptr, GetSubnode(subdesc->Name));
+                DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), nullptr, GetSubnode(subdesc->Name));
 
             ImGui::TreePop();
         }
@@ -597,7 +597,7 @@ public:
                 subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
                 Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
                 if (subdesc)
-                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, subnodeName.c_str(), subnode);
+                    DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), subnodeName.c_str(), subnode);
             }
 
             ImGui::TreePop();
@@ -773,7 +773,7 @@ public:
                 subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
                 Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
                 if (subdesc)
-                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, subdesc->DisplayName.c_str());
+                    DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), subdesc->DisplayName.c_str());
             }
 
             ImGui::TreePop();
@@ -1002,7 +1002,7 @@ public:
                     
                     //Draw row data with empty name since the name is already in the column header
                     auto nodeOverride = hasSingleColumn ? subnode : subnode->GetSubnode(subdesc->Name);
-                    DrawNodeByDescription(guiState, xtbl, subdesc, rootNode, fmt::format("##{}", (u64)nodeOverride.get()).c_str(), nodeOverride);
+                    DrawNodeByDescription(guiState, xtbl, subdesc, subnode->shared_from_this(), "", nodeOverride);
                 }
             }
 
