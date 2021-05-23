@@ -115,7 +115,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
             auto* refFile = reference->FirstChildElement("File");
             auto* refType = reference->FirstChildElement("Type");
             auto* refOpenSeparate = reference->FirstChildElement("OpenSeparate");
-            if (!refFile || !refType || !refOpenSeparate)
+            if (!refFile || !refType)
             {
                 Log->error("Invalid <Reference> detected. Doesn't have all required data.");
                 return false;
@@ -123,7 +123,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
 
             const char* fileText = refFile->GetText();
             const char* pathText = refType->GetText();
-            const char* openSeparateText = refOpenSeparate->GetText();
+            const char* openSeparateText = refOpenSeparate ? refOpenSeparate->GetText() : nullptr;
             Reference = file.References.emplace_back(CreateHandle<XtblReference>());
             Reference->Used = true;
             Reference->File = fileText ? fileText : "";

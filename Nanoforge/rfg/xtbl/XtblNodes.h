@@ -977,7 +977,7 @@ public:
 
         ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter
                                 | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable 
-                                | ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingStretchProp;
+                                | ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingStretchSame;
 
         //Get column data
         const bool hasSingleColumn = desc->Subnodes[0]->Subnodes.size() == 0;
