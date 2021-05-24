@@ -20,9 +20,9 @@
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager)
 {
-    State = GuiState{ fontManager, packfileVFS, renderer, project };
+    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager };
 
     //Pre-allocate gui list so we can have stable pointers to the gui
     panels_.reserve(MaxGuiPanels);
@@ -92,6 +92,13 @@ void MainGui::Update(f32 deltaTime)
 
         panel->Update(&State, &panel->Open);
     }
+
+    //Move newly created documents into main vector. Done to avoid iterator invalidation when documents are created by other documents
+    for (auto& doc : State.NewDocuments)
+    {
+        State.Documents.push_back(doc);
+    }
+    State.NewDocuments.clear();
 
     //Draw documents
     u32 counter = 0;
@@ -195,7 +202,7 @@ void MainGui::DrawMainMenuBar()
                 if (State.PackfileVFS->Ready() && State.CurrentProject)
                 {
                     State.SetStatus("Packing mod...", GuiStatus::Working);
-                    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS);
+                    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS, State.Xtbls);
                     State.ClearStatus();
                 }
             })
@@ -245,13 +252,16 @@ void MainGui::DrawMainMenuBar()
             ImGuiMenuItemShort("Blue", SetThemePreset(Blue);)
         );
 
-        //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements
-        auto* drawList = ImGui::GetWindowDrawList();
-        string framerate = std::to_string(ImGui::GetIO().Framerate);
-        u64 decimal = framerate.find('.');
-        const char* labelAndSeparator = "|    FPS: ";
-        drawList->AddText(ImVec2(ImGui::GetCursorPosX(), 3.0f), 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
-        drawList->AddText(ImVec2(ImGui::GetCursorPosX() + (49.0f * Settings_UIScale), 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+        if (Settings_ShowFPS)
+        {
+            //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements
+            auto* drawList = ImGui::GetWindowDrawList();
+            string framerate = std::to_string(ImGui::GetIO().Framerate);
+            u64 decimal = framerate.find('.');
+            const char* labelAndSeparator = "|    FPS: ";
+            drawList->AddText(ImVec2(ImGui::GetCursorPosX(), 3.0f), 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
+            drawList->AddText(ImVec2(ImGui::GetCursorPosX() + (49.0f * Settings_UIScale), 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+        }
 
         ImGui::EndMainMenuBar();
     }
@@ -267,8 +277,8 @@ void MainGui::DrawDockspace()
                                     | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
                                     | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->GetWorkPos());
-    ImVec2 dockspaceSize = viewport->GetWorkSize();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImVec2 dockspaceSize = viewport->WorkSize;
     dockspaceSize.y -= State.StatusBarHeight;
     ImGui::SetNextWindowSize(dockspaceSize);
     ImGui::SetNextWindowViewport(viewport->ID);

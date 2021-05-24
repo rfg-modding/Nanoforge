@@ -9,7 +9,8 @@ enum FileExplorerNodeType
 };
 struct FileExplorerNode
 {
-    FileExplorerNode(string text, FileExplorerNodeType type, bool inContainer, string filename, string parentName) : Text(text), Type(type), InContainer(inContainer), Filename(filename), ParentName(parentName)
+    FileExplorerNode(string text, FileExplorerNodeType type, bool inContainer, string filename, string parentName) 
+        : Text(text), Type(type), InContainer(inContainer), Filename(filename), ParentName(parentName)
     {
         Children = {};
         Selected = false;
@@ -28,4 +29,7 @@ struct FileExplorerNode
     //Data used to access the file when it's opened via the file explorer
     string Filename;
     string ParentName;
+
+    //Whether or not the node is open. Set each frame while drawing nodes. Editing this doesn't change the nodes open state.
+    bool Open = false;
 };

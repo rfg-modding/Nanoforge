@@ -14,14 +14,32 @@ TextureDocument::TextureDocument(GuiState* state, string filename, string parent
     //Get gpu filename
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
 
-    //Parse peg and cache bytes for later manipulation
-    CpuFilePath = InContainer ?
-        state->PackfileVFS->GetFile(VppName, ParentName, Filename) :
-        state->PackfileVFS->GetFile(VppName, Filename);
-    GpuFilePath = InContainer ?
-        state->PackfileVFS->GetFile(VppName, ParentName, gpuFileName) :
-        state->PackfileVFS->GetFile(VppName, gpuFileName);
+    //Get path to cpu file and gpu file in cache
+    auto maybeCpuFilePath = InContainer ?
+        state->PackfileVFS->GetFilePath(VppName, ParentName, Filename) :
+        state->PackfileVFS->GetFilePath(VppName, Filename);
+    auto maybeGpuFilePath = InContainer ?
+        state->PackfileVFS->GetFilePath(VppName, ParentName, gpuFileName) :
+        state->PackfileVFS->GetFilePath(VppName, gpuFileName);
 
+    //Error handling for when cpu or gpu file aren't found
+    if (!maybeCpuFilePath)
+    {
+        Log->error("Texture document constructor encountered error! Failed to find texture cpu file: \"{}\" in \"{}\"", Filename, InContainer ? VppName + "/" + ParentName : VppName);
+        open_ = false;
+        return;
+    }
+    if (!maybeGpuFilePath)
+    {
+        Log->error("Texture document constructor encountered error! Failed to find texture gpu file: \"{}\" in \"{}\"", gpuFileName, InContainer ? VppName + "/" + ParentName : VppName);
+        open_ = false;
+        return;
+    }
+
+    CpuFilePath = maybeCpuFilePath.value();
+    GpuFilePath = maybeGpuFilePath.value();
+
+    //Parse peg
     BinaryReader cpuFileReader(CpuFilePath);
     BinaryReader gpuFileReader(GpuFilePath);
     Peg.Read(cpuFileReader, gpuFileReader);
@@ -63,7 +81,6 @@ void TextureDocument::Update(GuiState* state)
     const f32 columnZeroWidth = 300.0f;
     ImGui::Columns(2);
     //Todo: Add confirmation when closing an edited file before saving it
-    //Todo: Require a project to be opened to even open textures
     if (ImGui::Button("Save"))
     {
         //Read all texture data from unedited gpu file

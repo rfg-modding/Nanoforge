@@ -1,4 +1,5 @@
 #pragma once
+#include <tinyxml2/tinyxml2.h>
 #include "Common/Typedefs.h"
 #include "rfg/FileCache.h"
 #include "FileEdit.h"
@@ -6,12 +7,15 @@
 #include <future>
 
 class PackfileVFS;
+class XtblManager;
+class IXtblNode;
+
 class Project
 {
 public:
     bool Load(const string& projectFilePath);
     bool Save();
-    void PackageMod(const string& outputPath, PackfileVFS* vfs);
+    void PackageMod(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
     string GetCachePath();
     void RescanCache();
     void AddEdit(FileEdit edit);
@@ -43,5 +47,8 @@ public:
 
 private:
     bool LoadProjectFile(const string& projectFilePath);
-    bool PackageModThread(const string& outputPath, PackfileVFS* vfs);
+
+    //Mod packaging functions
+    bool PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
+    bool PackageXtblEdits(tinyxml2::XMLElement* modBlock, PackfileVFS* vfs, XtblManager* xtblManager);
 };

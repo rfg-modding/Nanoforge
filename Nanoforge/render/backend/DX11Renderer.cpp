@@ -183,6 +183,17 @@ void DX11Renderer::ImGuiDoFrame()
 {
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    //Clear texture data after a few frames to free up memory. Not done in debug builds since it causes an assert in dear imgui to fail.
+#ifndef DEBUG_BUILD
+    if (drawCount_ < 60)
+    {
+        if (drawCount_ == 1)
+            ImGui::GetIO().Fonts->ClearTexData();
+
+        drawCount_++;
+    }
+#endif
 }
 
 bool DX11Renderer::InitWindow(WNDPROC wndProc)

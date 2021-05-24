@@ -4,5 +4,5 @@
 struct FileEdit
 {
     string EditType;
-    string EditedFile;
+    string EditedFilePath;
 };

@@ -67,3 +67,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
     target_link_libraries(Nanoforge PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex.lib)
 endif()
+
+# Enable VS edit and continue if using MSVC and in a debug config
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        target_compile_options(Nanoforge PRIVATE "/ZI")
+        target_link_options(Nanoforge PRIVATE "/SAFESEH:NO")
+    endif()
+endif()

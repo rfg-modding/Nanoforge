@@ -17,10 +17,10 @@ void StatusBar::Update(GuiState* state, bool* open)
         | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
         | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 viewSize = viewport->GetWorkSize();
-    ImVec2 size = viewport->GetWorkSize();
+    ImVec2 viewSize = viewport->WorkSize;
+    ImVec2 size = viewport->WorkSize;
     size.y = state->StatusBarHeight;
-    ImVec2 pos = viewport->GetWorkPos();
+    ImVec2 pos = viewport->WorkPos;
     pos.y += viewSize.y - state->StatusBarHeight;
 
     ImGui::SetNextWindowPos(pos);

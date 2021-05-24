@@ -3,8 +3,8 @@
 #include "common/string/String.h"
 #include "common/filesystem/File.h"
 #include "util/RfgUtil.h"
+#include "rfg/xtbl/XtblManager.h"
 #include "Log.h"
-#include <tinyxml2/tinyxml2.h>
 #include <spdlog/fmt/fmt.h>
 #include "RfgTools++/RfgTools++/formats/packfiles/Packfile3.h"
 #include "RfgTools++/RfgTools++/formats/asm/AsmFile5.h"
@@ -40,7 +40,7 @@ bool Project::Save()
         auto* editPath = editElement->InsertNewChildElement("Path");
         
         editType->SetText(edit.EditType.c_str());
-        editPath->SetText(edit.EditedFile.c_str());
+        editPath->SetText(edit.EditedFilePath.c_str());
     }
 
     project.InsertFirstChild(projectBlock);
@@ -49,10 +49,10 @@ bool Project::Save()
     return true;
 }
 
-void Project::PackageMod(const string& outputPath, PackfileVFS* vfs)
+void Project::PackageMod(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     WorkerRunning = true;
-    WorkerResult = std::async(std::launch::async, &Project::PackageModThread, this, std::ref(outputPath), vfs);
+    WorkerResult = std::async(std::launch::async, &Project::PackageModThread, this, outputPath, vfs, xtblManager);
 }
 
 string Project::GetCachePath()
@@ -139,7 +139,7 @@ bool Project::LoadProjectFile(const string& projectFilePath)
     return true;
 }
 
-bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
+bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     //Reset public thread state
     WorkerState = "";
@@ -149,6 +149,10 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
     //Create output path
     std::filesystem::create_directories(outputPath);
     std::filesystem::copy_options copyOptions = std::filesystem::copy_options::overwrite_existing;
+    
+    //Delete files and folders from previous runs
+    for(auto& path : std::filesystem::directory_iterator(outputPath))
+        std::filesystem::remove_all(path);
 
     //Create modinfo.xml and fill out basic info
     tinyxml2::XMLDocument modinfo;
@@ -164,8 +168,8 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
     // - Repack str2_pc files (if texture is in str2_pc)
     // - Update asm_pc files (if texture is in str2_pc)
     // - Copy edited files to output folder
-    f32 numSteps = (f32)(Edits.size() * 3); //This will need to be done a better way once more edit types are supported
-    f32 stepSize = 1.0f / numSteps;
+    f32 numPackagingSteps = (f32)(Edits.size() * 3) + 1; //This will need to be done a better way once more edit types are supported
+    f32 packagingStepSize = 1.0f / numPackagingSteps;
 
     //Loop through edits
     for (auto& edit : Edits)
@@ -178,7 +182,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
         }
 
         //Split edited file cache path
-        std::vector<s_view> split = String::SplitString(edit.EditedFile, "\\");
+        std::vector<s_view> split = String::SplitString(edit.EditedFilePath, "\\");
         bool inContainer = split.size() == 3;
 
         //Todo: Define IAction interface that each edit/action will be implemented as. Put this behavior in that
@@ -189,7 +193,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
             if (inContainer)
             {
                 //Copy edited str2_pc contents to temp folder
-                string parentPath = edit.EditedFile.substr(0, edit.EditedFile.find_last_of("\\"));
+                string parentPath = edit.EditedFilePath.substr(0, edit.EditedFilePath.find_last_of("\\"));
                 string tempPath = Path + "\\Temp\\" + parentPath + "\\";
                 string str2Filename = string(split[1]);
                 WorkerState = fmt::format("Repacking {}...", str2Filename);
@@ -242,7 +246,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                     return false;
                 }
                 WorkerState = fmt::format("Updating {}...", asmName);
-                WorkerPercentage += stepSize;
+                WorkerPercentage += packagingStepSize;
 
                 //Check if cancel button was pressed. Added to middle of edit step since they can sometimes take quite a while
                 if (PackagingCancelled)
@@ -311,7 +315,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                 newAsmFile.Write(asmOutputPath);
 
                 WorkerState = fmt::format("Copying edited files to output folder...");
-                WorkerPercentage += stepSize;
+                WorkerPercentage += packagingStepSize;
 
                 //Copy new str2 and asm files to output folder. Also copy asm to project folder
                 std::filesystem::copy_file(packOutputPath, outputPath + str2Filename, copyOptions);
@@ -331,7 +335,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                 replaceAsm->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), asmName).c_str());
                 replaceAsm->SetAttribute("NewFile", asmName.c_str());
 
-                WorkerPercentage += stepSize;
+                WorkerPercentage += packagingStepSize;
             }
             else
             {
@@ -340,7 +344,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                 WorkerState = fmt::format("Copying edited files to output folder...");
                 string cpuFilename = string(split.back());
                 string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(cpuFilename);
-                std::filesystem::copy_file(GetCachePath() + edit.EditedFile, outputPath + cpuFilename, copyOptions);
+                std::filesystem::copy_file(GetCachePath() + edit.EditedFilePath, outputPath + cpuFilename, copyOptions);
                 std::filesystem::copy_file(fmt::format("{}{}\\{}", GetCachePath(), split[0], gpuFilename), outputPath + gpuFilename, copyOptions);
 
                 //Add <Replace> blocks for the cpu file and the gpu file
@@ -352,16 +356,170 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs)
                 replaceGpuFile->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), gpuFilename).c_str());
                 replaceGpuFile->SetAttribute("NewFile", gpuFilename.c_str());
 
-                WorkerPercentage += 3.0f * stepSize;
+                WorkerPercentage += 3.0f * packagingStepSize;
             }
         }
     }
 
+    //Package xtbl edits
+    WorkerState = fmt::format("Writing xtbl edits...");
+    PackageXtblEdits(changes, vfs, xtblManager);
+    WorkerPercentage += packagingStepSize;
+
     //Save modinfo.xml
-    modinfo.InsertFirstChild(modBlock);
-    modinfo.SaveFile((outputPath + "modinfo.xml").c_str());
+    string modinfoPath = outputPath + "modinfo.xml";
+    modinfo.InsertEndChild(modBlock);
+    modinfo.SaveFile(modinfoPath.c_str());
 
     WorkerRunning = false;
+
+    return true;
+}
+
+//Propagate edited nodes "Edited" state to their parents recursively
+//That way if a parent is set "Edited" we know one of the child nodes is edited
+bool PropagateXtblEdits(Handle<IXtblNode> node)
+{
+    //If node is edited mark all of it's parents as edited
+    if (node->Edited)
+    {
+        Handle<IXtblNode> parent = node->Parent;
+        while (parent)
+        {
+            parent->Edited = true;
+            parent = parent->Parent;
+        }
+    }
+
+    //Check if subnodes have been edited
+    bool anySubnodeEdited = false;
+    for (auto& subnode : node->Subnodes)
+    {
+        if (PropagateXtblEdits(subnode))
+        {
+            anySubnodeEdited = true;
+
+            //Special case for list variables nodes. Set name nodes as edited so they're written to the modinfo.
+            //Their needed to differentiate each list entry from each other
+            if (node->Type == XtblType::List)
+            {
+                auto nameNode = subnode->GetSubnode("Name");
+                if (nameNode)
+                    nameNode->Edited = true;
+            }
+        }
+    }
+
+    //Return true if this node or any of it's subnodes were edited
+    return anySubnodeEdited || node->Edited;
+}
+
+bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager)
+{
+    //Ensure that all xtbls in the edit list so edits from previous sessions are handled
+    for (auto& edit : Edits)
+    {
+        if (edit.EditType != "Xtbl")
+            continue;
+        
+        string xtblName = Path::GetFileName(edit.EditedFilePath);
+        string vppName(String::SplitString(edit.EditedFilePath, "\\")[0]);
+        xtblManager->ParseXtbl(vppName, xtblName);
+    }
+
+    //List of xtbl files with edits
+    std::vector<Handle<XtblFile>> editedXtbls = {};
+
+    //Propagate xtbl edits for easy edit checks and get list of edited xtbls
+    for (auto& group : xtblManager->XtblGroups)
+    {
+        for (auto& xtbl : group->Files)
+        {
+            bool anySubnodeEdited = false;
+            for (auto& subnode : xtbl->Entries)
+                if (PropagateXtblEdits(subnode))
+                    anySubnodeEdited = true;
+
+            if (anySubnodeEdited)
+                editedXtbls.push_back(xtbl);
+        }
+    }
+
+    //Ensure edited xtbls are in the edit list and resave the nanoproj file
+    for (auto& xtbl : editedXtbls)
+    {
+        bool found = false;
+        for (auto& edit : Edits)
+            if (edit.EditType == "Xtbl" && edit.EditedFilePath == xtbl->Name)
+                found = true;
+
+        if (!found)
+            Edits.push_back({ "Xtbl", fmt::format("{}\\{}", xtbl->VppName, xtbl->Name) });
+    }
+    Save();
+
+    //Todo: Make a general purpose saving/change tracking system for all documents that would handle this and warn the user when data is unsaved
+    //Save edited xtbls to project cache
+    for (auto& xtbl : editedXtbls)
+    {
+        //Path to output folder in the project cache
+        string outputFolderPath = GetCachePath() + xtbl->VppName + "\\";
+        string outputFilePath = outputFolderPath + xtbl->Name;
+
+        //Ensure output folder exists
+        std::filesystem::create_directories(outputFolderPath);
+
+        //Save xtbl project cache and rescan cache to see edited files in it
+        xtbl->WriteXtbl(outputFilePath);
+        RescanCache();
+    }
+
+    //Write xtbl edits to modinfo.xml
+    for (auto& xtbl : editedXtbls)
+    {
+        //Add <Edit> block for each xtbl being edited
+        bool hasCategory = xtbl->GetNodeCategory(xtbl->Entries[0]) != "";
+        auto* edit = changes->InsertNewChildElement("Edit");
+        edit->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(xtbl->VppName), xtbl->Name).c_str());
+
+        //Determine how the mod manager should identify each entry. Category is only used if the node has one set.
+        if(hasCategory)
+            edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name,_Editor\\Category");
+        else
+            edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name");
+
+        //Find and write edits
+        for (auto& node : xtbl->Entries)
+        {
+            if (!node->Edited)
+                continue;
+
+            auto* entry = edit->InsertNewChildElement(node->Name.c_str());
+            auto nameNode = node->GetSubnode("Name");
+            string name = nameNode ? std::get<string>(nameNode->Value) : "";
+            string category = xtbl->GetNodeCategory(node);
+
+            //Write name and category which are used to identify nodes
+            if (nameNode)
+            {
+                auto* nameXml = entry->InsertNewChildElement("Name");
+                nameXml->SetText(name.c_str());
+            }
+            if (hasCategory)
+            {
+                auto* editorXml = entry->InsertNewChildElement("_Editor");
+                auto* categoryXml = editorXml->InsertNewChildElement("Category");
+                categoryXml->SetText(category.c_str());
+            }
+
+            //Writes edits based on implementation of IXtblNode::WriteModinfoEdits()
+            if (!node->WriteModinfoEdits(entry))
+            {
+                Log->error("Xtbl modinfo packing failed for subnode: \"{}\\{}\"", node->GetPath(), name);
+                return false;
+            }
+        }
+    }
 
     return true;
 }
