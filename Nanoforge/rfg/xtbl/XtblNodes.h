@@ -90,22 +90,20 @@ class ElementXtblNode : public IXtblNode
 public:
     ~ElementXtblNode()
     {
-    
+
     }
     
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
         //Draw subnodes
-        if (ImGui::TreeNode(name.c_str()))
+        if (ImGui::TreeNode(name_.value().c_str()))
         {
-            if (desc->Description.has_value() && desc->Description != "")
-                gui::TooltipOnPrevious(desc->Description.value(), nullptr);
+            if (desc_->Description.has_value() && desc_->Description != "")
+                gui::TooltipOnPrevious(desc_->Description.value(), nullptr);
 
-            for (auto& subdesc : desc->Subnodes)
+            for (auto& subdesc : desc_->Subnodes)
                 DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), nullptr, GetSubnode(subdesc->Name));
 
             ImGui::TreePop();
@@ -174,17 +172,15 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
         //Todo: Add way to change names and auto-update any references. Likely would do this in the XtblDocument stringXml sidebar. 
         //Name nodes uneditable for the time being since they're use by xtbl references
-        if (nameNoId == "Name")
+        if (nameNoId_.value() == "Name")
         {
             return;
         }
-        else if (nameNoId == "Description" && (xtbl->Name == "dlc01_tweak_table.xtbl" || xtbl->Name == "online_tweak_table.xtbl" || xtbl->Name == "tweak_table.xtbl"))
+        else if (nameNoId_.value() == "Description" && (xtbl->Name == "dlc01_tweak_table.xtbl" || xtbl->Name == "online_tweak_table.xtbl" || xtbl->Name == "tweak_table.xtbl"))
         {
             //Todo: Come up with a better way of handling this. Maybe get give all strings big wrapped blocks so they're fully visible
             //Special case for tweak table descriptions
@@ -196,7 +192,7 @@ public:
         }
         else
         {
-            if (ImGui::InputText(name, std::get<string>(Value)))
+            if (ImGui::InputText(name_.value(), std::get<string>(Value)))
                 Edited = true;
         }
     }
@@ -237,18 +233,16 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
-        if (desc->Min && desc->Max)
+        if (desc_->Min && desc_->Max)
         {
-            if (ImGui::SliderInt(name.c_str(), &std::get<i32>(Value), (i32)desc->Min.value(), (i32)desc->Max.value()))
+            if (ImGui::SliderInt(name_.value().c_str(), &std::get<i32>(Value), (i32)desc_->Min.value(), (i32)desc_->Max.value()))
                 Edited = true;
         }
         else
         {
-            if(ImGui::InputInt(name.c_str(), &std::get<i32>(Value)))
+            if(ImGui::InputInt(name_.value().c_str(), &std::get<i32>(Value)))
                 Edited = true;
         }
     }
@@ -289,18 +283,16 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
-        if (desc->Min && desc->Max)
+        if (desc_->Min && desc_->Max)
         {
-            if(ImGui::SliderFloat(name.c_str(), &std::get<f32>(Value), desc->Min.value(), desc->Max.value()))
+            if(ImGui::SliderFloat(name_.value().c_str(), &std::get<f32>(Value), desc_->Min.value(), desc_->Max.value()))
                 Edited = true;
         }
         else
         {
-            if(ImGui::InputFloat(name.c_str(), &std::get<f32>(Value)))
+            if(ImGui::InputFloat(name_.value().c_str(), &std::get<f32>(Value)))
                 Edited = true;
         }
     }
@@ -341,11 +333,9 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
-        if(ImGui::InputFloat3(name.c_str(), (f32*)&std::get<Vec3>(Value)))
+        if(ImGui::InputFloat3(name_.value().c_str(), (f32*)&std::get<Vec3>(Value)))
             Edited = true;
     }
 
@@ -394,11 +384,9 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
-        if(ImGui::ColorPicker3(name.c_str(), (f32*)&std::get<Vec3>(Value)))
+        if(ImGui::ColorPicker3(name_.value().c_str(), (f32*)&std::get<Vec3>(Value)))
             Edited = true;
     }
 
@@ -447,22 +435,20 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
-        string& nodeValue = std::get<string>(Value);
+        CalculateEditorValues(xtbl, nameOverride);
 
         //Select the first choice if one hasn't been selected
+        string& nodeValue = std::get<string>(Value);
         if (nodeValue == "")
-            nodeValue = desc->Choices[0];
+            nodeValue = desc_->Choices[0];
 
         //Draw combo with all possible choices
-        if (ImGui::BeginCombo(name.c_str(), std::get<string>(Value).c_str()))
+        if (ImGui::BeginCombo(name_.value().c_str(), std::get<string>(Value).c_str()))
         {
             ImGui::InputText("Search", searchTerm_);
             ImGui::Separator();
 
-            for (auto& choice : desc->Choices)
+            for (auto& choice : desc_->Choices)
             {
                 //Check if choice matches seach term
                 if (searchTerm_ != "" && !String::Contains(String::ToLower(choice), String::ToLower(searchTerm_)))
@@ -518,18 +504,17 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
-        if (ImGui::TreeNode(name.c_str()))
+        if (ImGui::TreeNode(name_.value().c_str()))
         {
-            if (desc->Description.has_value() && desc->Description.value() != "")
-                gui::TooltipOnPrevious(desc->Description.value(), nullptr);
+            if (desc_->Description.has_value() && desc_->Description.value() != "")
+                gui::TooltipOnPrevious(desc_->Description.value(), nullptr);
+
             for (auto& subnode : Subnodes)
             {
-                auto& value = std::get<XtblFlag>(subnode->Value);
-                if(ImGui::Checkbox(value.Name.c_str(), &value.Value))
+                auto& flag = std::get<XtblFlag>(subnode->Value);
+                if(ImGui::Checkbox(flag.Name.c_str(), &flag.Value))
                     Edited = true;
             }
 
@@ -584,15 +569,13 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
         //Draw subnodes
-        if (ImGui::TreeNode(name.c_str()))
+        if (ImGui::TreeNode(name_.value().c_str()))
         {
-            if (desc->Description.has_value() && desc->Description.value() != "")
-                gui::TooltipOnPrevious(desc->Description.value(), nullptr);
+            if (desc_->Description.has_value() && desc_->Description.value() != "")
+                gui::TooltipOnPrevious(desc_->Description.value(), nullptr);
 
             for (auto& subnode : Subnodes)
             {
@@ -605,7 +588,7 @@ public:
                 //Gets parent node name and current node name in path
                 string subdescPath = subnode->GetPath();
                 subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
-                Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
+                Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc_);
                 if (subdesc)
                     DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), subnodeName.c_str(), subnode);
             }
@@ -677,12 +660,10 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
         //Todo: Get a list of files with correct format for this node and list those instead of having the player type names out
-        if(ImGui::InputText(name, std::get<string>(Value)))
+        if(ImGui::InputText(name_.value(), std::get<string>(Value)))
             Edited = true;
     }
 
@@ -724,28 +705,26 @@ public:
 
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
+        CalculateEditorValues(xtbl, nameOverride);
 
         //This type of xtbl node acts like a C/C++ Union, so multiple types can be chosen
-        if (ImGui::TreeNode(name.c_str()))
+        if (ImGui::TreeNode(name_.value().c_str()))
         {
-            if (desc->Description.has_value() && desc->Description.value() != "")
-                gui::TooltipOnPrevious(desc->Description.value(), nullptr);
+            if (desc_->Description.has_value() && desc_->Description.value() != "")
+                gui::TooltipOnPrevious(desc_->Description.value(), nullptr);
 
             //Get current type. Only one type from the desc is present
             u32 currentType = 0xFFFFFFFF;
-            for (u32 i = 0; i < desc->Subnodes.size(); i++)
+            for (u32 i = 0; i < desc_->Subnodes.size(); i++)
                 for (auto& subnode : Subnodes)
-                    if (String::EqualIgnoreCase(desc->Subnodes[i]->Name, subnode->Name))
+                    if (String::EqualIgnoreCase(desc_->Subnodes[i]->Name, subnode->Name))
                         currentType = i;
 
             //Draw a radio button for each type
-            for (u32 i = 0; i < desc->Subnodes.size(); i++)
+            for (u32 i = 0; i < desc_->Subnodes.size(); i++)
             {
                 bool active = i == currentType;
-                if (ImGui::RadioButton(desc->Subnodes[i]->Name.c_str(), active))
+                if (ImGui::RadioButton(desc_->Subnodes[i]->Name.c_str(), active))
                 {
                     Edited = true;
                     //If different type is selected activate new node and delete current one
@@ -760,7 +739,7 @@ public:
                         Subnodes.clear();
 
                         //Create default node
-                        auto subdesc = desc->Subnodes[i];
+                        auto subdesc = desc_->Subnodes[i];
                         auto subnode = CreateDefaultNode(subdesc, true);
                         subnode->Name = subdesc->Name;
                         subnode->Type = subdesc->Type;
@@ -771,7 +750,7 @@ public:
                         Subnodes.push_back(subnode);
                     }
                 }
-                if (i != desc->Subnodes.size() - 1)
+                if (i != desc_->Subnodes.size() - 1)
                     ImGui::SameLine();
             }
 
@@ -781,7 +760,7 @@ public:
                 //Gets parent node name and current node name in path
                 string subdescPath = subnode->GetPath();
                 subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
-                Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc);
+                Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc_);
                 if (subdesc)
                     DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), subdesc->DisplayName.c_str());
             }
@@ -826,87 +805,94 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
+    void CollectReferencedNodes(GuiState* guiState, Handle<XtblFile> xtbl)
     {
+        if (!desc_->Reference || collectedReferencedNodes_)
+            return;
+
         //Get referenced xtbl
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
-        if (!desc->Reference)
-        {
-            gui::LabelAndValue(nameNoId + ":", std::get<string>(Value) + " [Error: Null reference]");
+        refXtbl_ = guiState->Xtbls->GetOrCreateXtbl(xtbl->VppName, desc_->Reference->File);
+        if (!refXtbl_)
             return;
-        }
-        auto refXtbl = guiState->Xtbls->GetOrCreateXtbl(xtbl->VppName, desc->Reference->File);
-        if (!refXtbl)
-        {
-            //If reference xtbl isn't found allow manual editing but report the error
-            if (std::holds_alternative<string>(Value) && ImGui::InputText(name, std::get<string>(Value)))
-                Edited = true;
 
-            ImGui::SameLine();
-            ImGui::TextColored(gui::SecondaryTextColor, " [Error: " + desc->Reference->File + " not found! Cannot fill reference list.]");
-            return;
-        }
-
-        //Find referenced values
-        std::vector<Handle<IXtblNode>> referencedNodes = {};
-        auto split = String::SplitString(desc->Reference->Path, "/");
-        string optionPath = desc->Reference->Path.substr(desc->Reference->Path.find_first_of('/') + 1);
-        for (auto& subnode : refXtbl->Entries)
+        //Find referenced nodes
+        auto split = String::SplitString(desc_->Reference->Path, "/");
+        string optionPath = desc_->Reference->Path.substr(desc_->Reference->Path.find_first_of('/') + 1);
+        for (auto& subnode : refXtbl_->Entries)
         {
             if (!String::EqualIgnoreCase(subnode->Name, split[0]))
                 continue;
 
             //Get list of matching subnodes. Some files like human_team_names.xtbl use lists instead of separate elements
-            auto options = refXtbl->GetSubnodes(optionPath, subnode);
+            auto options = refXtbl_->GetSubnodes(optionPath, subnode);
             if (options.size() == 0)
                 continue;
 
             for (auto& option : options)
-                referencedNodes.push_back(option);
+                referencedNodes_.push_back(option);
         }
-
-        //Check if the reference is supported
-        bool supported = referencedNodes.size() > 0 || //Must have some references
-                         referencedNodes[0]->Type == XtblType::String || //Strings are supported
-                         //Support for reference to a reference to a string as seen in ambient prop info
-                         (referencedNodes[0]->Type == XtblType::Reference && std::holds_alternative<string>(referencedNodes[0]->Value));
-        if (!supported)
-        {
-            gui::LabelAndValue(nameNoId + ":", std::get<string>(Value) + " [Error: Unsupported reference type]");
-            return;
-        }
-        string& nodeValue = std::get<string>(Value);
 
         //Find largest reference name to align combo buttons
-        ImVec2 maxReferenceSize = { 0.0f, 0.0f };
-        for (auto& node : referencedNodes)
+        for (auto& node : referencedNodes_)
         {
             ImVec2 size = ImGui::CalcTextSize(std::get<string>(node->Value).c_str());
-            if (maxReferenceSize.x < size.x)
-                maxReferenceSize.x = size.x;
-            if (maxReferenceSize.y < size.y)
-                maxReferenceSize.y = size.y;
+            if (maxReferenceSize_.x < size.x)
+                maxReferenceSize_.x = size.x;
+            if (maxReferenceSize_.y < size.y)
+                maxReferenceSize_.y = size.y;
         }
 
-        //Offset used to make combo buttons line up with text
-        static f32 comboButtonWidth = 26.5f;
-        static f32 comboButtonHeight = 25.0f;
-        static f32 comboButtonOffsetY = -5.0f;
+        collectedReferencedNodes_ = true;
+    }
 
-        //Select the first option if one hasn't been selected
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
+    {
+        //Calculate cached data
+        CalculateEditorValues(xtbl, nameOverride);
+        CollectReferencedNodes(guiState, xtbl);
+
+        //Check if the reference type is supported
+        bool supported = referencedNodes_.size() > 0 && (
+                //String
+                referencedNodes_[0]->Type == XtblType::String || 
+                //Reference to a reference to a string
+                (referencedNodes_[0]->Type == XtblType::Reference && std::holds_alternative<string>(referencedNodes_[0]->Value)));
+
+        //Handle errors
+        if (!desc_->Reference)
+        {
+            gui::LabelAndValue(nameNoId_.value() + ":", std::get<string>(Value) + " [Error: Null reference]");
+            return;
+        }
+        if (!refXtbl_)
+        {
+            //If referenced xtbl isn't found allow manual editing but report the error
+            if (std::holds_alternative<string>(Value) && ImGui::InputText(name_.value(), std::get<string>(Value)))
+                Edited = true;
+
+            ImGui::SameLine();
+            ImGui::TextColored(gui::SecondaryTextColor, " [Error: " + desc_->Reference->File + " not found! Cannot fill reference list.]");
+            return;
+        }
+        if (!supported)
+        {
+            gui::LabelAndValue(nameNoId_.value() + ":", std::get<string>(Value) + " [Error: Unsupported reference type]");
+            return;
+        }
+
+        //Get node value. Select first reference if the value hasn't been set yet
+        string& nodeValue = std::get<string>(Value);
         if (nodeValue == "")
-            nodeValue = std::get<string>(referencedNodes[0]->Value);
+            nodeValue = std::get<string>(referencedNodes_[0]->Value);
 
         //Draw combo with an option for each referenced value
-        if (ImGui::BeginCombo(name.c_str(), std::get<string>(Value).c_str()))
+        if (ImGui::BeginCombo(name_.value().c_str(), std::get<string>(Value).c_str()))
         {
             //Draw search bar
             ImGui::InputText("Search", searchTerm_);
             ImGui::Separator();
 
-            for (auto& option : referencedNodes)
+            for (auto& option : referencedNodes_)
             {
                 //Get option value
                 string variableValue = std::get<string>(option->Value);
@@ -917,7 +903,7 @@ public:
                     continue;
 
                 //Draw option
-                if (ImGui::Selectable(variableValue.c_str(), &selected, 0, maxReferenceSize))
+                if (ImGui::Selectable(variableValue.c_str(), &selected, 0, maxReferenceSize_))
                 {
                     nodeValue = variableValue;
                     Edited = true;
@@ -925,8 +911,8 @@ public:
 
                 //Draw button to jump to xtbl being referenced
                 ImGui::SameLine();
-                ImGui::SetCursorPos({ ImGui::GetCursorPosX(), ImGui::GetCursorPosY() + comboButtonOffsetY });
-                if (ImGui::Button(fmt::format("{}##{}", ICON_FA_EXTERNAL_LINK_ALT, (u64)option.get()).c_str(), ImVec2(comboButtonWidth, comboButtonHeight)))
+                ImGui::SetCursorPos({ ImGui::GetCursorPosX(), ImGui::GetCursorPosY() + comboButtonOffsetY_ });
+                if (ImGui::Button(fmt::format("{}##{}", ICON_FA_EXTERNAL_LINK_ALT, (u64)option.get()).c_str(), ImVec2(comboButtonWidth_, comboButtonHeight_)))
                 {
                     //Find parent element of variable
                     Handle<IXtblNode> documentRoot = option;
@@ -936,16 +922,16 @@ public:
                     }
 
                     //Jump to referenced xtbl and select current node
-                    auto document = std::dynamic_pointer_cast<XtblDocument>(guiState->GetDocument(refXtbl->Name));
+                    auto document = std::dynamic_pointer_cast<XtblDocument>(guiState->GetDocument(refXtbl_->Name));
                     if (document)
                     {
                         document->SelectedNode = documentRoot;
                         ImGui::SetWindowFocus(document->Title.c_str());
                     }
-                    else
+                    else //Create new xtbl document if needed
                     {
-                        document = CreateHandle<XtblDocument>(guiState, refXtbl->Name, refXtbl->VppName, refXtbl->VppName, false, documentRoot);
-                        guiState->CreateDocument(refXtbl->Name, document);
+                        document = CreateHandle<XtblDocument>(guiState, refXtbl_->Name, refXtbl_->VppName, refXtbl_->VppName, false, documentRoot);
+                        guiState->CreateDocument(refXtbl_->Name, document);
                     }
                 }
             }
@@ -979,7 +965,19 @@ public:
     }
 
 private:
+    //Search string used in reference list
     string searchTerm_ = "";
+    
+    //Cached list of nodes being referenced
+    bool collectedReferencedNodes_ = false;
+    Handle<XtblFile> refXtbl_ = nullptr;
+    std::vector<Handle<IXtblNode>> referencedNodes_ = {}; //Referenced nodes in another xtbl
+
+    //Values used to align reference with buttons that jump to their xtbl
+    ImVec2 maxReferenceSize_ = { 0.0f, 0.0f };
+    const f32 comboButtonWidth_ = 26.5f;
+    const f32 comboButtonHeight_ = 25.0f;
+    const f32 comboButtonOffsetY_ = -5.0f;
 };
 
 //Node which is a table of values with one or more rows and columns
@@ -991,23 +989,19 @@ public:
 
     }
 
-    //Todo: Optimize this. Some grids cause serious performance issues. E.g. Open player.xtbl and scroll down to the bottom of the grid
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr)
     {
-        Handle<XtblDescription> desc = xtbl->GetValueDescription(GetPath());
-        string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
-        string name = nameNoId + fmt::format("##{}", (u64)this);
-
+        CalculateEditorValues(xtbl, nameOverride);
         ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter
                                 | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable 
                                 | ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingStretchSame;
 
         //Get column data
-        const bool hasSingleColumn = desc->Subnodes[0]->Subnodes.size() == 0;
-        auto& columnDescs = hasSingleColumn ? desc->Subnodes : desc->Subnodes[0]->Subnodes;
+        const bool hasSingleColumn = desc_->Subnodes[0]->Subnodes.size() == 0;
+        auto& columnDescs = hasSingleColumn ? desc_->Subnodes : desc_->Subnodes[0]->Subnodes;
         
-        ImGui::Text("%s:", nameNoId.c_str());
-        if (ImGui::BeginTable(name.c_str(), columnDescs.size(), flags))
+        ImGui::Text("%s:", nameNoId_.value().c_str());
+        if (ImGui::BeginTable(name_.value().c_str(), columnDescs.size(), flags))
         {
             //Setup columns
             ImGui::TableSetupScrollFreeze(0, 1);

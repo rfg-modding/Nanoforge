@@ -44,3 +44,14 @@ string IXtblNode::GetPath()
     else
         return Name;
 }
+
+void IXtblNode::CalculateEditorValues(Handle<XtblFile> xtbl, const char* nameOverride)
+{
+    if (editorValuesInitialized_)
+        return;
+
+    desc_ = xtbl->GetValueDescription(GetPath());
+    nameNoId_ = nameOverride ? nameOverride : desc_->DisplayName;
+    name_ = nameNoId_.value() + fmt::format("##{}", (u64)this);
+    editorValuesInitialized_ = true;
+}

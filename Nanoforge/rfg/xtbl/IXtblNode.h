@@ -1,6 +1,7 @@
 #pragma once
 #include "Common/Typedefs.h"
 #include "XtblType.h"
+#include "XtblDescription.h"
 #include "RfgTools++/types/Vec3.h"
 #include "RfgTools++/types/Vec4.h"
 #include <tinyxml2/tinyxml2.h>
@@ -51,4 +52,14 @@ public:
     bool Enabled = true; //Whether or not the node should be included in the file xtbl (for non-required nodes)
     bool HasDescription = false; //Whether or not the XtblNode has a description. Either in the <TableDescription> block or one provided by modders
     bool Edited = false; //Set to true if edited
+
+protected:
+    //Calculates desc_, nameNoId_, and name_ if editorValuesInitialized_ == false
+    void CalculateEditorValues(Handle<XtblFile> xtbl, const char* nameOverride = nullptr);
+
+    //Values needed by xtbl editor. Cached so they don't need to be recalculated each frame for hundreds of nodes
+    bool editorValuesInitialized_ = false;
+    Handle<XtblDescription> desc_ = nullptr; //Description from <TableDescription> section
+    std::optional<string> nameNoId_; //Node name without the dear imgui label
+    std::optional<string> name_; //Node name with dear imgui label. Used to unique identify it. Necessary when there are multiple UI elements with the same name
 };
