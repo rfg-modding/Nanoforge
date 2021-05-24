@@ -16,8 +16,12 @@ public:
 
     Handle<IXtblNode> SelectedNode = nullptr;
 private:
+    //Used to check if items on the sidebar match the search term
+    bool AnyChildMatchesSearchTerm(Handle<XtblCategory> category);
+    //Used to draw the sidebar
     void DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault = false);
     void DrawXtblNodeEntry(Handle<IXtblNode> node); //Draw xtbl node in entry list
+    
     //Void xtbl to project cache
     void Save();
 
@@ -25,6 +29,7 @@ private:
     string parentName_;
     string vppName_;
     bool inContainer_;
+    string searchTerm_ = "";
 
     Handle<XtblFile> xtbl_ = nullptr;
     XtblManager* xtblManager_ = nullptr;

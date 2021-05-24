@@ -459,8 +459,15 @@ public:
         //Draw combo with all possible choices
         if (ImGui::BeginCombo(name.c_str(), std::get<string>(Value).c_str()))
         {
+            ImGui::InputText("Search", searchTerm_);
+            ImGui::Separator();
+
             for (auto& choice : desc->Choices)
             {
+                //Check if choice matches seach term
+                if (searchTerm_ != "" && !String::Contains(String::ToLower(choice), String::ToLower(searchTerm_)))
+                    continue;
+
                 bool selected = choice == nodeValue;
                 if (ImGui::Selectable(choice.c_str(), &selected))
                 {
@@ -495,6 +502,9 @@ public:
 
         return true;
     }
+
+private:
+    string searchTerm_ = "";
 };
 
 //Node with set of flags that can be true or false. Flags are described in xtbl description block
@@ -892,11 +902,21 @@ public:
         //Draw combo with an option for each referenced value
         if (ImGui::BeginCombo(name.c_str(), std::get<string>(Value).c_str()))
         {
+            //Draw search bar
+            ImGui::InputText("Search", searchTerm_);
+            ImGui::Separator();
+
             for (auto& option : referencedNodes)
             {
-                //Draw option
+                //Get option value
                 string variableValue = std::get<string>(option->Value);
                 bool selected = variableValue == nodeValue;
+                
+                //Check if option matches seach term
+                if (searchTerm_ != "" && !String::Contains(String::ToLower(variableValue), String::ToLower(searchTerm_)))
+                    continue;
+
+                //Draw option
                 if (ImGui::Selectable(variableValue.c_str(), &selected, 0, maxReferenceSize))
                 {
                     nodeValue = variableValue;
@@ -957,6 +977,9 @@ public:
 
         return true;
     }
+
+private:
+    string searchTerm_ = "";
 };
 
 //Node which is a table of values with one or more rows and columns

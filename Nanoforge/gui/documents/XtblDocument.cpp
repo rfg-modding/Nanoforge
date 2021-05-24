@@ -2,6 +2,7 @@
 #include "Log.h"
 #include "render/imgui/imgui_ext.h"
 #include "application/project/Project.h"
+#include "render/imgui/imgui_ext.h"
 #include "gui/GuiState.h"
 #include "rfg/xtbl/XtblNodes.h"
 #include "rfg/xtbl/XtblManager.h"
@@ -60,6 +61,8 @@ void XtblDocument::Update(GuiState* state)
     f32 dataY = ImGui::GetCursorPosY();
 
     //Draw sidebar with list of entries
+    ImGui::InputText("Search", searchTerm_);
+    ImGui::Separator();
     if (ImGui::BeginChild("##EntryList"))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
@@ -112,8 +115,28 @@ void XtblDocument::Update(GuiState* state)
     ImGui::End();
 }
 
+bool XtblDocument::AnyChildMatchesSearchTerm(Handle<XtblCategory> category)
+{
+    for (auto& subcategory : category->SubCategories)
+        if (String::Contains(subcategory->Name, searchTerm_) || AnyChildMatchesSearchTerm(subcategory))
+            return true;
+    for (auto& subnode : category->Nodes)
+    {
+        auto name = subnode->GetSubnodeValueString("Name");
+        if (!name.has_value())
+            continue;
+        if (String::Contains(String::ToLower(name.value()), String::ToLower(searchTerm_)))
+            return true;
+    }
+    return false;
+}
+
 void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault)
 {
+    //Don't draw node if neither it nor it's children match the search
+    if (searchTerm_ != "" && !String::Contains(category->Name, searchTerm_) && !AnyChildMatchesSearchTerm(category))
+        return;
+
     //Draw category node
     bool nodeOpen = ImGui::TreeNodeEx(fmt::format("{} {}", ICON_FA_FOLDER, category->Name).c_str(),
         //Make full node width clickable
@@ -139,6 +162,11 @@ void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDe
 
 void XtblDocument::DrawXtblNodeEntry(Handle<IXtblNode> node)
 {
+    //Don't draw node if it doesn't match the search
+    auto nameNodeValue = node->GetSubnodeValueString("Name");
+    if (searchTerm_ != "" && (nameNodeValue.has_value() && !String::Contains(String::ToLower(nameNodeValue.value()), String::ToLower(searchTerm_))))
+        return;
+
     //Try to get <Name></Name> value
     string name = node->Name;
     auto nameValue = node->GetSubnodeValueString("Name");
