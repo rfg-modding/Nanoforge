@@ -36,7 +36,9 @@ private:
     //Updates node search results. Stores result in FileExplorerNode::MatchesSearchTerm and FileExplorerNode::AnyChildNodeMatchesSearchTerm
     void UpdateNodeSearchResultsRecursive(FileExplorerNode& node);
     //Get icon for node based on node type and extension
-    string GetNodeIcon(const string& filename);
+    string GetNodeIcon(FileExplorerNode& node);
+    //Get color of node based on file extension
+    ImVec4 GetNodeColor(FileExplorerNode& node);
     //Returns true if the node text matches the current search term
     bool DoesNodeFitSearch(FileExplorerNode& node);
     //Returns true if any of the child nodes of node match the current search term

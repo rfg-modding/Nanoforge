@@ -53,7 +53,7 @@ void FileExplorer::Update(GuiState* state, bool* open)
     //Draw nodes
     if (ImGui::BeginChild("FileExplorerList"))
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
+        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 1.40f); //Increase spacing to differentiate leaves from expanded contents.
         for (auto& node : FileTree)
         {
             VppName = node.Filename;
@@ -140,12 +140,14 @@ void FileExplorer::GenerateFileTree(GuiState* state)
     FileTree.clear();
     state->FileExplorer_SelectedNode = nullptr;
 
+    //Empty space for node icons
+    const string nodeIconSpacing = "      ";
     //Used to give unique names to each imgui tree node by appending "##index" to each name string
     u64 index = 0;
     //Loop through each top level packfile (.vpp_pc file)
     for (auto& packfile : state->PackfileVFS->packfiles_)
     {
-        string packfileNodeText = ICON_FA_ARCHIVE " " + packfile.Name();
+        string packfileNodeText = nodeIconSpacing + packfile.Name();
         FileExplorerNode& packfileNode = FileTree.emplace_back(packfileNodeText, Packfile, false, packfile.Name(), "");
 
         //Loop through each asm_pc file in the packfile
@@ -155,11 +157,11 @@ void FileExplorer::GenerateFileTree(GuiState* state)
             //Loop through each container (.str2_pc file) represented by the asm_pc file
             for (auto& container : asmFile.Containers)
             {
-                string containerNodeText = ICON_FA_ARCHIVE " " + container.Name + ".str2_pc" + "##" + std::to_string(index);
+                string containerNodeText = nodeIconSpacing + container.Name + ".str2_pc" + "##" + std::to_string(index);
                 FileExplorerNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, false, container.Name + ".str2_pc", packfile.Name());
                 for (auto& primitive : container.Primitives)
                 {
-                    string primitiveNodeText = GetNodeIcon(primitive.Name) + primitive.Name + "##" + std::to_string(index);
+                    string primitiveNodeText = nodeIconSpacing + primitive.Name + "##" + std::to_string(index);
                     containerNode.Children.emplace_back(primitiveNodeText, Primitive, true, primitive.Name, container.Name + ".str2_pc");
                     index++;
                 }
@@ -176,7 +178,7 @@ void FileExplorer::GenerateFileTree(GuiState* state)
             if (Path::GetExtension(entryName) == ".str2_pc")
                 continue;
 
-            string looseFileNodeText = GetNodeIcon(entryName) + string(entryName) + "##" + std::to_string(index);
+            string looseFileNodeText = nodeIconSpacing + string(entryName) + "##" + std::to_string(index);
             packfileNode.Children.emplace_back(looseFileNodeText, Primitive, false, string(entryName), packfile.Name());
             index++;
         }
@@ -210,8 +212,9 @@ void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
     if (!node.MatchesSearchTerm && !node.AnyChildNodeMatchesSearchTerm)
         return;
 
-    //Draw node
-    bool nodeOpen = ImGui::TreeNodeEx(node.Text.c_str(),
+    //Draw node texxt
+    f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
+    node.Open = ImGui::TreeNodeEx(node.Text.c_str(),
         //Make full node width clickable
         ImGuiTreeNodeFlags_SpanAvailWidth
         //If the node has no children make it a leaf node (a node which can't be expanded)
@@ -238,8 +241,15 @@ void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
         clickTimer.Reset();
     }
 
+    //Draw node icon
+    ImGui::PushStyleColor(ImGuiCol_Text, GetNodeColor(node));
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(nodeXPos + 22.0f);
+    ImGui::Text(GetNodeIcon(node).c_str());
+    ImGui::PopStyleColor();
+
     //If the node is open draw it's child nodes
-    if (nodeOpen)
+    if (node.Open)
     {
         //Dont bother drawing child nodes if none of them match the search term
         if (!node.AnyChildNodeMatchesSearchTerm)
@@ -341,10 +351,12 @@ void FileExplorer::UpdateNodeSearchResultsRecursive(FileExplorerNode& node)
 }
 
 //Get icon for node based on node type and extension
-string FileExplorer::GetNodeIcon(const string& filename)
+string FileExplorer::GetNodeIcon(FileExplorerNode& node)
 {
-    string ext = Path::GetExtension(filename);
-    if (ext == ".asm_pc")
+    string ext = Path::GetExtension(node.Filename);
+    if (ext == ".vpp_pc" || ext == ".str2_pc")
+        return node.Open ? ICON_FA_FOLDER_OPEN " " : ICON_FA_FOLDER " ";
+    else if (ext == ".asm_pc")
         return ICON_FA_DATABASE " ";
     else if (ext == ".cpeg_pc" || ext == ".cvbm_pc" || ext == ".gpeg_pc" || ext == ".gvbm_pc")
         return ICON_FA_IMAGE " ";
@@ -386,6 +398,59 @@ string FileExplorer::GetNodeIcon(const string& filename)
         return ICON_FA_FONT " ";
     else
         return ICON_FA_FILE " ";
+}
+
+ImVec4 FileExplorer::GetNodeColor(FileExplorerNode& node)
+{
+    string ext = Path::GetExtension(node.Filename);
+    ImVec4 defaultNodeColor = ImGui::GetStyle().Colors[ImGuiCol_Text];
+
+    if (ext == ".vpp_pc" || ext == ".str2_pc")
+        return { 235.0f / 255.0f, 199.0f / 255.0f, 96.0f / 255.0f, 1.0f };
+    else if (ext == ".asm_pc")
+        return { 240.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1.0f };
+    else if (ext == ".cpeg_pc" || ext == ".cvbm_pc" || ext == ".gpeg_pc" || ext == ".gvbm_pc")
+        return { 100.0f / 255.0f, 149.0f / 255.0f, 237.0f / 255.0f, 1.0f };
+    else if (ext == ".xtbl")
+        return { 186.0f / 255.0f, 117.0f / 255.0f, 182.0f / 255.0f, 1.0f };
+    else if (ext == ".mtbl" || ext == ".dtodx" || ext == ".gtodx" || ext == ".scriptx" || ext == ".vint_proj" || ext == ".lua")
+        return defaultNodeColor;
+    else if (ext == ".rfgzone_pc" || ext == ".layer_pc")
+        return defaultNodeColor;
+    else if (ext == ".csmesh_pc" || ext == ".gsmesh_pc" || ext == ".ccmesh_pc" || ext == ".gcmesh_pc")
+        return { 255.0f / 255.0f, 216.0f / 255.0f, 0.0f / 255.0f, 1.0f };
+    else if (ext == ".ctmesh_pc" || ext == ".gtmesh_pc" || ext == ".cterrain_pc" || ext == ".gterrain_pc" || ext == ".cstch_pc" || ext == ".gstch_pc" || ext == ".cfmesh_pc")
+        return defaultNodeColor;
+    else if (ext == ".rig_pc")
+        return defaultNodeColor;
+    else if (ext == ".rfglocatext" || ext == ".le_strings")
+        return defaultNodeColor;
+    else if (ext == ".fxo_kg")
+        return defaultNodeColor;
+    else if (ext == ".ccar_pc" || ext == ".gcar_pc")
+        return defaultNodeColor;
+    else if (ext == ".vint_doc")
+        return defaultNodeColor;
+    else if (ext == ".anim_pc")
+        return defaultNodeColor;
+    else if (ext == ".sim_pc")
+        return defaultNodeColor;
+    else if (ext == ".cchk_pc" || ext == ".gchk_pc")
+        return defaultNodeColor;
+    else if (ext == ".fsmib")
+        return defaultNodeColor;
+    else if (ext == ".cefct_pc")
+        return defaultNodeColor; // { 240.0f / 255.0f, 128.0f / 255.0f, 0.0f / 255.0f, 1.0f };
+    else if (ext == ".mat_pc")
+        return defaultNodeColor;
+    else if (ext == ".morph_pc")
+        return defaultNodeColor;
+    else if (ext == ".xwb_pc" || ext == ".xsb_pc" || ext == ".xgs_pc" || ext == ".aud_pc" || ext == ".vfdvp_pc" || ext == ".rfgvp_pc")
+        return defaultNodeColor;
+    else if (ext == ".vf3_pc")
+        return defaultNodeColor;
+    else
+        return defaultNodeColor;
 }
 
 //Returns true if the node text matches the current search term
