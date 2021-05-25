@@ -65,7 +65,7 @@ void XtblDocument::Update(GuiState* state)
     ImGui::Separator();
     if (ImGui::BeginChild("##EntryList"))
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
+        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 1.40f); //Increase spacing to differentiate leaves from expanded contents.
         for (auto& subcategory : xtbl_->RootCategory->SubCategories) //Draw categorized nodes
             DrawXtblCategory(subcategory);
         for (auto& subnode : xtbl_->RootCategory->Nodes) //Draw uncategorized nodes
@@ -120,6 +120,7 @@ bool XtblDocument::AnyChildMatchesSearchTerm(Handle<XtblCategory> category)
     for (auto& subcategory : category->SubCategories)
         if (String::Contains(subcategory->Name, searchTerm_) || AnyChildMatchesSearchTerm(subcategory))
             return true;
+
     for (auto& subnode : category->Nodes)
     {
         auto name = subnode->GetSubnodeValueString("Name");
@@ -128,6 +129,7 @@ bool XtblDocument::AnyChildMatchesSearchTerm(Handle<XtblCategory> category)
         if (String::Contains(String::ToLower(name.value()), String::ToLower(searchTerm_)))
             return true;
     }
+
     return false;
 }
 
@@ -138,12 +140,21 @@ void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDe
         return;
 
     //Draw category node
-    bool nodeOpen = ImGui::TreeNodeEx(fmt::format("{} {}", ICON_FA_FOLDER, category->Name).c_str(),
+    f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
+    bool nodeOpen = ImGui::TreeNodeEx(fmt::format("      {}", category->Name).c_str(),
         //Make full node width clickable
         ImGuiTreeNodeFlags_SpanAvailWidth
         //If the node has no children make it a leaf node (a node which can't be expanded)
         | (category->SubCategories.size() + category->Nodes.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None 
         | (openByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0)));
+
+    //Draw node icon
+    const ImVec4 folderIconColor = { 235.0f / 255.0f, 199.0f / 255.0f, 96.0f / 255.0f, 1.0f };;
+    ImGui::PushStyleColor(ImGuiCol_Text, folderIconColor);
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(nodeXPos + 22.0f);
+    ImGui::Text(nodeOpen ? ICON_FA_FOLDER_OPEN : ICON_FA_FOLDER);
+    ImGui::PopStyleColor();
 
     //Draw subcategories and subnodes
     if (nodeOpen)
