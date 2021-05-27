@@ -19,7 +19,8 @@ enum class XtblType : u32
     Reference,
     Grid,
     TableDescription,
-    Flag
+    Flag,
+    Unsupported
 };
 
 static XtblType XtblTypeFromString(const string& value)
@@ -92,6 +93,8 @@ static string to_string(XtblType value)
         return "TableDescription";
     case XtblType::Flag:
         return "Flag";
+    case XtblType::Unsupported:
+        return "Unsupported";
     default:
         THROW_EXCEPTION("Invalid value for XtblType \"{}\" passed to to_string in XtblType.h", value);
     }

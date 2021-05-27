@@ -69,4 +69,7 @@ private:
 
     //Easy way to get a nodes category with needing to search the category tree
     std::unordered_map<Handle<IXtblNode>, string> categoryMap_;
+    
+    //Xml document the xtbl was loaded from. Kept alive with the xtbl to preserve description-less nodes
+    tinyxml2::XMLDocument xmlDocument_;
 };

@@ -31,10 +31,9 @@ bool XtblFile::Parse(const string& path)
     }
 
     //Parse the xtbl using tinyxml2
-    tinyxml2::XMLDocument xtbl;
-    xtbl.LoadFile(path.c_str());
+    xmlDocument_.LoadFile(path.c_str());
 
-    auto* root = xtbl.RootElement();
+    auto* root = xmlDocument_.RootElement();
     if (!root)
     {
         Log->error("Failed to parse \"{}\". Xtbl has no <root> element.", path);
@@ -112,8 +111,14 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
     Handle<XtblDescription> desc = GetValueDescription(path);
     if (!desc)
     {
-        //TODO: Report missing description somewhere so we know when description addons are needed
-        return nullptr;
+        //TODO: Report missing description somewhere in release builds so we know when description addons are needed
+        //Create UnsupportedXtblNode to preserve xml data
+        Handle<UnsupportedXtblNode> xtblNode = CreateHandle<UnsupportedXtblNode>(node);
+        xtblNode->Name = node->Value();
+        xtblNode->Type = XtblType::Unsupported;
+        xtblNode->Parent = parent;
+        xtblNode->Edited = false;
+        return xtblNode;
     }
 
     //Parse node from xml and set members
@@ -124,6 +129,8 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
     auto* editedAttribute = node->FindAttribute("__NanoforgeEdited");
     if (editedAttribute)
         xtblNode->Edited = editedAttribute->BoolValue();
+    else
+        xtblNode->Edited = false;
     
     switch (xtblNode->Type)
     {
