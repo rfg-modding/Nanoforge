@@ -376,44 +376,6 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
     return true;
 }
 
-//Propagate edited nodes "Edited" state to their parents recursively
-//That way if a parent is set "Edited" we know one of the child nodes is edited
-bool PropagateXtblEdits(Handle<IXtblNode> node)
-{
-    //If node is edited mark all of it's parents as edited
-    if (node->Edited)
-    {
-        Handle<IXtblNode> parent = node->Parent;
-        while (parent)
-        {
-            parent->Edited = true;
-            parent = parent->Parent;
-        }
-    }
-
-    //Check if subnodes have been edited
-    bool anySubnodeEdited = false;
-    for (auto& subnode : node->Subnodes)
-    {
-        if (PropagateXtblEdits(subnode))
-        {
-            anySubnodeEdited = true;
-
-            //Special case for list variables nodes. Set name nodes as edited so they're written to the modinfo.
-            //Their needed to differentiate each list entry from each other
-            if (node->Type == XtblType::List)
-            {
-                auto nameNode = subnode->GetSubnode("Name");
-                if (nameNode)
-                    nameNode->Edited = true;
-            }
-        }
-    }
-
-    //Return true if this node or any of it's subnodes were edited
-    return anySubnodeEdited || node->Edited;
-}
-
 bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     //Ensure that all xtbls in the edit list so edits from previous sessions are handled
@@ -427,23 +389,12 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
         xtblManager->ParseXtbl(vppName, xtblName);
     }
 
-    //List of xtbl files with edits
+    //Propagate xtbl edits up from subnodes to get list of edited xtbls
     std::vector<Handle<XtblFile>> editedXtbls = {};
-
-    //Propagate xtbl edits for easy edit checks and get list of edited xtbls
     for (auto& group : xtblManager->XtblGroups)
-    {
         for (auto& xtbl : group->Files)
-        {
-            bool anySubnodeEdited = false;
-            for (auto& subnode : xtbl->Entries)
-                if (PropagateXtblEdits(subnode))
-                    anySubnodeEdited = true;
-
-            if (anySubnodeEdited)
+            if (xtbl->PropagateEdits()) //Returns true if any subnode has been edited
                 editedXtbls.push_back(xtbl);
-        }
-    }
 
     //Ensure edited xtbls are in the edit list and resave the nanoproj file
     for (auto& xtbl : editedXtbls)
@@ -456,7 +407,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
         if (!found)
             Edits.push_back({ "Xtbl", fmt::format("{}\\{}", xtbl->VppName, xtbl->Name) });
     }
-    Save();
+    Save(); //Save to ensure that newly edited xtbls are added to the .nanoproj file
 
     //Todo: Make a general purpose saving/change tracking system for all documents that would handle this and warn the user when data is unsaved
     //Save edited xtbls to project cache

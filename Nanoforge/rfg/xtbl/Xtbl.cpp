@@ -523,3 +523,50 @@ void XtblFile::WriteXtbl(const string& outPath)
     //Write xml to output path
     document.SaveFile(outPath.c_str());
 }
+
+bool XtblFile::PropagateEdits()
+{
+    //Run on all subnodes and return true if any subnode has been edited
+    for (auto& subnode : Entries)
+        if (PropagateNodeEdits(subnode))
+            return true;
+
+    //No subnode has been edited, return false
+    return false;
+}
+
+bool XtblFile::PropagateNodeEdits(Handle<IXtblNode> node)
+{
+    //If node is edited mark all of it's parents as edited
+    if (node->Edited)
+    {
+        Handle<IXtblNode> parent = node->Parent;
+        while (parent)
+        {
+            parent->Edited = true;
+            parent = parent->Parent;
+        }
+    }
+
+    //Check if subnodes have been edited
+    bool anySubnodeEdited = false;
+    for (auto& subnode : node->Subnodes)
+    {
+        if (PropagateNodeEdits(subnode))
+        {
+            anySubnodeEdited = true;
+
+            //Special case for list variables nodes. Set name nodes as edited so they're written to the modinfo.
+            //Their needed to differentiate each list entry from each other
+            if (node->Type == XtblType::List)
+            {
+                auto nameNode = subnode->GetSubnode("Name");
+                if (nameNode)
+                    nameNode->Edited = true;
+            }
+        }
+    }
+
+    //Return true if this node or any of it's subnodes were edited
+    return anySubnodeEdited || node->Edited;
+}

@@ -197,17 +197,18 @@ void XtblDocument::DrawXtblNodeEntry(Handle<IXtblNode> node)
 
 void XtblDocument::Save()
 {
-    if (xtbl_)
-    {
-        //Path to output folder in the project cache
-        string outputFolderPath = state_->CurrentProject->GetCachePath() + xtbl_->VppName + "\\";
-        string outputFilePath = outputFolderPath + xtbl_->Name;
+    //Don't save if xtbl_ is null or no subnodes have been edited
+    if (!xtbl_ || !xtbl_->PropagateEdits())
+        return;
 
-        //Ensure output folder exists
-        std::filesystem::create_directories(outputFolderPath);
+    //Path to output folder in the project cache
+    string outputFolderPath = state_->CurrentProject->GetCachePath() + xtbl_->VppName + "\\";
+    string outputFilePath = outputFolderPath + xtbl_->Name;
 
-        //Save xtbl project cache and rescan cache to see edited files in it
-        xtbl_->WriteXtbl(outputFilePath);
-        state_->CurrentProject->RescanCache();
-    }
+    //Ensure output folder exists
+    std::filesystem::create_directories(outputFolderPath);
+
+    //Save xtbl project cache and rescan cache to see edited files in it
+    xtbl_->WriteXtbl(outputFilePath);
+    state_->CurrentProject->RescanCache();
 }

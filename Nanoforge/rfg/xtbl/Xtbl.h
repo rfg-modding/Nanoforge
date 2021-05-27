@@ -45,6 +45,8 @@ public:
     void EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode> node, bool enableOptionalSubnodes = true);
     //Write all nodes to xtbl file
     void WriteXtbl(const string& outPath);
+    //Propagate subnode edit state up to parents so you can check if a xtbl has any edits by checking the root nodes. Returns true if any subnode has been edited.
+    bool PropagateEdits();
 
     //Filename of the xtbl
     string Name;
@@ -62,6 +64,9 @@ public:
     std::vector<Handle<XtblReference>> References;
 
 private:
+    //Propagate subnode edit state up to parents so you can check if a xtbl has any edits by checking the root nodes
+    bool PropagateNodeEdits(Handle<IXtblNode> node);
+
     //Easy way to get a nodes category with needing to search the category tree
     std::unordered_map<Handle<IXtblNode>, string> categoryMap_;
 };
