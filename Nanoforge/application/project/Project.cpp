@@ -429,7 +429,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
     for (auto& xtbl : editedXtbls)
     {
         //Add <Edit> block for each xtbl being edited
-        bool hasCategory = xtbl->GetNodeCategory(xtbl->Entries[0]) != "";
+        bool hasCategory = xtbl->GetNodeCategoryPath(xtbl->Entries[0]) != "";
         auto* edit = changes->InsertNewChildElement("Edit");
         edit->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(xtbl->VppName), xtbl->Name).c_str());
 
@@ -448,7 +448,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
             auto* entry = edit->InsertNewChildElement(node->Name.c_str());
             auto nameNode = node->GetSubnode("Name");
             string name = nameNode ? std::get<string>(nameNode->Value) : "";
-            string category = xtbl->GetNodeCategory(node);
+            string category = xtbl->GetNodeCategoryPath(node);
 
             //Write name and category which are used to identify nodes
             if (nameNode)

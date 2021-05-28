@@ -1178,6 +1178,8 @@ public:
 class UnsupportedXtblNode : public IXtblNode
 {
 public:
+    friend class IXtblNode;
+
     UnsupportedXtblNode(tinyxml2::XMLElement* element)
     {
         element_ = element;
@@ -1210,7 +1212,6 @@ public:
         auto* copyXml = xml->InsertEndChild(element_->DeepClone(xml->GetDocument()));
         return true;
     }
-
 private:
     tinyxml2::XMLElement* element_ = nullptr;
 };
@@ -1324,32 +1325,35 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
     case XtblType::Flags:
         node = CreateHandle<FlagsXtblNode>();
         //Ensure there's a subnode for every flag listed in <TableDescription>
-        for (auto& flagDesc : desc->Flags)
+        if (addSubnodes)
         {
-            //Check if flag has a subnode
-            Handle<IXtblNode> flagNode = nullptr;
-            for (auto& flag : node->Subnodes)
+            for (auto& flagDesc : desc->Flags)
             {
-                auto value = std::get<XtblFlag>(flag->Value);
-                if (value.Name == flagDesc)
+                //Check if flag has a subnode
+                Handle<IXtblNode> flagNode = nullptr;
+                for (auto& flag : node->Subnodes)
                 {
-                    flagNode = flag;
-                    break;
+                    auto value = std::get<XtblFlag>(flag->Value);
+                    if (value.Name == flagDesc)
+                    {
+                        flagNode = flag;
+                        break;
+                    }
                 }
-            }
 
-            //If flag isn't present create a subnode for it
-            if (!flagNode && addSubnodes)
-            {
-                auto subnode = CreateDefaultNode(XtblType::Flag);
-                subnode->Name = "Flag";
-                subnode->Type = XtblType::Flag;
-                subnode->Parent = node;
-                subnode->CategorySet = false;
-                subnode->HasDescription = true;
-                subnode->Enabled = true;
-                subnode->Value = XtblFlag{ .Name = flagDesc, .Value = false };
-                node->Subnodes.push_back(subnode);
+                //If flag isn't present create a subnode for it
+                if (!flagNode)
+                {
+                    auto subnode = CreateDefaultNode(XtblType::Flag);
+                    subnode->Name = "Flag";
+                    subnode->Type = XtblType::Flag;
+                    subnode->Parent = node;
+                    subnode->CategorySet = false;
+                    subnode->HasDescription = true;
+                    subnode->Enabled = true;
+                    subnode->Value = XtblFlag{ .Name = flagDesc, .Value = false };
+                    node->Subnodes.push_back(subnode);
+                }
             }
         }
         break;
@@ -1376,6 +1380,18 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
     case XtblType::TableDescription:
         node = CreateHandle<TableDescriptionXtblNode>();
         node->InitDefault();
+        if (addSubnodes)
+        {
+            for (auto& subdesc : desc->Subnodes)
+            {
+                auto subnode = CreateDefaultNode(subdesc);
+                if (subnode)
+                {
+                    subnode->Parent = node;
+                    node->Subnodes.push_back(subnode);
+                }
+            }
+        }
         break;
     case XtblType::Flag:
         node = CreateHandle<FlagXtblNode>();

@@ -1,6 +1,7 @@
 #include "IXtblNode.h"
 #include "XtblDescription.h"
 #include "Xtbl.h"
+#include "XtblNodes.h"
 
 void IXtblNode::DeleteSubnodes()
 {
@@ -43,6 +44,31 @@ string IXtblNode::GetPath()
         return Parent->GetPath() + "/" + Name;
     else
         return Name;
+}
+
+Handle<IXtblNode> IXtblNode::DeepCopy(Handle<IXtblNode> parent)
+{
+    Handle<IXtblNode> copy = CreateDefaultNode(Type);
+    copy->Name = Name;
+    copy->Value = Value;
+    copy->Type = Type;
+    copy->CategorySet = CategorySet;
+    copy->Enabled = Enabled;
+    copy->HasDescription = HasDescription;
+    copy->Edited = Edited;
+    copy->Parent = parent;
+
+    //Copy subnodes to copy
+    for (auto& subnode : Subnodes)
+    {
+        //Only UnsupportedXtblNode needs custom behavior so a special case is used here instead of making it a virtual function
+        if(subnode->Type == XtblType::Unsupported)
+            copy->Subnodes.push_back(CreateHandle<UnsupportedXtblNode>(dynamic_pointer_cast<UnsupportedXtblNode>(subnode)->element_));
+        else
+            copy->Subnodes.push_back(subnode->DeepCopy(shared_from_this()));
+    }
+
+    return copy;
 }
 
 void IXtblNode::CalculateEditorValues(Handle<XtblFile> xtbl, const char* nameOverride)

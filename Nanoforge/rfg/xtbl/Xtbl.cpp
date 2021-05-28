@@ -349,10 +349,16 @@ void XtblFile::SetNodeCategory(Handle<IXtblNode> node, string categoryPath)
     categoryMap_[node] = categoryPath;
 }
 
-string XtblFile::GetNodeCategory(Handle<IXtblNode> node)
+string XtblFile::GetNodeCategoryPath(Handle<IXtblNode> node)
 {
     auto find = categoryMap_.find(node);
     return find == categoryMap_.end() ? "" : find->second;
+}
+
+Handle<XtblCategory> XtblFile::GetNodeCategory(Handle<IXtblNode> node)
+{
+    auto find = categoryMap_.find(node);
+    return find == categoryMap_.end() ? nullptr : GetOrCreateCategory(find->second);
 }
 
 Handle<XtblCategory> XtblFile::GetOrCreateCategory(s_view categoryPath, Handle<XtblCategory> parent)
@@ -512,7 +518,7 @@ void XtblFile::WriteXtbl(const string& outPath)
         entry->WriteXml(entryXml); 
 
         //Write category if entry has one
-        string category = GetNodeCategory(entry);
+        string category = GetNodeCategoryPath(entry);
         if (category != "")
         {
             auto* editorXml = entryXml->InsertNewChildElement("_Editor");
@@ -540,6 +546,18 @@ bool XtblFile::PropagateEdits()
 
     //No subnode has been edited, return false
     return false;
+}
+
+void XtblFile::RenameCategory(Handle<XtblCategory> category, string newName)
+{
+    //Update node name
+    string oldName = category->Name;
+    category->Name = newName;
+
+    //Update node name strings in categoryMap_
+    for (auto& pair : categoryMap_)
+        if (String::Contains(pair.second, oldName))
+            pair.second = String::Replace(pair.second, oldName, newName);
 }
 
 bool XtblFile::PropagateNodeEdits(Handle<IXtblNode> node)

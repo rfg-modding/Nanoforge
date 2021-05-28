@@ -31,8 +31,12 @@ public:
     Handle<XtblDescription> GetValueDescription(const string& valuePath, Handle<XtblDescription> desc = nullptr);
     //Add node to provided category. Category will be created if it doesn't already exist
     void SetNodeCategory(Handle<IXtblNode> node, string categoryPath);
+    //Get category path
+    string GetCategoryPath(Handle<XtblCategory> category);
     //Get path of category that the node is in. E.g. Entries:EDF
-    string GetNodeCategory(Handle<IXtblNode> node);
+    string GetNodeCategoryPath(Handle<IXtblNode> node);
+    //Get Handle<XtblCategory> to category that the node is in
+    Handle<XtblCategory> GetNodeCategory(Handle<IXtblNode> node);
     //Get category and create it if it doesn't already exist
     Handle<XtblCategory> GetOrCreateCategory(s_view categoryPath, Handle<XtblCategory> parent = nullptr);
     //Get subnodes of search node
@@ -47,6 +51,9 @@ public:
     void WriteXtbl(const string& outPath);
     //Propagate subnode edit state up to parents so you can check if a xtbl has any edits by checking the root nodes. Returns true if any subnode has been edited.
     bool PropagateEdits();
+    //Rename category and update strings in categoryMap_
+    void RenameCategory(Handle<XtblCategory> category, string newName);
+
 
     //Filename of the xtbl
     string Name;

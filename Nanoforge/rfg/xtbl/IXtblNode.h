@@ -41,6 +41,9 @@ public:
     Handle<IXtblNode> GetSubnode(const string& subnodeName);
     //Returns the path of the value. This is this nodes name prepended with the names of it's parents
     string GetPath();
+    //Create deep copy of node and subnodes
+    Handle<IXtblNode> DeepCopy(Handle<IXtblNode> parent = nullptr);
+
 
     //Values that all nodes have
     string Name;

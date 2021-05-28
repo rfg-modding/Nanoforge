@@ -60,9 +60,18 @@ void XtblDocument::Update(GuiState* state)
     //Save cursor y at start of list to align columns
     f32 dataY = ImGui::GetCursorPosY();
 
-    //Draw sidebar with list of entries
+    //Draw search bar and buttons on sidebar
     ImGui::InputText("Search", searchTerm_);
+    if (ImGui::Button(ICON_FA_PLUS)) //Add entry
+        AddEntry();
+    
+    ImGui::SameLine();
+    if (ImGui::Button(ICON_FA_FOLDER_PLUS)) //Add category
+        AddCategory();
+
     ImGui::Separator();
+
+    //Draw list of entries
     if (ImGui::BeginChild("##EntryList"))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 1.40f); //Increase spacing to differentiate leaves from expanded contents.
@@ -113,6 +122,10 @@ void XtblDocument::Update(GuiState* state)
 
     ImGui::Columns(1);
     ImGui::End();
+
+    //Draw popup windows if they're open
+    DrawRenameCategoryWindow();
+    DrawRenameEntryWindow();
 }
 
 bool XtblDocument::AnyChildMatchesSearchTerm(Handle<XtblCategory> category)
@@ -141,12 +154,25 @@ void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDe
 
     //Draw category node
     f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
-    bool nodeOpen = ImGui::TreeNodeEx(fmt::format("      {}", category->Name).c_str(),
+    bool nodeOpen = ImGui::TreeNodeEx(fmt::format("      {}##{}", category->Name, (u64)category.get()).c_str(),
         //Make full node width clickable
         ImGuiTreeNodeFlags_SpanAvailWidth
         //If the node has no children make it a leaf node (a node which can't be expanded)
         | (category->SubCategories.size() + category->Nodes.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None 
         | (openByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0)));
+
+    //Draw right click context menu
+    if (ImGui::BeginPopupContextItem())
+    {
+        if (ImGui::MenuItem("Rename"))
+        {
+            renameCategory_ = category;
+            renameCategoryName_ = category->Name;
+            renameCategoryWindowOpen_ = true;
+        }
+
+        ImGui::EndPopup();
+    }
 
     //Draw node icon
     const ImVec4 folderIconColor = { 235.0f / 255.0f, 199.0f / 255.0f, 96.0f / 255.0f, 1.0f };;
@@ -184,9 +210,34 @@ void XtblDocument::DrawXtblNodeEntry(Handle<IXtblNode> node)
     if (nameValue)
         name = nameValue.value();
 
+    //Draw node
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf 
                                | (SelectedNode == node ? ImGuiTreeNodeFlags_Selected : 0);
-    if (ImGui::TreeNodeEx(fmt::format("{} {}", ICON_FA_CODE, name).c_str(), flags))
+    bool nodeDrawn = ImGui::TreeNodeEx(fmt::format("{} {}##{}", ICON_FA_CODE, name, (u64)node.get()).c_str(), flags);
+
+    //Draw right click context menu
+    if (ImGui::BeginPopupContextItem())
+    {
+        if (ImGui::MenuItem("Rename"))
+        {
+            auto nameNode = node->GetSubnode("Name");
+            if (nameNode)
+            {
+                renameEntry_ = node;
+                renameEntryName_ = std::get<string>(nameNode->Value);
+                renameEntryWindowOpen_ = true;
+            }
+        }
+        if (ImGui::MenuItem("Duplicate"))
+        {
+            DuplicateEntry(node);
+        }
+
+        ImGui::EndPopup();
+    }
+
+    //Handle left click behavior
+    if (nodeDrawn)
     {
         if (ImGui::IsItemClicked())
             SelectedNode = node;
@@ -211,4 +262,165 @@ void XtblDocument::Save()
     //Save xtbl project cache and rescan cache to see edited files in it
     xtbl_->WriteXtbl(outputFilePath);
     state_->CurrentProject->RescanCache();
+}
+
+void XtblDocument::AddEntry()
+{
+    //If a node is already selected put the new node in the selected nodes category
+    string category = SelectedNode ? xtbl_->GetNodeCategoryPath(SelectedNode) : "";
+    Handle<XtblDescription> desc = xtbl_->TableDescription;
+    
+    //Create the new node and set it's name
+    Handle<IXtblNode> newEntry = CreateDefaultNode(desc, true);
+    auto nameNode = newEntry->GetSubnode("Name");
+    if (nameNode)
+    {
+        nameNode->Enabled = true;
+        nameNode->Value = xtbl_->TableDescription->Name;
+    }
+    newEntry->Edited = true;
+    SelectedNode = newEntry;
+
+    //Set the nodes category and add it to the xtbl
+    xtbl_->Entries.push_back(newEntry);
+    xtbl_->SetNodeCategory(newEntry, category);
+}
+
+void XtblDocument::AddCategory()
+{
+    //If node is selected make the category a subcategory of the nodes category
+    if (SelectedNode && xtbl_->GetNodeCategory(SelectedNode))
+    {
+        Handle<XtblCategory> parent = xtbl_->GetNodeCategory(SelectedNode);
+        auto newCategory = CreateHandle<XtblCategory>("New category");
+        parent->SubCategories.push_back(newCategory);
+    }
+    else //If no node is selected add a category to the root category
+    {
+        Handle<XtblCategory> parent = xtbl_->RootCategory;
+        auto newCategory = CreateHandle<XtblCategory>("New category");
+        parent->SubCategories.push_back(newCategory);
+    }
+}
+
+void XtblDocument::DuplicateEntry(Handle<IXtblNode> entry)
+{
+    auto newEntry = entry->DeepCopy();
+    newEntry->Edited = true;
+    xtbl_->Entries.push_back(newEntry);
+    xtbl_->SetNodeCategory(newEntry, xtbl_->GetNodeCategoryPath(entry));
+    SelectedNode = newEntry;
+}
+
+void XtblDocument::DrawRenameCategoryWindow()
+{
+    if (renameCategoryWindowOpen_)
+        ImGui::OpenPopup(renameCategoryPopupId_);
+    
+    ImGui::SetNextWindowSize({ 600.0f, 200.0f }, ImGuiCond_FirstUseEver);
+    if (ImGui::BeginPopupModal(renameCategoryPopupId_))
+    {
+        //Close window if valid node isn't selected
+        if (!renameCategory_)
+        {
+            renameCategoryWindowOpen_ = false;
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+
+        //Update name if edited
+        ImGui::InputText("Name", renameCategoryName_);
+        
+        //Draw save and cancel buttons
+        if (ImGui::Button("Save"))
+        {
+            //Rename category
+            xtbl_->RenameCategory(renameCategory_, renameCategoryName_);
+
+            //Reset popup state
+            renameCategoryWindowOpen_ = false;
+            renameCategory_ = nullptr;
+            renameCategoryName_ = "";
+            ImGui::CloseCurrentPopup();
+
+            //Todo: Add support for preserving categories with no subnodes by reading categories from <EntryCategories> in Xtbl.cpp
+            //Mark xtbl as edited and save the xtbl to preserve the rename
+            if (renameCategory_->Nodes.size() > 0)
+            {
+                renameCategory_->Nodes[0]->Edited = true;
+                Save();
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+        {
+            renameCategoryWindowOpen_ = false;
+            renameCategory_ = nullptr;
+            renameCategoryName_ = "";
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+    else
+    {
+        renameCategory_ = nullptr;
+        renameCategoryName_ = "";
+    }
+}
+
+void XtblDocument::DrawRenameEntryWindow()
+{
+    if (renameEntryWindowOpen_)
+        ImGui::OpenPopup(renameEntryPopupId_);
+
+    ImGui::SetNextWindowSize({ 600.0f, 200.0f }, ImGuiCond_FirstUseEver);
+    if (ImGui::BeginPopupModal(renameEntryPopupId_))
+    {
+        //Close window if no node is selected
+        if (!renameEntry_ || !renameEntry_->GetSubnode("Name"))
+        {
+            renameEntryWindowOpen_ = false;
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+
+        //Edit name
+        ImGui::InputText("Name", renameEntryName_);
+
+        //Draw save and cancel buttons
+        if (ImGui::Button("Save"))
+        {
+            //Set node name
+            Handle<IXtblNode> nameNode = renameEntry_->GetSubnode("Name");
+            nameNode->Value = renameEntryName_;
+            nameNode->Edited = true;
+
+            //Reset popup state
+            renameEntry_ = nullptr;
+            renameEntryName_ = "";
+            renameEntryWindowOpen_ = false;
+            ImGui::CloseCurrentPopup();
+
+            //Save xtbl with edited entry name
+            Save();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+        {
+            renameEntry_ = nullptr;
+            renameEntryName_ = "";
+            renameEntryWindowOpen_ = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+    else
+    {
+        renameEntry_ = nullptr;
+        renameEntryName_ = "";
+    }
 }
