@@ -8,7 +8,7 @@
 #include "FileExplorerNode.h"
 #include <vector>
 #include <regex>
-
+#include <future>
 
 //File explorer gui that lets users navigate packfiles and their subfiles without needing manually unpack them
 class FileExplorer : public IGuiPanel
@@ -22,6 +22,8 @@ public:
 private:
     //Update search bar and check which nodes meet search term
     void UpdateSearchBar(GuiState* state);
+    //Ran by the search thread which runs file explorer searches in the background
+    void SearchThread();
     //Generates file tree. Done once at startup and when files are added/removed (very rare)
     //Pre-generating data like this makes rendering and interacting with the file tree simpler
     void GenerateFileTree(GuiState* state);
@@ -67,5 +69,14 @@ private:
     bool HadRegexError = false;
     string LastRegexError;
     string VppName;
-    bool fileTreeNeedsRegen_ = true;
+    bool FileTreeNeedsRegen = true;
+
+private:
+
+    //Search thread data. Searches are run on another thread to avoid lagging the main thread.
+    Timer searchChangeTimer_ { true };
+    std::mutex searchThreadMutex_;
+    std::future<void> searchThreadFuture_;
+    bool runningSearchThread_ = false;
+    bool searchThreadForceStop_ = false;
 };

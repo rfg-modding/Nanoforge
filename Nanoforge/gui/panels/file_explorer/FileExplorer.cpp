@@ -7,6 +7,7 @@
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
 #include <regex>
+#include <thread>
 
 FileExplorer::FileExplorer()
 {
@@ -26,6 +27,18 @@ void FileExplorer::Update(GuiState* state, bool* open)
         return;
     }
 
+    //Don't update or draw file tree until the worker thread has finished reading packfile metadata
+    if (!state->PackfileVFS->Ready())
+    {
+        ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Waiting for packfile reading");
+        ImGui::End();
+        return;
+    }
+
+    //Regen node tree if necessary
+    if (FileTreeNeedsRegen)
+        GenerateFileTree(state);
+
     //Options
     if (ImGui::CollapsingHeader("Options"))
     {
@@ -35,20 +48,14 @@ void FileExplorer::Update(GuiState* state, bool* open)
             SearchChanged = true;
     }
 
-    //Don't update or draw file tree until the worker thread has finished reading packfile metadata
-    if (!state->PackfileVFS->Ready())
+    //Search bar
+    UpdateSearchBar(state);
+    if (runningSearchThread_)
     {
-        ImGui::TextWrapped("%s Waiting for packfile reading", ICON_FA_EXCLAMATION_CIRCLE);
+        ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Running search...");
         ImGui::End();
         return;
     }
-
-    //Regen node tree if necessary
-    if (fileTreeNeedsRegen_)
-        GenerateFileTree(state);
-
-    //Search bar
-    UpdateSearchBar(state);
 
     //Draw nodes
     if (ImGui::BeginChild("FileExplorerList"))
@@ -62,7 +69,6 @@ void FileExplorer::Update(GuiState* state, bool* open)
         ImGui::PopStyleVar();
         ImGui::EndChild();
     }
-    SearchChanged = false;
 
     ImGui::End();
 }
@@ -70,8 +76,10 @@ void FileExplorer::Update(GuiState* state, bool* open)
 void FileExplorer::UpdateSearchBar(GuiState* state)
 {
     if (ImGui::InputText("Search", &SearchTerm))
+    {
         SearchChanged = true;
-
+        searchChangeTimer_.Reset();
+    }
     //Show error icon with regex error in tooltip if using regex search and it's invalid
     if (RegexSearch && HadRegexError)
     {
@@ -81,8 +89,24 @@ void FileExplorer::UpdateSearchBar(GuiState* state)
         ImGui::PopStyleColor();
         gui::TooltipOnPrevious(LastRegexError, state->FontManager->FontDefault.GetFont());
     }
-
     ImGui::Separator();
+
+    //Check if new search thread should be started. Will stop existing search thread if it's running
+    bool startNewSearchThread = SearchChanged && searchChangeTimer_.ElapsedMilliseconds() > 500;
+    if (!startNewSearchThread)
+        return;
+
+    //If existing search is running force it to stop
+    if (runningSearchThread_)
+    {
+        searchThreadForceStop_ = true;
+        searchThreadFuture_.wait();
+        searchThreadForceStop_ = false;
+        runningSearchThread_ = false;
+    }
+
+    //If the search term changed then update cached search checks. They're cached to avoid checking the search term every frame
+    std::scoped_lock(searchThreadMutex_);
 
     //Update search term
     if (SearchTerm != "" && SearchChanged)
@@ -107,6 +131,8 @@ void FileExplorer::UpdateSearchBar(GuiState* state)
     {
         SearchTermPatched = "";
     }
+
+    //Check for regex errors
     if (SearchTerm != "" && SearchChanged && RegexSearch)
     {
         //Checks if the search string is a valid regex. This is terrible but it doesn't seem that C++ provides a better way of validating a regex
@@ -115,6 +141,7 @@ void FileExplorer::UpdateSearchBar(GuiState* state)
             std::regex tempRegex(SearchTerm);
             SearchRegex = tempRegex;
             HadRegexError = false;
+            SearchTermPatched = SearchTerm;
         }
         catch (std::regex_error& ex)
         {
@@ -124,14 +151,25 @@ void FileExplorer::UpdateSearchBar(GuiState* state)
         }
     }
 
-    //If the search term changed then update cached search checks. They're cached to avoid checking the search term every frame
-    if (SearchChanged)
+    //Start search thread
+    SearchChanged = false;
+    runningSearchThread_ = true;
+    searchThreadFuture_ = std::async(std::launch::async, &FileExplorer::SearchThread, this);
+}
+
+void FileExplorer::SearchThread()
+{
+    for (auto& node : FileTree)
     {
-        for (auto& node : FileTree)
-        {
-            UpdateNodeSearchResultsRecursive(node);
-        }
+        //Exit early if search thread signalled to stop
+        if (searchThreadForceStop_)
+            return;
+
+        //Check if subnodes match search term
+        UpdateNodeSearchResultsRecursive(node);
     }
+
+    runningSearchThread_ = false;
 }
 
 void FileExplorer::GenerateFileTree(GuiState* state)
@@ -200,7 +238,7 @@ void FileExplorer::GenerateFileTree(GuiState* state)
         }
     }
 
-    fileTreeNeedsRegen_ = false;
+    FileTreeNeedsRegen = false;
 }
 
 void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
@@ -347,7 +385,13 @@ void FileExplorer::UpdateNodeSearchResultsRecursive(FileExplorerNode& node)
     node.MatchesSearchTerm = DoesNodeFitSearch(node);
     node.AnyChildNodeMatchesSearchTerm = AnyChildNodesFitSearch(node);
     for (auto& childNode : node.Children)
+    {
+        //Exit early if search thread signalled to stop
+        if (searchThreadForceStop_)
+            return;
+
         UpdateNodeSearchResultsRecursive(childNode);
+    }
 }
 
 //Get icon for node based on node type and extension
@@ -479,6 +523,10 @@ bool FileExplorer::AnyChildNodesFitSearch(FileExplorerNode& node)
 {
     for (auto& childNode : node.Children)
     {
+        //Exit early if search thread signalled to stop
+        if (searchThreadForceStop_)
+            return true;
+
         if (DoesNodeFitSearch(childNode) || AnyChildNodesFitSearch(childNode))
             return true;
     }
