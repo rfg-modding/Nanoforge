@@ -540,12 +540,13 @@ void XtblFile::WriteXtbl(const string& outPath)
 bool XtblFile::PropagateEdits()
 {
     //Run on all subnodes and return true if any subnode has been edited
+    bool anySubnodeEdited = false;
     for (auto& subnode : Entries)
         if (PropagateNodeEdits(subnode))
-            return true;
+            anySubnodeEdited = true;
 
     //No subnode has been edited, return false
-    return false;
+    return anySubnodeEdited;
 }
 
 void XtblFile::RenameCategory(Handle<XtblCategory> category, string newName)

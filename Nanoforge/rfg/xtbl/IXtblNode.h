@@ -25,7 +25,7 @@ public:
     //IXtblNode interface functions
     virtual ~IXtblNode() {}
     //Draw editor for node using Dear ImGui
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> rootNode, const char* nameOverride = nullptr) = 0;
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr) = 0;
     //Initialize node with default values for it's data type
     virtual void InitDefault() = 0;
     //Write edited node data to modinfo.xml. Returns false if it encounters an error and true if it succeeds.
