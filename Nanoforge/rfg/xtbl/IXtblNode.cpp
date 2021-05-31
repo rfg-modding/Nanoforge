@@ -65,7 +65,7 @@ Handle<IXtblNode> IXtblNode::DeepCopy(Handle<IXtblNode> parent)
         if(subnode->Type == XtblType::Unsupported)
             copy->Subnodes.push_back(CreateHandle<UnsupportedXtblNode>(dynamic_pointer_cast<UnsupportedXtblNode>(subnode)->element_));
         else
-            copy->Subnodes.push_back(subnode->DeepCopy(shared_from_this()));
+            copy->Subnodes.push_back(subnode->DeepCopy(copy->shared_from_this()));
     }
 
     return copy;

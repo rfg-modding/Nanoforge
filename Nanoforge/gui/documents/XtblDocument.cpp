@@ -75,10 +75,15 @@ void XtblDocument::Update(GuiState* state)
     if (ImGui::BeginChild("##EntryList"))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 1.40f); //Increase spacing to differentiate leaves from expanded contents.
-        for (auto& subcategory : xtbl_->RootCategory->SubCategories) //Draw categorized nodes
-            DrawXtblCategory(subcategory);
-        for (auto& subnode : xtbl_->RootCategory->Nodes) //Draw uncategorized nodes
-            DrawXtblNodeEntry(subnode);
+        
+        //Note: Iterated by index so items can be added while iterating
+        //Draw categorized nodes
+        for (u32 i = 0; i < xtbl_->RootCategory->SubCategories.size(); i++)
+            DrawXtblCategory(xtbl_->RootCategory->SubCategories[i]);
+
+        //Draw uncategorized nodes
+        for (u32 i = 0; i < xtbl_->RootCategory->Nodes.size(); i++)
+            DrawXtblNodeEntry(xtbl_->RootCategory->Nodes[i]);
 
         ImGui::PopStyleVar();
         ImGui::EndChild();
@@ -185,13 +190,14 @@ void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDe
     //Draw subcategories and subnodes
     if (nodeOpen)
     {
+        //Note: Iterated by index so items can be added while iterating
         //Draw subcategories and their nodes recursively
-        for (auto& subcategory : category->SubCategories)
-            DrawXtblCategory(subcategory);
+        for (u32 i = 0; i < category->SubCategories.size(); i++)
+            DrawXtblCategory(category->SubCategories[i]);
 
         //Draw subnodes
-        for (auto& subnode : category->Nodes)
-            DrawXtblNodeEntry(subnode);
+        for (u32 i = 0; i < category->Nodes.size(); i++)
+            DrawXtblNodeEntry(category->Nodes[i]);
 
         ImGui::TreePop();
     }
@@ -310,6 +316,11 @@ void XtblDocument::DuplicateEntry(Handle<IXtblNode> entry)
     xtbl_->Entries.push_back(newEntry);
     xtbl_->SetNodeCategory(newEntry, xtbl_->GetNodeCategoryPath(entry));
     SelectedNode = newEntry;
+
+    //Append " (copy)" to new entry name
+    auto nameNode = newEntry->GetSubnode("Name");
+    if (nameNode)
+        nameNode->Value = std::get<string>(nameNode->Value) + " (copy)";
 }
 
 void XtblDocument::DrawRenameCategoryWindow()
@@ -388,10 +399,10 @@ void XtblDocument::DrawRenameEntryWindow()
         }
 
         //Edit name
-        ImGui::InputText("Name", renameEntryName_);
+        bool enterPressed = ImGui::InputText("Name", renameEntryName_, ImGuiInputTextFlags_EnterReturnsTrue);
 
         //Draw save and cancel buttons
-        if (ImGui::Button("Save"))
+        if (ImGui::Button("Save") || enterPressed)
         {
             //Set node name
             Handle<IXtblNode> nameNode = renameEntry_->GetSubnode("Name");

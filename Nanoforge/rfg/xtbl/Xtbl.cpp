@@ -583,7 +583,7 @@ bool XtblFile::PropagateNodeEdits(Handle<IXtblNode> node)
             anySubnodeEdited = true;
 
             //Special case for list variables nodes. Set name nodes as edited so they're written to the modinfo.
-            //Their needed to differentiate each list entry from each other
+            //They're needed to differentiate each list entry from each other
             if (node->Type == XtblType::List)
             {
                 auto nameNode = subnode->GetSubnode("Name");

@@ -192,7 +192,7 @@ public:
 
         //Todo: Add way to change names and auto-update any references. Likely would do this in the XtblDocument stringXml sidebar. 
         //Name nodes uneditable for the time being since they're use by xtbl references
-        if (nameNoId_.value() == "Name")
+        if (desc_->Name == "Name")
         {
             return;
         }
@@ -891,13 +891,19 @@ public:
 
     void CollectReferencedNodes(GuiState* guiState, Handle<XtblFile> xtbl)
     {
-        if (!desc_->Reference || collectedReferencedNodes_)
-            return;
-
         //Get referenced xtbl
         refXtbl_ = guiState->Xtbls->GetOrCreateXtbl(xtbl->VppName, desc_->Reference->File);
         if (!refXtbl_)
             return;
+
+        //Continue if the node has a description and the reference list needs to be regenerated
+        bool needRecollect = refXtbl_->Entries.size() != referencedNodes_.size();
+        if (!desc_->Reference || !needRecollect)
+            return;
+
+        //Clear references list if it's being regenerated
+        if (referencedNodes_.size() > 0)
+            referencedNodes_.clear();
 
         //Find referenced nodes
         auto split = String::SplitString(desc_->Reference->Path, "/");
