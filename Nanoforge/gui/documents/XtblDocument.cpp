@@ -313,6 +313,7 @@ void XtblDocument::DuplicateEntry(Handle<IXtblNode> entry)
 {
     auto newEntry = entry->DeepCopy();
     newEntry->Edited = true;
+    newEntry->NewEntry = true;
     xtbl_->Entries.push_back(newEntry);
     xtbl_->SetNodeCategory(newEntry, xtbl_->GetNodeCategoryPath(entry));
     SelectedNode = newEntry;

@@ -159,7 +159,7 @@ public:
         for (auto& subnode : Subnodes)
         {
             //Stop early if any node fails to write
-            bool result = subnode->WriteXml(elementXml);
+            bool result = subnode->WriteXml(elementXml, writeNanoforgeMetadata);
             if (!result)
             {
                 Log->error("Failed to write xml data for xtbl node \"{}\"", subnode->GetPath());
@@ -171,6 +171,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             elementXml->SetAttribute("__NanoforgeEdited", Edited);
+            elementXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -232,6 +233,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             stringXml->SetAttribute("__NanoforgeEdited", Edited);
+            stringXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -282,6 +284,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             intXml->SetAttribute("__NanoforgeEdited", Edited);
+            intXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -332,6 +335,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             floatXml->SetAttribute("__NanoforgeEdited", Edited);
+            floatXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -383,6 +387,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             vectorXml->SetAttribute("__NanoforgeEdited", Edited);
+            vectorXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -434,6 +439,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             colorXml->SetAttribute("__NanoforgeEdited", Edited);
+            colorXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -500,6 +506,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             selectionXml->SetAttribute("__NanoforgeEdited", Edited);
+            selectionXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -568,6 +575,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             flagsXml->SetAttribute("__NanoforgeEdited", Edited);
+            flagsXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -715,7 +723,7 @@ public:
         for (auto& subnode : Subnodes)
         {
             //Stop early if any node fails to write
-            bool result = subnode->WriteXml(listXml);
+            bool result = subnode->WriteXml(listXml, writeNanoforgeMetadata);
             if (!result)
             {
                 Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
@@ -727,6 +735,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             listXml->SetAttribute("__NanoforgeEdited", Edited);
+            listXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -772,6 +781,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             nodeXml->SetAttribute("__NanoforgeEdited", Edited);
+            nodeXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -871,10 +881,11 @@ public:
         if (writeNanoforgeMetadata)
         {
             comboElementXml->SetAttribute("__NanoforgeEdited", Edited);
+            comboElementXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         if (Subnodes.size() > 0)
-            return Subnodes[0]->WriteXml(comboElementXml); //Each combo element node should only have 1 subnode
+            return Subnodes[0]->WriteXml(comboElementXml, writeNanoforgeMetadata); //Each combo element node should only have 1 subnode
         else
             return true;
     }
@@ -1049,6 +1060,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             referenceXml->SetAttribute("__NanoforgeEdited", Edited);
+            referenceXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -1153,7 +1165,7 @@ public:
         for (auto& subnode : Subnodes)
         {
             //Stop early if any node fails to write
-            bool result = subnode->WriteXml(gridXml);
+            bool result = subnode->WriteXml(gridXml, writeNanoforgeMetadata);
             if (!result)
             {
                 Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
@@ -1165,6 +1177,7 @@ public:
         if (writeNanoforgeMetadata)
         {
             gridXml->SetAttribute("__NanoforgeEdited", Edited);
+            gridXml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         return true;
@@ -1215,13 +1228,14 @@ public:
         if (writeNanoforgeMetadata)
         {
             xml->SetAttribute("__NanoforgeEdited", Edited);
+            xml->SetAttribute("__NanoforgeNewEntry", NewEntry);
         }
 
         //Write subnodes to xml
         for (auto& subnode : Subnodes)
         {
             //Stop early if any node fails to write
-            bool result = subnode->WriteXml(xml);
+            bool result = subnode->WriteXml(xml, writeNanoforgeMetadata);
             if (!result)
             {
                 Log->error("Failed to write xml data for xtbl node \"{}\"", subnode->GetPath());

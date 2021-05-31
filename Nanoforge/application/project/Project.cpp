@@ -425,9 +425,18 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
         RescanCache();
     }
 
-    //Write xtbl edits to modinfo.xml
+    //Write xtbl edits to modinfo.xml. New entries are written by the next for loop
     for (auto& xtbl : editedXtbls)
     {
+        u32 numEditedEntries = 0;
+        for (auto& node : xtbl->Entries)
+            if (node->Edited && !node->NewEntry)
+                numEditedEntries++;
+
+        //Don't write this edit block if there's no valid data for it
+        if (numEditedEntries == 0)
+            continue;
+
         //Add <Edit> block for each xtbl being edited
         bool hasCategory = xtbl->GetNodeCategoryPath(xtbl->Entries[0]) != "";
         auto* edit = changes->InsertNewChildElement("Edit");
@@ -442,7 +451,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
         //Find and write edits
         for (auto& node : xtbl->Entries)
         {
-            if (!node->Edited)
+            if (!node->Edited || node->NewEntry)
                 continue;
 
             auto* entry = edit->InsertNewChildElement(node->Name.c_str());
@@ -465,6 +474,52 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
 
             //Writes edits based on implementation of IXtblNode::WriteModinfoEdits()
             if (!node->WriteModinfoEdits(entry))
+            {
+                Log->error("Xtbl modinfo packing failed for subnode: \"{}\\{}\"", node->GetPath(), name);
+                return false;
+            }
+        }
+    }
+
+    //Todo: Come up with a better way of handling this. This is pretty much a duplicate of the for loop above with some small changes. May require mod manager changes.
+    //Write new entries to modinfo.xml
+    for (auto& xtbl : editedXtbls)
+    {
+        u32 numNewEntries = 0;
+        for (auto& node : xtbl->Entries)
+            if (node->NewEntry)
+                numNewEntries++;
+
+        //Don't write this edit block if there's no valid data for it
+        if (numNewEntries == 0)
+            continue;
+
+        //Add <Edit> block for each xtbl being edited
+        bool hasCategory = xtbl->GetNodeCategoryPath(xtbl->Entries[0]) != "";
+        auto* edit = changes->InsertNewChildElement("Edit");
+        edit->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(xtbl->VppName), xtbl->Name).c_str());
+
+        //Find and write new entries. These are written in their entirety since they dont exist in the base xtbl
+        for (auto& node : xtbl->Entries)
+        {
+            if (!node->NewEntry)
+                continue;
+
+            auto* entry = edit->InsertNewChildElement(node->Name.c_str());
+            auto nameNode = node->GetSubnode("Name");
+            string name = nameNode ? std::get<string>(nameNode->Value) : "";
+            string category = xtbl->GetNodeCategoryPath(node);
+
+            //Write category
+            if (hasCategory)
+            {
+                auto* editorXml = entry->InsertNewChildElement("_Editor");
+                auto* categoryXml = editorXml->InsertNewChildElement("Category");
+                categoryXml->SetText(category.c_str());
+            }
+
+            //Writes edits based on implementation of IXtblNode::WriteModinfoEdits()
+            if (!node->WriteXml(entry, false))
             {
                 Log->error("Xtbl modinfo packing failed for subnode: \"{}\\{}\"", node->GetPath(), name);
                 return false;

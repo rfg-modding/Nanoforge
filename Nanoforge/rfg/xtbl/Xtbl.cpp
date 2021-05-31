@@ -125,13 +125,13 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
     Handle<IXtblNode> xtblNode = CreateDefaultNode(desc, false);
     xtblNode->Parent = parent;
 
-    //Reach nanoforge metadata if it's present
+    //Read nanoforge metadata if it's present
     auto* editedAttribute = node->FindAttribute("__NanoforgeEdited");
-    if (editedAttribute)
-        xtblNode->Edited = editedAttribute->BoolValue();
-    else
-        xtblNode->Edited = false;
-    
+    auto* newEntryAttribute = node->FindAttribute("__NanoforgeNewEntry");
+    xtblNode->Edited = editedAttribute ? editedAttribute->BoolValue() : false;
+    xtblNode->NewEntry = newEntryAttribute ? newEntryAttribute->BoolValue() : false;
+
+    //Read node data
     switch (xtblNode->Type)
     {
     case XtblType::String:
