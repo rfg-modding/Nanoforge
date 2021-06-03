@@ -45,7 +45,6 @@ Application::Application(HINSTANCE hInstance)
     //Setup gui
     Gui.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_);
     //Set initial territory name
-    Gui.State.SetTerritory(Settings_TerritoryFilename, true);
     Gui.HandleResize(windowWidth_, windowHeight_);
 
     //Start worker thread and capture it's future. If future isn't captured it won't actually run async

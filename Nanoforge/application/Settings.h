@@ -4,8 +4,6 @@
 
 //Data path for game vpps
 extern string Settings_PackfileFolderPath;
-//Name of the vpp_pc file that zone data is loaded from at startup
-extern string Settings_TerritoryFilename;
 //Most recently opened projects for main menu bar and welcome screen
 extern std::vector<string> Settings_RecentProjects;
 //Scale of the UI. Values larger than 1.0 make UI text and icons larger.

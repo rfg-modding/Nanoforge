@@ -51,8 +51,8 @@ public:
     ZoneObjectNode36* SelectedObject = nullptr;
 
     //Used to trigger and reload and load a different territory
-    string CurrentTerritoryName;
-    string CurrentTerritoryShortname;
+    string CurrentTerritoryName = "terr01";
+    string CurrentTerritoryShortname = "zonescript_terr01.vpp_pc";
 
     ZoneObject36* ZoneObjectList_SelectedObject = nullptr;
 
