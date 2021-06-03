@@ -19,29 +19,3 @@ namespace ImGui
     IMGUI_API void OpenPopup(std::string str_id);
     IMGUI_API bool BeginPopupModal(std::string name, bool* p_open = nullptr, ImGuiWindowFlags flags = 0);
 }
-
-#define ImGuiMainMenuBar(code)\
-    if(ImGui::BeginMainMenuBar())\
-    {\
-        code\
-        ImGui::EndMainMenuBar();\
-    }
-
-#define ImGuiMenu(name, code)\
-    if(ImGui::BeginMenu(name))\
-    {\
-        code\
-        ImGui::EndMenu();\
-    }
-
-#define ImGuiMenuItem(name, shortcut, selected, enabled, code)\
-    if(ImGui::MenuItem(name, shortcut, selected, enabled))\
-    {\
-        code\
-    }
-
-#define ImGuiMenuItemShort(name, code)\
-    if(ImGui::MenuItem(name))\
-    {\
-        code\
-    }
