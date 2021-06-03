@@ -13,14 +13,6 @@ class Camera;
 class DX11Renderer;
 class Project;
 
-//Maximum gui panels. Gui list is preallocated so we can have stable pointers to the panels
-const u32 MaxGuiPanels = 256;
-
-enum ThemePreset
-{
-    Dark,
-    Blue
-};
 //Basic enum for handling switch from welcome screen to main gui
 enum GuiStateEnum
 {
@@ -39,7 +31,7 @@ public:
     void HandleResize(u32 width, u32 height);
     void AddPanel(string menuPos, bool open, Handle<IGuiPanel> panel);
 
-    GuiState State;
+    GuiState State; //Global gui state provided to each panel and document
     GuiStateEnum StateEnum = Welcome;
 
 private: 
@@ -47,17 +39,15 @@ private:
     void DrawDockspace();
     void GenerateMenus();
     MenuItem* GetMenu(const string& text);
-    void CheckGuiListResize();
-
-    void SetThemePreset(ThemePreset preset);
 
     void DrawNewProjectWindow();
     void TryOpenProject();
     void DrawSaveProjectWindow();
     void DrawWelcomeWindow();
 
-    //Size is pre-allocated with MaxGuiPanels elements. Crashes if it resizes beyond this
+    //Gui panels
     std::vector<Handle<IGuiPanel>> panels_ = {};
+    //Tree of gui panels. Used to categorize them in the main menu bar.
     std::vector<MenuItem> menuItems_ = {};
 
     //Docking data
@@ -73,60 +63,4 @@ private:
     //Used by popup that tells you if your data path in Settings.xml doesn't have one of the expected vpp_pc files
     bool showDataPathErrorPopup_ = false;
     string dataPathValidationErrorMessage_;
-
-    std::vector<const char*> TerritoryList =
-    {
-        "terr01",
-        "dlc01",
-        "mp_cornered",
-        "mp_crashsite",
-        "mp_crescent",
-        "mp_crevice",
-        "mp_deadzone",
-        "mp_downfall",
-        "mp_excavation",
-        "mp_fallfactor",
-        "mp_framework",
-        "mp_garrison",
-        "mp_gauntlet",
-        "mp_overpass",
-        "mp_pcx_assembly",
-        "mp_pcx_crossover",
-        "mp_pinnacle",
-        "mp_quarantine",
-        "mp_radial",
-        "mp_rift",
-        "mp_sandpit",
-        "mp_settlement",
-        "mp_warlords",
-        "mp_wasteland",
-        "mp_wreckage",
-        "mpdlc_broadside",
-        "mpdlc_division",
-        "mpdlc_islands",
-        "mpdlc_landbridge",
-        "mpdlc_minibase",
-        "mpdlc_overhang",
-        "mpdlc_puncture",
-        "mpdlc_ruins",
-        "wc1",
-        "wc2",
-        "wc3",
-        "wc4",
-        "wc5",
-        "wc6",
-        "wc7",
-        "wc8",
-        "wc9",
-        "wc10",
-        "wcdlc1",
-        "wcdlc2",
-        "wcdlc3",
-        "wcdlc4",
-        "wcdlc5",
-        "wcdlc6",
-        "wcdlc7",
-        "wcdlc8",
-        "wcdlc9"
-    };
 };
