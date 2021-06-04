@@ -9,16 +9,16 @@ void ImGuiFontManager::RegisterFonts()
 
     //Load fonts from file with preset sizes
     ImGuiIO& io = ImGui::GetIO();
-    FontSmall.Load(io, &icons_config, icons_ranges);
-    FontDefault.Load(io, &icons_config, icons_ranges);
-    FontMedium.Load(io, &icons_config, icons_ranges);
-    FontL.Load(io, &icons_config, icons_ranges);
-    FontXL.Load(io, &icons_config, icons_ranges);
-    //FontXXL.Load(io, &icons_config, icons_ranges);
-    //FontXXXL.Load(io, &icons_config, icons_ranges);
-    //FontXXXXL.Load(io, &icons_config, icons_ranges);
-    //FontXXXXXL.Load(io, &icons_config, icons_ranges);
-    //FontXXXXXXL.Load(io, &icons_config, icons_ranges);
+    FontSmall.Load(io, &icons_config, icons_ranges, config_);
+    FontDefault.Load(io, &icons_config, icons_ranges, config_);
+    FontMedium.Load(io, &icons_config, icons_ranges, config_);
+    FontL.Load(io, &icons_config, icons_ranges, config_);
+    FontXL.Load(io, &icons_config, icons_ranges, config_);
+    //FontXXL.Load(io, &icons_config, icons_ranges, config_);
+    //FontXXXL.Load(io, &icons_config, icons_ranges, config_);
+    //FontXXXXL.Load(io, &icons_config, icons_ranges, config_);
+    //FontXXXXXL.Load(io, &icons_config, icons_ranges, config_);
+    //FontXXXXXXL.Load(io, &icons_config, icons_ranges, config_);
 
     //Set default font
     io.FontDefault = FontDefault.GetFont();

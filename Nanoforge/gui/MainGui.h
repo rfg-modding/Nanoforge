@@ -12,27 +12,18 @@ class PackfileVFS;
 class Camera;
 class DX11Renderer;
 class Project;
-
-//Basic enum for handling switch from welcome screen to main gui
-enum GuiStateEnum
-{
-    //Welcome screen. Initial state, must select or create a project to get out of this
-    Welcome,
-    //Main gui. Where most of the app is
-    Main
-};
+class Config;
 
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
 {
 public:
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config);
     void Update(f32 deltaTime);
     void HandleResize(u32 width, u32 height);
     void AddPanel(string menuPos, bool open, Handle<IGuiPanel> panel);
 
     GuiState State; //Global gui state provided to each panel and document
-    GuiStateEnum StateEnum = Welcome;
 
 private: 
     void DrawMainMenuBar();
@@ -40,12 +31,10 @@ private:
     void GenerateMenus();
     MenuItem* GetMenu(const string& text);
 
-    void DrawNewProjectWindow();
     void TryOpenProject();
     void DrawSaveProjectWindow();
-    void DrawWelcomeWindow();
 
-    //Gui panels
+    //gui_ panels
     std::vector<Handle<IGuiPanel>> panels_ = {};
     //Tree of gui panels. Used to categorize them in the main menu bar.
     std::vector<MenuItem> menuItems_ = {};
@@ -63,4 +52,6 @@ private:
     //Used by popup that tells you if your data path in Settings.xml doesn't have one of the expected vpp_pc files
     bool showDataPathErrorPopup_ = false;
     string dataPathValidationErrorMessage_;
+
+    bool showSettingsWindow_ = false;
 };

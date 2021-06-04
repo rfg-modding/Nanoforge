@@ -11,7 +11,7 @@ class Shader
 {
 public:
     //Attempts to load a shader pair from the provided path
-    void Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device);
+    void Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device, bool useGeometryShaders);
     //Reloads shader if it's file changed and enough time has elapsed since the last reload
     void TryReload();
     //Bind shader to current context
@@ -27,4 +27,5 @@ private:
     ComPtr<ID3D11Device> d3d11Device_ = nullptr;
     ComPtr<ID3DBlob> pVSBlob_ = nullptr;
     string shaderPath_;
+    bool useGeometryShaders_ = false;
 };

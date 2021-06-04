@@ -21,6 +21,7 @@ enum GuiStatus
 
 class GuiState;
 class Project;
+class Config;
 struct FileExplorerNode;
 //Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
 using PropertyPanelContentFunc = void(GuiState* state);
@@ -34,6 +35,7 @@ public:
     DX11Renderer* Renderer = nullptr;
     Project* CurrentProject = nullptr;
     XtblManager* Xtbls = nullptr;
+    Config* Config = nullptr;
 
     //Most recently selected territory. If you have multiple territories open this is the most recently selected window
     Territory* CurrentTerritory = nullptr;
@@ -51,8 +53,8 @@ public:
     ZoneObjectNode36* SelectedObject = nullptr;
 
     //Used to trigger and reload and load a different territory
-    string CurrentTerritoryName;
-    string CurrentTerritoryShortname;
+    string CurrentTerritoryName = "terr01";
+    string CurrentTerritoryShortname = "zonescript_terr01.vpp_pc";
 
     ZoneObject36* ZoneObjectList_SelectedObject = nullptr;
 

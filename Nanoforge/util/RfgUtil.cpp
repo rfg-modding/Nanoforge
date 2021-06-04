@@ -1,6 +1,7 @@
 #include "RfgUtil.h"
 #include "Log.h"
 #include "common/filesystem/Path.h"
+#include "application/Config.h"
 
 namespace RfgUtil
 {
@@ -23,7 +24,7 @@ namespace RfgUtil
             THROW_EXCEPTION("Unknown rfg file extension '{}' passed to RfgUtil::CpuFilenameToGpuFilename()", extension);
     }
 
-    bool ValidateDataPath(const string& dataPath, string& errorMessage)
+    bool ValidateDataPath(const string& dataPath, string& missingFileName, bool logResult)
     {
         //List of expected vpp_pc files
         std::vector<string> expectedFiles =
@@ -135,18 +136,88 @@ namespace RfgUtil
             "zonescript_terr01.vpp_pc"
         };
 
-        //Check if all expected files are in the data folder. Return false and set error message if any one isn't
+        //Check if all expected files are in the data folder. Return false and set missing file string
         for (auto& filename : expectedFiles)
         {
             if (!std::filesystem::exists(dataPath + "\\" + filename))
             {
-                errorMessage = fmt::format("Your data folder \"{}\" doesn't have \"{}\". Make sure <DataPath> in Settings.xml is correct. You can find Settings.xml in the same folder as Nanoforge.exe. You have to restart Nanoforge after changing Settings.xml.", 
-                                           dataPath, filename);
+                if(logResult)
+                    Log->warn("Current data path is invalid. Data path: \"{}\", first missing vpp: \"{}\"", dataPath, filename);
+                
+                missingFileName = filename;
                 return false;
             }
         }
 
+        if(logResult)
+            Log->info("Current data path is valid. Data path: \"{}\"", dataPath);
+
         return true;
     }
-}
 
+    //Todo: Add non re-mars-tered paths
+    //Non exhaustive list of common/expected install locations
+    const std::vector<string> CommonInstallLocations =
+    {
+        "C:/Program Files (x86)/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "C:/Program Files (x86)/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "C:/Program Files (x86)/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+        "C:/Program Files/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "C:/Program Files/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "C:/Program Files/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+        "C:/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+
+        "B:/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "B:/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "B:/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+
+        "A:/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "A:/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "A:/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+
+        "D:/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "D:/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "D:/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+
+        "E:/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "E:/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "E:/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+
+        "F:/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "F:/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "F:/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+
+        "G:/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "G:/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data",
+        "G:/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data",
+    };
+
+    //Attempt to auto locate the data path from a list of common install locations. Will set the "Data path" config var if it's found.
+    bool AutoDetectDataPath(Config* config)
+    {
+        //Get data path config var
+        config->EnsureVariableExists("Data path", ConfigType::String);
+        auto dataPathVar = config->GetVariable("Data path");
+        dataPathVar->IsFolderPath = true;
+        dataPathVar->IsFilePath = false;
+
+        Log->info("Data path \"{}\" is invalid. Attempting to auto detect RFG install location.", std::get<string>(dataPathVar->Value));
+
+        //Loop through all common install locations
+        for (auto& path : CommonInstallLocations)
+        {
+            //If install location has all expected files set the data path to that
+            string missingFileName;
+            if (RfgUtil::ValidateDataPath(path, missingFileName, false))
+            {
+                Log->info("Auto detected RFG install location at \"{}\"", path);
+                dataPathVar->Value = path;
+                config->Save();
+                return true;
+            }
+        }
+
+        Log->warn("Failed to auto detect RFG install location.");
+        return false;
+    }
+}

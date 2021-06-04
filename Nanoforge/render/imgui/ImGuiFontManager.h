@@ -1,9 +1,9 @@
 #pragma once
 #include "common/Typedefs.h"
 #include <imgui.h>
+#include "application/Config.h"
 #include "ImGuiConfig.h"
 #include <IconsFontAwesome5_c.h>
-#include "application/Settings.h"
 
 class ImGuiFont
 {
@@ -15,9 +15,10 @@ public:
     [[nodiscard]] f32 Size() const { return size_; }
     void Push() const { ImGui::PushFont(ptr_); }
     void Pop() const { ImGui::PopFont(); }
-    void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges)
+    void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges, Config* config)
     {
-        size_ *= Settings_UIScale;
+        config->EnsureVariableExists("UI Scale", ConfigType::Float);
+        size_ *= config->GetFloatReadonly("UI Scale").value();
         //Load normal font
         io.Fonts->AddFontFromFileTTF(gui::FontPath, size_);
         //Load FontAwesome image font and merge with normal font
@@ -32,6 +33,7 @@ private:
 class ImGuiFontManager
 {
 public:
+    void Init(Config* config) { config_ = config; }
     void RegisterFonts();
 
     //Default font size
@@ -47,4 +49,7 @@ public:
     //ImGuiFont FontXXXXL(57.0f);
     //ImGuiFont FontXXXXXL(64.5f);
     //ImGuiFont FontXXXXXXL(72.0f);
+
+private:
+    Config* config_ = nullptr;
 };

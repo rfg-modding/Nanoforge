@@ -15,12 +15,13 @@
 using Microsoft::WRL::ComPtr;
 class ImGuiFontManager;
 class Camera;
+class Config;
 using ImTextureID = void*;
 
 class DX11Renderer
 {
 public:
-    void Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager);
+    void Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager, Config* config);
     ~DX11Renderer();
 
     void NewFrame(f32 deltaTime) const;
@@ -63,6 +64,7 @@ private:
     HWND hwnd_ = nullptr;
     u32 windowWidth_ = 800;
     u32 windowHeight_ = 800;
+    Config* config_ = nullptr;
 
     IDXGIFactory* dxgiFactory_ = nullptr;
     ComPtr<ID3D11Device> d3d11Device_ = nullptr;

@@ -6,8 +6,8 @@
 #include "render/camera/Camera.h"
 #include "WorkerThread.h"
 #include "Log.h"
+#include "gui/util/WinUtil.h"
 #include "common/string/String.h"
-#include "application/Settings.h"
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <imgui/imgui.h>
@@ -15,6 +15,7 @@
 #include <imgui/backends/imgui_impl_dx11.h>
 #include <filesystem>
 #include <future>
+#include <variant>
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -23,7 +24,22 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 //Ptr to application instance for WndProc use
 Application* appInstance = nullptr;
 
-Application::Application(HINSTANCE hInstance)
+void Application::Run()
+{
+    //Init general app state used by all stages
+    appInstance = this;
+    Init();
+
+    //Stage 1 - Welcome gui
+    InitStage1();
+    RunStage1();
+
+    //Stage 2 - Main app
+    InitStage2();
+    RunStage2();
+}
+
+void Application::Init()
 {
     //Init logger
     logSinks_.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
@@ -34,42 +50,85 @@ Application::Application(HINSTANCE hInstance)
     Log->set_pattern("[%Y-%m-%d, %H:%M:%S][%^%l%$]: %v");
 
     //Load settings.xml
-    Settings_Read();
+    config_.Load();
 
-    appInstance = this;
-    hInstance_ = hInstance;
-    packfileVFS_.Init(Settings_PackfileFolderPath, &project_);
-    xtblManager_.Init(&packfileVFS_);
-    
-    InitRenderer();
-    //Setup gui
-    Gui.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_);
-    //Set initial territory name
-    Gui.State.SetTerritory(Settings_TerritoryFilename, true);
-    Gui.HandleResize(windowWidth_, windowHeight_);
+    //Init renderer and gui
+    fontManager_.Init(&config_);
+    renderer_.Init(hInstance_, WndProc, stage1WindowWidth_, stage1WindowHeight_, &fontManager_, &config_);
+    gui::SetThemePreset(ThemePreset::Dark);
 
-    //Start worker thread and capture it's future. If future isn't captured it won't actually run async
-    workerFuture_ = std::async(std::launch::async, &WorkerThread, &Gui.State);
+    //Init utility classes for file/folder browsers
+    WinUtilInit(renderer_.GetSystemWindowHandle());
 
     //Init frame timing variables
-    deltaTime_ = maxFrameRateDelta;
-    FrameTimer.Start();
+    deltaTime_ = targetFramerateDelta;
 }
 
-Application::~Application()
+void Application::InitStage1()
 {
-    appInstance = nullptr;
+    welcomeGui_.Init(&config_, &fontManager_, &project_, windowWidth_, windowHeight_);
 }
 
-void Application::Run()
+void Application::RunStage1()
 {
+    //Per frame update
+    std::function<void()> update = [&]()
+    {
+        welcomeGui_.Update();
+
+        //Move to the next stage if the welcome gui is done
+        if (welcomeGui_.Done)
+            stageDone_ = true;
+    };
+
+    //Run main loop with custom update behavior for this stage injected
+    MainLoop(update);
+}
+
+void Application::InitStage2()
+{
+    //Maximize window since the gui has a lot more content in stage 2
+    MaximizeWindow();
+
+    //Stage 1 ensured that we have a valid data path so we can now initialize code that depends on it
+    auto dataPath = config_.GetVariable("Data path");
+    packfileVFS_.Init(std::get<string>(dataPath->Value), &project_);
+    xtblManager_.Init(&packfileVFS_);
+
+    //Setup main gui
+    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_);
+    gui_.HandleResize(windowWidth_, windowHeight_);
+
+    //Start worker thread to load packfile metadata in the background
+    workerFuture_ = std::async(std::launch::async, &WorkerThread, &gui_.State);
+}
+
+void Application::RunStage2()
+{
+    //Per frame update
+    std::function<void()> update = [&]()
+    {
+        //Update cameras
+        for (auto& scene : renderer_.Scenes)
+            scene->Cam.DoFrame(deltaTime_);
+
+        //Update main gui
+        gui_.Update(deltaTime_);
+    };
+
+    //Run main loop with custom update behavior for this stage injected
+    MainLoop(update);
+}
+
+void Application::MainLoop(std::function<void()> stageUpdateFunc)
+{
+    stageDone_ = false;
     MSG msg; //Create a new message structure
     ZeroMemory(&msg, sizeof(MSG)); //Clear message structure to NULL
 
-    while(msg.message != WM_QUIT) //Loop while there are messages available
+    FrameTimer.Start();
+    while (msg.message != WM_QUIT && !stageDone_) //Loop while there are messages available
     {
-        FrameTimer.Reset();
-
         //Dispatch messages if present
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
@@ -77,47 +136,20 @@ void Application::Run()
             DispatchMessage(&msg);
         }
 
-        //Update cameras
-        for (auto& scene : renderer_.Scenes)
-            scene->Cam.DoFrame(deltaTime_);
-
         NewFrame();
-        UpdateGui();
+        stageUpdateFunc();
         renderer_.DoFrame(deltaTime_);
 
         //Sleep until target framerate is reached
-        while (FrameTimer.ElapsedSecondsPrecise() < maxFrameRateDelta)
+        while (FrameTimer.ElapsedSecondsPrecise() < targetFramerateDelta)
         {
-            /*
-                Sleep is used here instead of busy waiting to minimize cpu usage. With Sleep we're slightly off the target FPS
-                but have lower CPU usage for most of the runtime. Busy waiting would get us very close to the target FPS but 
-                fully utilize a core until Nanoforge closes, even when it's idling. That's not good for people who might have
-                other editing software or the game open at the same time as Nanoforge. It should be unobtrusive when minimized.
-            */ 
-            f32 timeToTargetFramerateMs = (maxFrameRateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f;
+            //Sleep is used here instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this. 
+            f32 timeToTargetFramerateMs = (targetFramerateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f;
             Sleep((DWORD)timeToTargetFramerateMs);
         }
         deltaTime_ = FrameTimer.ElapsedSecondsPrecise();
+        FrameTimer.Reset();
     }
-}
-
-void Application::HandleResize()
-{
-    renderer_.HandleResize();
-    windowWidth_ = renderer_.WindowWidth();
-    windowHeight_ = renderer_.WindowHeight();
-    Gui.HandleResize(windowWidth_, windowHeight_);
-}
-
-void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    for (auto& scene : renderer_.Scenes)
-        scene->Cam.HandleInput(hwnd, msg, wParam, lParam);
-}
-
-void Application::InitRenderer()
-{
-    renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_);
 }
 
 void Application::NewFrame()
@@ -131,12 +163,26 @@ void Application::NewFrame()
     renderer_.NewFrame(deltaTime_);
 }
 
-void Application::UpdateGui()
+void Application::MaximizeWindow()
 {
-    Gui.Update(deltaTime_);
+    ShowWindow(renderer_.GetSystemWindowHandle(), SW_SHOWMAXIMIZED);
 }
 
-//Todo: Pass key & mouse messages to InputManager and have it send input messages to other parts of code via callbacks
+void Application::HandleResize()
+{
+    renderer_.HandleResize();
+    windowWidth_ = renderer_.WindowWidth();
+    windowHeight_ = renderer_.WindowHeight();
+    welcomeGui_.HandleResize(windowWidth_, windowHeight_);
+    gui_.HandleResize(windowWidth_, windowHeight_);
+}
+
+void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    for (auto& scene : renderer_.Scenes)
+        scene->Cam.HandleInput(hwnd, msg, wParam, lParam);
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
