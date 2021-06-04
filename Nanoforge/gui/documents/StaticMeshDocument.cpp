@@ -36,6 +36,7 @@ StaticMeshDocument::~StaticMeshDocument()
 {
     //Delete scene and free its resources
     state_->Renderer->DeleteScene(Scene);
+    Scene = nullptr;
 }
 
 void StaticMeshDocument::Update(GuiState* state)
@@ -641,7 +642,6 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
 
         WorkerProgressFraction += stepSize;
 
-
         //Clear mesh data
         delete[] meshData.IndexBuffer.data();
         delete[] meshData.VertexBuffer.data();
@@ -825,6 +825,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* sta
             textureSubresourceData.pSysMem = textureData.data();
             textureSubresourceData.SysMemSlicePitch = 0;
             textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, entry.Width, entry.Height);
+
             state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
             texture2d.Create(Scene->d3d11Device_, entry.Width, entry.Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
             texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
