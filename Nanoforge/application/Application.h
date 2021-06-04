@@ -7,7 +7,7 @@
 #include "rfg/PackfileVFS.h"
 #include "rfg/xtbl/XtblManager.h"
 #include "gui/MainGui.h"
-#include "gui/WelcomeGui.h"
+#include "gui/misc/WelcomeGui.h"
 #include "project/Project.h"
 #include "application/Config.h"
 #include <ext/WindowsWrapper.h>

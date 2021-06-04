@@ -75,9 +75,12 @@ void Config::Load()
             var->Value = string(value->GetText());
             
             //Check if it's a path
-            tinyxml2::XMLElement* isPath = variableXml->FirstChildElement("IsPath");
-            if (validXml(isPath))
-                var->IsPath = isPath->BoolText();
+            tinyxml2::XMLElement* isFolderPath = variableXml->FirstChildElement("IsFolderPath");
+            tinyxml2::XMLElement* isFilePath = variableXml->FirstChildElement("IsFilePath");
+            if (validXml(isFolderPath))
+                var->IsFolderPath = isFolderPath->BoolText();
+            if (validXml(isFilePath))
+                var->IsFilePath = isFilePath->BoolText();
         }
         else if (typeEnum == ConfigType::Vec2)
         {
@@ -200,7 +203,8 @@ void Config::Save()
         else if (var->Type() == ConfigType::String)
         {
             variableXml->InsertNewChildElement("Value")->SetText(std::get<string>(var->Value).c_str());
-            variableXml->InsertNewChildElement("IsPath")->SetText(var->IsPath); //Set IsPath
+            variableXml->InsertNewChildElement("IsFolderPath")->SetText(var->IsFolderPath); //Set IsPath
+            variableXml->InsertNewChildElement("IsFilePath")->SetText(var->IsFilePath); //Set IsPath
         }
         else if (var->Type() == ConfigType::Vec2)
         {

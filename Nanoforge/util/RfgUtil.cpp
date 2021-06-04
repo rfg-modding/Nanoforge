@@ -198,6 +198,8 @@ namespace RfgUtil
         //Get data path config var
         config->EnsureVariableExists("Data path", ConfigType::String);
         auto dataPathVar = config->GetVariable("Data path");
+        dataPathVar->IsFolderPath = true;
+        dataPathVar->IsFilePath = false;
 
         Log->info("Data path \"{}\" is invalid. Attempting to auto detect RFG install location.", std::get<string>(dataPathVar->Value));
 

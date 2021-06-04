@@ -13,6 +13,7 @@
 #include "application/project/Project.h"
 #include "gui/documents/TerritoryDocument.h"
 #include "Log.h"
+#include "gui/misc/SettingsGui.h"
 #include "application/Config.h"
 #include "gui/util/WinUtil.h"
 #include "util/RfgUtil.h"
@@ -106,6 +107,10 @@ void MainGui::Update(f32 deltaTime)
     if(showNewProjectWindow_)
         DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
     
+    //Draw settings window
+    if (showSettingsWindow_)
+        DrawSettingsGui(&showSettingsWindow_, State.Config, State.FontManager);
+
     DrawSaveProjectWindow();
 
     //Draw built in / special gui elements
@@ -260,19 +265,6 @@ void MainGui::DrawMainMenuBar()
             {
                 showSaveProjectWindow_ = true;
             }
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Package mod"))
-            {
-                if (State.PackfileVFS->Ready() && State.CurrentProject)
-                {
-                    State.SetStatus("Packing mod...", GuiStatus::Working);
-                    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS, State.Xtbls);
-                    State.ClearStatus();
-                }
-            }
-            ImGui::Separator();
-            
             if (ImGui::BeginMenu("Recent projects"))
             {
                 auto recentProjects = State.Config->GetListReadonly("Recent projects").value();
@@ -288,6 +280,23 @@ void MainGui::DrawMainMenuBar()
                     }
                 }
                 ImGui::EndMenu();
+            }
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Package mod"))
+            {
+                if (State.PackfileVFS->Ready() && State.CurrentProject)
+                {
+                    State.SetStatus("Packing mod...", GuiStatus::Working);
+                    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS, State.Xtbls);
+                    State.ClearStatus();
+                }
+            }
+            ImGui::Separator();
+            
+            if (ImGui::MenuItem("Settings"))
+            {
+                showSettingsWindow_ = true;
             }
             ImGui::Separator();
             

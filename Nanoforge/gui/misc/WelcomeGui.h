@@ -26,6 +26,7 @@ private:
     u32 windowWidth_;
     u32 windowHeight_;
 
+    bool showSettingsWindow_ = false;
     bool showNewProjectWindow_ = false;
     bool dataPathValid_;
     string missingVppName_; //Used in data folder path validation

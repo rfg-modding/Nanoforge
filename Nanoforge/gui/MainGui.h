@@ -52,4 +52,6 @@ private:
     //Used by popup that tells you if your data path in Settings.xml doesn't have one of the expected vpp_pc files
     bool showDataPathErrorPopup_ = false;
     string dataPathValidationErrorMessage_;
+
+    bool showSettingsWindow_ = false;
 };

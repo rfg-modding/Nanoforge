@@ -43,7 +43,8 @@ public:
     string SettingsPath; //For sorting settings by category
 
     bool IsColor = false; //Optional value for Vec3 and Vec4 values to specify that they're colors
-    bool IsPath = false; //Optional value for strings to specify that they're filesystem paths
+    bool IsFolderPath = false; //Optional value for strings
+    bool IsFilePath = false; //Optional value for strings
 
     ConfigType Type() { return type_; }
 
