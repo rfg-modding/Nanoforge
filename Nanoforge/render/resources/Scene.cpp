@@ -3,6 +3,7 @@
 #include <filesystem>
 #include "Log.h"
 #include "util/StringHelpers.h"
+#include "application/Config.h"
 
 //Todo: Stick this in a debug namespace
 void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
@@ -11,10 +12,13 @@ void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
         child->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<u32>(name.size()), name.c_str());
 }
 
-void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context)
+void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, Config* config)
 {
     d3d11Device_ = d3d11Device;
     d3d11Context_ = d3d11Context;
+    config_ = config;
+
+    config_->EnsureVariableExists("Use geometry shaders", ConfigType::Bool);
 
     InitInternal();
     InitPrimitiveState();
@@ -26,7 +30,7 @@ void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d
 
 void Scene::SetShader(const string& path)
 {
-    shader_.Load(path, d3d11Device_);
+    shader_.Load(path, d3d11Device_, config_->GetBoolReadonly("Use geometry shaders").value());
     shaderSet_ = true;
 }
 
@@ -199,7 +203,7 @@ void Scene::InitPrimitiveState()
     //Create linelist primitive vertex buffer
     lineVertexBuffer_.Create(d3d11Device_, 1200, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 
-    linelistShader_.Load(linelistShaderPath_, d3d11Device_);
+    linelistShader_.Load(linelistShaderPath_, d3d11Device_, config_->GetBoolReadonly("Use geometry shaders").value());
 
     //Create linelist vertex layout
     D3D11_INPUT_ELEMENT_DESC inputLayout[] =

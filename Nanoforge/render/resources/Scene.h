@@ -13,6 +13,8 @@
 #include <array>
 #include <mutex>
 
+class Config;
+
 //Todo: Add build path variable that's set by cmake to the project root path for debug
 #ifdef DEBUG_BUILD
     const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/";
@@ -43,7 +45,7 @@ const Vec3 ColorWhite(1.0f, 1.0f, 1.0f);
 class Scene
 {
 public:
-    void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context);
+    void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, Config* config);
     void SetShader(const string& path);
     void SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
     void Draw(f32 deltaTime);
@@ -115,4 +117,6 @@ private:
     Buffer lineVertexBuffer_;
     u32 numLineVertices_ = 0;
     bool primitiveBufferNeedsUpdate_ = true;
+
+    Config* config_ = nullptr;
 };

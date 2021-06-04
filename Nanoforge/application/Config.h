@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/string/String.h"
 #include "RfgTools++/types/Vec2.h"
 #include "RfgTools++/types/Vec3.h"
 #include "RfgTools++/types/Vec4.h"
@@ -19,10 +20,12 @@ enum class ConfigType : u32
     Vec2,
     Vec3,
     Vec4,
+    List, //Note: This currently only supports a list of strings
     None,
     Invalid
 };
 
+using ConfigValue = std::variant<i32, u32, f32, bool, string, Vec2, Vec3, Vec4, std::vector<string>>;
 class ConfigVariable
 {
 public:
@@ -30,15 +33,17 @@ public:
 
     //Required variables
     string Name;
-    string Description;
-    std::variant<i32, u32, f32, bool, string, Vec2, Vec3, Vec4> Value;
+    string Description = "Not set";
+    ConfigValue Value;
 
     //Optional variables
     std::optional<f32> Min;
     std::optional<f32> Max;
     bool ShownInSettings = false; //Not all config vars should be in the settings menu by default. Many are more suited for development or modding
     string SettingsPath; //For sorting settings by category
+
     bool IsColor = false; //Optional value for Vec3 and Vec4 values to specify that they're colors
+    bool IsPath = false; //Optional value for strings to specify that they're filesystem paths
 
     ConfigType Type() { return type_; }
 
@@ -54,52 +59,29 @@ public:
     //Saves config variables to config files.
     void Save();
     //Create a new variable if a variable with the same name doesn't already exist.
-    void CreateVariable(ConfigVariable var);
-    //Reloads config files if they've changed on the hard drive.
-    void Update();
-
-    //IConfig interface functions
-
-    //Get the value of a single variable. These return an empty std::optional<T> and log an error if the incorrect type is used.
-    std::optional<i32> GetInt(const string& variableName);
-    std::optional<u32> GetUint(const string& variableName);
-    std::optional<f32> GetFloat(const string& variableName);
-    std::optional<bool> GetBool(const string& variableName);
-    std::optional<string> GetString(const string& variableName);
-    std::optional<Vec2> GetVec2(const string& variableName);
-    std::optional<Vec3> GetVec3(const string& variableName);
-    std::optional<Vec4> GetVec4(const string& variableName);
-
-    //Set the value of a single variable. Doesn't change the variable and logs an error if the incorrect type is used.
-    void SetInt(const string& variableName, i32 value);
-    void SetUint(const string& variableName, u32 value);
-    void SetFloat(const string& variableName, f32 value);
-    void SetBool(const string& variableName, bool value);
-    void SetString(const string& variableName, string value);
-    void SetVec2(const string& variableName, Vec2 value);
-    void SetVec3(const string& variableName, Vec3 value);
-    void SetVec4(const string& variableName, Vec4 value);
-
-    std::optional<string> GetDescription(const string& variableName);
-    std::optional<f32> GetMin(const string& variableName);
-    std::optional<f32> GetMax(const string& variableName);
-    std::optional<ConfigType> GetType(const string& variableName);
-    std::optional<bool> IsShownInSettings(const string& variableName);
-    std::optional<string> SettingsPath(const string& variableName);
-
+    void CreateVariable(const string& name, ConfigType type, ConfigValue value, const char* description = "Not set");
     //Returns a copy of a single variable. Set must use setter functions to edit it but saves having to use multiple getters.
-    std::optional<ConfigVariable> GetVariable(const string& variableName);
-    //Returns a view of all config variables. You should prefer the functions that operate on a single variable when possible. 
-    //This function is mainly provided to make GUIs like the variable viewer easier to code. 
-    //May be invalidated if the config file is reloaded or variables change so you must get a new view each frame.
-    const std::span<ConfigVariable> GetVariableView();
+    Handle<ConfigVariable> GetVariable(const string& variableName);
+    //Creates the variable with a default value if it doesn't exist
+    void EnsureVariableExists(const string& variableName, ConfigType type);
+    //Returns true if the variable exists
+    bool Exists(const string& name);
 
-private:
-    //Get mutable pointer to a config variable for use in GetTypeXXX() functions. Returns nullptr if the variable isn't found.
-    ConfigVariable* GetVariableMutable(const string& variableName);
+    //Get readonly copies of config values. For convenience.
+    std::optional<i32> GetIntReadonly(const string& name);
+    std::optional<u32> GetUintReadonly(const string& name);
+    std::optional<f32> GetFloatReadonly(const string& name);
+    std::optional<bool> GetBoolReadonly(const string& name);
+    std::optional<string> GetStringReadonly(const string& name);
+    std::optional<Vec2> GetVec2Readonly(const string& name);
+    std::optional<Vec3> GetVec3Readonly(const string& name);
+    std::optional<Vec4> GetVec4Readonly(const string& name);
+    std::optional<std::vector<string>> GetListReadonly(const string& name);
 
     //List of all loaded config variables
-    std::vector<ConfigVariable> variables_ = {};
+    std::vector<Handle<ConfigVariable>> Variables = {};
+
+private:
     //Last write time of config file. Used to determine if it should be reloaded due to edits.
     std::filesystem::file_time_type lastWriteTime_;
 };
@@ -126,6 +108,8 @@ static string to_string(ConfigType type)
         return "Vec3";
     case ConfigType::Vec4:
         return "Vec4";
+    case ConfigType::List:
+        return "List";
     default:
         return "InvalidValue for enum ConfigType";
     }
@@ -150,6 +134,8 @@ static ConfigType from_string(const string& str)
         return ConfigType::Vec3;
     else if (String::EqualIgnoreCase(str, "vec4"))
         return ConfigType::Vec4;
+    else if (String::EqualIgnoreCase(str, "list"))
+        return ConfigType::List;
     else
         return ConfigType::Invalid;
 }

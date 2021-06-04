@@ -23,13 +23,15 @@
 #include "render/util/DX11Helpers.h"
 #include "Log.h"
 #include "gui/documents/PegHelpers.h"
+#include "application/Config.h"
 
-void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager)
+void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager, Config* config)
 {
     hInstance_ = hInstance;
     windowWidth_ = WindowWidth;
     windowHeight_ = WindowHeight;
     fontManager_ = fontManager;
+    config_ = config;
 
     if (!InitWindow(wndProc))
         THROW_EXCEPTION("Failed to init window! Exiting.");
@@ -162,7 +164,7 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
 void DX11Renderer::CreateScene()
 {
     auto& scene = Scenes.emplace_back(new Scene);
-    scene->Init(d3d11Device_, d3d11Context_);
+    scene->Init(d3d11Device_, d3d11Context_, config_);
 }
 
 void DX11Renderer::DeleteScene(Handle<Scene> target)

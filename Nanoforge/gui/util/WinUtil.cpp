@@ -4,9 +4,17 @@
 #include <ShlObj.h>
 #include <filesystem>
 
+//Main window handle. Used by the functions below.
+HWND hwnd = NULL;
+
 //OpenFile and SaveFile are based on https://github.com/TheCherno/Hazel/blob/master/Hazel/src/Platform/Windows/WindowsPlatformUtils.cpp
 
-std::optional<string> OpenFile(HWND hwnd, const string& filter, const char* title)
+void WinUtilInit(HWND mainWindowHandle)
+{
+	hwnd = hwnd;
+}
+
+std::optional<string> OpenFile(const string& filter, const char* title)
 {
 	//Get directory of exe and set that as the initial dir
 	string workingDirectory = std::filesystem::absolute("./").string();
@@ -33,7 +41,7 @@ std::optional<string> OpenFile(HWND hwnd, const string& filter, const char* titl
 	return {};
 }
 
-std::optional<string> OpenFolder(HWND hwnd, const char* title)
+std::optional<string> OpenFolder(const char* title)
 {
 	//Setup folder browser
 	BROWSEINFOA browseInfo;
@@ -57,7 +65,7 @@ std::optional<string> OpenFolder(HWND hwnd, const char* title)
 	return string(szPath);
 }
 
-std::optional<string> SaveFile(HWND hwnd, const string& filter, const char* title)
+std::optional<string> SaveFile(const string& filter, const char* title)
 {
 	//Get directory of exe and set that as the initial dir
 	string workingDirectory = std::filesystem::absolute("./").string();
@@ -85,4 +93,9 @@ std::optional<string> SaveFile(HWND hwnd, const string& filter, const char* titl
 
 	//If no file picked return empty
 	return {};
+}
+
+void ShowMessageBox(const string& text, const string& caption, u32 type)
+{
+	MessageBoxA(hwnd, text.c_str(), caption.c_str(), type);
 }

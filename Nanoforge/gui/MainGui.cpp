@@ -13,10 +13,11 @@
 #include "application/project/Project.h"
 #include "gui/documents/TerritoryDocument.h"
 #include "Log.h"
-#include "application/Settings.h"
+#include "application/Config.h"
 #include "gui/util/WinUtil.h"
 #include "util/RfgUtil.h"
 #include "render/backend/DX11Renderer.h"
+#include "gui/util/HelperGuis.h"
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
@@ -78,9 +79,14 @@ std::vector<const char*> TerritoryList =
     "wcdlc9"
 };
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config)
 {
-    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager };
+    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager, config };
+
+    //Ensure that values used by the UI exist
+    State.Config->EnsureVariableExists("Show FPS", ConfigType::Bool);
+    State.Config->EnsureVariableExists("UI Scale", ConfigType::Float);
+    State.Config->EnsureVariableExists("Recent projects", ConfigType::List);
 
     //Create all gui panels
     AddPanel("", true, CreateHandle<StatusBar>());
@@ -93,21 +99,14 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
 
     GenerateMenus();
     gui::SetThemePreset(Dark);
-
-    //Check if data path contains all the expected vpp_pc files
-    showDataPathErrorPopup_ = !RfgUtil::ValidateDataPath(Settings_PackfileFolderPath, dataPathValidationErrorMessage_);
 }
 
 void MainGui::Update(f32 deltaTime)
 {
-    DrawNewProjectWindow();
+    if(showNewProjectWindow_)
+        DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
+    
     DrawSaveProjectWindow();
-    if (StateEnum == Welcome)
-        DrawWelcomeWindow();
-
-    //Dont draw main gui if we're not in the main gui state.
-    if (StateEnum != Main)
-        return;
 
     //Draw built in / special gui elements
     DrawMainMenuBar();
@@ -276,13 +275,13 @@ void MainGui::DrawMainMenuBar()
             
             if (ImGui::BeginMenu("Recent projects"))
             {
-                for (auto& path : Settings_RecentProjects)
+                auto recentProjects = State.Config->GetListReadonly("Recent projects").value();
+                for (auto& path : recentProjects)
                 {
                     if (ImGui::MenuItem(Path::GetFileName(path).c_str()))
                     {
                         if (State.CurrentProject->Load(path))
                         {
-                            StateEnum = Main;
                             ImGui::End();
                             return;
                         }
@@ -339,15 +338,18 @@ void MainGui::DrawMainMenuBar()
         }
 
         //Draw FPS meter if it's enabled
-        if (Settings_ShowFPS)
+        bool showFPS = State.Config->GetBoolReadonly("Show FPS").value();
+        if (showFPS)
         {
+            f32 uiScale = State.Config->GetFloatReadonly("UI Scale").value();
+
             //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements
             auto* drawList = ImGui::GetWindowDrawList();
             string framerate = std::to_string(ImGui::GetIO().Framerate);
             u64 decimal = framerate.find('.');
             const char* labelAndSeparator = "|    FPS: ";
             drawList->AddText(ImVec2(ImGui::GetCursorPosX(), 3.0f), 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
-            drawList->AddText(ImVec2(ImGui::GetCursorPosX() + (49.0f * Settings_UIScale), 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+            drawList->AddText(ImVec2(ImGui::GetCursorPosX() + (49.0f * uiScale), 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
         }
 
         ImGui::EndMainMenuBar();
@@ -446,106 +448,22 @@ MenuItem* MainGui::GetMenu(const string& text)
     return nullptr;
 }
 
-//Set string to defaultValue string if it's empty or only whitespace
-void EnsureNotWhitespaceOrEmpty(string& target, string defaultValue)
-{
-    if (target.empty() || target.find_first_not_of(' ') == string::npos)
-        target = defaultValue;
-}
-
-void MainGui::DrawNewProjectWindow()
-{
-    if (!showNewProjectWindow_)
-        return;
-
-    if (ImGui::Begin("New project", &showNewProjectWindow_))
-    {
-        static string projectName;
-        static string projectPath;
-        static string projectDescription;
-        static string projectAuthor;
-        static bool createProjectFolder = true;
-        static bool pathNotSetError = false;
-
-        //Project name/path/etc input
-        ImGui::PushItemWidth(230.0f);
-        ImGui::InputText("Name:", &projectName);
-        ImGui::InputText("Path: ", &projectPath);
-        ImGui::SameLine();
-        if (ImGui::Button("..."))
-        {
-            auto output = OpenFolder(State.Renderer->GetSystemWindowHandle(), "Pick a folder for your project");
-            if (output)
-                projectPath = output.value();
-        }
-        ImGui::InputText("Description", &projectDescription);
-        ImGui::InputText("Author: ", &projectAuthor);
-        ImGui::Checkbox("Create project folder", &createProjectFolder);
-
-        if (pathNotSetError)
-        {
-            ImGui::TextColored(gui::Red, "Path not valid");
-        }
-
-        //Create project from inputs
-        if (ImGui::Button("Create"))
-        {
-            if (projectPath.empty() || projectPath.find_first_not_of(' ') == string::npos || !std::filesystem::exists(projectPath))
-            {
-                pathNotSetError = true;
-            }
-            else
-            {
-                pathNotSetError = false;
-                //Set project and save
-                string endPath = createProjectFolder ?
-                    projectPath + "\\" + projectName + "\\" :
-                    projectPath + "\\";
-                if (createProjectFolder)
-                    std::filesystem::create_directory(endPath);
-
-                EnsureNotWhitespaceOrEmpty(projectName, "ProjectNameNotSet" + std::to_string(time(NULL)));
-                EnsureNotWhitespaceOrEmpty(projectDescription, "Not set");
-                EnsureNotWhitespaceOrEmpty(projectAuthor, "Not set");
-
-                State.CurrentProject->Name = projectName;
-                State.CurrentProject->Path = endPath;
-                State.CurrentProject->Description = projectDescription;
-                State.CurrentProject->Author = projectAuthor;
-                State.CurrentProject->ProjectFilename = projectName + ".nanoproj";
-                State.CurrentProject->UnsavedChanges = false;
-                State.CurrentProject->Save();
-                State.CurrentProject->Load(endPath + projectName + ".nanoproj");
-
-                //If in welcome screen switch to main screen upon creating a new project
-                if (StateEnum == Welcome)
-                    StateEnum = Main;
-
-                //Add project to recent projects list if unique
-                Settings_AddRecentProjectPathUnique(endPath + projectName + ".nanoproj");
-                Settings_Write();
-                showNewProjectWindow_ = false;
-            }
-            //Todo: Add save check for existing project
-        }
-
-        ImGui::End();
-    }
-}
-
 void MainGui::TryOpenProject()
 {
-    auto result = OpenFile(State.Renderer->GetSystemWindowHandle(), "Nanoforge project (*.nanoproj)\0*.nanoproj\0", "Open a nanoforge project file");
+    auto result = OpenFile("Nanoforge project (*.nanoproj)\0*.nanoproj\0", "Open a nanoforge project file");
     if (!result)
         return;
 
-    //If in welcome screen switch to main screen upon opening a project
-    if (StateEnum == Welcome)
-        StateEnum = Main;
+    //Get recent projects config var
+    auto recentProjectsVar = State.Config->GetVariable("Recent projects");
+    auto& recentProjects = std::get<std::vector<string>>(recentProjectsVar->Value);
 
     //Add project to recent projects list if unique
-    Settings_AddRecentProjectPathUnique(result.value());
-    Settings_Write();
+    string newPath = result.value();
+    if (std::find(recentProjects.begin(), recentProjects.end(), newPath) != recentProjects.end())
+        recentProjects.push_back(newPath);
+    
+    State.Config->Save();
 }
 
 void MainGui::DrawSaveProjectWindow()
@@ -554,49 +472,4 @@ void MainGui::DrawSaveProjectWindow()
         return;
 
     State.CurrentProject->Save();
-}
-
-void MainGui::DrawWelcomeWindow()
-{
-    //Create imgui window that fills the whole app window
-    ImGui::SetNextWindowPos({0, 0});
-    ImGui::SetNextWindowSize(ImVec2(windowWidth_, windowHeight_));
-    if (!ImGui::Begin("Welcome", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
-    {
-        ImGui::End();
-        return;
-    }
-
-    ImGui::Text("Welcome to Nanoforge");
-    ImGui::Separator();
-
-    ImGui::BeginChild("##WelcomeColumn0", ImVec2(950.0f, 450.0f), true, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("Open or create a project to continue");
-    if (ImGui::Button("New project"))
-    {
-        showNewProjectWindow_ = true;
-    }
-
-    ImGui::Separator();
-    State.FontManager->FontL.Push();
-    ImGui::Text(ICON_FA_FILE_IMPORT "Recent projects");
-    State.FontManager->FontL.Pop();
-    ImGui::Separator();
-
-    //Draw list of recent projects
-    for (auto& path : Settings_RecentProjects)
-    {
-        if (ImGui::Selectable(fmt::format("{} - \"{}\"", Path::GetFileName(path), path).c_str(), false))
-        {
-            if (State.CurrentProject->Load(path))
-            {
-                StateEnum = Main;
-                ImGui::EndChild();
-                ImGui::End();
-                return;
-            }
-        }
-    }
-    ImGui::EndChild();
-    ImGui::End();
 }
