@@ -35,8 +35,11 @@ void WelcomeGui::Init(Config* config, ImGuiFontManager* fontManager, Project* pr
 void WelcomeGui::Update()
 {
     //Draw new project window
+    auto configVar = config_->GetVariable("Recent projects");
+    auto& recentProjects = std::get<std::vector<string>>(configVar->Value);
     if (showNewProjectWindow_)
-        DrawNewProjectWindow(&showNewProjectWindow_, project_, config_);
+        if (DrawNewProjectWindow(&showNewProjectWindow_, project_, config_))
+            Done = true;
 
     //Draw settings window
     if (showSettingsWindow_)

@@ -79,7 +79,7 @@ bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
                 //Add project to recent projects list if unique
                 config->EnsureVariableExists("Recent projects", ConfigType::List);
                 auto& recentProjects = std::get<std::vector<string>>(config->GetVariable("Recent projects")->Value);
-                if (std::find(recentProjects.begin(), recentProjects.end(), newPath) != recentProjects.end())
+                if (std::find(recentProjects.begin(), recentProjects.end(), newPath) == recentProjects.end())
                     recentProjects.push_back(newPath);
 
                 //Save project and return true to signal that it was created
