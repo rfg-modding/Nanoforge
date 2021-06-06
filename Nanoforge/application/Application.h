@@ -24,6 +24,7 @@ public:
     void HandleResize();
     void HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+    bool Exit = false;
     bool Paused = false;
     Timer FrameTimer;
 

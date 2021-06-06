@@ -34,6 +34,10 @@ void Application::Run()
     InitStage1();
     RunStage1();
 
+    //Return early if exit was requested
+    if (Exit)
+        return;
+
     //Stage 2 - Main app
     InitStage2();
     RunStage2();
@@ -127,7 +131,7 @@ void Application::MainLoop(std::function<void()> stageUpdateFunc)
     ZeroMemory(&msg, sizeof(MSG)); //Clear message structure to NULL
 
     FrameTimer.Start();
-    while (msg.message != WM_QUIT && !stageDone_) //Loop while there are messages available
+    while (!stageDone_ && !Exit) //Loop until stage finishes or app exit variable is set to true
     {
         //Dispatch messages if present
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -192,6 +196,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     switch (msg)
     {
+    case WM_CLOSE:
+    case WM_QUIT:
+        appInstance->Exit = true;
+        break;
     case WM_KEYDOWN: //Key down
         //If escape key pressed display popup box
         if (wParam == VK_ESCAPE) 
@@ -199,8 +207,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             if (MessageBox(0, "Are you sure you want to exit?",
                 "Confirm exit", MB_YESNO | MB_ICONQUESTION) == IDYES)
 
-                //Release the windows allocated memory  
-                DestroyWindow(hwnd);
+            appInstance->Exit = true;
         }
         return 0;
     case WM_DESTROY: //Exit if window close button pressed
