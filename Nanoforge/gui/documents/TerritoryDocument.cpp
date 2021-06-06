@@ -33,6 +33,11 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 
 TerritoryDocument::~TerritoryDocument()
 {
+    //Wait for worker thread to exit
+    open_ = false;
+    WorkerFuture.wait();
+    WorkerThread_ClearData();
+
     if (state_->CurrentTerritory == &Territory)
     {
         state_->CurrentTerritory = nullptr;
@@ -342,11 +347,10 @@ void TerritoryDocument::WorkerThread(GuiState* state)
         state->CurrentTerritoryCamPosNeedsUpdate = true;
     }
 
-    //Check if the document was closed. If so, end worker thread early
-    if (!Open())
+    //End worker thread early if document is closed
+    if (!open_)
     {
         state->ClearStatus();
-        WorkerDone = true;
         return;
     }
 
@@ -365,8 +369,10 @@ void TerritoryDocument::WorkerThread_ClearData()
         //Note: Assumes same amount of vertex and index buffers
         for (u32 i = 0; i < instance.Indices.size(); i++)
         {
-            delete instance.Indices[i].data();
-            delete instance.Vertices[i].data();
+            if(instance.Indices[i].data())
+                delete instance.Indices[i].data();
+            if(instance.Vertices[i].data())
+                delete instance.Vertices[i].data();
         }
         //Clear vectors
         instance.Indices.clear();
@@ -396,8 +402,8 @@ void TerritoryDocument::WorkerThread_LoadTerrainMeshes(GuiState* state)
     //Find terrain meshes and load them
     for (auto& zone : Territory.ZoneFiles)
     {
-        //Check if the document was closed. If so, end worker thread early
-        if (!Open())
+        //Exit early if document closes
+        if (!open_)
             break;
 
         //Get obj_zone object with a terrain_file_name property
@@ -412,6 +418,10 @@ void TerritoryDocument::WorkerThread_LoadTerrainMeshes(GuiState* state)
         string filename = terrainFilenameProperty->Data;
         if (filename.ends_with('\0'))
             filename.pop_back();
+
+        //Exit early if document closes
+        if (!open_)
+            break;
 
         filename += ".cterrain_pc";
         Vec3 position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
@@ -457,6 +467,10 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
     u32* cpuFileAsUintArray = (u32*)cpuFileBytes.value().data();
     for (u32 i = 0; i < 9; i++)
     {
+        //Exit early if document closes
+        if (!open_)
+            break;
+
         //Get mesh crc from gpu file. Will use this to find the mesh description data section of the cpu file which starts and ends with this value
         //In while loop since a mesh file pair can have multiple meshes inside
         u32 meshCrc = gpuFile.ReadUint32();
@@ -494,6 +508,10 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
         u8* vertexBuffer = new u8[verticesSize];
         gpuFile.ReadToMemory(vertexBuffer, verticesSize);
 
+        //Exit early if document closes
+        if (!open_)
+            break;
+
         std::span<LowLodTerrainVertex> verticesWithNormals = WorkerThread_GenerateTerrainNormals
         (
             std::span<ShortVec4>{ (ShortVec4*)vertexBuffer, verticesSize / meshData.VertexStride0},
@@ -513,6 +531,10 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
     delete container;
     delete[] cpuFileBytes.value().data();
     delete[] gpuFileBytes.value().data();
+    
+    //Exit early if document closes
+    if (!open_)
+        return;
 
     //Todo: Use + "_alpha00" here to get the blend weights texture, load high res textures, and apply those. Will make terrain texture higher res and have specular + normal maps
     //Todo: Remember to also change the DXGI_FORMAT for the Texture2D to DXGI_FORMAT_R8G8B8A8_UNORM since that's what the _alpha00 textures used instead of DXT1
@@ -587,6 +609,10 @@ std::span<LowLodTerrainVertex> TerritoryDocument::WorkerThread_GenerateTerrainNo
         faces.emplace_back(Face{ .verts = {index0, index1, index2} });
     }
 
+    //Exit early if document closes
+    if (!open_)
+        return std::span<LowLodTerrainVertex>();
+
     //Generate list of vertices with position and normal data
     u8* vertBuffer = new u8[vertices.size() * sizeof(LowLodTerrainVertex)];
     std::span<LowLodTerrainVertex> outVerts((LowLodTerrainVertex*)vertBuffer, vertices.size());
@@ -600,6 +626,10 @@ std::span<LowLodTerrainVertex> TerritoryDocument::WorkerThread_GenerateTerrainNo
     }
     for (auto& face : faces)
     {
+        //Exit early if document closes
+        if (!open_)
+            return outVerts;
+
         const u32 ia = face.verts[0];
         const u32 ib = face.verts[1];
         const u32 ic = face.verts[2];
