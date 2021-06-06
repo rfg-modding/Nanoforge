@@ -246,11 +246,16 @@ bool PackfileVFS::Exists(const string& packfileName, const string& filename1, co
     if (inContainer)
         filePath += "\\" + filename2;
 
+    bool foundFile = false;
     for (const char* entryName : parent->EntryNames)
         if (String::EqualIgnoreCase(entryName, inContainer ? filename2 : filename1))
-            return true;
+            foundFile = true;
 
-    return false;
+    //Cleanup parent if it's a container. Only vpps are kept in memory the whole app lifetime.
+    if (inContainer)
+        delete parent;
+
+    return foundFile;
 }
 
 bool PackfileVFS::AddFileToCache(const string& packfileName, const string& filename1, const string& filename2)

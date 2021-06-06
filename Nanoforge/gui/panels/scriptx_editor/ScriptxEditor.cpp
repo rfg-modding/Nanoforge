@@ -305,6 +305,8 @@ void ScriptxEditor::LoadScriptxFile(const string& name, GuiState* state)
         curGroup = curGroup->NextSiblingElement();
     }
 
+    delete[] scriptxBytes.data();
+
     //Todo: Add ui selector for different group/managed blocks or draw labels around them and draw all nodes at once
     //Todo: Sort all nodes so their run attributes are first and their continue attributes are last
 }
