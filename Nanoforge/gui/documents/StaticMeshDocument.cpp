@@ -19,8 +19,9 @@ StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string 
     state_ = state;
 
     //Create scene instance and store index
-    state->Renderer->CreateScene();
-    Scene = state->Renderer->Scenes.back();
+    Scene = state->Renderer->CreateScene();
+    if (!Scene)
+        THROW_EXCEPTION("Failed to create scene in StaticmeshDocument constructor! Filename: {}", filename);
 
     //Init scene and camera
     Scene->Cam.Init({ 7.5f, 15.0f, 12.0f }, 80.0f, { (f32)Scene->Width(), (f32)Scene->Height() }, 1.0f, 10000.0f);
@@ -34,6 +35,10 @@ StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string 
 
 StaticMeshDocument::~StaticMeshDocument()
 {
+    //Wait for worker thread to so we don't destroy resources it's using
+    open_ = false;
+    WorkerFuture.wait();
+
     //Delete scene and free its resources
     state_->Renderer->DeleteScene(Scene);
     Scene = nullptr;
@@ -348,6 +353,8 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     //Todo: Move into worker thread once working. Just here for prototyping
     //Get gpu filename
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
+    if (!open_) //Exit early check
+        return;
 
     //Get path to cpu file and gpu file in cache
     auto maybeCpuFilePath = InContainer ?
@@ -372,6 +379,8 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
         WorkerDone = true;
         return;
     }
+    if (!open_) //Exit early check
+        return;
 
     CpuFilePath = maybeCpuFilePath.value();
     GpuFilePath = maybeGpuFilePath.value();

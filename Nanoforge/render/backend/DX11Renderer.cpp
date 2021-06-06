@@ -161,10 +161,11 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
     return shaderResourceView;
 }
 
-void DX11Renderer::CreateScene()
+Handle<Scene> DX11Renderer::CreateScene()
 {
     auto& scene = Scenes.emplace_back(new Scene);
     scene->Init(d3d11Device_, d3d11Context_, config_);
+    return scene;
 }
 
 void DX11Renderer::DeleteScene(Handle<Scene> target)
