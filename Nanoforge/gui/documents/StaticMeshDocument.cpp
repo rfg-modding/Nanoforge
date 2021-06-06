@@ -833,6 +833,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* sta
             state->Renderer->ContextMutex.unlock();
 
             out = Texture2D_Ext{ .Texture = texture2d, .CpuFilePath = cpuFilePath };
+            break;
         }
     }
 

@@ -63,7 +63,6 @@ void WelcomeGui::Update()
     DrawDataPathSelector();
     DrawRecentProjectsList();
     
-    //ImGui::EndChild();
     ImGui::End();
 }
 
@@ -112,14 +111,6 @@ void WelcomeGui::DrawDataPathSelector()
 void WelcomeGui::DrawRecentProjectsList()
 {
     ImGui::Separator();
-    //fontManager_->FontL.Push();
-    //ImGui::Text(ICON_FA_FILE_IMPORT " Projects");
-    //fontManager_->FontL.Pop();
-
-    //if (ImGui::Button("New project"))
-    //{
-    //    showNewProjectWindow_ = true;
-    //}
 
     //Draw list of recent projects
     ImGui::Text("Recent projects:");
@@ -135,7 +126,6 @@ void WelcomeGui::DrawRecentProjectsList()
                 {
                     Done = true; //Signal to main loop to move to next stage of the app
                     ImGui::EndChild();
-                    ImGui::End();
                     return;
                 }
             }

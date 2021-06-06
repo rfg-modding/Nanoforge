@@ -28,6 +28,6 @@ private:
 
     bool showSettingsWindow_ = false;
     bool showNewProjectWindow_ = false;
-    bool dataPathValid_;
+    bool dataPathValid_ = false;
     string missingVppName_; //Used in data folder path validation
 };
