@@ -97,7 +97,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
         Scene->NeedsRedraw = true;
 
-        f32 fov = Scene->Cam.GetFov();
+        f32 fov = Scene->Cam.GetFovDegrees();
         f32 nearPlane = Scene->Cam.GetNearPlane();
         f32 farPlane = Scene->Cam.GetFarPlane();
         f32 lookSensitivity = Scene->Cam.GetLookSensitivity();
@@ -118,8 +118,8 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         ImGui::InputFloat("Sprint speed", &Scene->Cam.SprintSpeed);
         ImGui::Separator();
 
-        if (ImGui::InputFloat("Fov", &fov))
-            Scene->Cam.SetFov(fov);
+        if (ImGui::SliderFloat("Fov", &fov, 40.0f, 120.0f))
+            Scene->Cam.SetFovDegrees(fov);
         if (ImGui::InputFloat("Near plane", &nearPlane))
             Scene->Cam.SetNearPlane(nearPlane);
         if (ImGui::InputFloat("Far plane", &farPlane))
@@ -133,8 +133,8 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
             Scene->Cam.UpdateViewMatrix();
         }
 
-        gui::LabelAndValue("Pitch:", std::to_string(Scene->Cam.GetPitch()));
-        gui::LabelAndValue("Yaw:", std::to_string(Scene->Cam.GetYaw()));
+        gui::LabelAndValue("Pitch:", std::to_string(Scene->Cam.GetPitchDegrees()));
+        gui::LabelAndValue("Yaw:", std::to_string(Scene->Cam.GetYawDegrees()));
 
         ImGui::EndPopup();
     }

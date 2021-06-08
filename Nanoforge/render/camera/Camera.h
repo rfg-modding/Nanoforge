@@ -1,14 +1,16 @@
 #pragma once
 #include <Common/Typedefs.h>
-#include <DirectXMath.h>
 #include <ext/WindowsWrapper.h>
+#include "util/MathUtil.h"
+#include <DirectXMath.h>
 
 enum CameraDirection { up, down, left, right, forward, backward };
 
+//3D perspective camera used by renderer and scenes. All angles are stored in radians internally but exposed publically in degrees.
 class Camera
 {
 public:
-    void Init(const DirectX::XMVECTOR& initialPos, f32 initialFov, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane);
+    void Init(const DirectX::XMVECTOR& initialPos, f32 initialFovDegrees, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane);
 
     void DoFrame(f32 deltaTime);
     void HandleResize(const DirectX::XMFLOAT2& screenDimensions);
@@ -33,8 +35,6 @@ public:
 
     void UpdateRotationFromMouse(f32 mouseXDelta, f32 mouseYDelta);
 
-    //Todo: Make these variables private and have users access them through functions
-
     DirectX::XMMATRIX camView;
     DirectX::XMMATRIX camProjection;
 
@@ -49,17 +49,17 @@ public:
 
     DirectX::XMMATRIX camRotationMatrix;
 
-    [[nodiscard]] f32 GetFov() const { return fov_; }
-    [[nodiscard]] f32 GetFovRadians() const { return fov_ * (3.141593f / 180.0f); } //Todo: Make PI a constant
+    [[nodiscard]] f32 GetFovDegrees() const { return ToDegrees(fovRadians_); }
+    [[nodiscard]] f32 GetFovRadians() const { return fovRadians_; }
     [[nodiscard]] f32 GetAspectRatio() const { return aspectRatio_; }
     [[nodiscard]] f32 GetNearPlane() const { return nearPlane_; }
     [[nodiscard]] f32 GetFarPlane() const { return farPlane_; }
     [[nodiscard]] f32 GetLookSensitivity() const { return lookSensitivity_; }
 
-    [[nodiscard]] f32 GetPitch() const { return pitch_; }
-    [[nodiscard]] f32 GetYaw() const { return yaw_; }
+    [[nodiscard]] f32 GetPitchDegrees() const { return ToDegrees(pitchRadians_); }
+    [[nodiscard]] f32 GetYawDegrees() const { return ToDegrees(yawRadians_); }
 
-    void SetFov(f32 fov) { fov_ = fov; UpdateProjectionMatrix(); }
+    void SetFovDegrees(f32 fovDegrees) { fovRadians_ = ToRadians(fovDegrees); UpdateProjectionMatrix(); }
     void SetNearPlane(f32 nearPlane) { nearPlane_ = nearPlane; UpdateProjectionMatrix(); }
     void SetFarPlane(f32 farPlane) { farPlane_ = farPlane; UpdateProjectionMatrix(); }
     void SetLookSensitivity(f32 lookSensitivity) { lookSensitivity_ = lookSensitivity; }
@@ -73,22 +73,17 @@ public:
     bool InputActive = true; //If false does not respond to input
 
 private:
-    //Todo: Move these to static func / helper namespace
-    f32 ToRadians(f32 angleInDegrees);
-    f32 ToDegrees(f32 angleInRadians);
-    
-    f32 fov_ = 0.0f;
+    f32 fovRadians_ = 0.0f;
     f32 aspectRatio_ = 1.0f;
     f32 nearPlane_ = 1.0f;
     f32 farPlane_ = 100.0f;
     DirectX::XMFLOAT2 screenDimensions_ = {};
 
-    //Todo: Pin down whether these should be in degrees or radians
-    f32 yaw_ = 0.0f;
-    f32 pitch_ = 0.0f;
-    f32 minPitch_ = -89.0f;
-    f32 maxPitch_ = 89.0f;
-    f32 lookSensitivity_ = 100.0f;
+    f32 yawRadians_ = 0.0f;
+    f32 pitchRadians_ = 0.0f;
+    f32 minPitch_ = ToRadians(-89.0f);
+    f32 maxPitch_ = ToRadians(89.0f);
+    f32 lookSensitivity_ = 10.0f;
 
     //Todo: Have InputManager provide easier way to track this
     f32 lastMouseXPos = 0;

@@ -2,10 +2,10 @@
 #include <DirectXMath.h>
 #include <windowsx.h>
 
-void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFov, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane)
+void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFovDegrees, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane)
 {
     camPosition = initialPos;
-    fov_ = initialFov;
+    fovRadians_ = ToRadians(initialFovDegrees);
     screenDimensions_ = screenDimensions;
     aspectRatio_ = screenDimensions_.x / screenDimensions_.y;
     nearPlane_ = nearPlane;
@@ -13,14 +13,13 @@ void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFov, const Dir
 
     //Calculate initial pitch and yaw values
     DirectX::XMVECTOR forwardVec = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract({ 0.0f, 0.0f, 0.0f }, initialPos));
-    pitch_ = ToDegrees(asin(-forwardVec.m128_f32[1]));
-    //Todo: Get the math right here. Subtracting from 360 is a dumb fix to get it roughly pointing at the origin.... Fine for now since only need to do this once
-    //Todo: Noting for if/when the camera needs to be expanded to jump to different locations / targets in the future
-    yaw_ = 0.0f;
+    pitchRadians_ = asin(-forwardVec.m128_f32[1]);
+    yawRadians_ = 0.0f;
 
     //Set matrices
     UpdateViewMatrix();
     UpdateProjectionMatrix();
+    LookAt({ 0.0f, 0.0f, 0.0f });
 }
 
 void Camera::DoFrame(f32 deltaTime)
@@ -121,22 +120,13 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 void Camera::UpdateProjectionMatrix()
 {
-    camProjection = DirectX::XMMatrixPerspectiveFovLH(fov_, screenDimensions_.x / screenDimensions_.y, nearPlane_, farPlane_);
-}
-
-void ExtractPitchYawRollFromXMMatrix(float* flt_p_PitchOut, float* flt_p_YawOut, float* flt_p_RollOut, const DirectX::XMMATRIX* XMMatrix_p_Rotation)
-{
-    DirectX::XMFLOAT4X4 XMFLOAT4X4_Values;
-    DirectX::XMStoreFloat4x4(&XMFLOAT4X4_Values, DirectX::XMMatrixTranspose(*XMMatrix_p_Rotation));
-    *flt_p_PitchOut = (float)asin(-XMFLOAT4X4_Values._23);
-    *flt_p_YawOut = (float)atan2(XMFLOAT4X4_Values._13, XMFLOAT4X4_Values._33);
-    *flt_p_RollOut = (float)atan2(XMFLOAT4X4_Values._21, XMFLOAT4X4_Values._22);
+    camProjection = DirectX::XMMatrixPerspectiveFovLH(fovRadians_, screenDimensions_.x / screenDimensions_.y, nearPlane_, farPlane_);
 }
 
 void Camera::UpdateViewMatrix()
 {
     //Recalculate target
-    camRotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(ToRadians(pitch_), ToRadians(yaw_), ToRadians(180.0f));
+    camRotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(pitchRadians_, yawRadians_, ToRadians(180.0f));
     camTarget = DirectX::XMVector3TransformCoord(DefaultForward, camRotationMatrix);
     camTarget = DirectX::XMVector3Normalize(camTarget);
 
@@ -144,6 +134,7 @@ void Camera::UpdateViewMatrix()
     camRight = DirectX::XMVector3TransformCoord(DefaultRight, camRotationMatrix);
     camForward = DirectX::XMVector3TransformCoord(DefaultForward, camRotationMatrix);
     camUp = DirectX::XMVector3Cross(camForward, camRight);
+    camUp = DirectX::XMVectorMultiply(camUp, { -1.0f, -1.0f, -1.0f });
 
     //Recalculate view matrix
     camTarget = DirectX::XMVectorAdd(camPosition, camTarget);
@@ -191,7 +182,7 @@ void Camera::Translate(CameraDirection moveDirection, bool sprint)
 void Camera::LookAt(const DirectX::XMVECTOR& target)
 {
     //Recalculate target
-    camRotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(ToRadians(pitch_), ToRadians(yaw_), ToRadians(180.0f));
+    camRotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(pitchRadians_, yawRadians_, ToRadians(180.0f));
     camTarget = DirectX::XMVector3TransformCoord(DefaultForward, camRotationMatrix);
     camTarget = DirectX::XMVector3Normalize(camTarget);
 
@@ -211,9 +202,9 @@ void Camera::LookAt(const DirectX::XMVECTOR& target)
     DirectX::XMFLOAT3 zBasis;
     DirectX::XMStoreFloat3(&zBasis, mInvView.r[2]);
 
-    yaw_ = ToDegrees(atan2f(zBasis.x, zBasis.z));
+    yawRadians_ = atan2f(zBasis.x, zBasis.z);
     float fLen = sqrtf(zBasis.z * zBasis.z + zBasis.x * zBasis.x);
-    pitch_ = ToDegrees(-atan2f(zBasis.y, fLen));
+    pitchRadians_ = -atan2f(zBasis.y, fLen);
 
     UpdateViewMatrix();
 }
@@ -230,8 +221,7 @@ DirectX::XMVECTOR Camera::Down() const
 
 DirectX::XMVECTOR Camera::Right() const
 {
-    //Todo: Figure out why this has to be negative to have right be the correct direction
-    return DirectX::XMVectorSet(-camView.r[0].m128_f32[0], -camView.r[1].m128_f32[0], -camView.r[2].m128_f32[0], 1.0f);
+    return DirectX::XMVectorSet(camView.r[0].m128_f32[0], camView.r[1].m128_f32[0], camView.r[2].m128_f32[0], 1.0f);
 }
 
 DirectX::XMVECTOR Camera::Left() const
@@ -257,14 +247,14 @@ DirectX::XMVECTOR Camera::Position() const
 void Camera::UpdateRotationFromMouse(f32 xDelta, f32 yDelta)
 {
     //Adjust pitch and yaw
-    yaw_ += xDelta * lookSensitivity_;
-    pitch_ += yDelta * lookSensitivity_;
+    yawRadians_ += xDelta * lookSensitivity_;
+    pitchRadians_ += yDelta * lookSensitivity_;
 
     //Limit pitch to range
-    if (pitch_ > maxPitch_)
-        pitch_ = maxPitch_;
-    if (pitch_ < minPitch_)
-        pitch_ = minPitch_;
+    if (pitchRadians_ > maxPitch_)
+        pitchRadians_ = maxPitch_;
+    if (pitchRadians_ < minPitch_)
+        pitchRadians_ = minPitch_;
 
     UpdateViewMatrix();
 }
@@ -273,16 +263,4 @@ void Camera::SetPosition(f32 x, f32 y, f32 z)
 {
     camPosition = DirectX::XMVectorSet(x, y, z, 1.0f);
     UpdateViewMatrix();
-}
-
-f32 Camera::ToRadians(f32 angleInDegrees)
-{
-    const f32 PI = 3.14159265359f;
-    return angleInDegrees * (PI / 180.0f);
-}
-
-f32 Camera::ToDegrees(f32 angleInRadians)
-{
-    const f32 PI = 3.14159265359f;
-    return (180.0f * angleInRadians) / PI;
 }
