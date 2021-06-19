@@ -68,9 +68,9 @@ else()
     target_link_libraries(Nanoforge PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex.lib)
 endif()
 
-# Enable VS edit and continue if using MSVC and in a debug config
+# Enable VS edit and continue if using MSVC, in a debug build and ASAN is disabled. ASAN doesn't support edit and continue.
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-    if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT ENABLE_ASAN)
         target_compile_options(Nanoforge PRIVATE "/ZI")
         target_link_options(Nanoforge PRIVATE "/SAFESEH:NO")
     endif()
