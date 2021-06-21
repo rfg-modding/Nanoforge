@@ -22,6 +22,7 @@
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
+#include "gui/documents/LocalizationDocument.h"
 
 //Used in MainGui::DrawMainMenuBar()
 std::vector<const char*> TerritoryList =
@@ -80,9 +81,9 @@ std::vector<const char*> TerritoryList =
     "wcdlc9"
 };
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization)
 {
-    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager, config };
+    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager, config, localization };
 
     //Ensure that values used by the UI exist
     State.Config->EnsureVariableExists("Show FPS", ConfigType::Bool);
@@ -327,6 +328,28 @@ void MainGui::DrawMainMenuBar()
                         State.CreateDocument(territoryName, CreateHandle<TerritoryDocument>(&State, State.CurrentTerritoryName, State.CurrentTerritoryShortname));
                     }
                 }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Localization"))
+            {
+                if (ImGui::MenuItem("View localized strings"))
+                {
+                    State.CreateDocument("Localization", CreateHandle<LocalizationDocument>(&State));
+                }
+                if (ImGui::BeginMenu("Locale"))
+                {
+                    for (auto& localeClass : State.Localization->Classes)
+                    {
+                        bool selected = localeClass.Type == State.Localization->CurrentLocale;
+                        if (ImGui::MenuItem(localeClass.Name.c_str(), nullptr, &selected))
+                        {
+                            State.Localization->CurrentLocale = localeClass.Type;
+                        }
+                    }
+
+                    ImGui::EndMenu();
+                }
+
                 ImGui::EndMenu();
             }
             ImGui::EndMenu();

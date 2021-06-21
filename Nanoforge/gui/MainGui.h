@@ -13,12 +13,13 @@ class Camera;
 class DX11Renderer;
 class Project;
 class Config;
+class Localization;
 
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
 {
 public:
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization);
     void Update(f32 deltaTime);
     void HandleResize(u32 width, u32 height);
     void AddPanel(string menuPos, bool open, Handle<IGuiPanel> panel);

@@ -98,9 +98,10 @@ void Application::InitStage2()
     auto dataPath = config_.GetVariable("Data path");
     packfileVFS_.Init(std::get<string>(dataPath->Value), &project_);
     xtblManager_.Init(&packfileVFS_);
+    localization_.Init(&packfileVFS_, &config_);
 
     //Setup main gui
-    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_);
+    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_);
     gui_.HandleResize(windowWidth_, windowHeight_);
 
     //Start worker thread to load packfile metadata in the background

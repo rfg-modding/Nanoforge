@@ -23,13 +23,23 @@ namespace gui
     const ImVec4 TertiaryTextColor(0.64f, 0.67f, 0.69f, 1.00f); //Light grey
     const ImVec4 Red(0.784f, 0.094f, 0.035f, 1.0f);
 
-    //Todo: Move into gui helpers file
-    //Helpers
-    static void LabelAndValue(const std::string& Label, const std::string& Value)
+    //Set formatted to false to disable imgui printf style formatting. E.g. displaying RFG localization strings without substituting values that the game replaces at runtime.
+    static void LabelAndValue(const std::string& Label, const std::string& Value, bool formatted = true)
     {
-        ImGui::Text(Label.c_str());
-        ImGui::SameLine();
-        ImGui::TextColored(SecondaryTextColor, Value.c_str());
+        if (formatted)
+        {
+            ImGui::Text(Label.c_str());
+            ImGui::SameLine();
+            ImGui::TextColored(SecondaryTextColor, Value.c_str());
+        }
+        else
+        {
+            ImGui::TextUnformatted(Label.c_str());
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Text, SecondaryTextColor);
+            ImGui::TextUnformatted(Value.c_str());
+            ImGui::PopStyleColor();
+        }
     }
 
     /* Creates a tooltip with the given description and font on the previous ImGui element

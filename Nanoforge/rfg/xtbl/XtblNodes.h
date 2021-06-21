@@ -10,6 +10,7 @@
 #include "RfgTools++/types/Vec3.h"
 #include "RfgTools++/types/Vec4.h"
 #include "gui/GuiState.h"
+#include "rfg/Localization.h"
 #include "gui/documents/XtblDocument.h"
 #include <tinyxml2/tinyxml2.h>
 #include <vector>
@@ -190,12 +191,14 @@ public:
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        if (locale_ != guiState->Localization->CurrentLocale) //Update localized string if locale changes
+            CheckForLocalization(guiState);
 
         //Todo: Add way to change names and auto-update any references. Likely would do this in the XtblDocument stringXml sidebar. 
         //Name nodes uneditable for the time being since they're use by xtbl references
         if (desc_->Name == "Name")
         {
-            return;
+            ImGui::InputText(name_.value(), std::get<string>(Value), ImGuiInputTextFlags_ReadOnly);
         }
         else if (nameNoId_.value() == "Description" && (xtbl->Name == "dlc01_tweak_table.xtbl" || xtbl->Name == "online_tweak_table.xtbl" || xtbl->Name == "tweak_table.xtbl"))
         {
@@ -211,6 +214,26 @@ public:
         {
             if (ImGui::InputText(name_.value(), std::get<string>(Value)))
                 Edited = true;
+        }
+
+        //Display localized string if available
+        if (localizedString_.has_value())
+        {
+            ImGui::Text("Localization:");
+            ImGui::SameLine();
+            f32 textX = ImGui::GetCursorPosX();
+
+            ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + (0.9f * ImGui::GetWindowSize().x));
+            ImGui::PushStyleColor(ImGuiCol_Text, gui::SecondaryTextColor);
+            ImGui::TextUnformatted(localizedString_.value().c_str());
+            ImGui::PopStyleColor();
+            ImGui::PopTextWrapPos();
+
+            ImGui::SetCursorPosX(textX);
+            if (ImGui::SmallButton(fmt::format("Copy to clipboard##Localization{}", (u64)this).c_str()))
+            {
+                ImGui::SetClipboardText(localizedString_.value().c_str());
+            }
         }
     }
 
@@ -238,6 +261,16 @@ public:
 
         return true;
     }
+
+private:
+    void CheckForLocalization(GuiState* guiState)
+    {
+        localizedString_ = guiState->Localization->StringFromKey(std::get<string>(Value));
+        locale_ = guiState->Localization->CurrentLocale;
+    }
+
+    Locale locale_ = Locale::None;
+    std::optional<string> localizedString_ = {};
 };
 
 //Node with a signed integer value

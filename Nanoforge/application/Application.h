@@ -6,6 +6,7 @@
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
 #include "rfg/xtbl/XtblManager.h"
+#include "rfg/Localization.h"
 #include "gui/MainGui.h"
 #include "gui/misc/WelcomeGui.h"
 #include "project/Project.h"
@@ -57,6 +58,7 @@ private:
     PackfileVFS packfileVFS_;
     XtblManager xtblManager_;
     Project project_;
+    Localization localization_;
     Config config_;
     WelcomeGui welcomeGui_;
     MainGui gui_;

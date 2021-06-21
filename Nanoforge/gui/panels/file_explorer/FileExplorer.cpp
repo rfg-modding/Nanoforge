@@ -4,6 +4,7 @@
 #include "gui/documents/StaticMeshDocument.h"
 #include "gui/documents/XtblDocument.h"
 #include "gui/documents/AsmDocument.h"
+#include "gui/documents/LocalizationDocument.h"
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
 #include <regex>
@@ -364,6 +365,10 @@ void FileExplorer::DoubleClickedFile(GuiState* state, FileExplorerNode& node)
     else if (extension == ".asm_pc")
     {
         state->CreateDocument(node.Filename, CreateHandle<AsmDocument>(state, node.Filename, node.ParentName, VppName, node.InContainer));
+    }
+    else if (extension == ".rfglocatext")
+    {
+        state->CreateDocument("Localization", CreateHandle<LocalizationDocument>(state));
     }
 }
 
