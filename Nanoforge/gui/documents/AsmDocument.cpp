@@ -30,7 +30,7 @@ AsmDocument::~AsmDocument()
 
 void AsmDocument::Update(GuiState* state)
 {
-    if (!ImGui::Begin(Title.c_str()) || !asmFile_)
+    if (!ImGui::Begin(Title.c_str(), &open_) || !asmFile_)
     {
         ImGui::End();
         return;
