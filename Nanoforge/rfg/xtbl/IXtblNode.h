@@ -19,13 +19,13 @@ struct XtblFlag
 using XtblValue = std::variant<string, i32, f32, Vec3, u32, XtblFlag>;
 
 //Interface used by all xtbl nodes. Includes data that all nodes have. Separate implementations must be written for each node data type (e.g. float, int, reference, etc)
-class IXtblNode : public std::enable_shared_from_this<IXtblNode>
+class IXtblNode
 {
 public:
     //IXtblNode interface functions
     virtual ~IXtblNode() {}
     //Draw editor for node using Dear ImGui
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr) = 0;
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr) = 0;
     //Initialize node with default values for it's data type
     virtual void InitDefault() = 0;
     //Write edited node data to modinfo.xml. Returns false if it encounters an error and true if it succeeds.
@@ -38,19 +38,19 @@ public:
     bool HasSubnodes() { return Subnodes.size() != 0; }
     void DeleteSubnodes();
     std::optional<string> GetSubnodeValueString(const string& subnodeName);
-    Handle<IXtblNode> GetSubnode(const string& subnodeName);
+    IXtblNode* GetSubnode(const string& subnodeName);
     //Returns the path of the value. This is this nodes name prepended with the names of it's parents
     string GetPath();
     //Create deep copy of node and subnodes
-    Handle<IXtblNode> DeepCopy(Handle<IXtblNode> parent = nullptr);
+    IXtblNode* DeepCopy(IXtblNode* parent = nullptr);
 
 
     //Values that all nodes have
     string Name;
     XtblValue Value;
     XtblType Type = XtblType::None;
-    std::vector<Handle<IXtblNode>> Subnodes;
-    Handle<IXtblNode> Parent = nullptr;
+    std::vector<IXtblNode*> Subnodes;
+    IXtblNode* Parent = nullptr;
     bool CategorySet = false; //Used by XtblFile to track which nodes are uncategorized
     bool Enabled = true; //Whether or not the node should be included in the file xtbl (for non-required nodes)
     bool HasDescription = false; //Whether or not the XtblNode has a description. Either in the <TableDescription> block or one provided by modders

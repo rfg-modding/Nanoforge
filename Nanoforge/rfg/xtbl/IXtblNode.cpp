@@ -28,7 +28,7 @@ std::optional<string> IXtblNode::GetSubnodeValueString(const string& subnodeName
     return {};
 }
 
-Handle<IXtblNode> IXtblNode::GetSubnode(const string& subnodeName)
+IXtblNode* IXtblNode::GetSubnode(const string& subnodeName)
 {
     for (auto& subnode : Subnodes)
     {
@@ -46,9 +46,9 @@ string IXtblNode::GetPath()
         return Name;
 }
 
-Handle<IXtblNode> IXtblNode::DeepCopy(Handle<IXtblNode> parent)
+IXtblNode* IXtblNode::DeepCopy(IXtblNode* parent)
 {
-    Handle<IXtblNode> copy = CreateDefaultNode(Type);
+    IXtblNode* copy = CreateDefaultNode(Type);
     copy->Name = Name;
     copy->Value = Value;
     copy->Type = Type;
@@ -63,9 +63,9 @@ Handle<IXtblNode> IXtblNode::DeepCopy(Handle<IXtblNode> parent)
     {
         //Only UnsupportedXtblNode needs custom behavior so a special case is used here instead of making it a virtual function
         if(subnode->Type == XtblType::Unsupported)
-            copy->Subnodes.push_back(CreateHandle<UnsupportedXtblNode>(dynamic_pointer_cast<UnsupportedXtblNode>(subnode)->element_));
+            copy->Subnodes.push_back(new UnsupportedXtblNode((((UnsupportedXtblNode*)subnode)->element_)));
         else
-            copy->Subnodes.push_back(subnode->DeepCopy(copy->shared_from_this()));
+            copy->Subnodes.push_back(subnode->DeepCopy(copy));
     }
 
     return copy;

@@ -8,7 +8,7 @@
 #include "rfg/xtbl/XtblManager.h"
 #include "rfg/xtbl/Xtbl.h"
 
-XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, Handle<IXtblNode> startingNode)
+XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, IXtblNode* startingNode)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer), state_(state)
 {
     xtblManager_ = state->Xtbls;
@@ -203,7 +203,7 @@ void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDe
     }
 }
 
-void XtblDocument::DrawXtblNodeEntry(Handle<IXtblNode> node)
+void XtblDocument::DrawXtblNodeEntry(IXtblNode* node)
 {
     //Don't draw node if it doesn't match the search
     auto nameNodeValue = node->GetSubnodeValueString("Name");
@@ -219,7 +219,7 @@ void XtblDocument::DrawXtblNodeEntry(Handle<IXtblNode> node)
     //Draw node
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf 
                                | (SelectedNode == node ? ImGuiTreeNodeFlags_Selected : 0);
-    bool nodeDrawn = ImGui::TreeNodeEx(fmt::format("{} {}##{}", ICON_FA_CODE, name, (u64)node.get()).c_str(), flags);
+    bool nodeDrawn = ImGui::TreeNodeEx(fmt::format("{} {}##{}", ICON_FA_CODE, name, (u64)node).c_str(), flags);
 
     //Draw right click context menu
     if (ImGui::BeginPopupContextItem())
@@ -277,7 +277,7 @@ void XtblDocument::AddEntry()
     Handle<XtblDescription> desc = xtbl_->TableDescription;
     
     //Create the new node and set it's name
-    Handle<IXtblNode> newEntry = CreateDefaultNode(desc, true);
+    IXtblNode* newEntry = CreateDefaultNode(desc, true);
     auto nameNode = newEntry->GetSubnode("Name");
     if (nameNode)
     {
@@ -309,7 +309,7 @@ void XtblDocument::AddCategory()
     }
 }
 
-void XtblDocument::DuplicateEntry(Handle<IXtblNode> entry)
+void XtblDocument::DuplicateEntry(IXtblNode* entry)
 {
     auto newEntry = entry->DeepCopy();
     newEntry->Edited = true;
@@ -406,7 +406,7 @@ void XtblDocument::DrawRenameEntryWindow()
         if (ImGui::Button("Save") || enterPressed)
         {
             //Set node name
-            Handle<IXtblNode> nameNode = renameEntry_->GetSubnode("Name");
+            IXtblNode* nameNode = renameEntry_->GetSubnode("Name");
             nameNode->Value = renameEntryName_;
             nameNode->Edited = true;
 

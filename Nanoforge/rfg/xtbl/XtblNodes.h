@@ -21,21 +21,21 @@
 static f32 NodeGuiWidth = 240.0f;
 
 //Create node from XtblType using default value for that type
-static Handle<IXtblNode> CreateDefaultNode(XtblType type);
-static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool addSubnodes = false);
+static IXtblNode* CreateDefaultNode(XtblType type);
+static IXtblNode* CreateDefaultNode(Handle<XtblDescription> desc, bool addSubnodes = false);
 
 //Use descriptions to draw nodes so non-existant optional nodes are drawn
 //Also handles drawing description tooltips and checkboxes for optional nodes
-static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Handle<XtblDescription> desc, Handle<IXtblNode> parent,
-    const char* nameOverride = nullptr, Handle<IXtblNode> nodeOverride = nullptr)
+static void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Handle<XtblDescription> desc, IXtblNode* parent,
+    const char* nameOverride = nullptr, IXtblNode* nodeOverride = nullptr)
 {
     //Use lambda to get node since we need this logic multiple times
     string descPath = desc->GetPath();
-    auto getNode = [&]() -> Handle<IXtblNode>
+    auto getNode = [&]() -> IXtblNode*
     {
         return nodeOverride ? nodeOverride : xtbl->GetSubnode(descPath.substr(descPath.find_last_of('/') + 1), parent);
     };
-    Handle<IXtblNode> node = getNode();
+    IXtblNode* node = getNode();
     bool nodePresent = (node != nullptr && node->Enabled);
 
     //IDs used by dear imgui elements
@@ -94,7 +94,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
         auto drawTooltip = [&]()
@@ -105,7 +105,7 @@ public:
         auto drawNode = [&]()
         {
             for (auto& subdesc : desc_->Subnodes)
-                DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), nullptr, GetSubnode(subdesc->Name));
+                DrawNodeByDescription(guiState, xtbl, subdesc, this, nullptr, GetSubnode(subdesc->Name));
         };
 
         //Draw subnodes
@@ -188,7 +188,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
         if (locale_ != guiState->Localization->CurrentLocale) //Update localized string if locale changes
@@ -282,7 +282,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -333,7 +333,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -384,7 +384,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -436,7 +436,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -488,7 +488,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -558,7 +558,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -624,7 +624,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -643,8 +643,8 @@ public:
             //Add another item to the list
             if (ImGui::Button("Add item"))
             {
-                Handle<IXtblNode> newSubnode = CreateDefaultNode(subdesc, true);
-                newSubnode->Parent = shared_from_this();
+                IXtblNode* newSubnode = CreateDefaultNode(subdesc, true);
+                newSubnode->Parent = this;
                 Subnodes.push_back(newSubnode);
             }
             
@@ -674,14 +674,14 @@ public:
                 //Draw list items
                 if (subdesc)
                 {
-                    string rightClickMenuId = fmt::format("##RightClickMenu{}", (u64)subnode.get());
+                    string rightClickMenuId = fmt::format("##RightClickMenu{}", (u64)subnode);
                     //Use tree nodes for element and list subnodes since they consist of many values
                     if (subdesc->Type == XtblType::Element || subdesc->Type == XtblType::List)
                     {
-                        if (ImGui::TreeNode(fmt::format("{}##{}", subnodeName, (u64)subnode.get()).c_str()))
+                        if (ImGui::TreeNode(fmt::format("{}##{}", subnodeName, (u64)subnode).c_str()))
                         {
                             drawRightClickMenu(rightClickMenuId.c_str());
-                            DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), subnodeName.c_str(), subnode);
+                            DrawNodeByDescription(guiState, xtbl, subdesc, this, subnodeName.c_str(), subnode);
                             ImGui::TreePop();
                         }
                         else
@@ -692,7 +692,7 @@ public:
                     }
                     else //Don't use tree nodes for primitives since they're a single value
                     {
-                        DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), subnodeName.c_str(), subnode);
+                        DrawNodeByDescription(guiState, xtbl, subdesc, this, subnodeName.c_str(), subnode);
                         drawRightClickMenu(rightClickMenuId.c_str());
                     }
                 }
@@ -718,7 +718,7 @@ public:
 
     }
 
-    void MarkAsEditedRecursive(Handle<IXtblNode> node)
+    void MarkAsEditedRecursive(IXtblNode* node)
     {
         node->Edited = true;
         for (auto& subnode : node->Subnodes)
@@ -784,7 +784,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -830,7 +830,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
 
@@ -889,7 +889,7 @@ public:
                 subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
                 Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc_);
                 if (subdesc)
-                    DrawNodeByDescription(guiState, xtbl, subdesc, shared_from_this(), subdesc->DisplayName.c_str());
+                    DrawNodeByDescription(guiState, xtbl, subdesc, this, subdesc->DisplayName.c_str());
             }
 
             ImGui::TreePop();
@@ -979,7 +979,7 @@ public:
         collectedReferencedNodes_ = true;
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         //Calculate cached data
         CalculateEditorValues(xtbl, nameOverride);
@@ -1046,10 +1046,10 @@ public:
                 //Draw button to jump to xtbl being referenced
                 ImGui::SameLine();
                 ImGui::SetCursorPos({ ImGui::GetCursorPosX(), ImGui::GetCursorPosY() + comboButtonOffsetY_ });
-                if (ImGui::Button(fmt::format("{}##{}", ICON_FA_EXTERNAL_LINK_ALT, (u64)option.get()).c_str(), ImVec2(comboButtonWidth_, comboButtonHeight_)))
+                if (ImGui::Button(fmt::format("{}##{}", ICON_FA_EXTERNAL_LINK_ALT, (u64)option).c_str(), ImVec2(comboButtonWidth_, comboButtonHeight_)))
                 {
                     //Find parent element of variable
-                    Handle<IXtblNode> documentRoot = option;
+                    IXtblNode* documentRoot = option;
                     while (String::Contains(documentRoot->GetPath(), "/") && documentRoot->Parent)
                     {
                         documentRoot = documentRoot->Parent;
@@ -1106,7 +1106,7 @@ private:
     //Cached list of nodes being referenced
     bool collectedReferencedNodes_ = false;
     Handle<XtblFile> refXtbl_ = nullptr;
-    std::vector<Handle<IXtblNode>> referencedNodes_ = {}; //Referenced nodes in another xtbl
+    std::vector<IXtblNode*> referencedNodes_ = {}; //Referenced nodes in another xtbl
 
     //Values used to align reference with buttons that jump to their xtbl
     ImVec2 maxReferenceSize_ = { 0.0f, 0.0f };
@@ -1124,7 +1124,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
         ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter
@@ -1155,7 +1155,7 @@ public:
                     //Draw row data with empty name since the name is already in the column header
                     ImGui::PushItemWidth(NodeGuiWidth);
                     auto nodeOverride = hasSingleColumn ? subnode : subnode->GetSubnode(subdesc->Name);
-                    DrawNodeByDescription(guiState, xtbl, subdesc, subnode->shared_from_this(), "", nodeOverride);
+                    DrawNodeByDescription(guiState, xtbl, subdesc, subnode, "", nodeOverride);
                     ImGui::PopItemWidth();
                 }
             }
@@ -1226,7 +1226,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
 
     }
@@ -1288,7 +1288,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
 
     }
@@ -1327,7 +1327,7 @@ public:
 
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, Handle<IXtblNode> parent, const char* nameOverride = nullptr)
+    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
 
     }
@@ -1354,55 +1354,55 @@ private:
 };
 
 //Create node from XtblType using default value for that type
-static Handle<IXtblNode> CreateDefaultNode(XtblType type)
+static IXtblNode* CreateDefaultNode(XtblType type)
 {
-    Handle<IXtblNode> node = nullptr;
+    IXtblNode* node = nullptr;
     switch (type)
     {
     case XtblType::Element:
-        node = CreateHandle<ElementXtblNode>();
+        node = new ElementXtblNode();
         break;
     case XtblType::String:
-        node = CreateHandle<StringXtblNode>();
+        node = new StringXtblNode();
         break;
     case XtblType::Int:
-        node = CreateHandle<IntXtblNode>();
+        node = new IntXtblNode();
         break;
     case XtblType::Float:
-        node = CreateHandle<FloatXtblNode>();
+        node = new FloatXtblNode();
         break;
     case XtblType::Vector:
-        node = CreateHandle<VectorXtblNode>();
+        node = new VectorXtblNode();
         break;
     case XtblType::Color:
-        node = CreateHandle<ColorXtblNode>();
+        node = new ColorXtblNode();
         break;
     case XtblType::Selection:
-        node = CreateHandle<SelectionXtblNode>();
+        node = new SelectionXtblNode();
         break;
     case XtblType::Flags:
-        node = CreateHandle<FlagsXtblNode>();
+        node = new FlagsXtblNode();
         break;
     case XtblType::List:
-        node = CreateHandle<ListXtblNode>();
+        node = new ListXtblNode();
         break;
     case XtblType::Filename:
-        node = CreateHandle<FilenameXtblNode>();
+        node = new FilenameXtblNode();
         break;
     case XtblType::ComboElement:
-        node = CreateHandle<ComboElementXtblNode>();
+        node = new ComboElementXtblNode();
         break;
     case XtblType::Reference:
-        node = CreateHandle<ReferenceXtblNode>();
+        node = new ReferenceXtblNode();
         break;
     case XtblType::Grid:
-        node = CreateHandle<GridXtblNode>();
+        node = new GridXtblNode();
         break;
     case XtblType::TableDescription:
-        node = CreateHandle<TableDescriptionXtblNode>();
+        node = new TableDescriptionXtblNode();
         break;
     case XtblType::Flag:
-        node = CreateHandle<FlagXtblNode>();
+        node = new FlagXtblNode();
         break;
     case XtblType::None:
     default:
@@ -1414,13 +1414,13 @@ static Handle<IXtblNode> CreateDefaultNode(XtblType type)
 }
 
 //Create node from XtblDescription using default value from that description stringXml
-static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool addSubnodes)
+static IXtblNode* CreateDefaultNode(Handle<XtblDescription> desc, bool addSubnodes)
 {
-    Handle<IXtblNode> node = nullptr;
+    IXtblNode* node = nullptr;
     switch (desc->Type)
     {
     case XtblType::Element:
-        node = CreateHandle<ElementXtblNode>();
+        node = new ElementXtblNode();
         if (addSubnodes)
         {
             for (auto& subdesc : desc->Subnodes)
@@ -1435,39 +1435,39 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         }
         break;
     case XtblType::String:
-        node = CreateHandle<StringXtblNode>();
+        node = new StringXtblNode();
         node->Value = desc->Default.has_value() ? desc->Default.value() : "";
         break;
     case XtblType::Int:
-        node = CreateHandle<IntXtblNode>();
+        node = new IntXtblNode();
         node->Value = std::stoi(desc->Default.has_value() ? desc->Default.value() : "0");
         node->InitDefault();
         break;
     case XtblType::Float:
-        node = CreateHandle<FloatXtblNode>();
+        node = new FloatXtblNode();
         node->Value = std::stof(desc->Default.has_value() ? desc->Default.value() : "0.0");
         break;
     case XtblType::Vector:
-        node = CreateHandle<VectorXtblNode>();
+        node = new VectorXtblNode();
         node->InitDefault();
         break;
     case XtblType::Color:
-        node = CreateHandle<ColorXtblNode>();
+        node = new ColorXtblNode();
         node->InitDefault();
         break;
     case XtblType::Selection:
-        node = CreateHandle<SelectionXtblNode>();
+        node = new SelectionXtblNode();
         node->Value = desc->Default.has_value() ? desc->Default.value() : "";
         break;
     case XtblType::Flags:
-        node = CreateHandle<FlagsXtblNode>();
+        node = new FlagsXtblNode();
         //Ensure there's a subnode for every flag listed in <TableDescription>
         if (addSubnodes)
         {
             for (auto& flagDesc : desc->Flags)
             {
                 //Check if flag has a subnode
-                Handle<IXtblNode> flagNode = nullptr;
+                IXtblNode* flagNode = nullptr;
                 for (auto& flag : node->Subnodes)
                 {
                     auto value = std::get<XtblFlag>(flag->Value);
@@ -1495,27 +1495,27 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         }
         break;
     case XtblType::List:
-        node = CreateHandle<ListXtblNode>();
+        node = new ListXtblNode();
         node->InitDefault();
         break;
     case XtblType::Filename:
-        node = CreateHandle<FilenameXtblNode>();
+        node = new FilenameXtblNode();
         node->Value = desc->Default.has_value() ? desc->Default.value() : "";
         break;
     case XtblType::ComboElement:
-        node = CreateHandle<ComboElementXtblNode>();
+        node = new ComboElementXtblNode();
         node->InitDefault();
         break;
     case XtblType::Reference:
-        node = CreateHandle<ReferenceXtblNode>();
+        node = new ReferenceXtblNode();
         node->Value = desc->Default.has_value() ? desc->Default.value() : "";
         break;
     case XtblType::Grid:
-        node = CreateHandle<GridXtblNode>();
+        node = new GridXtblNode();
         node->InitDefault();
         break;
     case XtblType::TableDescription:
-        node = CreateHandle<TableDescriptionXtblNode>();
+        node = new TableDescriptionXtblNode();
         node->InitDefault();
         if (addSubnodes)
         {
@@ -1531,7 +1531,7 @@ static Handle<IXtblNode> CreateDefaultNode(Handle<XtblDescription> desc, bool ad
         }
         break;
     case XtblType::Flag:
-        node = CreateHandle<FlagXtblNode>();
+        node = new FlagXtblNode();
         node->InitDefault();
         break;
     case XtblType::None:
