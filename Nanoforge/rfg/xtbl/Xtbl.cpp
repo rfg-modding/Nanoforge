@@ -3,6 +3,8 @@
 #include "XtblNodes.h"
 #include "common/filesystem/Path.h"
 #include "Common/string/String.h"
+#include "IXtblNode.h"
+#include "nodes/UnsupportedXtblNode.h"
 #include <tinyxml2/tinyxml2.h>
 #include <filesystem>
 #include <algorithm>
@@ -15,7 +17,7 @@ XtblFile::~XtblFile()
 
     //Delete all nodes. Need to be manually deleted since theres circular references between parent and child nodes
     for (auto& node : Entries)
-        node->DeleteSubnodes();
+        delete node;
 
     Entries.clear();
 }

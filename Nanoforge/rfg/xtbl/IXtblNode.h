@@ -23,7 +23,11 @@ class IXtblNode
 {
 public:
     //IXtblNode interface functions
-    virtual ~IXtblNode() {}
+    virtual ~IXtblNode()
+    {
+        DeleteSubnodes();
+        Parent = nullptr;
+    }
     //Draw editor for node using Dear ImGui
     virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr) = 0;
     //Initialize node with default values for it's data type
@@ -67,3 +71,5 @@ protected:
     std::optional<string> nameNoId_; //Node name without the dear imgui label
     std::optional<string> name_; //Node name with dear imgui label. Used to unique identify it. Necessary when there are multiple UI elements with the same name
 };
+
+static IXtblNode* a;

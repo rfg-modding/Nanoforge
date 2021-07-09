@@ -2,6 +2,7 @@
 #include "XtblDescription.h"
 #include "Xtbl.h"
 #include "XtblNodes.h"
+#include "nodes/UnsupportedXtblNode.h"
 
 void IXtblNode::DeleteSubnodes()
 {
