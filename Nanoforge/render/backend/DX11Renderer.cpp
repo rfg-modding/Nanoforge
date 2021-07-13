@@ -27,6 +27,7 @@
 
 void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager, Config* config)
 {
+    TRACE();
     hInstance_ = hInstance;
     windowWidth_ = WindowWidth;
     windowHeight_ = WindowHeight;
@@ -34,18 +35,18 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u
     config_ = config;
 
     if (!InitWindow(wndProc))
-        THROW_EXCEPTION("Failed to init window! Exiting.");
+        THROW_EXCEPTION("Failed to initialize window.");
 
     UpdateWindowDimensions();
     if (!InitDx11())
-        THROW_EXCEPTION("Failed to init DX11! Exiting.");
+        THROW_EXCEPTION("Failed to initialize DX11.");
     if (!InitImGui())
-        THROW_EXCEPTION("Failed to dear imgui! Exiting.");
+        THROW_EXCEPTION("Failed to initialize dear imgui.");
 
     //Needed by some DirectXTex functions
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(hr))
-        THROW_EXCEPTION("CoInitializeEx() failed in DX11Renderer::Init(). Required for image/export code.");
+        THROW_EXCEPTION("CoInitializeEx() failed. Required for image/export code.");
 
     //Quick fix for view being distorted before first window resize
     HandleResize();
@@ -110,7 +111,7 @@ void DX11Renderer::HandleResize()
 
     //Recreate swapchain and it's resources
     if (!InitSwapchainAndResources())
-        THROW_EXCEPTION("DX11Renderer::InitSwapchainAndResources() failed in DX11Renderer::HandleResize()!");
+        THROW_EXCEPTION("Failed to initialize swapchain.");
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
@@ -128,7 +129,7 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
     textureData.pSysMem = data.data();
     textureData.SysMemSlicePitch = 0;
     textureData.SysMemPitch = PegHelpers::CalcRowPitch(format, width, height);
-    
+
     //Set texture description and create texture
     ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
     textureDesc.Width = width;
@@ -201,6 +202,7 @@ void DX11Renderer::ImGuiDoFrame()
 
 bool DX11Renderer::InitWindow(WNDPROC wndProc)
 {
+    TRACE();
     ImGui_ImplWin32_EnableDpiAwareness();
     //Todo: Move into config file or have Application class set this
     const char* windowClassName = "Nanoforge";
@@ -219,7 +221,7 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
     wc.lpszClassName = windowClassName; //Name of our windows class
     wc.hIconSm = LoadIcon(nullptr, IDI_WINLOGO); //Icon in your taskbar
     if (!RegisterClassEx(&wc)) //Register our windows class
-        THROW_EXCEPTION("RegisterClassEx() failed in DX11Renderer::InitWindow()");
+        THROW_EXCEPTION("Failed to register window class.");
 
     hwnd_ = CreateWindowEx( //Create our Extended Window
         //Todo: Implement behavior for this, letting you drag and drop files onto the app. Could drop maps or packfiles onto it
@@ -237,7 +239,7 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
     );
 
     if (!hwnd_) //Make sure our window has been created
-        THROW_EXCEPTION("Failed to create window in DX11Renderer::InitWindow()");
+        THROW_EXCEPTION("Failed to create window.");
 
     ShowWindow(hwnd_, SW_SHOW); //Shows our window
     UpdateWindow(hwnd_); //Its good to update our window
@@ -246,11 +248,13 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
 
 bool DX11Renderer::InitDx11()
 {
+    TRACE();
     return CreateDevice() && InitSwapchainAndResources();
 }
 
 bool DX11Renderer::InitSwapchainAndResources()
 {
+    TRACE();
     const bool result = CreateSwapchain() && CreateRenderTargetView();
     if (!result)
         return false;
@@ -293,10 +297,11 @@ bool DX11Renderer::InitSwapchainAndResources()
 
 bool DX11Renderer::InitImGui() const
 {
+    TRACE();
     //Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); 
+    ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((f32)windowWidth_, (f32)windowHeight_);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -314,6 +319,7 @@ bool DX11Renderer::InitImGui() const
 
 bool DX11Renderer::CreateDevice()
 {
+    TRACE();
     UINT createDeviceFlags = 0;
 #ifdef DEBUG_BUILD
     createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -331,7 +337,7 @@ bool DX11Renderer::CreateDevice()
 
     //Make sure it worked and is compatible with D3D11
     if (FAILED(deviceCreateResult))
-        THROW_EXCEPTION("D3D11CreateDevice failed.");
+        THROW_EXCEPTION("Failed to create D3D11 Device.");
     if (featureLevel != D3D_FEATURE_LEVEL_11_0)
         THROW_EXCEPTION("Direct3D Feature Level 11 unsupported.");
 
@@ -341,6 +347,7 @@ bool DX11Renderer::CreateDevice()
 
 bool DX11Renderer::CreateSwapchain()
 {
+    TRACE();
     //Fill out swapchain config before creation
     DXGI_SWAP_CHAIN_DESC swapchainDesc;
     swapchainDesc.BufferDesc.Width = windowWidth_;
@@ -362,18 +369,19 @@ bool DX11Renderer::CreateSwapchain()
 
     //Create swapchain
     if (FAILED(dxgiFactory_->CreateSwapChain(d3d11Device_.Get(), &swapchainDesc, &swapChain_)))
-        THROW_EXCEPTION("Failed to create swapchain!");
+        THROW_EXCEPTION("Failed to create swapchain.");
 
     return true;
 }
 
 bool DX11Renderer::CreateRenderTargetView()
 {
+    TRACE();
     //Get ptr to swapchains backbuffer
     ID3D11Texture2D* backBuffer;
     swapChain_->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
     if (!backBuffer)
-        THROW_EXCEPTION("GetBuffer() returned a nullptr in DX11Renderer::CreateRenderTargetView()");
+        THROW_EXCEPTION("Failed to get backbuffer from the swapchain. Needed for render target view creation.");
 
     //Create render target and get view of it
     d3d11Device_->CreateRenderTargetView(backBuffer, NULL, &renderTargetView_);
@@ -385,6 +393,7 @@ bool DX11Renderer::CreateRenderTargetView()
 //Get IDXGIFactory instance from device we just created
 bool DX11Renderer::AcquireDxgiFactoryInstance()
 {
+    TRACE();
     //Temporary interfaces needed to get factory
     IDXGIDevice* dxgiDevice = 0;
     IDXGIAdapter* dxgiAdapter = 0;

@@ -8,6 +8,7 @@ const string mainConfigPath = "./Settings.xml";
 
 void Config::Load()
 {
+    TRACE();
     lastWriteTime_ = std::filesystem::last_write_time(mainConfigPath);
     tinyxml2::XMLDocument doc;
     doc.LoadFile(mainConfigPath.c_str());
@@ -73,7 +74,7 @@ void Config::Load()
         else if (typeEnum == ConfigType::String)
         {
             var->Value = string(value->GetText());
-            
+
             //Check if it's a path
             tinyxml2::XMLElement* isFolderPath = variableXml->FirstChildElement("IsFolderPath");
             tinyxml2::XMLElement* isFilePath = variableXml->FirstChildElement("IsFilePath");
@@ -316,7 +317,7 @@ void Config::EnsureVariableExists(const string& variableName, ConfigType type)
         break;
     case ConfigType::None:
     case ConfigType::Invalid:
-        THROW_EXCEPTION("Invalid ConfigType value passed to Config::EnsureVariableExists()!");
+        THROW_EXCEPTION("Passed an invalid ConfigType value: \"{}\"", type);
     }
 
     Variables.push_back(var);

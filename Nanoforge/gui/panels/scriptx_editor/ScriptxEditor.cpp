@@ -161,10 +161,8 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
         {
             Node* startNode = FindAttributeOwner(link.Start);
             Node* endNode = FindAttributeOwner(link.End);
-            if (!startNode)
-                THROW_EXCEPTION("Link created for attribute with no owner!");
-            if (!endNode)
-                THROW_EXCEPTION("Link created for attribute with no owner!");
+            if (!startNode || !endNode)
+                THROW_EXCEPTION("Scriptx link created for attribute with no owner!");
 
             link.Id = ++currentId_;
             link.StartNode = startNode;
@@ -236,7 +234,7 @@ void ScriptxEditor::LoadScriptxFile(const string& name, GuiState* state)
     //Parse scriptx. First get the root element
     auto* root = doc->RootElement();
     if (!root)
-        THROW_EXCEPTION("Failed to find root node in scriptx file \"{}\"", name);
+        THROW_EXCEPTION("Failed to get root node in scriptx file \"{}\"", name);
 
     //Todo: Read version, modified, and vars
     //Find all <managed> and <group> blocks. Parse <script> blocks within them.

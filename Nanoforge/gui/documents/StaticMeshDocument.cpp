@@ -21,7 +21,7 @@ StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string 
     //Create scene instance and store index
     Scene = state->Renderer->CreateScene();
     if (!Scene)
-        THROW_EXCEPTION("Failed to create scene in StaticmeshDocument constructor! Filename: {}", filename);
+        THROW_EXCEPTION("Failed to create scene for static mesh document \"{}\"", filename);
 
     //Init scene and camera
     Scene->Cam.Init({ 7.5f, 15.0f, 12.0f }, 80.0f, { (f32)Scene->Width(), (f32)Scene->Height() }, 1.0f, 10000.0f);
@@ -499,7 +499,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
         //Read index and vertex buffers from gpu file
         auto maybeMeshData = StaticMesh.ReadSubmeshData(gpuFileReader, i);
         if (!maybeMeshData)
-            THROW_EXCEPTION("Failed to get mesh data for static mesh doc in StaticMesh::ReadSubmeshData()");
+            THROW_EXCEPTION("Failed to read submesh mesh data for static mesh document.");
 
         state->Renderer->ContextMutex.lock();
         MeshInstanceData meshData = maybeMeshData.value();
@@ -712,7 +712,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTexture(GuiState* state, con
 
     //Last resort is to search dlc01_precache, terr01_l0, and terr01_l1
     DocumentClosedCheck();
-    auto dlcPrecacheSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("dlc01_precache.vpp_pc"), textureName); 
+    auto dlcPrecacheSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("dlc01_precache.vpp_pc"), textureName);
     if (dlcPrecacheSearchResult)
         return dlcPrecacheSearchResult;
 

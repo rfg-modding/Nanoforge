@@ -446,7 +446,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
     //Get packfile that holds terrain meshes
     auto* container = terrainMesh.GetContainer();
     if (!container)
-        THROW_EXCEPTION("Error! Failed to get container ptr for a terrain mesh.");
+        THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
 
     //Todo: This does a full extract twice on the container due to the way single file extracts work. Fix this
     //Get mesh file byte arrays
@@ -455,9 +455,9 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
 
     //Ensure the mesh files were extracted
     if (!cpuFileBytes)
-        THROW_EXCEPTION("Error! Failed to get terrain mesh cpu file byte array!");
+        THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
     if (!gpuFileBytes)
-        THROW_EXCEPTION("Error! Failed to get terrain mesh gpu file byte array!");
+        THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
 
     BinaryReader cpuFile(cpuFileBytes.value());
     BinaryReader gpuFile(gpuFileBytes.value());
@@ -479,7 +479,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
         //In while loop since a mesh file pair can have multiple meshes inside
         u32 meshCrc = gpuFile.ReadUint32();
         if (meshCrc == 0)
-            THROW_EXCEPTION("Error! Failed to read next mesh data block hash in terrain gpu file.");
+            THROW_EXCEPTION("Failed to read next mesh data block hash in terrain mesh gpu file.");
 
         //Find next mesh data block in cpu file
         while (true)
@@ -528,14 +528,14 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
 
         u32 endMeshCrc = gpuFile.ReadUint32();
         if (meshCrc != endMeshCrc)
-            THROW_EXCEPTION("Error, verification hash at start of gpu file mesh data doesn't match hash end of gpu file mesh data!");
+            THROW_EXCEPTION("Verification hashes at the start and end of terrain gpu file don't match.");
     }
 
     //Clear resources
     delete container;
     delete[] cpuFileBytes.value().data();
     delete[] gpuFileBytes.value().data();
-    
+
     //Exit early if document closes
     if (!open_)
         return;
@@ -550,7 +550,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
         FileHandle& blendTextureHandle = blendTextureHandlesCpu[0];
         auto* containerBlend = blendTextureHandle.GetContainer();
         if (!containerBlend)
-            THROW_EXCEPTION("Error! Failed to get container ptr for a terrain mesh.");
+            THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
 
         //Get mesh file byte arrays
         auto cpuFileBytesBlend = containerBlend->ExtractSingleFile(blendTextureName, true);
@@ -558,9 +558,9 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
 
         //Ensure the texture files were extracted
         if (!cpuFileBytesBlend)
-            THROW_EXCEPTION("Error! Failed to get terrain mesh cpu file byte array!");
+            THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
         if (!gpuFileBytesBlend)
-            THROW_EXCEPTION("Error! Failed to get terrain mesh gpu file byte array!");
+            THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
 
         BinaryReader cpuFileBlend(cpuFileBytesBlend.value());
         BinaryReader gpuFileBlend(gpuFileBytesBlend.value());

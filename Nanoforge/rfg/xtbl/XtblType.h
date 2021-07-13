@@ -56,7 +56,7 @@ static XtblType XtblTypeFromString(const string& value)
     else if (value == "Flag")
         return XtblType::Flag;
     else
-        THROW_EXCEPTION("Invalid string \"{}\" passed to XtblTypeFromString", value);
+        THROW_EXCEPTION("Invalid or unsupported string \"{}\".", value);
 }
 
 static string to_string(XtblType value)
@@ -96,6 +96,6 @@ static string to_string(XtblType value)
     case XtblType::Unsupported:
         return "Unsupported";
     default:
-        THROW_EXCEPTION("Invalid value for XtblType \"{}\" passed to to_string in XtblType.h", value);
+        THROW_EXCEPTION("Invalid or unsupported value for XtblType \"{}\".", value);
     }
 }

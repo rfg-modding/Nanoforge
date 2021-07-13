@@ -79,7 +79,7 @@ struct Node
     i32 GetAttributeId(u32 index)
     {
         if (index >= Attributes.size())
-            THROW_EXCEPTION("Invalid index passed to GetAttributeId");
+            THROW_EXCEPTION("Invalid scriptx attribute index.");
 
         return Attributes[index]->Id;
     }

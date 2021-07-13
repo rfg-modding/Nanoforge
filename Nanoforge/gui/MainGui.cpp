@@ -83,6 +83,7 @@ std::vector<const char*> TerritoryList =
 
 void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization)
 {
+    TRACE();
     State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager, config, localization };
 
     //Ensure that values used by the UI exist
@@ -107,7 +108,7 @@ void MainGui::Update(f32 deltaTime)
 {
     if(showNewProjectWindow_)
         DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
-    
+
     //Draw settings window
     if (showSettingsWindow_)
         DrawSettingsGui(&showSettingsWindow_, State.Config, State.FontManager);
@@ -142,7 +143,7 @@ void MainGui::Update(f32 deltaTime)
             ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
 
             ImGui::DockBuilderFinish(dockspaceId);
-            
+
             firstDraw = false;
         }
 
@@ -171,7 +172,7 @@ void MainGui::Update(f32 deltaTime)
             iter = State.Documents.erase(iter);
             continue;
         }
-        
+
         if (document->FirstDraw)
         {
             ImGui::DockBuilderDockWindow(document->Title.c_str(), ImGui::DockBuilderGetCentralNode(dockspaceId)->ID);
@@ -192,7 +193,7 @@ void MainGui::Update(f32 deltaTime)
     {
         ImGui::Text(State.CurrentProject->WorkerState);
         ImGui::ProgressBar(State.CurrentProject->WorkerPercentage);
-        
+
         if (!State.CurrentProject->WorkerRunning)
             ImGui::CloseCurrentPopup();
 
@@ -294,13 +295,13 @@ void MainGui::DrawMainMenuBar()
                 }
             }
             ImGui::Separator();
-            
+
             if (ImGui::MenuItem("Settings"))
             {
                 showSettingsWindow_ = true;
             }
             ImGui::Separator();
-            
+
             if (ImGui::MenuItem("Exit"))
             {
                 exit(EXIT_SUCCESS);
@@ -392,7 +393,7 @@ void MainGui::DrawDockspace()
 {
     //Dockspace flags
     static ImGuiDockNodeFlags dockspace_flags = 0;
-    
+
     //Parent window flags
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
                                     | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
@@ -403,13 +404,13 @@ void MainGui::DrawDockspace()
     dockspaceSize.y -= State.StatusBarHeight;
     ImGui::SetNextWindowSize(dockspaceSize);
     ImGui::SetNextWindowViewport(viewport->ID);
-    
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("DockSpace parent window", nullptr, window_flags);
     ImGui::PopStyleVar(3);
-    
+
     //DockSpace
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
@@ -424,7 +425,7 @@ void MainGui::DrawDockspace()
         }
         ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
-    
+
     ImGui::End();
 }
 
@@ -494,7 +495,7 @@ void MainGui::TryOpenProject()
     string newPath = result.value();
     if (std::find(recentProjects.begin(), recentProjects.end(), newPath) != recentProjects.end())
         recentProjects.push_back(newPath);
-    
+
     State.Config->Save();
 }
 

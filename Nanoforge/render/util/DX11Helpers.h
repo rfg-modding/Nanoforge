@@ -8,7 +8,7 @@
 { \
     HRESULT result = call; \
     if (result != S_OK) \
-        THROW_EXCEPTION("DxCheck failed. [{} : {}], Result: {}, Message: {}", __FILE__, __LINE__, result, failureMessage); \
+        THROW_EXCEPTION("DxCheck failed. Result: {}, Message: {}", result, failureMessage); \
 } \
 
 

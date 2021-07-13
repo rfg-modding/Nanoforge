@@ -132,7 +132,7 @@ IXtblNode* CreateDefaultNode(XtblType type)
         break;
     case XtblType::None:
     default:
-        THROW_EXCEPTION("Invalid value for XtblType \"{}\" passed to CreateDefaultNode() in XtblNodes.h", type);
+        THROW_EXCEPTION("Passed an invalid XtblType value \"{}\"", type);
     }
 
     node->InitDefault();
@@ -262,7 +262,7 @@ IXtblNode* CreateDefaultNode(Handle<XtblDescription> desc, bool addSubnodes)
         break;
     case XtblType::None:
     default:
-        THROW_EXCEPTION("Invalid value for XtblType \"{}\" passed to CreateDefaultNode() in XtblNodes.h", desc->Type);
+        THROW_EXCEPTION("Passed an invalid XtblType value \"{}\"", desc->Type);
     }
 
     node->Name = desc->Name;

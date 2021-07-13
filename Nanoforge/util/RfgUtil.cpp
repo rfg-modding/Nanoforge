@@ -21,7 +21,7 @@ namespace RfgUtil
         else if (extension == ".cchk_pc")
             return filenameNoExt + ".gchk_pc";
         else
-            THROW_EXCEPTION("Unknown rfg file extension '{}' passed to RfgUtil::CpuFilenameToGpuFilename()", extension);
+            THROW_EXCEPTION("Unknown rfg file extension \"{}\"", extension);
     }
 
     bool ValidateDataPath(const string& dataPath, string& missingFileName, bool logResult)
@@ -143,7 +143,7 @@ namespace RfgUtil
             {
                 if(logResult)
                     Log->warn("Current data path is invalid. Data path: \"{}\", first missing vpp: \"{}\"", dataPath, filename);
-                
+
                 missingFileName = filename;
                 return false;
             }

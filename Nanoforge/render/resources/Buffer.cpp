@@ -22,7 +22,7 @@ void Buffer::Create(ComPtr<ID3D11Device> d3d11Device, u32 size, u32 bindFlags, u
 
     //Attempt to create buffer
     if (FAILED(d3d11Device->CreateBuffer(&bufferDesc, NULL, buffer_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to buffer in Buffer::Create()");
+        THROW_EXCEPTION("Failed to create render buffer.");
 }
 
 void Buffer::SetData(ComPtr<ID3D11DeviceContext> d3d11Context, void* pData)
