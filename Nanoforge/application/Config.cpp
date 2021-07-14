@@ -9,6 +9,9 @@ const string mainConfigPath = "./Settings.xml";
 void Config::Load()
 {
     TRACE();
+    EnsureValidConfig();
+    Variables.clear();
+
     lastWriteTime_ = std::filesystem::last_write_time(mainConfigPath);
     tinyxml2::XMLDocument doc;
     doc.LoadFile(mainConfigPath.c_str());
@@ -325,7 +328,9 @@ void Config::EnsureVariableExists(const string& variableName, ConfigType type)
 
 bool Config::Exists(const string& name)
 {
-    return GetVariable(name) != nullptr;
+    Handle<ConfigVariable> var = GetVariable(name);
+    bool exists = var != nullptr;
+    return exists;
 }
 
 std::optional<i32> Config::GetIntReadonly(const string& name)
@@ -479,4 +484,86 @@ std::optional<std::vector<string>> Config::GetListReadonly(const string& name)
     }
 
     return std::get<std::vector<string>>(var->Value);
+}
+
+void Config::EnsureValidConfig()
+{
+    //Create config if it doesn't exist
+    if (!std::filesystem::exists(mainConfigPath))
+    {
+        Save();
+    }
+
+    //Upgrade config if it's using the old format
+    tinyxml2::XMLDocument doc;
+    doc.LoadFile(mainConfigPath.c_str());
+    if (doc.FirstChildElement("DataPath") || doc.FirstChildElement("TerritoryFile") || doc.FirstChildElement("RecentProjects") || doc.FirstChildElement("UI_Scale") || doc.FirstChildElement("UseGeometryShaders"))
+    {
+        tinyxml2::XMLElement* dataPath = doc.FirstChildElement("DataPath");
+        tinyxml2::XMLElement* recentProjects = doc.FirstChildElement("RecentProjects");
+        tinyxml2::XMLElement* uiScale = doc.FirstChildElement("UI_Scale");
+        tinyxml2::XMLElement* useGeometryShaders = doc.FirstChildElement("UseGeometryShaders");
+
+        {
+            EnsureVariableExists("Data path", ConfigType::String);
+            Handle<ConfigVariable> dataPathVar = GetVariable("Data path");
+            dataPathVar->Value = dataPath ? string(dataPath->GetText()) : "C:/";
+            dataPathVar->ShownInSettings = false;
+            dataPathVar->Description = "The path to RFG Re-mars-tered";
+        }
+
+        {
+            EnsureVariableExists("Recent projects", ConfigType::List);
+            Handle<ConfigVariable> recentProjectsVar = GetVariable("Recent projects");
+            recentProjectsVar->ShownInSettings = false;
+            recentProjectsVar->Description = "List of projects that were recently opened";
+
+            if (recentProjects)
+            {
+                tinyxml2::XMLElement* path = recentProjects->FirstChildElement("Path");
+                while (path)
+                {
+                    const char* pathText = path->GetText();
+                    if (pathText)
+                        std::get<std::vector<string>>(recentProjectsVar->Value).push_back(string(pathText));
+
+                    path = path->NextSiblingElement("Path");
+                }
+            }
+        }
+
+        {
+            EnsureVariableExists("UI Scale", ConfigType::Float);
+            Handle<ConfigVariable> uiScaleVar = GetVariable("UI Scale");
+            uiScaleVar->Value = uiScale ? (f32)uiScale->FloatText() : 1.0f;
+            uiScaleVar->ShownInSettings = true;
+            uiScaleVar->Description = "Scale of the user interface. Must restart Nanoforge to for this change to apply.";
+        }
+
+        {
+            EnsureVariableExists("Use geometry shaders", ConfigType::Bool);
+            Handle<ConfigVariable> useGeometryShadersVar = GetVariable("Use geometry shaders");
+            useGeometryShadersVar->Value = useGeometryShaders ? useGeometryShaders->BoolText() : true;
+            useGeometryShadersVar->ShownInSettings = true;
+            useGeometryShadersVar->Description = "If enabled geometry shaders are used to draw lines in the 3D map view. If this is disabled lines will be thinner and harder to read. Toggleable since some older computers might not support them.";
+        }
+
+        {
+            EnsureVariableExists("Show FPS", ConfigType::Bool);
+            Handle<ConfigVariable> uiScaleVar = GetVariable("Show FPS");
+            uiScaleVar->Value = false;
+            uiScaleVar->ShownInSettings = true;
+            uiScaleVar->Description = "If enabled an FPS meter is shown on the main menu bar";
+        }
+
+        {
+            EnsureVariableExists("DefaultLocale", ConfigType::String);
+            Handle<ConfigVariable> uiScaleVar = GetVariable("DefaultLocale");
+            uiScaleVar->Value = "EN_US";
+            uiScaleVar->ShownInSettings = false;
+            uiScaleVar->Description = "Default locale to use when viewing localized RFG strings. Nanoforge itself doesn't support localization yet.";
+        }
+
+        Save();
+    }
 }
