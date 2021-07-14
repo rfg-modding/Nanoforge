@@ -65,6 +65,7 @@ private:
     FileSearchType SearchType = FileSearchType::Match;
     bool HideUnsupportedFormats = false;
     bool RegexSearch = false;
+    bool CaseSensitive = false;
     std::regex SearchRegex {""};
     bool HadRegexError = false;
     string LastRegexError;

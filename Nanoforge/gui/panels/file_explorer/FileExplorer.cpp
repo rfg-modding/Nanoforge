@@ -47,6 +47,8 @@ void FileExplorer::Update(GuiState* state, bool* open)
             SearchChanged = true;
         if (ImGui::Checkbox("Regex", &RegexSearch))
             SearchChanged = true;
+        if (ImGui::Checkbox("Case sensitive", &CaseSensitive))
+            SearchChanged = true;
     }
 
     //Search bar
@@ -512,15 +514,29 @@ bool FileExplorer::DoesNodeFitSearch(FileExplorerNode& node)
     if (RegexSearch)
         return std::regex_search(node.Filename, SearchRegex);
 
-    //Wildcard support
-    if (SearchType == Match && !String::Contains(node.Filename, SearchTermPatched))
-        return false;
-    else if (SearchType == MatchStart && !String::StartsWith(node.Filename, SearchTermPatched))
-        return false;
-    else if (SearchType == MatchEnd && !String::EndsWith(node.Filename, SearchTermPatched))
-        return false;
+    //Default search. Supports * wildcard prefix/postfix.
+    if (CaseSensitive)
+    {
+        if (SearchType == Match && !String::Contains(node.Filename, SearchTermPatched))
+            return false;
+        else if (SearchType == MatchStart && !String::StartsWith(node.Filename, SearchTermPatched))
+            return false;
+        else if (SearchType == MatchEnd && !String::EndsWith(node.Filename, SearchTermPatched))
+            return false;
+        else
+            return true;
+    }
     else
-        return true;
+    {
+        if (SearchType == Match && !String::Contains(String::ToLower(node.Filename), String::ToLower(SearchTermPatched)))
+            return false;
+        else if (SearchType == MatchStart && !String::StartsWith(String::ToLower(node.Filename), String::ToLower(SearchTermPatched)))
+            return false;
+        else if (SearchType == MatchEnd && !String::EndsWith(String::ToLower(node.Filename), String::ToLower(SearchTermPatched)))
+            return false;
+        else
+            return true;
+    }
 }
 
 //Returns true if any of the child nodes of node match the current search term
