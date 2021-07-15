@@ -12,6 +12,7 @@ const string globalCachePath_ = ".\\Cache\\";
 
 void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
 {
+    TRACE();
     //Data folder of a copy of RFGR
     packfileFolderPath_ = packfileFolderPath;
     project_ = project;
@@ -19,6 +20,7 @@ void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
 
 void PackfileVFS::ScanPackfilesAndLoadCache()
 {
+    TRACE();
     //Load global cache
     globalFileCache_.Load(globalCachePath_);
 
@@ -216,7 +218,7 @@ Packfile3* PackfileVFS::GetContainer(const string& name, const string& parentNam
 }
 
 std::optional<string> PackfileVFS::GetFilePath(const string& packfileName, const string& filename1, const string& filename2)
-{    
+{
     bool inContainer = filename2 != "";
     string filePath = packfileName + "\\" + filename1;
     if (inContainer)
@@ -229,7 +231,7 @@ std::optional<string> PackfileVFS::GetFilePath(const string& packfileName, const
     //If file is in project cache use that version. Otherwise operate on global cache
     if(project_ && project_->Cache.IsCached(filePath))
         return std::filesystem::absolute(project_->GetCachePath() + filePath).string();
-    
+
     //Cache the file if it isn't already
     if (!globalFileCache_.IsCached(filePath))
         AddFileToCache(packfileName, filename1, filename2);
@@ -323,7 +325,7 @@ bool PackfileVFS::AddFileToCache(const string& packfileName, const string& filen
 
     if (inContainer)
         delete parent;
-    
+
     return true;
 }
 
@@ -338,6 +340,6 @@ bool PackfileVFS::CheckSearchMatch(s_view target, s_view filter, SearchType sear
     case SearchType::AnyEnd:
         return String::StartsWith(target, filter);
     default:
-        THROW_EXCEPTION("Error! Invalid enum value passed to PackfileVFS::CheckSearchMatch");
+        THROW_EXCEPTION("Invalid or unsupported enum value \"{}\".", searchType);
     }
 }

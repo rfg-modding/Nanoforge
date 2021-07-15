@@ -34,6 +34,6 @@ u32 Mesh::GetFormatStride(DXGI_FORMAT format)
     case DXGI_FORMAT_R16_UINT:
         return 2;
     default:
-        THROW_EXCEPTION("Invalid format \"{}\" passed to Mesh::GetFormatStride()", (u32)format);
+        THROW_EXCEPTION("Invalid or unsupported format \"{}\" passed to Mesh::GetFormatStride()", (u32)format);
     }
 }

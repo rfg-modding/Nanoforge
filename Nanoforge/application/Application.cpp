@@ -46,12 +46,15 @@ void Application::Run()
 void Application::Init()
 {
     //Init logger
+    printf("[info] Initializing logger...\n");
     logSinks_.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
     logSinks_.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("MasterLog.log"));
     logSinks_.push_back(std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(120));
     Log = std::make_shared<spdlog::logger>("MainLogger", begin(logSinks_), end(logSinks_));
     Log->flush_on(spdlog::level::level_enum::info); //Always flush
     Log->set_pattern("[%Y-%m-%d, %H:%M:%S][%^%l%$]: %v");
+
+    TRACE();
 
     //Load settings.xml
     config_.Load();
@@ -70,11 +73,14 @@ void Application::Init()
 
 void Application::InitStage1()
 {
+    TRACE();
     welcomeGui_.Init(&config_, &fontManager_, &project_, windowWidth_, windowHeight_);
 }
 
 void Application::RunStage1()
 {
+    TRACE();
+
     //Per frame update
     std::function<void()> update = [&]()
     {
@@ -91,6 +97,8 @@ void Application::RunStage1()
 
 void Application::InitStage2()
 {
+    TRACE();
+
     //Maximize window since the gui has a lot more content in stage 2
     MaximizeWindow();
 
@@ -110,6 +118,8 @@ void Application::InitStage2()
 
 void Application::RunStage2()
 {
+    TRACE();
+
     //Per frame update
     std::function<void()> update = [&]()
     {
@@ -127,6 +137,7 @@ void Application::RunStage2()
 
 void Application::MainLoop(std::function<void()> stageUpdateFunc)
 {
+    TRACE();
     stageDone_ = false;
     MSG msg; //Create a new message structure
     ZeroMemory(&msg, sizeof(MSG)); //Clear message structure to NULL
@@ -148,7 +159,7 @@ void Application::MainLoop(std::function<void()> stageUpdateFunc)
         //Sleep until target framerate is reached
         while (FrameTimer.ElapsedSecondsPrecise() < targetFramerateDelta)
         {
-            //Sleep is used here instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this. 
+            //Sleep is used here instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this.
             f32 timeToTargetFramerateMs = (targetFramerateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f;
             Sleep((DWORD)timeToTargetFramerateMs);
         }
@@ -203,7 +214,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         break;
     case WM_KEYDOWN: //Key down
         //If escape key pressed display popup box
-        if (wParam == VK_ESCAPE) 
+        if (wParam == VK_ESCAPE)
         {
             if (MessageBox(0, "Are you sure you want to exit?",
                 "Confirm exit", MB_YESNO | MB_ICONQUESTION) == IDYES)

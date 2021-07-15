@@ -5,6 +5,7 @@
 
 void WorkerThread(GuiState* state)
 {
+    TRACE();
     state->SetStatus(ICON_FA_SYNC " Waiting for init signal", Working);
 
     //Scan contents of packfiles
@@ -14,6 +15,6 @@ void WorkerThread(GuiState* state)
 
     //Load localization strings from rfglocatext files
     state->Localization->LoadLocalizationData();
-    
+
     state->ClearStatus();
 }

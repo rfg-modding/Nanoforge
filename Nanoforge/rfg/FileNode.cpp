@@ -33,7 +33,7 @@ FileNode& FileNode::GetFolder(const string& path)
         if (String::EqualIgnoreCase(subfile.Name, split[0]))
             return split.size() == 1 ? subfile : subfile.GetFolder(path.substr(path.find_first_of("\\") + 1));
     }
-    THROW_EXCEPTION("Failed to find folder \"{}\" in FileNode::GetFolder()", path);
+    THROW_EXCEPTION("Failed to find folder \"{}\".", path);
 }
 
 //Todo: Double check usage of string_view or completely remove it

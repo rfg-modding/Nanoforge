@@ -9,18 +9,18 @@ class XtblManager;
 class XtblDocument final : public IDocument
 {
 public:
-    XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, Handle<IXtblNode> startingNode = nullptr);
+    XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, IXtblNode* startingNode = nullptr);
     ~XtblDocument();
 
     void Update(GuiState* state) override;
 
-    Handle<IXtblNode> SelectedNode = nullptr;
+    IXtblNode* SelectedNode = nullptr;
 private:
     //Used to check if items on the sidebar match the search term
     bool AnyChildMatchesSearchTerm(Handle<XtblCategory> category);
     //Used to draw the sidebar
     void DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault = false);
-    void DrawXtblNodeEntry(Handle<IXtblNode> node); //Draw xtbl node in entry list
+    void DrawXtblNodeEntry(IXtblNode* node); //Draw xtbl node in entry list
     
     //Save xtbl to project cache
     void Save();
@@ -28,7 +28,7 @@ private:
     //Behavior for the buttons on the sidebar
     void AddEntry();
     void AddCategory();
-    void DuplicateEntry(Handle<IXtblNode> entry);
+    void DuplicateEntry(IXtblNode* entry);
 
     //Sidebar right click context menu behavior
     void DrawRenameCategoryWindow();
@@ -54,6 +54,6 @@ private:
     //Entry rename popup data
     const char* renameEntryPopupId_ = "Rename entry";
     bool renameEntryWindowOpen_ = false;
-    Handle<IXtblNode> renameEntry_ = nullptr;
+    IXtblNode* renameEntry_ = nullptr;
     string renameEntryName_ = "";
 };

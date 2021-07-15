@@ -4,6 +4,7 @@
 #include "application/Config.h"
 #include "ImGuiConfig.h"
 #include <IconsFontAwesome5_c.h>
+#include "Log.h"
 
 class ImGuiFont
 {
@@ -33,7 +34,7 @@ private:
 class ImGuiFontManager
 {
 public:
-    void Init(Config* config) { config_ = config; }
+    void Init(Config* config) { TRACE(); config_ = config; }
     void RegisterFonts();
 
     //Default font size

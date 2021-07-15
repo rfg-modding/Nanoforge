@@ -6,6 +6,7 @@
 
 void Localization::Init(PackfileVFS* packfileVFS, Config* config)
 {
+    TRACE();
     packfileVFS_ = packfileVFS;
 
     //Get default locale from config
@@ -24,6 +25,7 @@ void Localization::Init(PackfileVFS* packfileVFS, Config* config)
 
 void Localization::LoadLocalizationData()
 {
+    TRACE();
     //Load all supported rfglocatext files
     //LoadLocalizationClass("locatexts_ar_eg.rfglocatext", "Arabic (Egypt)", Locale::AR_EG);
     LoadLocalizationClass("locatexts_cs_cz.rfglocatext", "Czech (Czech Republic)", Locale::CS_CZ);

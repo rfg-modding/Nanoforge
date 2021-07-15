@@ -3,6 +3,8 @@
 #include "XtblNodes.h"
 #include "common/filesystem/Path.h"
 #include "Common/string/String.h"
+#include "IXtblNode.h"
+#include "nodes/UnsupportedXtblNode.h"
 #include <tinyxml2/tinyxml2.h>
 #include <filesystem>
 #include <algorithm>
@@ -15,7 +17,7 @@ XtblFile::~XtblFile()
 
     //Delete all nodes. Need to be manually deleted since theres circular references between parent and child nodes
     for (auto& node : Entries)
-        node->DeleteSubnodes();
+        delete node;
 
     Entries.clear();
 }
@@ -93,7 +95,7 @@ bool XtblFile::Parse(const string& path)
     return true;
 }
 
-Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNode> parent, string& path)
+IXtblNode* XtblFile::ParseNode(tinyxml2::XMLElement* node, IXtblNode* parent, string& path)
 {
     //Handle editor config nodes
     if (node->Value() == string("_Editor"))
@@ -113,7 +115,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
     {
         //TODO: Report missing description somewhere in release builds so we know when description addons are needed
         //Create UnsupportedXtblNode to preserve xml data
-        Handle<UnsupportedXtblNode> xtblNode = CreateHandle<UnsupportedXtblNode>(node);
+        UnsupportedXtblNode* xtblNode = new UnsupportedXtblNode(node);
         xtblNode->Name = node->Value();
         xtblNode->Type = XtblType::Unsupported;
         xtblNode->Parent = parent;
@@ -122,7 +124,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
     }
 
     //Parse node from xml and set members
-    Handle<IXtblNode> xtblNode = CreateDefaultNode(desc, false);
+    IXtblNode* xtblNode = CreateDefaultNode(desc, false);
     xtblNode->Parent = parent;
 
     //Read nanoforge metadata if it's present
@@ -216,7 +218,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
             while (subnode)
             {
                 string newPath = path + "/" + subnode->Value();
-                Handle<IXtblNode> xtblSubnode = ParseNode(subnode, xtblNode, newPath);
+                IXtblNode* xtblSubnode = ParseNode(subnode, xtblNode, newPath);
                 if (xtblSubnode)
                     xtblNode->Subnodes.push_back(xtblSubnode);
 
@@ -228,7 +230,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
         {
             auto* subnode = node->FirstChildElement();
             string newPath = path + "/" + subnode->Value();
-            Handle<IXtblNode> xtblSubnode = ParseNode(subnode, xtblNode, newPath);
+            IXtblNode* xtblSubnode = ParseNode(subnode, xtblNode, newPath);
             if (xtblSubnode)
                 xtblNode->Subnodes.push_back(xtblSubnode);
         }
@@ -242,7 +244,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
         while (flag)
         {
             string newPath = path + "/" + flag->Value();
-            Handle<IXtblNode> xtblSubnode = CreateDefaultNode(XtblType::Flag);
+            IXtblNode* xtblSubnode = CreateDefaultNode(XtblType::Flag);
             xtblSubnode->Name = "Flag";
             xtblSubnode->Type = XtblType::Flag;
             xtblSubnode->Parent = xtblNode;
@@ -259,7 +261,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
         for (auto& flagDesc : desc->Flags)
         {
             //Check if flag is present
-            Handle<IXtblNode> flagNode = nullptr;
+            IXtblNode* flagNode = nullptr;
             for (auto& flag : xtblNode->Subnodes)
             {
                 auto value = std::get<XtblFlag>(flag->Value);
@@ -300,7 +302,7 @@ Handle<IXtblNode> XtblFile::ParseNode(tinyxml2::XMLElement* node, Handle<IXtblNo
             while (subnode)
             {
                 string newPath = path + "/" + subnode->Value();
-                Handle<IXtblNode> xtblSubnode = ParseNode(subnode, xtblNode, newPath);
+                IXtblNode* xtblSubnode = ParseNode(subnode, xtblNode, newPath);
                 if (xtblSubnode)
                     xtblNode->Subnodes.push_back(xtblSubnode);
 
@@ -333,7 +335,7 @@ Handle<XtblDescription> XtblFile::GetValueDescription(const string& valuePath, H
     return nullptr;
 }
 
-void XtblFile::SetNodeCategory(Handle<IXtblNode> node, string categoryPath)
+void XtblFile::SetNodeCategory(IXtblNode* node, string categoryPath)
 {
     //Ensure path starts with "Entries:" so it's parsed properly. Some xtbls do this and some don't.
     if (!String::StartsWith(categoryPath, "Entries"))
@@ -349,13 +351,13 @@ void XtblFile::SetNodeCategory(Handle<IXtblNode> node, string categoryPath)
     categoryMap_[node] = categoryPath;
 }
 
-string XtblFile::GetNodeCategoryPath(Handle<IXtblNode> node)
+string XtblFile::GetNodeCategoryPath(IXtblNode* node)
 {
     auto find = categoryMap_.find(node);
     return find == categoryMap_.end() ? "" : find->second;
 }
 
-Handle<XtblCategory> XtblFile::GetNodeCategory(Handle<IXtblNode> node)
+Handle<XtblCategory> XtblFile::GetNodeCategory(IXtblNode* node)
 {
     auto find = categoryMap_.find(node);
     return find == categoryMap_.end() ? nullptr : GetOrCreateCategory(find->second);
@@ -387,7 +389,7 @@ Handle<XtblCategory> XtblFile::GetOrCreateCategory(s_view categoryPath, Handle<X
     return split.size() == 1 ? subcategory : GetOrCreateCategory(categoryPath.substr(categoryPath.find_first_of(":") + 1), subcategory);
 }
 
-Handle<IXtblNode> XtblFile::GetSubnode(const string& nodePath, Handle<IXtblNode> searchNode)
+IXtblNode* XtblFile::GetSubnode(const string& nodePath, IXtblNode* searchNode)
 {
     //Split path into components
     std::vector<s_view> split = String::SplitString(nodePath, "/");
@@ -404,9 +406,9 @@ Handle<IXtblNode> XtblFile::GetSubnode(const string& nodePath, Handle<IXtblNode>
     return nullptr;
 }
 
-std::vector<Handle<IXtblNode>> XtblFile::GetSubnodes(const string& nodePath, Handle<IXtblNode> searchNode, std::vector<Handle<IXtblNode>>* nodes)
+std::vector<IXtblNode*> XtblFile::GetSubnodes(const string& nodePath, IXtblNode* searchNode, std::vector<IXtblNode*>* nodes)
 {
-    std::vector<Handle<IXtblNode>> _nodes;
+    std::vector<IXtblNode*> _nodes;
     if (!nodes)
         nodes = &_nodes;
 
@@ -428,7 +430,7 @@ std::vector<Handle<IXtblNode>> XtblFile::GetSubnodes(const string& nodePath, Han
     return *nodes;
 }
 
-Handle<IXtblNode> XtblFile::GetRootNodeByName(const string& name)
+IXtblNode* XtblFile::GetRootNodeByName(const string& name)
 {
     for (auto& subnode : Entries)
         if (String::EqualIgnoreCase(subnode->Name, name))
@@ -437,7 +439,7 @@ Handle<IXtblNode> XtblFile::GetRootNodeByName(const string& name)
     return nullptr;
 }
 
-void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode> node, bool enableOptionalSubnodes)
+void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, IXtblNode* node, bool enableOptionalSubnodes)
 {
     //Try to get pre-existing subnode
     string descPath = desc->GetPath();
@@ -469,7 +471,7 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, Handle<IXtblNode>
         for (auto& flagDesc : desc->Flags)
         {
             //Check for flag
-            Handle<IXtblNode> flagNode = nullptr;
+            IXtblNode* flagNode = nullptr;
             for (auto& flag : subnode->Subnodes)
             {
                 auto value = std::get<XtblFlag>(flag->Value);
@@ -561,12 +563,12 @@ void XtblFile::RenameCategory(Handle<XtblCategory> category, string newName)
             pair.second = String::Replace(pair.second, oldName, newName);
 }
 
-bool XtblFile::PropagateNodeEdits(Handle<IXtblNode> node)
+bool XtblFile::PropagateNodeEdits(IXtblNode* node)
 {
     //If node is edited mark all of it's parents as edited
     if (node->Edited)
     {
-        Handle<IXtblNode> parent = node->Parent;
+        IXtblNode* parent = node->Parent;
         while (parent)
         {
             parent->Edited = true;

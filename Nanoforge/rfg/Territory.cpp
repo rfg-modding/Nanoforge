@@ -27,7 +27,7 @@ void Territory::LoadZoneData()
     Log->info("Loading zone data from {}", territoryFilename_);
     Packfile3* zonescriptVpp = packfileVFS_->GetPackfile(territoryFilename_);
     if (!zonescriptVpp)
-        THROW_EXCEPTION("Error! Could not find territory file {} in data folder. Required for the program to function.", territoryFilename_);
+        THROW_EXCEPTION("Could not find territory file {} in data folder. Required for the program to function.", territoryFilename_);
 
     //Todo: Use packfile search functions and also search str2s
     //Todo: Use caching system
@@ -40,7 +40,7 @@ void Territory::LoadZoneData()
 
         auto fileBuffer = zonescriptVpp->ExtractSingleFile(path);
         if (!fileBuffer)
-            THROW_EXCEPTION("Error! Failed to extract a zone file from zonescript_terr01.vpp_pc");
+            THROW_EXCEPTION("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(path)), territoryFilename_);
 
         BinaryReader reader(fileBuffer.value());
         ZoneData& zoneFile = ZoneFiles.emplace_back();

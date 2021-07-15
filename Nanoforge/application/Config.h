@@ -83,6 +83,9 @@ public:
     std::vector<Handle<ConfigVariable>> Variables = {};
 
 private:
+    //Create Settings.xml if it doesn't exist. Upgrade it if it's using the old settings format.
+    void EnsureValidConfig();
+
     //Last write time of config file. Used to determine if it should be reloaded due to edits.
     std::filesystem::file_time_type lastWriteTime_;
 };

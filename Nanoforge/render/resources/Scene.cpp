@@ -40,7 +40,7 @@ void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
 
     //Create the input layout
     if (FAILED(d3d11Device_->CreateInputLayout(layout.data(), layout.size(), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), vertexLayout_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create scene vertex layout");
+        THROW_EXCEPTION("Failed to create scene vertex layout.");
 
     //Set the input layout
     d3d11Context_->IASetInputLayout(vertexLayout_.Get());
@@ -90,7 +90,7 @@ void Scene::Draw(f32 deltaTime)
     d3d11Context_->IASetInputLayout(linelistVertexLayout_.Get());
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     linelistShader_.Bind(d3d11Context_);
-    
+
     //Update primitive vertex buffers if necessary
     u32 linelistVertexStride = sizeof(ColoredVertex);
     u32 vertexOffset = 0;
@@ -102,7 +102,7 @@ void Scene::Draw(f32 deltaTime)
         d3d11Context_->Map(lineVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
         memcpy(mappedResource.pData, lineVertices_.data(), lineVertices_.size() * linelistVertexStride);
         d3d11Context_->Unmap(lineVertexBuffer_.Get(), 0);
-        
+
         numLineVertices_ = lineVertices_.size();
         lineVertices_.clear();
         primitiveBufferNeedsUpdate_ = false;
@@ -137,7 +137,7 @@ void Scene::HandleResize(u32 windowWidth, u32 windowHeight)
     {
         sceneViewWidth_ = windowWidth;
         sceneViewHeight_ = windowHeight;
-        
+
         //Recreate scene view resources with new size
         InitInternal();
         CreateDepthBuffer();
@@ -215,7 +215,7 @@ void Scene::InitPrimitiveState()
     auto pVSBlob = linelistShader_.GetVertexShaderBytes();
     //Create the input layout
     if (FAILED(d3d11Device_->CreateInputLayout(inputLayout, 2, pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), linelistVertexLayout_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create scene primitive vertex layout");
+        THROW_EXCEPTION("Failed to create scene primitive vertex layout.");
 }
 
 void Scene::InitRenderTarget()

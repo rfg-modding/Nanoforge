@@ -62,10 +62,10 @@ void WelcomeGui::Update()
         showNewProjectWindow_ = true;
     }
     ImGui::Separator();
-    
+
     DrawDataPathSelector();
     DrawRecentProjectsList();
-    
+
     ImGui::End();
 }
 
@@ -82,7 +82,7 @@ void WelcomeGui::DrawDataPathSelector()
 
         ImGui::SameLine();
         ImGui::TextWrapped("Data folder is invalid. Missing %s. Select a new one with the \"Browse...\" button below.", missingVppName_.c_str());
-        
+
         fontManager_->FontMedium.Pop();
     }
 

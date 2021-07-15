@@ -26,7 +26,7 @@ void Texture2D::Create(ComPtr<ID3D11Device> d3d11Device, u32 width, u32 height, 
     textureDesc.MiscFlags = 0;
     d3d11Device->CreateTexture2D(&textureDesc, data, texture_.GetAddressOf());
     if (!texture_)
-        THROW_EXCEPTION("texture_ nullptr after call to CreateTexture2D in Texture2D::Create()");
+        THROW_EXCEPTION("Failed to create Texture2D.");
 }
 
 void Texture2D::CreateRenderTargetView()
@@ -42,7 +42,7 @@ void Texture2D::CreateRenderTargetView()
 
     //Create render target view and map to texture_
     if (FAILED(d3d11Device_->CreateRenderTargetView(texture_.Get(), &renderTargetViewDesc, renderTargetView_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create render target view in Texture2D::CreateRenderTargetView()");
+        THROW_EXCEPTION("Failed to create render target view from Texture2D.");
 }
 
 void Texture2D::CreateShaderResourceView()
@@ -59,7 +59,7 @@ void Texture2D::CreateShaderResourceView()
 
     //Create the shader resource view
     if(FAILED(d3d11Device_->CreateShaderResourceView(texture_.Get(), &shaderResourceViewDesc, shaderResourceView_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create shader resource view in Texture2D::CreateShaderResourceView()");
+        THROW_EXCEPTION("Failed to create shader resource view from Texture2D.");
 }
 
 void Texture2D::CreateDepthStencilView()
@@ -68,7 +68,7 @@ void Texture2D::CreateDepthStencilView()
     depthStencilView_.Reset();
 
     if (FAILED(d3d11Device_->CreateDepthStencilView(texture_.Get(), 0, depthStencilView_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create depth stencil view in Texture2D::CreateDepthStencilView()");
+        THROW_EXCEPTION("Failed to create depth stencil view from Texture2D.");
 }
 
 void Texture2D::CreateSampler()
@@ -86,7 +86,7 @@ void Texture2D::CreateSampler()
 
     //Create the sampler
     if (FAILED(d3d11Device_->CreateSamplerState(&sampleDesc, samplerState_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create depth stencil view in Texture2D::CreateDepthStencilView()");
+        THROW_EXCEPTION("Failed to create depth stencil view  from Texture2D.");
 }
 
 void Texture2D::Bind(ComPtr<ID3D11DeviceContext> d3d11Context, u32 index)

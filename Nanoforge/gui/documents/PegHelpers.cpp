@@ -129,7 +129,7 @@ namespace PegHelpers
         u32 dataSize = image.GetPixelsSize();
         u8* dataBuffer = new u8[dataSize];
         memcpy(dataBuffer, image.GetPixels(), dataSize);
-        
+
         //Set entry data with loaded image data
         if (entry.SourceWidth == entry.Width)
             entry.SourceWidth = metadata.width;
@@ -156,7 +156,7 @@ namespace PegHelpers
         else if (input == PegFormat::PC_8888)
             return DXGI_FORMAT_R8G8B8A8_UNORM;
         else
-            THROW_EXCEPTION("Unknown or unsupported format '{}' passed to PegFormatToDxgiFormat()", input);
+            THROW_EXCEPTION("Unknown or unsupported peg format \"{}\"", input);
     }
 
     PegFormat DxgiFormatToPegFormat(DXGI_FORMAT input)
@@ -170,7 +170,7 @@ namespace PegHelpers
         else if (input == DXGI_FORMAT_R8G8B8A8_UNORM)
             return PegFormat::PC_8888;
         else
-            THROW_EXCEPTION("Unknown or unsupported format '{}' passed to DxgiFormatToPegFormat()", input);
+            THROW_EXCEPTION("Unknown or unsupported format DXGI_FORMAT \"{}\"", input);
     }
 
     string PegFormatToString(PegFormat input)
