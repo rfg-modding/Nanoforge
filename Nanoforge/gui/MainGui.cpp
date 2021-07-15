@@ -151,6 +151,7 @@ void MainGui::Update(f32 deltaTime)
             continue;
 
         panel->Update(&State, &panel->Open);
+        panel->FirstDraw = false;
     }
 
     //Move newly created documents into main vector. Done to avoid iterator invalidation when documents are created by other documents
