@@ -30,6 +30,10 @@ void LogPanel::Update(GuiState* state, bool* open)
     auto messages = sink->last_formatted();
     for (auto& messageWhole : messages)
     {
+        //Hide debug trace messages to avoid filling the log with useless info for users
+        if (String::Contains(messageWhole, "[trace]"))
+            continue;
+
         //Parse message contents to color it. Note: Assumes standard spdlog tags ([info], [warn], etc)
         s_view messageShort = s_view(messageWhole).substr(22);
         size_t tagEnd = messageShort.find_first_of(']') + 1;

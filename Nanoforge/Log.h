@@ -21,5 +21,5 @@ extern Handle<spdlog::logger> Log;
 //Log each time the function the macro is placed in is called. Mainly used in functions that are called infrequently to help pinpoint where an error occurred.
 //E.g. Most init functions have this so if a crash occurs on startup you can see how far into the init process it got by looking at the logs.
 #define TRACE() \
-Log->info("Called {}(). {}:{}.", __FUNCTION__, __FILE__, __LINE__); \
+Log->info("[trace] Called {}(). {}:{}.", __FUNCTION__, __FILE__, __LINE__); \
 
