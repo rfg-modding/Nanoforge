@@ -46,7 +46,7 @@ public:
     //Ensure elements of provided description exist on XtblNode. If enableOptionalSubnodes = false then optional subnodes will be created but disabled.
     void EnsureEntryExists(Handle<XtblDescription> desc, IXtblNode* node, bool enableOptionalSubnodes = true);
     //Write all nodes to xtbl file
-    void WriteXtbl(const string& outPath);
+    void WriteXtbl(const string& outPath, bool writeNanoforgeMetadata = true);
     //Propagate subnode edit state up to parents so you can check if a xtbl has any edits by checking the root nodes. Returns true if any subnode has been edited.
     bool PropagateEdits();
     //Rename category and update strings in categoryMap_
@@ -74,7 +74,7 @@ private:
 
     //Easy way to get a nodes category with needing to search the category tree
     std::unordered_map<IXtblNode*, string> categoryMap_;
-    
+
     //Xml document the xtbl was loaded from. Kept alive with the xtbl to preserve description-less nodes
     tinyxml2::XMLDocument xmlDocument_;
 };

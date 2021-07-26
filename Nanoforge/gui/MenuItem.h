@@ -19,6 +19,7 @@ struct MenuItem
         }
         return nullptr;
     }
+
     void Draw()
     {
         if (panel)

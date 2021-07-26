@@ -38,7 +38,7 @@ bool Project::Save()
         auto* editElement = edits->InsertNewChildElement("Edit");
         auto* editType = editElement->InsertNewChildElement("Type");
         auto* editPath = editElement->InsertNewChildElement("Path");
-        
+
         editType->SetText(edit.EditType.c_str());
         editPath->SetText(edit.EditedFilePath.c_str());
     }
@@ -149,7 +149,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
     //Create output path
     std::filesystem::create_directories(outputPath);
     std::filesystem::copy_options copyOptions = std::filesystem::copy_options::overwrite_existing;
-    
+
     //Delete files and folders from previous runs
     for(auto& path : std::filesystem::directory_iterator(outputPath))
         std::filesystem::remove_all(path);
@@ -363,7 +363,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
 
     //Package xtbl edits
     WorkerState = fmt::format("Writing xtbl edits...");
-    PackageXtblEdits(changes, vfs, xtblManager);
+    PackageXtblEdits(changes, vfs, xtblManager, outputPath);
     WorkerPercentage += packagingStepSize;
 
     //Save modinfo.xml
@@ -371,19 +371,22 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
     modinfo.InsertEndChild(modBlock);
     modinfo.SaveFile(modinfoPath.c_str());
 
+    WorkerPercentage = 1.0f;
+    WorkerState = "Done!";
     WorkerRunning = false;
+    WorkerFinished = true;
 
     return true;
 }
 
-bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager)
+bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager, const string& outputPath)
 {
     //Ensure that all xtbls in the edit list so edits from previous sessions are handled
     for (auto& edit : Edits)
     {
         if (edit.EditType != "Xtbl")
             continue;
-        
+
         string xtblName = Path::GetFileName(edit.EditedFilePath);
         string vppName(String::SplitString(edit.EditedFilePath, "\\")[0]);
         xtblManager->ParseXtbl(vppName, xtblName);
@@ -485,6 +488,9 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
     //Write new entries to modinfo.xml
     for (auto& xtbl : editedXtbls)
     {
+        if (xtbl->VppName == "table.vpp_pc")
+            continue;
+
         u32 numNewEntries = 0;
         for (auto& node : xtbl->Entries)
             if (node->NewEntry)
@@ -525,6 +531,43 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
                 return false;
             }
         }
+    }
+
+    //Temporary workaround to support MP mods. Just repacks table.vpp_pc fully so players can install the mod manually.
+    //Done this way since table.vpp_pc is required to use MP.
+    //Changes to other files are still generated the normal way as a modinfo so you could apply the other changes via the MM and then paste table.vpp_pc
+    //(July 25th, 2021) In the near future I want to finish a new mod manager that has MP support built in. That should remove the need for this hack.
+    Packfile3* table = vfs->GetPackfile("table.vpp_pc");
+    const u32 numTableEdits = std::ranges::count_if(editedXtbls, [](Handle<XtblFile> xtbl) { return xtbl->VppName == "table.vpp_pc"; });
+    Log->info("{} files changed in table.vpp_pc", numTableEdits);
+    if (UseTableWorkaround && table && numTableEdits > 0)
+    {
+        string tableFileCacheFolder = ".\\Cache\\table.vpp_pc\\";
+        string tableFileTempFolder = outputPath + "tableRepackTemp\\";
+        string tableFileOutPath = outputPath + "table.vpp_pc";
+        Path::CreatePath(tableFileCacheFolder);
+        Path::CreatePath(tableFileTempFolder);
+
+        //Copy xtbls from global cache to temp folder. Assuming table.vpp_pc is already full extracted. Should be if anything was edited because it's a C&C packfile
+        for (auto& entry : std::filesystem::directory_iterator(tableFileCacheFolder))
+            if (!entry.is_directory())
+                std::filesystem::copy_file(entry.path().string(), tableFileTempFolder + Path::GetFileName(entry.path().string()));
+
+        //Save edited xtbl data to temp folder
+        for (auto& xtbl : editedXtbls)
+        {
+            if (xtbl->VppName != "table.vpp_pc")
+                continue;
+
+            string xtblOutPath = tableFileTempFolder + xtbl->Name;
+            xtbl->WriteXtbl(xtblOutPath, false);
+        }
+
+        //Repack temp folder and output new vpp_pc into mod output folder
+        Packfile3::Pack(tableFileTempFolder, tableFileOutPath, true, true);
+
+        //Cleanup temp folder
+        std::filesystem::remove_all(tableFileTempFolder);
     }
 
     return true;

@@ -4,8 +4,10 @@
 #include "render/imgui/imgui_ext.h"
 #include "application/project/Project.h"
 #include "application/Config.h"
-#include "imgui.h"
+#include "gui/GuiState.h"
 #include <filesystem>
+#include "imgui.h"
+#include "Log.h"
 
 //Set string to defaultValue string if it's empty or only whitespace
 void EnsureNotWhitespaceOrEmpty(string& target, string defaultValue)
@@ -28,6 +30,8 @@ bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
         //Project name/path/etc input
         ImGui::PushItemWidth(230.0f);
         ImGui::InputText("Name:", &projectName);
+        ImGui::InputText("Author: ", &projectAuthor);
+        ImGui::InputTextMultiline("Description", &projectDescription);
         ImGui::InputText("Path: ", &projectPath);
         ImGui::SameLine();
         if (ImGui::Button("..."))
@@ -36,8 +40,6 @@ bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
             if (output)
                 projectPath = output.value();
         }
-        ImGui::InputText("Description", &projectDescription);
-        ImGui::InputText("Author: ", &projectAuthor);
         ImGui::Checkbox("Create project folder", &createProjectFolder);
 
         if (pathNotSetError)
@@ -95,4 +97,110 @@ bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
     }
 
     return false;
+}
+
+void DrawModPackagingPopup(bool* open, GuiState* state)
+{
+    Project* project = state->CurrentProject;
+    if (*open)
+        ImGui::OpenPopup("Package mod");
+    if (ImGui::BeginPopupModal("Package mod"))
+    {
+        if (!state->PackfileVFS->Ready())
+        {
+            ImGui::Text(ICON_FA_EXCLAMATION_CIRCLE " Loading packfiles...");
+            ImGui::EndPopup();
+            return;
+        }
+
+        if (!project->WorkerRunning && !project->WorkerFinished) //Packaging config
+        {
+            state->FontManager->FontL.Push();
+            ImGui::Text(ICON_FA_INFO_CIRCLE " Mod info");
+            state->FontManager->FontL.Pop();
+            ImGui::Separator();
+
+            ImGui::InputText("Name", &project->Name);
+            ImGui::InputText("Author", &project->Author);
+            ImGui::InputTextMultiline("Description", &project->Description);
+            if (ImGui::Button("Save"))
+            {
+                project->Save();
+            }
+
+            ImGui::Separator();
+            state->FontManager->FontL.Push();
+            ImGui::Text(ICON_FA_COGS " Options");
+            state->FontManager->FontL.Pop();
+            ImGui::Separator();
+
+            ImGui::Checkbox("Use MP mod workaround", &project->UseTableWorkaround);
+            ImGui::SameLine();
+            gui::HelpMarker("This is a temporary way of creating MP mods until there's mod manager support for them. "
+                            "If your data folder has table.vpp_pc and you edited any xtbls in there Nanoforge will repack table.vpp_pc with your changes. "
+                            "This is necessary since the mod manager overrides table.vpp_pc so edits to xtbls in misc.vpp_pc work. "
+                            "Do not check this unless you're trying to mod your MP matches by changing xtbls in table.vpp_pc.",
+                            state->FontManager->FontMedium.GetFont());
+
+            if (ImGui::Button("Start packaging"))
+            {
+                state->SetStatus("Packing mod...", GuiStatus::Working);
+                project->PackageMod(project->Path + "\\output\\", state->PackfileVFS, state->Xtbls);
+                state->ClearStatus();
+            }
+            ImGui::SameLine();
+        }
+        else //Packaging status
+        {
+            ImGui::Text(project->WorkerState);
+            ImGui::ProgressBar(project->WorkerPercentage);
+        }
+
+        if (!project->WorkerRunning && project->WorkerFinished)
+        {
+            if (ImGui::Button("Ok"))
+            {
+                ImGui::CloseCurrentPopup();
+                *open = false;
+            }
+        }
+        else
+        {
+            if (ImGui::Button("Cancel"))
+            {
+                *open = false;
+                project->PackagingCancelled = true;
+                Log->info("Cancelled mod packaging.");
+            }
+        }
+
+        ImGui::EndPopup();
+    }
+
+
+    //if (project->WorkerRunning)
+    //    ImGui::OpenPopup("Packaging mod");
+    //if (ImGui::BeginPopupModal("Packaging mod"))
+    //{
+    //    ImGui::Text(project->WorkerState);
+    //    ImGui::ProgressBar(project->WorkerPercentage);
+
+    //    if (!project->WorkerRunning)
+    //        ImGui::CloseCurrentPopup();
+
+    //    if (ImGui::Button("Cancel"))
+    //    {
+    //        project->PackagingCancelled = true;
+    //        Log->info("Cancelled mod packaging.");
+    //    }
+
+    //    ImGui::EndPopup();
+    //}
+
+    //if (State.PackfileVFS->Ready() && State.CurrentProject)
+    //{
+    //    State.SetStatus("Packing mod...", GuiStatus::Working);
+    //    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS, State.Xtbls);
+    //    State.ClearStatus();
+    //}
 }

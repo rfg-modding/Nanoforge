@@ -34,12 +34,16 @@ public:
     FileCache Cache;
     //If true there are changes which haved been saved yet. Used by the GUI
     bool UnsavedChanges = false;
+    //If true Nanoforge will repack table.vpp_pc with any edited files in it.
+    //Temporary way of generating MP mods that change xtbls. Will be removed once there's mod manager support for MP mods.
+    bool UseTableWorkaround = false;
 
     //Edits made in this project
     std::vector<FileEdit> Edits = {};
 
     //Used by progress bar and worker thread to show packaging status without freezing the whole UI
     bool WorkerRunning = false;
+    bool WorkerFinished = false;
     bool PackagingCancelled = false;
     string WorkerState;
     f32 WorkerPercentage = 0.0f;
@@ -50,5 +54,5 @@ private:
 
     //Mod packaging functions
     bool PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
-    bool PackageXtblEdits(tinyxml2::XMLElement* modBlock, PackfileVFS* vfs, XtblManager* xtblManager);
+    bool PackageXtblEdits(tinyxml2::XMLElement* modBlock, PackfileVFS* vfs, XtblManager* xtblManager, const string& outputPath);
 };

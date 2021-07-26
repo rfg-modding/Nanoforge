@@ -66,6 +66,13 @@ namespace gui
         }
     }
 
+    //Draws (?) with tooltip
+    static void HelpMarker(const string& tooltip, ImFont* font)
+    {
+        ImGui::TextDisabled("(?)");
+        TooltipOnPrevious(tooltip.c_str(), font);
+    }
+
     /* Creates a tooltip with the given description and font on the previous ImGui element
      * created. The font argument is optional. If you leave it blank it'll use the current
      * font on the top of the stack.

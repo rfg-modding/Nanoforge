@@ -110,7 +110,6 @@ void Application::InitStage2()
 
     //Setup main gui
     gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_);
-    gui_.HandleResize(windowWidth_, windowHeight_);
 
     //Start worker thread to load packfile metadata in the background
     workerFuture_ = std::async(std::launch::async, &WorkerThread, &gui_.State);
@@ -190,7 +189,6 @@ void Application::HandleResize()
     windowWidth_ = renderer_.WindowWidth();
     windowHeight_ = renderer_.WindowHeight();
     welcomeGui_.HandleResize(windowWidth_, windowHeight_);
-    gui_.HandleResize(windowWidth_, windowHeight_);
 }
 
 void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

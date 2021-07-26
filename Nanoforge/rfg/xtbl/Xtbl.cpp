@@ -340,7 +340,7 @@ void XtblFile::SetNodeCategory(IXtblNode* node, string categoryPath)
     //Ensure path starts with "Entries:" so it's parsed properly. Some xtbls do this and some don't.
     if (!String::StartsWith(categoryPath, "Entries"))
         categoryPath.insert(0, "Entries:");
-    //Strip extraneous colon. Colon should always be followed by more subcategories. Otherwise would break other code that parses categories. 
+    //Strip extraneous colon. Colon should always be followed by more subcategories. Otherwise would break other code that parses categories.
     if (categoryPath.back() == ':')
         categoryPath = { categoryPath.data(), categoryPath.size() - 1 };
 
@@ -368,7 +368,7 @@ Handle<XtblCategory> XtblFile::GetOrCreateCategory(s_view categoryPath, Handle<X
     //Search root category if none is provided
     Handle<XtblCategory> parentCategory = parent == nullptr ? RootCategory : parent;
     auto& categories = parentCategory->SubCategories;
-    
+
     //Split categoryPath by ':' and search for next subcategory
     Handle<XtblCategory> subcategory = nullptr;
     std::vector<s_view> split = String::SplitString(categoryPath, ":");
@@ -503,7 +503,7 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, IXtblNode* node, 
         EnsureEntryExists(subdesc, subnode, enableOptionalSubnodes);
 }
 
-void XtblFile::WriteXtbl(const string& outPath)
+void XtblFile::WriteXtbl(const string& outPath, bool writeNanoforgeMetadata)
 {
     //Create XmlDocument, root node, and main sections of xtbl
     tinyxml2::XMLDocument document;
@@ -517,7 +517,7 @@ void XtblFile::WriteXtbl(const string& outPath)
     for (auto& entry : Entries)
     {
         auto* entryXml = table->InsertNewChildElement(entry->Name.c_str());
-        entry->WriteXml(entryXml); 
+        entry->WriteXml(entryXml, writeNanoforgeMetadata);
 
         //Write category if entry has one
         string category = GetNodeCategoryPath(entry);

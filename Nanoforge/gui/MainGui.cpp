@@ -92,13 +92,13 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     State.Config->EnsureVariableExists("Recent projects", ConfigType::List);
 
     //Create all gui panels
-    AddPanel("", true, CreateHandle<StatusBar>());
-    AddPanel("View/Properties", true, CreateHandle<PropertyPanel>());
-    AddPanel("View/Log", true, CreateHandle<LogPanel> ());
-    AddPanel("View/Zone objects", true, CreateHandle<ZoneObjectsList>());
-    AddPanel("View/Zone list", true, CreateHandle<ZoneList>());
-    AddPanel("View/File explorer", true, CreateHandle<FileExplorer>());
-    AddPanel("View/Scriptx viewer (WIP)", false, CreateHandle<ScriptxEditor>(&State));
+    AddMenuItem("", true, CreateHandle<StatusBar>());
+    AddMenuItem("View/Properties", true, CreateHandle<PropertyPanel>());
+    AddMenuItem("View/Log", true, CreateHandle<LogPanel> ());
+    AddMenuItem("View/Zone objects", true, CreateHandle<ZoneObjectsList>());
+    AddMenuItem("View/Zone list", true, CreateHandle<ZoneList>());
+    AddMenuItem("View/File explorer", true, CreateHandle<FileExplorer>());
+    AddMenuItem("View/Scriptx viewer (WIP)", false, CreateHandle<ScriptxEditor>(&State));
 
     GenerateMenus();
     gui::SetThemePreset(Dark);
@@ -106,47 +106,16 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
 
 void MainGui::Update(f32 deltaTime)
 {
-    if(showNewProjectWindow_)
-        DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
-
-    //Draw settings window
-    if (showSettingsWindow_)
-        DrawSettingsGui(&showSettingsWindow_, State.Config, State.FontManager);
-
-    DrawSaveProjectWindow();
-
-    //Draw built in / special gui elements
+    //Draw always visible UI elements
     DrawMainMenuBar();
     DrawDockspace();
+#ifdef DEBUG_BUILD
     ImGui::ShowDemoWindow();
-    static bool firstDraw = true;
+#endif
 
-    //Draw the rest of the gui code
+    //Draw panels
     for (auto& panel : panels_)
     {
-        if (firstDraw)
-        {
-            ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
-            ImGuiID dockLeftBottomId = ImGui::DockBuilderSplitNode(dockLeftId, ImGuiDir_Down, 0.5f, nullptr, &dockLeftId);
-            ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.15f, nullptr, &dockspaceId);
-            ImGuiID dockCentralId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
-            ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockCentralId, ImGuiDir_Down, 0.20f, nullptr, &dockCentralId);
-
-            //Todo: Tie titles to these calls so both copies don't need to be updated every time they change
-            ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
-            ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
-            ImGui::DockBuilderDockWindow("Zones", dockLeftId);
-            ImGui::DockBuilderDockWindow("Zone objects", dockLeftBottomId);
-            ImGui::DockBuilderDockWindow("Properties", dockRightId);
-            ImGui::DockBuilderDockWindow("Render settings", dockRightId);
-            ImGui::DockBuilderDockWindow("Scriptx viewer", dockCentralId);
-            ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
-
-            ImGui::DockBuilderFinish(dockspaceId);
-
-            firstDraw = false;
-        }
-
         if (!panel->Open)
             continue;
 
@@ -154,84 +123,46 @@ void MainGui::Update(f32 deltaTime)
         panel->FirstDraw = false;
     }
 
-    //Move newly created documents into main vector. Done to avoid iterator invalidation when documents are created by other documents
+    //Move newly created documents into main vector. Done this way to avoid iterator invalidation when documents are created by other documents
     for (auto& doc : State.NewDocuments)
     {
         State.Documents.push_back(doc);
     }
     State.NewDocuments.clear();
 
-    //Draw documents
-    u32 counter = 0;
+    //Draw documents. Always docked to the center node of the dockspace when opened.
     auto iter = State.Documents.begin();
     while (iter != State.Documents.end())
     {
         Handle<IDocument> document = *iter;
-        //If document is no longer open, erase it
-        if (!document->Open())
-        {
-            iter = State.Documents.erase(iter);
-            continue;
-        }
-
         if (document->FirstDraw)
         {
             ImGui::DockBuilderDockWindow(document->Title.c_str(), ImGui::DockBuilderGetCentralNode(dockspaceId)->ID);
             ImGui::DockBuilderFinish(dockspaceId);
+            document->FirstDraw = false;
         }
 
-        //Draw the document if it's still open
-        document->Update(&State);
-        document->FirstDraw = false;
-        iter++;
-        counter++;
+        if (document->Open())
+        {
+            document->Update(&State);
+            iter++;
+        }
+        else
+        {
+            iter = State.Documents.erase(iter);
+        }
     }
 
     //Draw mod packaging modal
-    if (State.CurrentProject->WorkerRunning)
-        ImGui::OpenPopup("Packaging mod");
-    if (ImGui::BeginPopupModal("Packaging mod"))
-    {
-        ImGui::Text(State.CurrentProject->WorkerState);
-        ImGui::ProgressBar(State.CurrentProject->WorkerPercentage);
-
-        if (!State.CurrentProject->WorkerRunning)
-            ImGui::CloseCurrentPopup();
-
-        if (ImGui::Button("Cancel"))
-        {
-            State.CurrentProject->PackagingCancelled = true;
-            Log->info("Cancelled mod packaging.");
-        }
-
-        //Todo: Add cancel button
-        ImGui::EndPopup();
-    }
-
-    //Draw data folder error message popup. A modal is used to ensure the user sees it instead of accidentally clicking the screen and it disappearing
-    if (showDataPathErrorPopup_)
-        ImGui::OpenPopup("Data folder missing files");
-    if (ImGui::BeginPopupModal("Data folder missing files"))
-    {
-        ImGui::TextWrapped(dataPathValidationErrorMessage_.c_str());
-
-        if (ImGui::Button("Ok"))
-        {
-            showDataPathErrorPopup_ = false;
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
+    if (showModPackagingPopup_)
+        DrawModPackagingPopup(&showModPackagingPopup_, &State);
+    if (showNewProjectWindow_)
+        DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
+    if (showSettingsWindow_)
+        DrawSettingsGui(&showSettingsWindow_, State.Config, State.FontManager);
 }
 
-void MainGui::HandleResize(u32 width, u32 height)
-{
-    windowWidth_ = width;
-    windowHeight_ = height;
-}
-
-void MainGui::AddPanel(string menuPos, bool open, Handle<IGuiPanel> panel)
+void MainGui::AddMenuItem(string menuPos, bool open, Handle<IGuiPanel> panel)
 {
     //Make sure panel with same menu position doesn't already exist
     for (auto& guiPanel : panels_)
@@ -266,7 +197,7 @@ void MainGui::DrawMainMenuBar()
             }
             if (ImGui::MenuItem("Save project"))
             {
-                showSaveProjectWindow_ = true;
+                State.CurrentProject->Save();
             }
             if (ImGui::BeginMenu("Recent projects"))
             {
@@ -288,11 +219,14 @@ void MainGui::DrawMainMenuBar()
 
             if (ImGui::MenuItem("Package mod"))
             {
-                if (State.PackfileVFS->Ready() && State.CurrentProject)
+                if (!State.CurrentProject)
                 {
-                    State.SetStatus("Packing mod...", GuiStatus::Working);
-                    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS, State.Xtbls);
-                    State.ClearStatus();
+                    Log->error("You cannot package a mod unless a project is loaded. You can open a project via File > Open project.");
+                }
+                else
+                {
+                    showModPackagingPopup_ = true;
+                    State.CurrentProject->WorkerFinished = false;
                 }
             }
             ImGui::Separator();
@@ -428,6 +362,31 @@ void MainGui::DrawDockspace()
     }
 
     ImGui::End();
+
+    //Set default docking positions on first draw
+    static bool firstDraw = true;
+    if (firstDraw)
+    {
+        ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
+        ImGuiID dockLeftBottomId = ImGui::DockBuilderSplitNode(dockLeftId, ImGuiDir_Down, 0.5f, nullptr, &dockLeftId);
+        ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.15f, nullptr, &dockspaceId);
+        ImGuiID dockCentralId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
+        ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockCentralId, ImGuiDir_Down, 0.20f, nullptr, &dockCentralId);
+
+        //Todo: Tie titles to these calls so both copies don't need to be updated every time they change
+        ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
+        ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
+        ImGui::DockBuilderDockWindow("Zones", dockLeftId);
+        ImGui::DockBuilderDockWindow("Zone objects", dockLeftBottomId);
+        ImGui::DockBuilderDockWindow("Properties", dockRightId);
+        ImGui::DockBuilderDockWindow("Render settings", dockRightId);
+        ImGui::DockBuilderDockWindow("Scriptx viewer", dockCentralId);
+        ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
+
+        ImGui::DockBuilderFinish(dockspaceId);
+
+        firstDraw = false;
+    }
 }
 
 //Generate tree of menu items used to place gui panels in the main menu bar
@@ -498,12 +457,4 @@ void MainGui::TryOpenProject()
         recentProjects.push_back(newPath);
 
     State.Config->Save();
-}
-
-void MainGui::DrawSaveProjectWindow()
-{
-    if (!showSaveProjectWindow_)
-        return;
-
-    State.CurrentProject->Save();
 }
