@@ -68,6 +68,7 @@ bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
                 EnsureNotWhitespaceOrEmpty(projectDescription, "Not set");
                 EnsureNotWhitespaceOrEmpty(projectAuthor, "Not set");
 
+                *project = {};
                 project->Name = projectName;
                 project->Path = endPath;
                 project->Description = projectDescription;
