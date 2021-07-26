@@ -36,7 +36,7 @@ bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
         ImGui::SameLine();
         if (ImGui::Button("..."))
         {
-            auto output = OpenFolder("Pick a folder for your project");
+            auto output = OpenFolder();
             if (output)
                 projectPath = output.value();
         }

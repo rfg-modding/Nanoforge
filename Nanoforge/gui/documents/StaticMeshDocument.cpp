@@ -275,7 +275,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         ImGui::SameLine();
         if (ImGui::Button("..."))
         {
-            auto result = OpenFolder("Select the output folder");
+            auto result = OpenFolder();
             if (!result)
                 return;
 

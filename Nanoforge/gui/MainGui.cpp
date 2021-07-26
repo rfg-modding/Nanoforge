@@ -443,7 +443,7 @@ MenuItem* MainGui::GetMenu(const string& text)
 
 void MainGui::TryOpenProject()
 {
-    auto result = OpenFile("Nanoforge project (*.nanoproj)\0*.nanoproj\0", "Open a nanoforge project file");
+    auto result = OpenFile("nanoproj");
     if (!result)
         return;
 

@@ -16,7 +16,7 @@ void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
         ImGui::End();
         return;
     }
-    
+
     fonts->FontL.Push();
     ImGui::Text(ICON_FA_COG " Settings");
     fonts->FontL.Pop();
@@ -95,7 +95,7 @@ void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
                 ImGui::SameLine();
                 if (ImGui::Button("Browse..."))
                 {
-                    std::optional<string> output = OpenFile("", fmt::format("Select a new value for {}", var->Name).c_str());
+                    std::optional<string> output = OpenFile();
                     if (output)
                     {
                         var->Value = output.value();
@@ -110,7 +110,7 @@ void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
                 ImGui::SameLine();
                 if (ImGui::Button("Browse..."))
                 {
-                    std::optional<string> output = OpenFolder(fmt::format("Select a new value for {}", var->Name).c_str());
+                    std::optional<string> output = OpenFolder();
                     if (output)
                     {
                         var->Value = output.value();

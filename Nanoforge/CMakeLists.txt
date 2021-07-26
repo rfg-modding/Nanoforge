@@ -6,7 +6,7 @@ project (Nanoforge VERSION 1.0.0
 
 # Get list of source files in project src folders recursively
 # Places in SOURCES variable
-file(GLOB_RECURSE SOURCES 
+file(GLOB_RECURSE SOURCES
     "${CMAKE_SOURCE_DIR}/Nanoforge/*.cpp"
     "${CMAKE_SOURCE_DIR}/Nanoforge/*.h"
     # TODO: Hook this up as a static lib once it's got a CMakeLists.txt. For now this works
@@ -29,6 +29,9 @@ add_executable (Nanoforge ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/tinyxml2/tinyxml2.cpp
     # imnodes files
     ${CMAKE_SOURCE_DIR}/dependencies/imnodes/imnodes.cpp
+    #nativefiledialog files
+    ${CMAKE_SOURCE_DIR}/dependencies/nativefiledialog/src/nfd_common.c
+    ${CMAKE_SOURCE_DIR}/dependencies/nativefiledialog/src/nfd_win.cpp
     )
 
 # Add include directories
@@ -48,10 +51,12 @@ target_include_directories(Nanoforge SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/tinyxml2/
     ${CMAKE_SOURCE_DIR}/Dependencies/spdlog/include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imnodes/
+    ${CMAKE_SOURCE_DIR}/Dependencies/nativefiledialog/src/
+    ${CMAKE_SOURCE_DIR}/Dependencies/nativefiledialog/src/include/
 )
 
 # Copy assets directory to binary dir after builds
-add_custom_command(TARGET Nanoforge POST_BUILD 
+add_custom_command(TARGET Nanoforge POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                    ${CMAKE_SOURCE_DIR}/assets/
                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets/)

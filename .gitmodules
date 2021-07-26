@@ -21,3 +21,6 @@
 [submodule "lib"]
 	path = lib
 	url = https://github.com/Moneyl/RF-Viewer-Lib.git
+[submodule "Dependencies/nativefiledialog"]
+	path = Dependencies/nativefiledialog
+	url = https://github.com/mlabbe/nativefiledialog.git

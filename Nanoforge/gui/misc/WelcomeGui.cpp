@@ -92,7 +92,7 @@ void WelcomeGui::DrawDataPathSelector()
     ImGui::SameLine();
     if (ImGui::SmallButton("Browse..."))
     {
-        auto output = OpenFolder("Select your RFGR data folder");
+        auto output = OpenFolder();
         if (output)
         {
             //Validate new path

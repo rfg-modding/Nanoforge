@@ -272,7 +272,7 @@ void TextureDocument::Update(GuiState* state)
 void TextureDocument::PickPegExportFolder(GuiState* state)
 {
     //Open folder browser and return result
-    auto result = OpenFolder("Select a folder to export textures into");
+    auto result = OpenFolder();
     if (!result)
         return;
 
@@ -287,7 +287,7 @@ void TextureDocument::PickPegExportFolder(GuiState* state)
 void TextureDocument::PickPegImportTexture(GuiState* state)
 {
     //Open file browser and return result
-    auto result = OpenFile("Supported image format (*.dds)\0*.dds\0", "Select a texture to import");
+    auto result = OpenFile("dds");
     if (!result)
         return;
 
