@@ -57,7 +57,4 @@ private:
     const f32 targetFramerateDelta = 1.0f / static_cast<f32>(targetFramerate);
 
     std::vector<spdlog::sink_ptr> logSinks_ = {};
-
-    //Future for worker thread. Need to store it for std::async to actually run it asynchronously
-    std::future<void> workerFuture_;
 };

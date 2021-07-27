@@ -31,6 +31,7 @@ void FileExplorer::Update(GuiState* state, bool* open)
     //Don't update or draw file tree until the worker thread has finished reading packfile metadata
     if (!state->PackfileVFS->Ready())
     {
+        FileTreeNeedsRegen = true;
         ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Loading packfiles...");
         ImGui::End();
         return;

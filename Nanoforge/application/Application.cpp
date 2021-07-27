@@ -4,7 +4,6 @@
 #include "gui/MainGui.h"
 #include "rfg/PackfileVFS.h"
 #include "render/camera/Camera.h"
-#include "WorkerThread.h"
 #include "Log.h"
 #include "gui/util/WinUtil.h"
 #include "common/string/String.h"
@@ -66,9 +65,6 @@ void Application::Init()
     gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_);
 
     MaximizeWindow();
-
-    //Start worker thread to load packfile metadata in the background
-    workerFuture_ = std::async(std::launch::async, &WorkerThread, &gui_.State);
 
     //Init frame timing variables
     deltaTime_ = targetFramerateDelta;

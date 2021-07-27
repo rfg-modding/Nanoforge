@@ -10,6 +10,8 @@
 #include "gui/util/HelperGuis.h"
 #include "gui/misc/Changelog.h"
 #include "gui/misc/SettingsGui.h"
+#include "WorkerThread.h"
+#include <future>
 #include <imgui_markdown.h>
 #include "Log.h"
 #include <spdlog/fmt/fmt.h>
@@ -33,6 +35,9 @@ void StartPanel::Update(GuiState* state, bool* open)
         return;
     }
 
+    DrawDataPathSelector(state);
+    ImGui::Separator();
+
     if (ImGui::SmallButton("New project"))
         showNewProjectWindow_ = true;
     if (showNewProjectWindow_)
@@ -43,23 +48,22 @@ void StartPanel::Update(GuiState* state, bool* open)
         TryOpenProject(state->CurrentProject, state->Config);
 
     ImGui::Separator();
-
     ImGui::Columns(2);
     u32 columnStartY = ImGui::GetCursorPosY();
 
     //Column 0: Recent projects list + new/open project buttons
-    state->FontManager->FontMedium.Push();
+    state->FontManager->FontL.Push();
     ImGui::Text("Recent projects");
-    state->FontManager->FontMedium.Pop();
+    state->FontManager->FontL.Pop();
 
     DrawRecentProjectsList(state);
 
     //Column 1: Changelog
     ImGui::NextColumn();
     ImGui::SetCursorPosY(columnStartY);
-    state->FontManager->FontMedium.Push();
+    state->FontManager->FontL.Push();
     ImGui::Text("Changelog");
-    state->FontManager->FontMedium.Pop();
+    state->FontManager->FontL.Pop();
 
     DrawChangelog(state);
 
@@ -68,6 +72,28 @@ void StartPanel::Update(GuiState* state, bool* open)
 
 void StartPanel::DrawDataPathSelector(GuiState* state)
 {
+    //Check if data path is valid
+    auto checkDataPath = [&]()
+    {
+        auto dataPathVar = state->Config->GetVariable("Data path");
+        string dataPath = dataPathVar ? std::get<string>(dataPathVar->Value) : "";
+        dataPathValid_ = RfgUtil::ValidateDataPath(dataPath, missingVppName_, false);
+    };
+
+    //Startup behavior
+    static bool FirstRun = true;
+    if (FirstRun)
+    {
+        //If data path is invalid on startup attempt to auto detect RFG
+        checkDataPath();
+        if (!state->Config->Exists("Data path") || !dataPathValid_)
+            dataPathValid_ = RfgUtil::AutoDetectDataPath(state->Config);
+
+        //Start data folder parse thread
+        workerFuture_ = std::async(std::launch::async, &DataFolderParseThread, state);
+        FirstRun = false;
+    }
+
     //Warning message shown when data path is invalid
     if (!dataPathValid_)
     {
@@ -93,19 +119,23 @@ void StartPanel::DrawDataPathSelector(GuiState* state)
         if (output)
         {
             //Validate new path
-            bool result = RfgUtil::ValidateDataPath(output.value(), missingVppName_);
-            dataPathValid_ = result;
+            dataPathValid_ = RfgUtil::ValidateDataPath(output.value(), missingVppName_);
 
             //Set data path regardless of validity for now
             auto dataPathVar = state->Config->GetVariable("Data path");
             dataPathVar->Value = output.value();
             state->Config->Save();
+
+            needDataPathParse_ = true;
         }
     }
 
-    //Draw button that opens the main settings gui with the rest of the settings
-    ImGui::SameLine();
-    if (ImGui::SmallButton("More settings")) { showSettingsWindow_ = true; }
+    //Start data folder parse thread when possible
+    if (needDataPathParse_ && !WorkerRunning)
+    {
+        workerFuture_ = std::async(std::launch::async, &DataFolderParseThread, state);
+        needDataPathParse_ = false;
+    }
 }
 
 void StartPanel::DrawRecentProjectsList(GuiState* state)

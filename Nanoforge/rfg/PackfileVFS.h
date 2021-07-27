@@ -25,7 +25,7 @@ public:
     //Scans metadata of all vpps in the data folder and loads the global file cache
     void ScanPackfilesAndLoadCache();
     //Todo: Add support for C&C vpp_pc files. Supports C&C str2_pc files since they're small enough that full extract is reasonable
-    //Gets files based on the provided search pattern. Searches str2_pc files if recursive is true. 
+    //Gets files based on the provided search pattern. Searches str2_pc files if recursive is true.
     //NOTE: Does not support vpp_pc files which are compressed + condensed (does support str2_pc files with those flags)
     std::vector<FileHandle> GetFiles(const std::vector<string>& searchFilters, bool recursive, bool oneResultPerFilter = false);
     std::vector<FileHandle> GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool oneResultPerFilter = false);
@@ -56,7 +56,6 @@ public:
 private:
     //Check if target string is a search match based on the search filter and type
     bool CheckSearchMatch(s_view target, s_view filter, SearchType searchType = SearchType::Direct);
-    
 
     //Global file cache
     FileCache globalFileCache_;

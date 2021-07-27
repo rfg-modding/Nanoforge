@@ -1,6 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "gui/IGuiPanel.h"
+#include <future>
 
 class StartPanel : public IGuiPanel
 {
@@ -17,5 +18,7 @@ private:
     bool showSettingsWindow_ = false;
     bool showNewProjectWindow_ = false;
     bool dataPathValid_ = false;
+    bool needDataPathParse_ = false;
     string missingVppName_; //Used in data folder path validation
+    std::future<void> workerFuture_;
 };

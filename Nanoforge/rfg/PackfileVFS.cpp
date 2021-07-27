@@ -16,11 +16,14 @@ void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
     //Data folder of a copy of RFGR
     packfileFolderPath_ = packfileFolderPath;
     project_ = project;
+    ready_ = false;
 }
 
 void PackfileVFS::ScanPackfilesAndLoadCache()
 {
     TRACE();
+    packfiles_.clear();
+
     //Load global cache
     globalFileCache_.Load(globalCachePath_);
 
