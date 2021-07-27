@@ -115,12 +115,14 @@ void StartPanel::DrawRecentProjectsList(GuiState* state)
     //Draw list of recent projects
     auto configVar = state->Config->GetVariable("Recent projects");
     ImVec2 windowSize = ImGui::GetWindowSize();
-    if (configVar && ImGui::BeginChild("##RecentProjectsList", { windowSize.x * 0.95f, windowSize.y * 0.6f }, true))
+    if (configVar && ImGui::BeginChild("##RecentProjectsList"))
     {
         auto& recentProjects = std::get<std::vector<string>>(configVar->Value);
         for (auto& path : recentProjects)
         {
-            if (ImGui::Selectable(fmt::format("{} - \"{}\"", Path::GetFileName(path), path).c_str(), false))
+            //Draw selectable with no text. Text is manually positioned below this because there doesn't seem to be an easier way to do multi-line selectables
+            ImVec2 startPos = ImGui::GetCursorPos();
+            if (ImGui::Selectable(fmt::format("##Selectable{}", Path::GetFileName(path)).c_str(), false, 0, {windowSize.x, ImGui::GetFontSize() * 2.4f}))
             {
                 if (state->CurrentProject->Load(path))
                 {
@@ -128,6 +130,30 @@ void StartPanel::DrawRecentProjectsList(GuiState* state)
                     return;
                 }
             }
+            ImVec2 endPos = ImGui::GetCursorPos();
+
+            f32 iconIndent = 8.0f;
+            ImGui::Indent(iconIndent);
+            ImGui::SetCursorPosY(startPos.y + ImGui::GetFontSize() * 0.5f);
+            state->FontManager->FontL.Push();
+            ImGui::Text(ICON_FA_FILE_INVOICE);
+            state->FontManager->FontL.Pop();
+            ImGui::Unindent(iconIndent);
+
+            //Draw project name
+            f32 textIndent = 34.0f + iconIndent;
+            ImGui::Indent(textIndent);
+            ImGui::SetCursorPosY(startPos.y);
+            state->FontManager->FontMedium.Push();
+            ImGui::Text(Path::GetFileName(path));
+            state->FontManager->FontMedium.Pop();
+
+            //Draw project path
+            ImGui::SetCursorPosY(startPos.y + ImGui::GetFontSize() * 1.45f);
+            ImGui::TextColored(gui::SecondaryTextColor, path.c_str());
+            ImGui::SetCursorPosY(endPos.y);
+
+            ImGui::Unindent(textIndent);
         }
 
         ImGui::EndChild();
