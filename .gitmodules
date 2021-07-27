@@ -24,3 +24,6 @@
 [submodule "Dependencies/nativefiledialog"]
 	path = Dependencies/nativefiledialog
 	url = https://github.com/mlabbe/nativefiledialog.git
+[submodule "Dependencies/imgui_markdown"]
+	path = Dependencies/imgui_markdown
+	url = https://github.com/juliettef/imgui_markdown.git

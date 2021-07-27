@@ -103,6 +103,7 @@ bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
 void DrawModPackagingPopup(bool* open, GuiState* state)
 {
     Project* project = state->CurrentProject;
+
     if (*open)
         ImGui::OpenPopup("Package mod");
     if (ImGui::BeginPopupModal("Package mod"))
@@ -177,31 +178,27 @@ void DrawModPackagingPopup(bool* open, GuiState* state)
 
         ImGui::EndPopup();
     }
+}
 
+void TryOpenProject(Project* project, Config* config)
+{
+    auto result = OpenFile("nanoproj");
+    if (!result)
+        return;
 
-    //if (project->WorkerRunning)
-    //    ImGui::OpenPopup("Packaging mod");
-    //if (ImGui::BeginPopupModal("Packaging mod"))
-    //{
-    //    ImGui::Text(project->WorkerState);
-    //    ImGui::ProgressBar(project->WorkerPercentage);
+    //Get recent projects config var
+    auto recentProjectsVar = config->GetVariable("Recent projects");
+    auto& recentProjects = std::get<std::vector<string>>(recentProjectsVar->Value);
+    string newPath = result.value();
 
-    //    if (!project->WorkerRunning)
-    //        ImGui::CloseCurrentPopup();
+    //Add project to recent projects list if unique
+    bool foundPath = false;
+    for (auto& path : recentProjects)
+        if (path == newPath)
+            foundPath = true;
+    if (!foundPath)
+        recentProjects.push_back(newPath);
 
-    //    if (ImGui::Button("Cancel"))
-    //    {
-    //        project->PackagingCancelled = true;
-    //        Log->info("Cancelled mod packaging.");
-    //    }
-
-    //    ImGui::EndPopup();
-    //}
-
-    //if (State.PackfileVFS->Ready() && State.CurrentProject)
-    //{
-    //    State.SetStatus("Packing mod...", GuiStatus::Working);
-    //    State.CurrentProject->PackageMod(State.CurrentProject->Path + "\\output\\", State.PackfileVFS, State.Xtbls);
-    //    State.ClearStatus();
-    //}
+    config->Save();
+    project->Load(newPath);
 }

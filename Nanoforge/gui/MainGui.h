@@ -31,8 +31,6 @@ private:
     void GenerateMenus();
     MenuItem* GetMenu(const string& text);
 
-    void TryOpenProject();
-
     std::vector<Handle<IGuiPanel>> panels_ = {};
     std::vector<MenuItem> menuItems_ = {}; //Main menu bar items
 

@@ -53,6 +53,7 @@ target_include_directories(Nanoforge SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/imnodes/
     ${CMAKE_SOURCE_DIR}/Dependencies/nativefiledialog/src/
     ${CMAKE_SOURCE_DIR}/Dependencies/nativefiledialog/src/include/
+    ${CMAKE_SOURCE_DIR}/Dependencies/imgui_markdown/
 )
 
 # Copy assets directory to binary dir after builds

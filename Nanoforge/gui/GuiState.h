@@ -42,7 +42,7 @@ public:
     //Most recently selected territory. If you have multiple territories open this is the most recently selected window
     Territory* CurrentTerritory = nullptr;
     bool CurrentTerritoryUpdateDebugDraw = true;
-    
+
     //Todo: This would be better handled via an event system
     //Used to trigger camera position changes in the focused territory
     bool CurrentTerritoryCamPosNeedsUpdate = false;
@@ -65,7 +65,7 @@ public:
 
     //Documents that are currently open
     std::vector<Handle<IDocument>> Documents = {};
-    //Documents that were created this frame. 
+    //Documents that were created this frame.
     //Moved to main vector next frame so creating a document during gui update doesn't invalidate the iterator at MainGui::Update()
     std::vector<Handle<IDocument>> NewDocuments = {};
 
@@ -100,7 +100,7 @@ public:
             terr = "zonescript_dlc01";
 
         terr += ".vpp_pc";
-        
+
         CurrentTerritoryName = terr;
         CurrentTerritoryShortname = newTerritory;
     }

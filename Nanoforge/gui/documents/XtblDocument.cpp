@@ -5,6 +5,7 @@
 #include "render/imgui/imgui_ext.h"
 #include "gui/GuiState.h"
 #include "rfg/xtbl/XtblNodes.h"
+#include "gui/util/WinUtil.h"
 #include "rfg/xtbl/XtblManager.h"
 #include "rfg/xtbl/Xtbl.h"
 
@@ -64,7 +65,7 @@ void XtblDocument::Update(GuiState* state)
     ImGui::InputText("Search", searchTerm_);
     if (ImGui::Button(ICON_FA_PLUS)) //Add entry
         AddEntry();
-    
+
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_FOLDER_PLUS)) //Add category
         AddCategory();
@@ -75,7 +76,7 @@ void XtblDocument::Update(GuiState* state)
     if (ImGui::BeginChild("##EntryList"))
     {
         ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 1.40f); //Increase spacing to differentiate leaves from expanded contents.
-        
+
         //Note: Iterated by index so items can be added while iterating
         //Draw categorized nodes
         for (u32 i = 0; i < xtbl_->RootCategory->SubCategories.size(); i++)
@@ -106,7 +107,15 @@ void XtblDocument::Update(GuiState* state)
             ImGui::SameLine();
             if (ImGui::Button("Save"))
             {
-                Save();
+                if (state->CurrentProject->Loaded())
+                {
+                    Save();
+                }
+                else
+                {
+                    Log->error("You need to have a project open to edit files. You can open a project via File > Open project.");
+                    ShowMessageBox("You need to have a project open to edit files. You can open an existing project or create a new one with `File > Open project` and `File > New project`", "Can't package mod", MB_OK);
+                }
             }
             gui::TooltipOnPrevious("Xtbl documents are automatically saved when you close them or package your mod. Press this to manually save them. An upcoming release will have a better save system along with warnings when you have unsaved data.", state->FontManager->FontDefault.GetFont());
         }
@@ -163,7 +172,7 @@ void XtblDocument::DrawXtblCategory(Handle<XtblCategory> category, bool openByDe
         //Make full node width clickable
         ImGuiTreeNodeFlags_SpanAvailWidth
         //If the node has no children make it a leaf node (a node which can't be expanded)
-        | (category->SubCategories.size() + category->Nodes.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None 
+        | (category->SubCategories.size() + category->Nodes.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None
         | (openByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0)));
 
     //Draw right click context menu
@@ -217,7 +226,7 @@ void XtblDocument::DrawXtblNodeEntry(IXtblNode* node)
         name = nameValue.value();
 
     //Draw node
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf 
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf
                                | (SelectedNode == node ? ImGuiTreeNodeFlags_Selected : 0);
     bool nodeDrawn = ImGui::TreeNodeEx(fmt::format("{} {}##{}", ICON_FA_CODE, name, (u64)node).c_str(), flags);
 
@@ -254,7 +263,12 @@ void XtblDocument::DrawXtblNodeEntry(IXtblNode* node)
 
 void XtblDocument::Save()
 {
-    //Don't save if xtbl_ is null or no subnodes have been edited
+    //Don't save if xtbl_ is null or no subnodes have been edited or no project is open
+    if (!state_->CurrentProject->Loaded())
+    {
+        Log->error("Failed to save {}. No project is open. Open a project or create a new one to be able to edit xtbls.", filename_);
+        return;
+    }
     if (!xtbl_ || !xtbl_->PropagateEdits())
         return;
 
@@ -275,7 +289,7 @@ void XtblDocument::AddEntry()
     //If a node is already selected put the new node in the selected nodes category
     string category = SelectedNode ? xtbl_->GetNodeCategoryPath(SelectedNode) : "";
     Handle<XtblDescription> desc = xtbl_->TableDescription;
-    
+
     //Create the new node and set it's name
     IXtblNode* newEntry = CreateDefaultNode(desc, true);
     auto nameNode = newEntry->GetSubnode("Name");
@@ -328,7 +342,7 @@ void XtblDocument::DrawRenameCategoryWindow()
 {
     if (renameCategoryWindowOpen_)
         ImGui::OpenPopup(renameCategoryPopupId_);
-    
+
     ImGui::SetNextWindowSize({ 600.0f, 200.0f }, ImGuiCond_FirstUseEver);
     if (ImGui::BeginPopupModal(renameCategoryPopupId_))
     {
@@ -343,7 +357,7 @@ void XtblDocument::DrawRenameCategoryWindow()
 
         //Update name if edited
         ImGui::InputText("Name", renameCategoryName_);
-        
+
         //Draw save and cancel buttons
         if (ImGui::Button("Save"))
         {

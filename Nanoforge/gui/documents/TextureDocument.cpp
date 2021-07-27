@@ -83,39 +83,47 @@ void TextureDocument::Update(GuiState* state)
     //Todo: Add confirmation when closing an edited file before saving it
     if (ImGui::Button("Save"))
     {
-        //Read all texture data from unedited gpu file
-        BinaryReader gpuFileOriginal(GpuFilePath);
-        Peg.ReadAllTextureData(gpuFileOriginal, false); //Read all texture data and don't overwrite edited files
+        if (state->CurrentProject->Loaded())
+        {
+            //Read all texture data from unedited gpu file
+            BinaryReader gpuFileOriginal(GpuFilePath);
+            Peg.ReadAllTextureData(gpuFileOriginal, false); //Read all texture data and don't overwrite edited files
 
-        //Base output path relative to project root
-        string pathBaseRelative = VppName + "\\";
-        if (InContainer)
-            pathBaseRelative += ParentName + "\\";
+            //Base output path relative to project root
+            string pathBaseRelative = VppName + "\\";
+            if (InContainer)
+                pathBaseRelative += ParentName + "\\";
 
-        //Absolute base output path
-        string pathBaseAbsolute = state->CurrentProject->GetCachePath() + pathBaseRelative;
+            //Absolute base output path
+            string pathBaseAbsolute = state->CurrentProject->GetCachePath() + pathBaseRelative;
 
-        //Create base path folders
-        std::filesystem::create_directories(pathBaseAbsolute);
+            //Create base path folders
+            std::filesystem::create_directories(pathBaseAbsolute);
 
-        //Full output path for cpu & gpu files
-        string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(Filename);
-        string cpuFilePathOut = pathBaseAbsolute + Filename;
-        string gpuFilePathOut = pathBaseAbsolute + gpuFilename;
+            //Full output path for cpu & gpu files
+            string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(Filename);
+            string cpuFilePathOut = pathBaseAbsolute + Filename;
+            string gpuFilePathOut = pathBaseAbsolute + gpuFilename;
 
-        //Create binary writers and output edited peg file
-        BinaryWriter cpuFileOut(cpuFilePathOut);
-        BinaryWriter gpuFileOut(gpuFilePathOut);
-        Peg.Write(cpuFileOut, gpuFileOut);
+            //Create binary writers and output edited peg file
+            BinaryWriter cpuFileOut(cpuFilePathOut);
+            BinaryWriter gpuFileOut(gpuFilePathOut);
+            Peg.Write(cpuFileOut, gpuFileOut);
 
-        //Rescan project cache to see the files we just saved
-        state->CurrentProject->RescanCache();
+            //Rescan project cache to see the files we just saved
+            state->CurrentProject->RescanCache();
 
-        //Add edit to project and resave the project file
-        state->CurrentProject->AddEdit(FileEdit{ "TextureEdit", pathBaseRelative + Filename });
-        state->CurrentProject->Save();
+            //Add edit to project and resave the project file
+            state->CurrentProject->AddEdit(FileEdit{ "TextureEdit", pathBaseRelative + Filename });
+            state->CurrentProject->Save();
 
-        Log->info("Saved \"{}\"", Filename);
+            Log->info("Saved \"{}\"", Filename);
+        }
+        else
+        {
+            Log->error("You need to have a project open to edit files. You can open a project via File > Open project.");
+            ShowMessageBox("You need to have a project open to edit files. You can open an existing project or create a new one with `File > Open project` and `File > New project`", "Can't package mod", MB_OK);
+        }
     }
     ImGui::ColorEdit4("Background color", (float*)&ImageBackground, ImGuiColorEditFlags_NoInputs);
     ImGui::Separator();
@@ -165,10 +173,19 @@ void TextureDocument::Update(GuiState* state)
                 }
                 else if (ImGui::Button("Replace..."))
                 {
-                    Log->info("Replacing {} in {}", entry.Name, Filename);
-                    ImportIndex = i;
-                    PickPegImportTexture(state);
-                    ImGui::CloseCurrentPopup();
+                    if (state->CurrentProject->Loaded())
+                    {
+                        Log->info("Replacing {} in {}", entry.Name, Filename);
+                        ImportIndex = i;
+                        PickPegImportTexture(state);
+                        ImGui::CloseCurrentPopup();
+                    }
+                    else
+                    {
+                        Log->error("You need to have a project open to edit files. You can open a project via File > Open project.");
+                        ShowMessageBox("You need to have a project open to edit files. You can open an existing project or create a new one with `File > Open project` and `File > New project`", "Can't package mod", MB_OK);
+                        ImGui::CloseCurrentPopup();
+                    }
                 }
                 ImGui::EndPopup();
             }

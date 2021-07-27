@@ -6,6 +6,7 @@
 #include "gui/panels/file_explorer/FileExplorer.h"
 #include "gui/panels/scriptx_editor/ScriptxEditor.h"
 #include "gui/panels/StatusBar.h"
+#include "gui/panels/StartPanel.h"
 #include "gui/panels/ZoneList.h"
 #include "gui/panels/ZoneObjectsList.h"
 #include "gui/panels/property_panel/PropertyPanel.h"
@@ -93,6 +94,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
 
     //Create all gui panels
     AddMenuItem("", true, CreateHandle<StatusBar>());
+    AddMenuItem("View/Start page", true, CreateHandle<StartPanel>());
     AddMenuItem("View/Properties", true, CreateHandle<PropertyPanel>());
     AddMenuItem("View/Log", true, CreateHandle<LogPanel> ());
     AddMenuItem("View/Zone objects", true, CreateHandle<ZoneObjectsList>());
@@ -193,11 +195,15 @@ void MainGui::DrawMainMenuBar()
             }
             if (ImGui::MenuItem("Open project..."))
             {
-                TryOpenProject();
+                TryOpenProject(State.CurrentProject, State.Config);
             }
-            if (ImGui::MenuItem("Save project"))
+            if (ImGui::MenuItem("Save project", nullptr, false, State.CurrentProject->Loaded()))
             {
                 State.CurrentProject->Save();
+            }
+            if (ImGui::MenuItem("Close project", nullptr, false, State.CurrentProject->Loaded()))
+            {
+                State.CurrentProject->Close();
             }
             if (ImGui::BeginMenu("Recent projects"))
             {
@@ -217,17 +223,10 @@ void MainGui::DrawMainMenuBar()
             }
             ImGui::Separator();
 
-            if (ImGui::MenuItem("Package mod"))
+            if (ImGui::MenuItem("Package mod...", nullptr, false, State.CurrentProject->Loaded()))
             {
-                if (!State.CurrentProject)
-                {
-                    Log->error("You cannot package a mod unless a project is loaded. You can open a project via File > Open project.");
-                }
-                else
-                {
-                    showModPackagingPopup_ = true;
-                    State.CurrentProject->WorkerFinished = false;
-                }
+                showModPackagingPopup_ = true;
+                State.CurrentProject->WorkerFinished = false;
             }
             ImGui::Separator();
 
@@ -374,6 +373,7 @@ void MainGui::DrawDockspace()
         ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockCentralId, ImGuiDir_Down, 0.20f, nullptr, &dockCentralId);
 
         //Todo: Tie titles to these calls so both copies don't need to be updated every time they change
+        ImGui::DockBuilderDockWindow("Start page", dockCentralId);
         ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
         ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
         ImGui::DockBuilderDockWindow("Zones", dockLeftId);
@@ -439,22 +439,4 @@ MenuItem* MainGui::GetMenu(const string& text)
             return &item;
     }
     return nullptr;
-}
-
-void MainGui::TryOpenProject()
-{
-    auto result = OpenFile("nanoproj");
-    if (!result)
-        return;
-
-    //Get recent projects config var
-    auto recentProjectsVar = State.Config->GetVariable("Recent projects");
-    auto& recentProjects = std::get<std::vector<string>>(recentProjectsVar->Value);
-
-    //Add project to recent projects list if unique
-    string newPath = result.value();
-    if (std::find(recentProjects.begin(), recentProjects.end(), newPath) != recentProjects.end())
-        recentProjects.push_back(newPath);
-
-    State.Config->Save();
 }

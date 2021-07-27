@@ -333,6 +333,12 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
 
 void TerritoryDocument::WorkerThread(GuiState* state)
 {
+    //Wait for packfile thread to finish.
+    while (!state->PackfileVFS || !state->PackfileVFS->Ready())
+    {
+        Sleep(50);
+    }
+
     //Read all zones from zonescript_terr01.vpp_pc
     state->SetStatus(ICON_FA_SYNC " Loading zones for " + Title, Working);
     Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname);

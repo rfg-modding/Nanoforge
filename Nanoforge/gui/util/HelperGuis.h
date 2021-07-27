@@ -9,3 +9,5 @@ class GuiState;
 bool DrawNewProjectWindow(bool* open, Project* project, Config* config);
 //Modal popup seen when packaging a mod
 void DrawModPackagingPopup(bool* open, GuiState* state);
+//Open folder selector and try to open a new nanoforge project
+void TryOpenProject(Project* project, Config* config);

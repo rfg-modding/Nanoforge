@@ -15,7 +15,8 @@ bool Project::Load(const string& projectFilePath)
     Path = Path::GetParentDirectory(projectFilePath);
     ProjectFilename = Path::GetFileName(projectFilePath);
     Cache.Load(GetCachePath());
-    return LoadProjectFile(projectFilePath);
+    loaded_ = LoadProjectFile(projectFilePath);
+    return loaded_;
 }
 
 bool Project::Save()
@@ -47,6 +48,24 @@ bool Project::Save()
     project.SaveFile((Path + "\\" + ProjectFilename).c_str());
 
     return true;
+}
+
+void Project::Close()
+{
+    Name = "";
+    Description = "";
+    Author = "";
+    Path = "";
+    ProjectFilename = "";
+    UnsavedChanges = false;
+    UseTableWorkaround = false;
+    Edits.clear();
+    WorkerRunning = false;
+    WorkerFinished = false;
+    PackagingCancelled = false;
+    WorkerState = "";
+    WorkerPercentage = 0.0f;
+    loaded_ = false;
 }
 
 void Project::PackageMod(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)

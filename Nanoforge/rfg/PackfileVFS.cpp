@@ -229,7 +229,7 @@ std::optional<string> PackfileVFS::GetFilePath(const string& packfileName, const
         return {};
 
     //If file is in project cache use that version. Otherwise operate on global cache
-    if(project_ && project_->Cache.IsCached(filePath))
+    if(project_ && project_->Loaded() && project_->Cache.IsCached(filePath))
         return std::filesystem::absolute(project_->GetCachePath() + filePath).string();
 
     //Cache the file if it isn't already

@@ -26,21 +26,14 @@ Application* appInstance = nullptr;
 
 void Application::Run()
 {
-    //Init general app state used by all stages
     appInstance = this;
     Init();
-
-    //Stage 1 - Welcome gui
-    InitStage1();
-    RunStage1();
 
     //Return early if exit was requested
     if (Exit)
         return;
 
-    //Stage 2 - Main app
-    InitStage2();
-    RunStage2();
+    MainLoop();
 }
 
 void Application::Init()
@@ -53,106 +46,59 @@ void Application::Init()
     Log = std::make_shared<spdlog::logger>("MainLogger", begin(logSinks_), end(logSinks_));
     Log->flush_on(spdlog::level::level_enum::info); //Always flush
     Log->set_pattern("[%Y-%m-%d, %H:%M:%S][%^%l%$]: %v");
-
     TRACE();
 
     //Load settings.xml
     config_.Load();
+    config_.EnsureVariableExists("Data path", ConfigType::String);
+    auto dataPath = config_.GetVariable("Data path");
 
     //Init renderer and gui
     fontManager_.Init(&config_);
-    renderer_.Init(hInstance_, WndProc, stage1WindowWidth_, stage1WindowHeight_, &fontManager_, &config_);
+    renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_, &config_);
+    WinUtilInit(renderer_.GetSystemWindowHandle());
     gui::SetThemePreset(ThemePreset::Dark);
 
-    //Init utility classes for file/folder browsers
-    WinUtilInit(renderer_.GetSystemWindowHandle());
+    packfileVFS_.Init(std::get<string>(dataPath->Value), &project_);
+    xtblManager_.Init(&packfileVFS_);
+    localization_.Init(&packfileVFS_, &config_);
+
+    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_);
+
+    MaximizeWindow();
+
+    //Start worker thread to load packfile metadata in the background
+    workerFuture_ = std::async(std::launch::async, &WorkerThread, &gui_.State);
 
     //Init frame timing variables
     deltaTime_ = targetFramerateDelta;
 }
 
-void Application::InitStage1()
+void Application::MainLoop()
 {
     TRACE();
-    welcomeGui_.Init(&config_, &fontManager_, &project_, windowWidth_, windowHeight_);
-}
-
-void Application::RunStage1()
-{
-    TRACE();
-
-    //Per frame update
-    std::function<void()> update = [&]()
-    {
-        welcomeGui_.Update();
-
-        //Move to the next stage if the welcome gui is done
-        if (welcomeGui_.Done)
-            stageDone_ = true;
-    };
-
-    //Run main loop with custom update behavior for this stage injected
-    MainLoop(update);
-}
-
-void Application::InitStage2()
-{
-    TRACE();
-
-    //Maximize window since the gui has a lot more content in stage 2
-    MaximizeWindow();
-
-    //Stage 1 ensured that we have a valid data path so we can now initialize code that depends on it
-    auto dataPath = config_.GetVariable("Data path");
-    packfileVFS_.Init(std::get<string>(dataPath->Value), &project_);
-    xtblManager_.Init(&packfileVFS_);
-    localization_.Init(&packfileVFS_, &config_);
-
-    //Setup main gui
-    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_);
-
-    //Start worker thread to load packfile metadata in the background
-    workerFuture_ = std::async(std::launch::async, &WorkerThread, &gui_.State);
-}
-
-void Application::RunStage2()
-{
-    TRACE();
-
-    //Per frame update
-    std::function<void()> update = [&]()
-    {
-        //Update cameras
-        for (auto& scene : renderer_.Scenes)
-            scene->Cam.DoFrame(deltaTime_);
-
-        //Update main gui
-        gui_.Update(deltaTime_);
-    };
-
-    //Run main loop with custom update behavior for this stage injected
-    MainLoop(update);
-}
-
-void Application::MainLoop(std::function<void()> stageUpdateFunc)
-{
-    TRACE();
-    stageDone_ = false;
     MSG msg; //Create a new message structure
     ZeroMemory(&msg, sizeof(MSG)); //Clear message structure to NULL
 
     FrameTimer.Start();
-    while (!stageDone_ && !Exit) //Loop until stage finishes or app exit variable is set to true
+    while (!Exit) //Loop until stage finishes or app exit variable is set to true
     {
-        //Dispatch messages if present
+        //Dispatch window messages
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-
         NewFrame();
-        stageUpdateFunc();
+
+        //Update cameras and UI
+        for (auto& scene : renderer_.Scenes)
+        {
+            scene->Cam.DoFrame(deltaTime_);
+        }
+        gui_.Update(deltaTime_);
+
+        //Render this frame
         renderer_.DoFrame(deltaTime_);
 
         //Sleep until target framerate is reached
@@ -188,7 +134,6 @@ void Application::HandleResize()
     renderer_.HandleResize();
     windowWidth_ = renderer_.WindowWidth();
     windowHeight_ = renderer_.WindowHeight();
-    welcomeGui_.HandleResize(windowWidth_, windowHeight_);
 }
 
 void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

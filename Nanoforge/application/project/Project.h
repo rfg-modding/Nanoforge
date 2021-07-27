@@ -15,10 +15,12 @@ class Project
 public:
     bool Load(const string& projectFilePath);
     bool Save();
+    void Close();
     void PackageMod(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
     string GetCachePath();
     void RescanCache();
     void AddEdit(FileEdit edit);
+    bool Loaded() { return loaded_; }
 
     //Name of the project
     string Name;
@@ -55,4 +57,6 @@ private:
     //Mod packaging functions
     bool PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
     bool PackageXtblEdits(tinyxml2::XMLElement* modBlock, PackfileVFS* vfs, XtblManager* xtblManager, const string& outputPath);
+
+    bool loaded_ = false;
 };
