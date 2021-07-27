@@ -304,19 +304,31 @@ void MainGui::DrawMainMenuBar()
             ImGui::EndMenu();
         }
 
-        //Draw FPS meter if it's enabled
         bool showFPS = State.Config->GetBoolReadonly("Show FPS").value();
+        f32 uiScale = State.Config->GetFloatReadonly("UI Scale").value();
+        ImVec2 cursorPos = { ImGui::GetCursorPosX(), 3.0f };
+        auto* drawList = ImGui::GetWindowDrawList();
+
+        //Draw project name
+        string projectName = State.CurrentProject->Loaded() ? State.CurrentProject->Name : "No project loaded";
+        projectName = "|    " + projectName;
+        drawList->AddText(cursorPos, 0xF2F5FAFF, projectName.c_str(), projectName.c_str() + projectName.length());
+        cursorPos.x += ImGui::CalcTextSize(projectName.c_str()).x;
+
+        //Draw FPS meter if it's enabled
         if (showFPS)
         {
-            f32 uiScale = State.Config->GetFloatReadonly("UI Scale").value();
-
-            //Note: Not the preferred way of doing this with dear imgui but necessary for custom UI elements
-            auto* drawList = ImGui::GetWindowDrawList();
             string framerate = std::to_string(ImGui::GetIO().Framerate);
             u64 decimal = framerate.find('.');
-            const char* labelAndSeparator = "|    FPS: ";
-            drawList->AddText(ImVec2(ImGui::GetCursorPosX(), 3.0f), 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
-            drawList->AddText(ImVec2(ImGui::GetCursorPosX() + (49.0f * uiScale), 3.0f), ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+            const char* labelAndSeparator = "    |    FPS: ";
+
+            //FPS label
+            drawList->AddText(cursorPos, 0xF2F5FAFF, labelAndSeparator, labelAndSeparator + strlen(labelAndSeparator));
+            cursorPos.x += ImGui::CalcTextSize(labelAndSeparator).x;
+
+            //FPS value
+            drawList->AddText(cursorPos, ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
+            cursorPos.x += ImGui::CalcTextSize(framerate.c_str(), framerate.c_str() + decimal + 3).x;
         }
 
         ImGui::EndMainMenuBar();
