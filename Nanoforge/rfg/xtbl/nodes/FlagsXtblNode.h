@@ -12,9 +12,10 @@
 class FlagsXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
 
         if (ImGui::TreeNode(name_.value().c_str()))
         {
@@ -25,11 +26,16 @@ public:
             {
                 auto& flag = std::get<XtblFlag>(subnode->Value);
                 if (ImGui::Checkbox(flag.Name.c_str(), &flag.Value))
+                {
                     Edited = true;
+                    editedThisFrame = true;
+                }
             }
 
             ImGui::TreePop();
         }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

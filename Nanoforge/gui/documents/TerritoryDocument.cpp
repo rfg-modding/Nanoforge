@@ -34,7 +34,7 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 TerritoryDocument::~TerritoryDocument()
 {
     //Wait for worker thread to exit
-    open_ = false;
+    Open = false;
     WorkerFuture.wait();
     WorkerThread_ClearData();
 
@@ -53,12 +53,6 @@ TerritoryDocument::~TerritoryDocument()
 
 void TerritoryDocument::Update(GuiState* state)
 {
-    if (!ImGui::Begin(Title.c_str(), &open_))
-    {
-        ImGui::End();
-        return;
-    }
-
     //Only redraw scene if window is focused
     Scene->NeedsRedraw = ImGui::IsWindowFocused();
     if (WorkerDone) //Once worker thread is done clear its temporary data
@@ -166,8 +160,11 @@ void TerritoryDocument::Update(GuiState* state)
     ImGui::SetCursorPos(adjustedPos);
 
     DrawOverlayButtons(state);
+}
 
-    ImGui::End();
+void TerritoryDocument::Save(GuiState* state)
+{
+
 }
 
 void TerritoryDocument::DrawOverlayButtons(GuiState* state)
@@ -358,7 +355,7 @@ void TerritoryDocument::WorkerThread(GuiState* state)
     }
 
     //End worker thread early if document is closed
-    if (!open_)
+    if (!Open)
     {
         state->ClearStatus();
         return;
@@ -413,7 +410,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMeshes(GuiState* state)
     for (auto& zone : Territory.ZoneFiles)
     {
         //Exit early if document closes
-        if (!open_)
+        if (!Open)
             break;
 
         //Get obj_zone object with a terrain_file_name property
@@ -430,7 +427,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMeshes(GuiState* state)
             filename.pop_back();
 
         //Exit early if document closes
-        if (!open_)
+        if (!Open)
             break;
 
         filename += ".cterrain_pc";
@@ -478,7 +475,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
     for (u32 i = 0; i < 9; i++)
     {
         //Exit early if document closes
-        if (!open_)
+        if (!Open)
             break;
 
         //Get mesh crc from gpu file. Will use this to find the mesh description data section of the cpu file which starts and ends with this value
@@ -519,7 +516,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
         gpuFile.ReadToMemory(vertexBuffer, verticesSize);
 
         //Exit early if document closes
-        if (!open_)
+        if (!Open)
             break;
 
         std::span<LowLodTerrainVertex> verticesWithNormals = WorkerThread_GenerateTerrainNormals
@@ -543,7 +540,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
     delete[] gpuFileBytes.value().data();
 
     //Exit early if document closes
-    if (!open_)
+    if (!Open)
         return;
 
     //Todo: Use + "_alpha00" here to get the blend weights texture, load high res textures, and apply those. Will make terrain texture higher res and have specular + normal maps
@@ -620,7 +617,7 @@ std::span<LowLodTerrainVertex> TerritoryDocument::WorkerThread_GenerateTerrainNo
     }
 
     //Exit early if document closes
-    if (!open_)
+    if (!Open)
         return std::span<LowLodTerrainVertex>();
 
     //Generate list of vertices with position and normal data
@@ -637,7 +634,7 @@ std::span<LowLodTerrainVertex> TerritoryDocument::WorkerThread_GenerateTerrainNo
     for (auto& face : faces)
     {
         //Exit early if document closes
-        if (!open_)
+        if (!Open)
             return outVerts;
 
         const u32 ia = face.verts[0];

@@ -13,6 +13,7 @@ public:
     ~XtblDocument();
 
     void Update(GuiState* state) override;
+    void Save(GuiState* state) override;
 
     IXtblNode* SelectedNode = nullptr;
 private:
@@ -21,9 +22,6 @@ private:
     //Used to draw the sidebar
     void DrawXtblCategory(Handle<XtblCategory> category, bool openByDefault = false);
     void DrawXtblNodeEntry(IXtblNode* node); //Draw xtbl node in entry list
-    
-    //Save xtbl to project cache
-    void Save();
 
     //Behavior for the buttons on the sidebar
     void AddEntry();

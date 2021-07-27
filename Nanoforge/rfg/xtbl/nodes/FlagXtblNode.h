@@ -12,9 +12,9 @@
 class FlagXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
-
+        return false;
     }
 
     virtual void InitDefault()

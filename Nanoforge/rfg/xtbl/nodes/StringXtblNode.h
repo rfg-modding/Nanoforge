@@ -13,13 +13,14 @@
 class StringXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
         if (locale_ != guiState->Localization->CurrentLocale) //Update localized string if locale changes
             CheckForLocalization(guiState);
 
-        //Todo: Add way to change names and auto-update any references. Likely would do this in the XtblDocument stringXml sidebar. 
+        //Todo: Add way to change names and auto-update any references. Likely would do this in the XtblDocument stringXml sidebar.
         //Name nodes uneditable for the time being since they're use by xtbl references
         if (desc_->Name == "Name")
         {
@@ -38,7 +39,10 @@ public:
         else
         {
             if (ImGui::InputText(name_.value(), std::get<string>(Value)))
+            {
                 Edited = true;
+                editedThisFrame = true;
+            }
         }
 
         //Display localized string if available
@@ -60,6 +64,8 @@ public:
                 ImGui::SetClipboardText(localizedString_.value().c_str());
             }
         }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

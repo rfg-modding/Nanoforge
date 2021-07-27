@@ -12,13 +12,19 @@
 class FilenameXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
 
         //Todo: Get a list of files with correct format for this node and list those instead of having the player type names out
         if (ImGui::InputText(name_.value(), std::get<string>(Value)))
+        {
             Edited = true;
+            editedThisFrame = true;
+        }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

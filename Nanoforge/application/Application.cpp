@@ -160,6 +160,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             appInstance->Exit = true;
         }
+        //Ctrl + S - Save focused document
+        if (wParam == 0x53 && GetKeyState(VK_CONTROL) & 0x8000)
+        {
+            appInstance->gui_.SaveFocusedDocument();
+        }
         return 0;
     case WM_DESTROY: //Exit if window close button pressed
         PostQuitMessage(0);

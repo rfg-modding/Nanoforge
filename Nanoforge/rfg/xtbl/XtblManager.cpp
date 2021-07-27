@@ -1,6 +1,19 @@
 #include "XtblManager.h"
 #include "Log.h"
 
+void XtblManager::ReloadXtbls()
+{
+    for(auto& group : XtblGroups)
+        for (auto& xtbl : group->Files)
+        {
+            auto newPath = packfileVFS_->GetFilePath(group->VppName, xtbl->Name);
+            if (newPath.has_value())
+                xtbl->FilePath = newPath.value();
+
+            xtbl->Reload();
+        }
+}
+
 bool XtblManager::ParseXtbl(const string& vppName, const string& xtblName)
 {
     //Fail early if XtblManager hasn't been initialized
@@ -19,7 +32,7 @@ bool XtblManager::ParseXtbl(const string& vppName, const string& xtblName)
     Handle<XtblFile> file = CreateHandle<XtblFile>();
     file->VppName = vppName;
     file->Name = xtblName;
-    
+
     //Parsing fails if xtbl doesn't exist
     auto maybeXtblPath = packfileVFS_->GetFilePath(vppName, xtblName);
     if (!maybeXtblPath)

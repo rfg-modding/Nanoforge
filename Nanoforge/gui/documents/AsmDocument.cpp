@@ -18,23 +18,20 @@ AsmDocument::AsmDocument(GuiState* state, string filename, string parentName, st
     if (!asmFile_)
     {
         Log->error("Failed to find {}. Closing asm document.", filename_);
-        open_ = false;
+        Open = false;
         return;
     }
 }
 
 AsmDocument::~AsmDocument()
 {
-    
+
 }
 
 void AsmDocument::Update(GuiState* state)
 {
-    if (!ImGui::Begin(Title.c_str(), &open_) || !asmFile_)
-    {
-        ImGui::End();
+    if (!asmFile_)
         return;
-    }
 
     const f32 indent = 30.0f;
     ImGui::Separator();
@@ -93,6 +90,9 @@ void AsmDocument::Update(GuiState* state)
     }
     ImGui::PopStyleVar();
     ImGui::Unindent(indent);
+}
 
-    ImGui::End();
+void AsmDocument::Save(GuiState* state)
+{
+
 }

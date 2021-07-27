@@ -12,12 +12,18 @@
 class VectorXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false;
 
         if (ImGui::InputFloat3(name_.value().c_str(), (f32*)&std::get<Vec3>(Value)))
+        {
             Edited = true;
+            editedThisFrame = true;
+        }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

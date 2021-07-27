@@ -23,6 +23,8 @@ class XtblFile
 public:
     ~XtblFile();
 
+    //Reparse xtbl file
+    bool Reload();
     //Generate XtblNode tree by parsing an xtbl file
     bool Parse(const string& path);
     //Parse xtbl node. Returns an IXtblNode instance if successful. Returns nullptr if it fails.
@@ -67,6 +69,7 @@ public:
     Handle<XtblCategory> RootCategory = CreateHandle<XtblCategory>("Entries");
     //References to other xtbl files
     std::vector<Handle<XtblReference>> References;
+    string FilePath;
 
 private:
     //Propagate subnode edit state up to parents so you can check if a xtbl has any edits by checking the root nodes

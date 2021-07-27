@@ -26,13 +26,13 @@ TextureDocument::TextureDocument(GuiState* state, string filename, string parent
     if (!maybeCpuFilePath)
     {
         Log->error("Texture document constructor encountered error! Failed to find texture cpu file: \"{}\" in \"{}\"", Filename, InContainer ? VppName + "/" + ParentName : VppName);
-        open_ = false;
+        Open = false;
         return;
     }
     if (!maybeGpuFilePath)
     {
         Log->error("Texture document constructor encountered error! Failed to find texture gpu file: \"{}\" in \"{}\"", gpuFileName, InContainer ? VppName + "/" + ParentName : VppName);
-        open_ = false;
+        Open = false;
         return;
     }
 
@@ -68,63 +68,12 @@ TextureDocument::~TextureDocument()
 
 void TextureDocument::Update(GuiState* state)
 {
-    if (!ImGui::Begin(Title.c_str(), &open_))
-    {
-        ImGui::End();
-        return;
-    }
-
     //Controls max size of selected image in gui relative to the size of it's column
     static f32 imageViewSizeMultiplier = 0.85f;
     //ImGui::SliderFloat("Image view multiplier", &imageViewSizeMultiplier, 0.05f, 1.0f);
 
     const f32 columnZeroWidth = 300.0f;
     ImGui::Columns(2);
-    //Todo: Add confirmation when closing an edited file before saving it
-    if (ImGui::Button("Save"))
-    {
-        if (state->CurrentProject->Loaded())
-        {
-            //Read all texture data from unedited gpu file
-            BinaryReader gpuFileOriginal(GpuFilePath);
-            Peg.ReadAllTextureData(gpuFileOriginal, false); //Read all texture data and don't overwrite edited files
-
-            //Base output path relative to project root
-            string pathBaseRelative = VppName + "\\";
-            if (InContainer)
-                pathBaseRelative += ParentName + "\\";
-
-            //Absolute base output path
-            string pathBaseAbsolute = state->CurrentProject->GetCachePath() + pathBaseRelative;
-
-            //Create base path folders
-            std::filesystem::create_directories(pathBaseAbsolute);
-
-            //Full output path for cpu & gpu files
-            string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(Filename);
-            string cpuFilePathOut = pathBaseAbsolute + Filename;
-            string gpuFilePathOut = pathBaseAbsolute + gpuFilename;
-
-            //Create binary writers and output edited peg file
-            BinaryWriter cpuFileOut(cpuFilePathOut);
-            BinaryWriter gpuFileOut(gpuFilePathOut);
-            Peg.Write(cpuFileOut, gpuFileOut);
-
-            //Rescan project cache to see the files we just saved
-            state->CurrentProject->RescanCache();
-
-            //Add edit to project and resave the project file
-            state->CurrentProject->AddEdit(FileEdit{ "TextureEdit", pathBaseRelative + Filename });
-            state->CurrentProject->Save();
-
-            Log->info("Saved \"{}\"", Filename);
-        }
-        else
-        {
-            Log->error("You need to have a project open to edit files. You can open a project via File > Open project.");
-            ShowMessageBox("You need to have a project open to edit files. You can open an existing project or create a new one with `File > Open project` and `File > New project`", "Can't package mod", MB_OK);
-        }
-    }
     ImGui::ColorEdit4("Background color", (float*)&ImageBackground, ImGuiColorEditFlags_NoInputs);
     ImGui::Separator();
     ImGui::SetColumnWidth(0, columnZeroWidth);
@@ -283,7 +232,51 @@ void TextureDocument::Update(GuiState* state)
     ImGui::PopStyleColor();
 
     ImGui::Columns(1);
-    ImGui::End();
+}
+
+void TextureDocument::Save(GuiState* state)
+{
+    if (state->CurrentProject->Loaded())
+    {
+        //Read all texture data from unedited gpu file
+        BinaryReader gpuFileOriginal(GpuFilePath);
+        Peg.ReadAllTextureData(gpuFileOriginal, false); //Read all texture data and don't overwrite edited files
+
+        //Base output path relative to project root
+        string pathBaseRelative = VppName + "\\";
+        if (InContainer)
+            pathBaseRelative += ParentName + "\\";
+
+        //Absolute base output path
+        string pathBaseAbsolute = state->CurrentProject->GetCachePath() + pathBaseRelative;
+
+        //Create base path folders
+        std::filesystem::create_directories(pathBaseAbsolute);
+
+        //Full output path for cpu & gpu files
+        string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(Filename);
+        string cpuFilePathOut = pathBaseAbsolute + Filename;
+        string gpuFilePathOut = pathBaseAbsolute + gpuFilename;
+
+        //Create binary writers and output edited peg file
+        BinaryWriter cpuFileOut(cpuFilePathOut);
+        BinaryWriter gpuFileOut(gpuFilePathOut);
+        Peg.Write(cpuFileOut, gpuFileOut);
+
+        //Rescan project cache to see the files we just saved
+        state->CurrentProject->RescanCache();
+
+        //Add edit to project and resave the project file
+        state->CurrentProject->AddEdit(FileEdit{ "TextureEdit", pathBaseRelative + Filename });
+        state->CurrentProject->Save();
+
+        Log->info("Saved \"{}\"", Filename);
+    }
+    else
+    {
+        Log->error("You need to have a project open to edit files. You can open a project via File > Open project.");
+        ShowMessageBox("You need to have a project open to edit files. You can open an existing project or create a new one with `File > Open project` and `File > New project`", "Can't package mod", MB_OK);
+    }
 }
 
 void TextureDocument::PickPegExportFolder(GuiState* state)
@@ -321,6 +314,7 @@ void TextureDocument::PickPegImportTexture(GuiState* state)
             asSrv->Release();
             ImageTextures[ImportIndex] = nullptr;
         }
+        UnsavedChanges = true;
     }
     else
     {

@@ -17,7 +17,7 @@ XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, 
     if (!result)
     {
         Log->error("Failed to parse {}. Closing xtbl document.", filename_);
-        open_ = false;
+        Open = false;
         return;
     }
 
@@ -25,7 +25,7 @@ XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, 
     if (!xtbl_)
     {
         Log->error("Failed to get {} from XtblManager. Closing xtbl document.", filename_);
-        open_ = false;
+        Open = false;
         return;
     }
 
@@ -35,19 +35,20 @@ XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, 
 
 XtblDocument::~XtblDocument()
 {
-    //Todo: Replace this with a more robust saving system where the user is warned when they have unsaved data and each document can be saved separately
-    //Auto save xtbl on close to the project cache
-    Save();
+    //If document is closed and changes are discarded reload the xtbl to reset it's changes
+    //Can't just delete the xtbl since other xtbls could reference this one
+    if (ResetOnClose)
+    {
+        auto newPath = state_->PackfileVFS->GetFilePath(vppName_, filename_);
+        if(newPath.has_value())
+            xtbl_->FilePath = newPath.value();
+
+        xtbl_->Reload();
+    }
 }
 
 void XtblDocument::Update(GuiState* state)
 {
-    if (!ImGui::Begin(Title.c_str(), &open_, ImGuiWindowFlags_NoScrollbar))
-    {
-        ImGui::End();
-        return;
-    }
-
     ImGui::Columns(2);
     if (FirstDraw)
         ImGui::SetColumnWidth(0, 300.0f);
@@ -102,22 +103,6 @@ void XtblDocument::Update(GuiState* state)
             state->FontManager->FontL.Push();
             ImGui::Text(fmt::format("{} {}", ICON_FA_CODE, selectedNodeName.value()).c_str());
             state->FontManager->FontL.Pop();
-
-            //Save button + tooltip describing how xtbl saving works at the moment
-            ImGui::SameLine();
-            if (ImGui::Button("Save"))
-            {
-                if (state->CurrentProject->Loaded())
-                {
-                    Save();
-                }
-                else
-                {
-                    Log->error("You need to have a project open to edit files. You can open a project via File > Open project.");
-                    ShowMessageBox("You need to have a project open to edit files. You can open an existing project or create a new one with `File > Open project` and `File > New project`", "Can't package mod", MB_OK);
-                }
-            }
-            gui::TooltipOnPrevious("Xtbl documents are automatically saved when you close them or package your mod. Press this to manually save them. An upcoming release will have a better save system along with warnings when you have unsaved data.", state->FontManager->FontDefault.GetFont());
         }
 
         //Draw editors for subnodes
@@ -127,7 +112,8 @@ void XtblDocument::Update(GuiState* state)
             //Subnodes are drawn by description so empty optional elements are visible
             ImGui::PushItemWidth(NodeGuiWidth);
             for (auto& desc : xtbl_->TableDescription->Subnodes)
-                DrawNodeByDescription(state, xtbl_, desc, SelectedNode);
+                if (DrawNodeByDescription(state, xtbl_, desc, SelectedNode))
+                    UnsavedChanges = true;
 
             ImGui::PopItemWidth();
             ImGui::EndChild();
@@ -135,11 +121,33 @@ void XtblDocument::Update(GuiState* state)
     }
 
     ImGui::Columns(1);
-    ImGui::End();
 
     //Draw popup windows if they're open
     DrawRenameCategoryWindow();
     DrawRenameEntryWindow();
+}
+
+void XtblDocument::Save(GuiState* state)
+{
+    //Don't save if xtbl_ is null or no subnodes have been edited or no project is open
+    if (!state_->CurrentProject->Loaded())
+    {
+        Log->error("Failed to save {}. No project is open. Open a project or create a new one to be able to edit xtbls.", filename_);
+        return;
+    }
+    if (!xtbl_ || !xtbl_->PropagateEdits())
+        return;
+
+    //Path to output folder in the project cache
+    string outputFolderPath = state_->CurrentProject->GetCachePath() + xtbl_->VppName + "\\";
+    string outputFilePath = outputFolderPath + xtbl_->Name;
+
+    //Ensure output folder exists
+    std::filesystem::create_directories(outputFolderPath);
+
+    //Save xtbl project cache and rescan cache to see edited files in it
+    xtbl_->WriteXtbl(outputFilePath);
+    state_->CurrentProject->RescanCache();
 }
 
 bool XtblDocument::AnyChildMatchesSearchTerm(Handle<XtblCategory> category)
@@ -261,29 +269,6 @@ void XtblDocument::DrawXtblNodeEntry(IXtblNode* node)
     }
 }
 
-void XtblDocument::Save()
-{
-    //Don't save if xtbl_ is null or no subnodes have been edited or no project is open
-    if (!state_->CurrentProject->Loaded())
-    {
-        Log->error("Failed to save {}. No project is open. Open a project or create a new one to be able to edit xtbls.", filename_);
-        return;
-    }
-    if (!xtbl_ || !xtbl_->PropagateEdits())
-        return;
-
-    //Path to output folder in the project cache
-    string outputFolderPath = state_->CurrentProject->GetCachePath() + xtbl_->VppName + "\\";
-    string outputFilePath = outputFolderPath + xtbl_->Name;
-
-    //Ensure output folder exists
-    std::filesystem::create_directories(outputFolderPath);
-
-    //Save xtbl project cache and rescan cache to see edited files in it
-    xtbl_->WriteXtbl(outputFilePath);
-    state_->CurrentProject->RescanCache();
-}
-
 void XtblDocument::AddEntry()
 {
     //If a node is already selected put the new node in the selected nodes category
@@ -375,7 +360,7 @@ void XtblDocument::DrawRenameCategoryWindow()
             if (renameCategory_->Nodes.size() > 0)
             {
                 renameCategory_->Nodes[0]->Edited = true;
-                Save();
+                UnsavedChanges = true;
             }
         }
         ImGui::SameLine();
@@ -430,8 +415,7 @@ void XtblDocument::DrawRenameEntryWindow()
             renameEntryWindowOpen_ = false;
             ImGui::CloseCurrentPopup();
 
-            //Save xtbl with edited entry name
-            Save();
+            UnsavedChanges = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel"))

@@ -16,6 +16,7 @@
 #include "Log.h"
 #include <spdlog/fmt/fmt.h>
 #include <imgui/imgui.h>
+#include <ranges>
 
 StartPanel::StartPanel()
 {
@@ -39,13 +40,48 @@ void StartPanel::Update(GuiState* state, bool* open)
     ImGui::Separator();
 
     if (ImGui::SmallButton("New project"))
-        showNewProjectWindow_ = true;
-    if (showNewProjectWindow_)
-        DrawNewProjectWindow(&showNewProjectWindow_, state->CurrentProject, state->Config);
+    {
+        //Close all documents so save confirmation modal appears for them
+        for (auto& doc : state->Documents)
+            doc->Open = false;
 
+        showNewProjectWindow_ = true;
+    }
     ImGui::SameLine();
     if (ImGui::SmallButton("Open project"))
-        TryOpenProject(state->CurrentProject, state->Config);
+    {
+        //Close all documents so save confirmation modal appears for them
+        for (auto& doc : state->Documents)
+            doc->Open = false;
+
+        openProjectRequested_ = true;
+    }
+
+    //Show new/open project dialogs once unsaved changes are handled
+    u32 numUnsavedDocs = std::ranges::count_if(state->Documents, [](Handle<IDocument> doc) { return doc->UnsavedChanges; });
+    if (showNewProjectWindow_ && numUnsavedDocs == 0)
+    {
+        bool loadedNewProject = DrawNewProjectWindow(&showNewProjectWindow_, state->CurrentProject, state->Config);
+        if (loadedNewProject)
+            state->Xtbls->ReloadXtbls();
+    }
+    if (openProjectRequested_ && numUnsavedDocs == 0)
+    {
+        bool loadedNewProject = TryOpenProject(state->CurrentProject, state->Config);
+        openProjectRequested_ = false;
+        if (loadedNewProject)
+            state->Xtbls->ReloadXtbls();
+    }
+    if (openRecentProjectRequested_ && numUnsavedDocs == 0)
+    {
+        if (std::filesystem::exists(openRecentProjectRequestData_))
+        {
+            state->CurrentProject->Save();
+            state->CurrentProject->Load(openRecentProjectRequestData_);
+            state->Xtbls->ReloadXtbls();
+        }
+        openRecentProjectRequested_ = false;
+    }
 
     ImGui::Separator();
     ImGui::Columns(2);
@@ -154,11 +190,12 @@ void StartPanel::DrawRecentProjectsList(GuiState* state)
             ImVec2 startPos = ImGui::GetCursorPos();
             if (ImGui::Selectable(fmt::format("##Selectable{}", Path::GetFileName(path)).c_str(), false, 0, {windowSize.x, ImGui::GetFontSize() * 2.4f}))
             {
-                if (state->CurrentProject->Load(path))
-                {
-                    ImGui::EndChild();
-                    return;
-                }
+                //Close all documents so save confirmation modal appears for them
+                for (auto& doc : state->Documents)
+                    doc->Open = false;
+
+                openRecentProjectRequested_ = true;
+                openRecentProjectRequestData_ = path;
             }
             ImVec2 endPos = ImGui::GetCursorPos();
 

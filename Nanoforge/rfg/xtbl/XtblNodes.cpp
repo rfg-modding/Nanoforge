@@ -20,7 +20,8 @@
 
 //Use descriptions to draw nodes so non-existant optional nodes are drawn
 //Also handles drawing description tooltips and checkboxes for optional nodes
-void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Handle<XtblDescription> desc, IXtblNode* parent,
+//Returns true if edits were performed
+bool DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Handle<XtblDescription> desc, IXtblNode* parent,
     const char* nameOverride, IXtblNode* nodeOverride)
 {
     //Use lambda to get node since we need this logic multiple times
@@ -31,6 +32,7 @@ void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Handle<Xtb
     };
     IXtblNode* node = getNode();
     bool nodePresent = (node != nullptr && node->Enabled);
+    bool editedThisFrame = false; //Used for document unsaved change tracking
 
     //IDs used by dear imgui elements
     string nameNoId = nameOverride ? nameOverride : desc->DisplayName;
@@ -47,14 +49,14 @@ void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Handle<Xtb
                 //Ensure stringXml and it's subnodes exist. Newly created optional subnodes will created but disabled by default
                 xtbl->EnsureEntryExists(desc, parent, false);
                 node = getNode();
-                node->Enabled = nodePresent;
-                return;
+                node->Enabled = true;
             }
             else
             {
                 node->Enabled = false;
             }
 
+            editedThisFrame = true;
             node->Edited = true;
         }
         ImGui::SameLine();
@@ -67,16 +69,19 @@ void DrawNodeByDescription(GuiState* guiState, Handle<XtblFile> xtbl, Handle<Xtb
         if (desc->Description.has_value() && desc->Description != "") //Draw tooltip if not empty
             gui::TooltipOnPrevious(desc->Description.value(), nullptr);
 
-        return;
+        return false;
     }
 
     //If a node is present draw it.
     if (nodePresent)
-        node->DrawEditor(guiState, xtbl, parent, nameOverride);
+        if (node->DrawEditor(guiState, xtbl, parent, nameOverride))
+            editedThisFrame = true;
 
     //Draw tooltip if not empty
     if (desc->Description.has_value() && desc->Description != "")
         gui::TooltipOnPrevious(desc->Description.value(), nullptr);
+
+    return editedThisFrame;
 }
 
 //Create node from XtblType using default value for that type

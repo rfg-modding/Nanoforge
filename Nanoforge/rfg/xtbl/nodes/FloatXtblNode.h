@@ -12,20 +12,29 @@
 class FloatXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
 
         if (desc_->Min && desc_->Max)
         {
             if (ImGui::SliderFloat(name_.value().c_str(), &std::get<f32>(Value), desc_->Min.value(), desc_->Max.value()))
+            {
                 Edited = true;
+                editedThisFrame = true;
+            }
         }
         else
         {
             if (ImGui::InputFloat(name_.value().c_str(), &std::get<f32>(Value)))
+            {
                 Edited = true;
+                editedThisFrame = true;
+            }
         }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

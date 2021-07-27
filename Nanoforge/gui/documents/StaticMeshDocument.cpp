@@ -36,7 +36,7 @@ StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string 
 StaticMeshDocument::~StaticMeshDocument()
 {
     //Wait for worker thread to so we don't destroy resources it's using
-    open_ = false;
+    Open = false;
     WorkerFuture.wait();
 
     //Delete scene and free its resources
@@ -46,12 +46,6 @@ StaticMeshDocument::~StaticMeshDocument()
 
 void StaticMeshDocument::Update(GuiState* state)
 {
-    if (!ImGui::Begin(Title.c_str(), &open_))
-    {
-        ImGui::End();
-        return;
-    }
-
     //Camera only handles input if window is focused
     Scene->Cam.InputActive = ImGui::IsWindowFocused();
     //Only redraw scene if window is focused
@@ -77,8 +71,11 @@ void StaticMeshDocument::Update(GuiState* state)
     ImGui::SetCursorPos(adjustedPos);
 
     DrawOverlayButtons(state);
+}
 
-    ImGui::End();
+void StaticMeshDocument::Save(GuiState* state)
+{
+
 }
 
 void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
@@ -353,7 +350,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     //Todo: Move into worker thread once working. Just here for prototyping
     //Get gpu filename
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
-    if (!open_) //Exit early check
+    if (!Open) //Exit early check
         return;
 
     //Get path to cpu file and gpu file in cache
@@ -379,7 +376,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
         WorkerDone = true;
         return;
     }
-    if (!open_) //Exit early check
+    if (!Open) //Exit early check
         return;
 
     CpuFilePath = maybeCpuFilePath.value();
@@ -398,7 +395,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     Log->info("Mesh vertex format: {}", to_string(StaticMesh.VertexBufferConfig.Format));
 
     //Check if the document was closed. If so, end worker thread early
-    if (!open_)
+    if (!Open)
         return;
 
     //Todo: Put this in renderer / RenderObject code somewhere so it can be reused by other mesh code
@@ -491,7 +488,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     for (u32 i = 0; i < StaticMesh.SubMeshes.size(); i++)
     {
         //Check if the document was closed. If so, end worker thread early
-        if (!open_)
+        if (!Open)
             return;
 
         WorkerStatusString = "Loading submesh " + std::to_string(i) + "...";
@@ -524,7 +521,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
         for (auto& textureName : StaticMesh.TextureNames)
         {
             //Check if the document was closed. If so, end worker thread early
-            if (!open_)
+            if (!Open)
             {
                 delete[] meshData.IndexBuffer.data();
                 delete[] meshData.VertexBuffer.data();
@@ -662,7 +659,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
 }
 
 //Used by texture search functions to stop the search early if the document is closed
-#define DocumentClosedCheck() if(!open_) { return {}; }
+#define DocumentClosedCheck() if(!Open) { return {}; }
 
 //Finds a texture and creates a directx texture resource from it. textureName is the textureName of a texture inside a cpeg/cvbm. So for example, sledgehammer_high_n.tga, which is in sledgehammer_high.cpeg_pc
 //Will try to find a high res version of the texture first if lookForHighResVariant is true.
@@ -735,7 +732,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState
     for (u32 i = 0; i < packfile->Entries.size(); i++)
     {
         //Check if the document was closed. If so, end worker thread early
-        if (!open_)
+        if (!Open)
             return {};
 
         Packfile3Entry& entry = packfile->Entries[i];

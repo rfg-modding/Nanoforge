@@ -10,6 +10,7 @@ class XtblManager
 public:
     //Initialize XtblManager with any data it needs
     void Init(PackfileVFS* packfileVFS) { TRACE(); packfileVFS_ = packfileVFS; initialized_ = true; }
+    void ReloadXtbls();
     //Parse an xtbl if it hasn't already been parsed
     bool ParseXtbl(const string& vppName, const string& xtblName);
     //Get xtlb file if it's already been parsed

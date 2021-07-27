@@ -12,9 +12,10 @@
 class GridXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
         ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter
             | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable
             | ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingStretchSame;
@@ -43,7 +44,9 @@ public:
                     //Draw row data with empty name since the name is already in the column header
                     ImGui::PushItemWidth(NodeGuiWidth);
                     auto nodeOverride = hasSingleColumn ? subnode : subnode->GetSubnode(subdesc->Name);
-                    DrawNodeByDescription(guiState, xtbl, subdesc, subnode, "", nodeOverride);
+                    if (DrawNodeByDescription(guiState, xtbl, subdesc, subnode, "", nodeOverride))
+                        editedThisFrame = true;
+
                     ImGui::PopItemWidth();
                 }
             }
@@ -51,6 +54,8 @@ public:
             ImGui::EndTable();
         }
         ImGui::Separator();
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

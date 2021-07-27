@@ -180,11 +180,11 @@ void DrawModPackagingPopup(bool* open, GuiState* state)
     }
 }
 
-void TryOpenProject(Project* project, Config* config)
+bool TryOpenProject(Project* project, Config* config)
 {
     auto result = OpenFile("nanoproj");
     if (!result)
-        return;
+        return false;
 
     //Get recent projects config var
     auto recentProjectsVar = config->GetVariable("Recent projects");
@@ -201,4 +201,5 @@ void TryOpenProject(Project* project, Config* config)
 
     config->Save();
     project->Load(newPath);
+    return true;
 }

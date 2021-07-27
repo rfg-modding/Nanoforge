@@ -21,6 +21,7 @@ class MainGui
 public:
     void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization);
     void Update(f32 deltaTime);
+    void SaveFocusedDocument();
 
     GuiState State; //Global gui state provided to each panel and document
 
@@ -35,9 +36,16 @@ private:
     std::vector<MenuItem> menuItems_ = {}; //Main menu bar items
 
     ImGuiID dockspaceId = 0;
+    ImGuiID dockspaceCentralNodeId = 0;
     bool showModPackagingPopup_ = false;
     bool showNewProjectWindow_ = false;
     bool showOpenProjectWindow_ = false;
     bool showSaveProjectWindow_ = false;
     bool showSettingsWindow_ = false;
+    bool openProjectRequested_ = false;
+    bool closeProjectRequested_ = false;
+    bool openRecentProjectRequested_ = false;
+    string openRecentProjectRequestData_;
+
+    Handle<IDocument> currentDocument_ = nullptr;
 };

@@ -12,9 +12,10 @@
 class ListXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
 
         //Draw subnodes
         string name = nameNoId_.value() + fmt::format(" [List]##{}", (u64)this);
@@ -69,7 +70,9 @@ public:
                         if (ImGui::TreeNode(fmt::format("{}##{}", subnodeName, (u64)subnode).c_str()))
                         {
                             drawRightClickMenu(rightClickMenuId.c_str());
-                            DrawNodeByDescription(guiState, xtbl, subdesc, this, subnodeName.c_str(), subnode);
+                            if(DrawNodeByDescription(guiState, xtbl, subdesc, this, subnodeName.c_str(), subnode))
+                                editedThisFrame = true;
+
                             ImGui::TreePop();
                         }
                         else
@@ -80,7 +83,9 @@ public:
                     }
                     else //Don't use tree nodes for primitives since they're a single value
                     {
-                        DrawNodeByDescription(guiState, xtbl, subdesc, this, subnodeName.c_str(), subnode);
+                        if(DrawNodeByDescription(guiState, xtbl, subdesc, this, subnodeName.c_str(), subnode))
+                            editedThisFrame = true;
+
                         drawRightClickMenu(rightClickMenuId.c_str());
                     }
                 }
@@ -94,10 +99,13 @@ public:
                 Subnodes.erase(Subnodes.begin() + deletedItemIndex);
                 delete deletedNode;
                 this->Edited = true;
+                editedThisFrame = true;
             }
 
             ImGui::TreePop();
         }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()
@@ -120,7 +128,7 @@ public:
         listXml->SetAttribute("LIST_ACTION", "REPLACE");
         for (auto& subnode : Subnodes)
         {
-            //Mark subnodes as edited to ensure all their subnodes are written. 
+            //Mark subnodes as edited to ensure all their subnodes are written.
             //Required since the current method of editing lists is just replacing them entirely.
             MarkAsEditedRecursive(subnode);
 

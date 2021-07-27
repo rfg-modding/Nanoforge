@@ -12,9 +12,10 @@
 class ElementXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
         auto drawTooltip = [&]()
         {
             if (desc_->Description.has_value() && desc_->Description != "")
@@ -23,7 +24,8 @@ public:
         auto drawNode = [&]()
         {
             for (auto& subdesc : desc_->Subnodes)
-                DrawNodeByDescription(guiState, xtbl, subdesc, this, nullptr, GetSubnode(subdesc->Name));
+                if (DrawNodeByDescription(guiState, xtbl, subdesc, this, nullptr, GetSubnode(subdesc->Name)))
+                    editedThisFrame = true;
         };
 
         //Draw subnodes
@@ -43,6 +45,8 @@ public:
                 ImGui::TreePop();
             }
         }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

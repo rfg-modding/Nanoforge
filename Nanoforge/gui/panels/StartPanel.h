@@ -17,6 +17,10 @@ private:
 
     bool showSettingsWindow_ = false;
     bool showNewProjectWindow_ = false;
+    bool openProjectRequested_ = false;
+    bool openRecentProjectRequested_ = false;
+    string openRecentProjectRequestData_;
+
     bool dataPathValid_ = false;
     bool needDataPathParse_ = false;
     string missingVppName_; //Used in data folder path validation

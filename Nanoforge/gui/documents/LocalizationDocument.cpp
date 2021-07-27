@@ -17,12 +17,6 @@ LocalizationDocument::~LocalizationDocument()
 
 void LocalizationDocument::Update(GuiState* state)
 {
-    if (!ImGui::Begin("Localization", &open_))
-    {
-        ImGui::End();
-        return;
-    }
-
     state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_LANGUAGE " Strings");
     state->FontManager->FontL.Pop();
@@ -87,6 +81,9 @@ void LocalizationDocument::Update(GuiState* state)
         ImGui::Separator();
         i++;
     }
+}
 
-    ImGui::End();
+void LocalizationDocument::Save(GuiState* state)
+{
+
 }

@@ -137,31 +137,136 @@ void MainGui::Update(f32 deltaTime)
     while (iter != State.Documents.end())
     {
         Handle<IDocument> document = *iter;
-        if (document->FirstDraw)
+        if (document->Open)
         {
-            ImGui::DockBuilderDockWindow(document->Title.c_str(), ImGui::DockBuilderGetCentralNode(dockspaceId)->ID);
-            ImGui::DockBuilderFinish(dockspaceId);
-            document->FirstDraw = false;
-        }
+            ImGui::SetNextWindowDockID(dockspaceCentralNodeId, ImGuiCond_Appearing);
+            ImGui::Begin(document->Title.c_str(), &document->Open, document->UnsavedChanges ? ImGuiWindowFlags_UnsavedDocument : 0);
+            if (ImGui::IsWindowFocused())
+                currentDocument_ = document;
 
-        if (document->Open())
-        {
             document->Update(&State);
+            ImGui::End();
             iter++;
         }
-        else
+        else if (!document->Open && !document->UnsavedChanges)
         {
+            if (currentDocument_ == *iter)
+                currentDocument_ = nullptr;
+
             iter = State.Documents.erase(iter);
+        }
+        else
+            iter++;
+    }
+
+    //Draw close confirmation for documents with unsaved changes
+    u32 numUnsavedDocs = std::ranges::count_if(State.Documents, [](Handle<IDocument> doc) { return !doc->Open && doc->UnsavedChanges; });
+    if(numUnsavedDocs != 0)
+    {
+        auto& docs = State.Documents;
+        if (!ImGui::IsPopupOpen("Save?"))
+            ImGui::OpenPopup("Save?");
+        if (ImGui::BeginPopupModal("Save?", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("Save changes to the following file(s)?");
+            float itemHeight = ImGui::GetTextLineHeightWithSpacing();
+            if (ImGui::BeginChildFrame(ImGui::GetID("frame"), ImVec2(-FLT_MIN, 6.25f * itemHeight)))
+            {
+                for (auto& doc : docs)
+                    if(!doc->Open && doc->UnsavedChanges)
+                        ImGui::Text(doc->Title.c_str());
+
+                ImGui::EndChildFrame();
+            }
+
+            ImVec2 buttonSize(ImGui::GetFontSize() * 7.0f, 0.0f);
+            if (ImGui::Button("Save", buttonSize))
+            {
+                for (auto& doc : docs)
+                {
+                    if (!doc->Open && doc->UnsavedChanges)
+                        doc->Save(&State);
+
+                    doc->UnsavedChanges = false;
+                }
+                State.CurrentProject->Save();
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Don't save", buttonSize))
+            {
+                for (auto& doc : docs)
+                    if (!doc->Open && doc->UnsavedChanges)
+                    {
+                        doc->UnsavedChanges = false;
+                        doc->ResetOnClose = true;
+                    }
+
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", buttonSize))
+            {
+                for (auto& doc : docs)
+                    if (!doc->Open && doc->UnsavedChanges)
+                        doc->Open = true;
+
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
         }
     }
 
     //Draw mod packaging modal
     if (showModPackagingPopup_)
         DrawModPackagingPopup(&showModPackagingPopup_, &State);
-    if (showNewProjectWindow_)
-        DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
     if (showSettingsWindow_)
         DrawSettingsGui(&showSettingsWindow_, State.Config, State.FontManager);
+
+    //Show new/open/close project dialogs once unsaved changes are handled
+    numUnsavedDocs = std::ranges::count_if(State.Documents, [](Handle<IDocument> doc) { return doc->UnsavedChanges; });
+    if (showNewProjectWindow_ && numUnsavedDocs == 0)
+    {
+        bool loadedNewProject = DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
+        if (loadedNewProject)
+            State.Xtbls->ReloadXtbls();
+    }
+    if (openProjectRequested_ && numUnsavedDocs == 0)
+    {
+        bool loadedNewProject = TryOpenProject(State.CurrentProject, State.Config);
+        openProjectRequested_ = false;
+        if (loadedNewProject)
+            State.Xtbls->ReloadXtbls();
+    }
+    if (closeProjectRequested_ && numUnsavedDocs == 0)
+    {
+        State.CurrentProject->Close();
+        closeProjectRequested_ = false;
+        State.Xtbls->ReloadXtbls();
+    }
+    if (openRecentProjectRequested_ && numUnsavedDocs == 0)
+    {
+        if (std::filesystem::exists(openRecentProjectRequestData_))
+        {
+            State.CurrentProject->Save();
+            State.CurrentProject->Load(openRecentProjectRequestData_);
+            State.Xtbls->ReloadXtbls();
+        }
+        openRecentProjectRequested_ = false;
+    }
+}
+
+void MainGui::SaveFocusedDocument()
+{
+    if (!State.CurrentProject->Loaded() || !currentDocument_ || !currentDocument_->UnsavedChanges)
+        return;
+
+    currentDocument_->Save(&State);
+    currentDocument_->UnsavedChanges = false;
+    State.CurrentProject->Save();
 }
 
 void MainGui::AddMenuItem(string menuPos, bool open, Handle<IGuiPanel> panel)
@@ -192,10 +297,18 @@ void MainGui::DrawMainMenuBar()
             if (ImGui::MenuItem("New project..."))
             {
                 showNewProjectWindow_ = true;
+
+                //Close all documents so save confirmation modal appears for them
+                for (auto& doc : State.Documents)
+                    doc->Open = false;
             }
             if (ImGui::MenuItem("Open project..."))
             {
-                TryOpenProject(State.CurrentProject, State.Config);
+                //Close all documents so save confirmation modal appears for them
+                for (auto& doc : State.Documents)
+                    doc->Open = false;
+
+                openProjectRequested_ = true;
             }
             if (ImGui::MenuItem("Save project", nullptr, false, State.CurrentProject->Loaded()))
             {
@@ -203,7 +316,11 @@ void MainGui::DrawMainMenuBar()
             }
             if (ImGui::MenuItem("Close project", nullptr, false, State.CurrentProject->Loaded()))
             {
-                State.CurrentProject->Close();
+                //Close all documents so save confirmation modal appears for them
+                for (auto& doc : State.Documents)
+                    doc->Open = false;
+
+                closeProjectRequested_ = true;
             }
             if (ImGui::BeginMenu("Recent projects"))
             {
@@ -212,14 +329,23 @@ void MainGui::DrawMainMenuBar()
                 {
                     if (ImGui::MenuItem(Path::GetFileName(path).c_str()))
                     {
-                        if (State.CurrentProject->Load(path))
-                        {
-                            ImGui::End();
-                            return;
-                        }
+                        //Close all documents so save confirmation modal appears for them
+                        for (auto& doc : State.Documents)
+                            doc->Open = false;
+
+                        openRecentProjectRequested_ = true;
+                        openRecentProjectRequestData_ = path;
                     }
                 }
                 ImGui::EndMenu();
+            }
+
+            //Save currently focused document if there is one
+            bool canSave = currentDocument_ != nullptr && currentDocument_->UnsavedChanges;
+            string saveFileName = fmt::format("Save {}", canSave ? currentDocument_->Title : "file");
+            if (ImGui::MenuItem(saveFileName.c_str(), "Ctrl + S", nullptr, canSave))
+            {
+                SaveFocusedDocument();
             }
             ImGui::Separator();
 
@@ -381,18 +507,18 @@ void MainGui::DrawDockspace()
         ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
         ImGuiID dockLeftBottomId = ImGui::DockBuilderSplitNode(dockLeftId, ImGuiDir_Down, 0.5f, nullptr, &dockLeftId);
         ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.15f, nullptr, &dockspaceId);
-        ImGuiID dockCentralId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
-        ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockCentralId, ImGuiDir_Down, 0.20f, nullptr, &dockCentralId);
+        dockspaceCentralNodeId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
+        ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockspaceCentralNodeId, ImGuiDir_Down, 0.20f, nullptr, &dockspaceCentralNodeId);
 
         //Todo: Tie titles to these calls so both copies don't need to be updated every time they change
-        ImGui::DockBuilderDockWindow("Start page", dockCentralId);
+        ImGui::DockBuilderDockWindow("Start page", dockspaceCentralNodeId);
         ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
         ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
         ImGui::DockBuilderDockWindow("Zones", dockLeftId);
         ImGui::DockBuilderDockWindow("Zone objects", dockLeftBottomId);
         ImGui::DockBuilderDockWindow("Properties", dockRightId);
         ImGui::DockBuilderDockWindow("Render settings", dockRightId);
-        ImGui::DockBuilderDockWindow("Scriptx viewer", dockCentralId);
+        ImGui::DockBuilderDockWindow("Scriptx viewer", dockspaceCentralNodeId);
         ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
 
         ImGui::DockBuilderFinish(dockspaceId);

@@ -13,6 +13,7 @@ public:
     ~TextureDocument();
 
     void Update(GuiState* state) override;
+    void Save(GuiState* state) override;
 
 private:
     void PickPegExportFolder(GuiState* state);

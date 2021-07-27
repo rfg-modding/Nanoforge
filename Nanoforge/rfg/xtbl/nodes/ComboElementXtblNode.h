@@ -12,9 +12,10 @@
 class ComboElementXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
 
         //This type of xtbl node acts like a C/C++ Union, so multiple types can be chosen
         if (ImGui::TreeNode(name_.value().c_str()))
@@ -36,6 +37,7 @@ public:
                 if (ImGui::RadioButton(desc_->Subnodes[i]->Name.c_str(), active))
                 {
                     Edited = true;
+                    editedThisFrame = true;
                     //If different type is selected activate new node and delete current one
                     if (!active)
                     {
@@ -69,11 +71,14 @@ public:
                 subdescPath = subdescPath.substr(String::FindNthCharacterFromBack(subdescPath, '/', 2) + 1);
                 Handle<XtblDescription> subdesc = xtbl->GetValueDescription(subdescPath, desc_);
                 if (subdesc)
-                    DrawNodeByDescription(guiState, xtbl, subdesc, this, subdesc->DisplayName.c_str());
+                    if(DrawNodeByDescription(guiState, xtbl, subdesc, this, subdesc->DisplayName.c_str()))
+                        editedThisFrame = true;
             }
 
             ImGui::TreePop();
         }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

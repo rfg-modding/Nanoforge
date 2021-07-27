@@ -23,6 +23,7 @@ public:
     ~StaticMeshDocument();
 
     void Update(GuiState* state) override;
+    void Save(GuiState* state) override;
 
 private:
     //Worker thread that loads a mesh and locates its textures in the background

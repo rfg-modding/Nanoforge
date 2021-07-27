@@ -11,6 +11,7 @@ public:
     ~AsmDocument();
 
     void Update(GuiState* state) override;
+    void Save(GuiState* state) override;
 
 private:
     string filename_;

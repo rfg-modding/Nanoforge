@@ -12,9 +12,10 @@
 class SelectionXtblNode : public IXtblNode
 {
 public:
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
 
         //Select the first choice if one hasn't been selected
         string& nodeValue = std::get<string>(Value);
@@ -38,10 +39,13 @@ public:
                 {
                     Value = choice;
                     Edited = true;
+                    editedThisFrame = true;
                 }
             }
             ImGui::EndCombo();
         }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()

@@ -28,6 +28,7 @@ public:
     ~TerritoryDocument();
 
     void Update(GuiState* state) override;
+    void Save(GuiState* state) override;
 
 private:
     void DrawOverlayButtons(GuiState* state);

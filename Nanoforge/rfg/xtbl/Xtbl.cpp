@@ -22,6 +22,22 @@ XtblFile::~XtblFile()
     Entries.clear();
 }
 
+bool XtblFile::Reload()
+{
+    for (auto entry : Entries)
+        delete entry;
+    for (auto templ : Templates)
+        delete templ;
+
+    Entries.clear();
+    Templates.clear();
+    References.clear();
+    TableDescription = CreateHandle<XtblDescription>();
+    RootCategory = CreateHandle<XtblCategory>("Entries");
+
+    return Parse(FilePath);
+}
+
 bool XtblFile::Parse(const string& path)
 {
     //Ensure the file exists at the provided path
@@ -31,6 +47,7 @@ bool XtblFile::Parse(const string& path)
         Log->error("Failed to parse \"{}\". File not present at that path.", path);
         return false;
     }
+    FilePath = path;
 
     //Parse the xtbl using tinyxml2
     xmlDocument_.LoadFile(path.c_str());

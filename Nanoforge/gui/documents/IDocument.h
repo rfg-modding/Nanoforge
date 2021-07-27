@@ -9,12 +9,13 @@ class IDocument
 public:
     virtual ~IDocument() {}
     virtual void Update(GuiState* state) = 0;
-
-    bool Open() { return open_; }
+    virtual void Save(GuiState* state) = 0;
 
     string Title;
     bool FirstDraw = true;
-
-protected:
-    bool open_ = true;
+    bool Open = true;
+    bool UnsavedChanges = false;
+    //Set to true if document is closed with unsaved changes and "Don't save changes" is selected.
+    //Used for documents that need to do extra cleanup in their destructor
+    bool ResetOnClose = false;
 };

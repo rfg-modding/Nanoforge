@@ -27,6 +27,7 @@ public:
     bool Exit = false;
     bool Paused = false;
     Timer FrameTimer;
+    MainGui gui_;
 
 private:
     //General init
@@ -46,7 +47,6 @@ private:
     Project project_;
     Localization localization_;
     Config config_;
-    MainGui gui_;
 
     int windowWidth_ = 1200;
     int windowHeight_ = 720;

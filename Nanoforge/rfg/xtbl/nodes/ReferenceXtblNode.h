@@ -59,11 +59,12 @@ public:
         collectedReferencedNodes_ = true;
     }
 
-    virtual void DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
+    virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         //Calculate cached data
         CalculateEditorValues(xtbl, nameOverride);
         CollectReferencedNodes(guiState, xtbl);
+        bool editedThisFrame = false; //Used for document unsaved change tracking
 
         //Check if the reference type is supported
         bool supported = referencedNodes_.size() > 0 && (
@@ -76,7 +77,7 @@ public:
         if (!desc_->Reference)
         {
             gui::LabelAndValue(nameNoId_.value() + ":", std::get<string>(Value) + " [Error: Null reference]");
-            return;
+            return false;
         }
         if (!refXtbl_)
         {
@@ -86,12 +87,12 @@ public:
 
             ImGui::SameLine();
             ImGui::TextColored(gui::SecondaryTextColor, " [Error: " + desc_->Reference->File + " not found! Cannot fill reference list.]");
-            return;
+            return false;
         }
         if (!supported)
         {
             gui::LabelAndValue(nameNoId_.value() + ":", std::get<string>(Value) + " [Error: Unsupported reference type]");
-            return;
+            return false;
         }
 
         //Get node value. Select first reference if the value hasn't been set yet
@@ -121,6 +122,7 @@ public:
                 {
                     nodeValue = variableValue;
                     Edited = true;
+                    editedThisFrame = true;
                 }
 
                 //Draw button to jump to xtbl being referenced
@@ -152,6 +154,8 @@ public:
 
             ImGui::EndCombo();
         }
+
+        return editedThisFrame;
     }
 
     virtual void InitDefault()
