@@ -136,12 +136,13 @@ void DrawModPackagingPopup(bool* open, GuiState* state)
             state->FontManager->FontL.Pop();
             ImGui::Separator();
 
-            ImGui::Checkbox("Use MP mod workaround", &project->UseTableWorkaround);
+            ImGui::Checkbox("Use table.vpp_pc workaround", &project->UseTableWorkaround);
             ImGui::SameLine();
-            gui::HelpMarker("This is a temporary way of creating MP mods until there's mod manager support for them. "
+            gui::HelpMarker("This is a temporary way of creating mods that edit files in table.vpp_pc until there's mod manager support for them. "
                             "If your data folder has table.vpp_pc and you edited any xtbls in there Nanoforge will repack table.vpp_pc with your changes. "
                             "This is necessary since the mod manager overrides table.vpp_pc so edits to xtbls in misc.vpp_pc work. "
-                            "Do not check this unless you're trying to mod your MP matches by changing xtbls in table.vpp_pc.",
+                            "Don't check this if you're trying to make a mod manager compatible SP mod. Since the mod manager disables table.vpp_pc so you should "
+                            "edit the duplicates in misc.vpp_pc instead. It's really only intended for testing the purpose of table.vpp_pc.",
                             state->FontManager->FontMedium.GetFont());
 
             if (ImGui::Button("Start packaging"))

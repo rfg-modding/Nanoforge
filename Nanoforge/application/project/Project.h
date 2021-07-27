@@ -37,7 +37,7 @@ public:
     //If true there are changes which haved been saved yet. Used by the GUI
     bool UnsavedChanges = false;
     //If true Nanoforge will repack table.vpp_pc with any edited files in it.
-    //Temporary way of generating MP mods that change xtbls. Will be removed once there's mod manager support for MP mods.
+    //Temporary way of generating mods that edit table.vpp_pc.
     bool UseTableWorkaround = false;
 
     //Edits made in this project
