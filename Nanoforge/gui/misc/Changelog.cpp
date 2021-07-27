@@ -116,23 +116,25 @@ R"(# Links
 
 # Changelog
 ## v0.18.0 - Quality of life improvements
-This release makes many small changes that make Nanoforge nicer to use.
+Bugfixes and QOL improvements to make Nanoforge nicer to use.
 
 ### Changes
-  * Replaced folder selector with the better one that has the favorites sidebar, search, and more.
-  * BUG: Fixed asm_pc documents being unclosable
-  * BUG: Fixed crash when Settings.xml is missing or using the old settings format
-  * Automatically upgrades Settings.xml if it's using the old format
-  * Improved error logging to help detect bugs and crashes
-  * Made the file explorer case insensitive by default with an option for case sensitive searches
+  * Replaced the windows folder browser with the better one that has the favorites sidebar, search, and more.
+  * BUG: Fixed asm_pc documents being unclosable.
+  * BUG: Fixed crash when Settings.xml is missing or using the old settings format.
+  * Automatically upgrades Settings.xml if it's using the old format.
+  * Improved error logging to help detect bugs and crashes.
+  * Made the file explorer case insensitive by default with an option for case sensitive searches.
   * `File > Mod packaging` now shows a popup that lets you change the mod name, author, and description before packaging.
   * BUG: Fixed bug when creating a new project when one is already open that would copy the edits of the first project to the new one.
-  * Added more search paths for RFG auto detection
+  * BUG: Fixed xtbl edits persisting when loading a new project when one is already open.
+  * Added more search paths for RFG auto detection.
   * You no longer need to create a project to view files. You only need to for file edits and mod packaging.
-  * There isn't a welcome window anymore. Instead the main window opens immediately and there's a panel that lists recent projects.
+  * There isn't a welcome window anymore. Instead the main window opens immediately and there's a startup panel that lists recent projects.
   * Added a built in changelog to the startup panel.
-  * The recent projects list now lists the mod author and description instead of just listing the name and path.
+  * The recent projects list is more readable.
   * Added basic edit tracking and warnings when you're about to close a file that has unsaved changes.
+  * Files can now be saved with Ctrl + S.
 
 
 ## v0.17.0 - Initial support for RFG localization files
