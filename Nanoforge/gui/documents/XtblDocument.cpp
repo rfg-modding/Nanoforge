@@ -49,6 +49,13 @@ XtblDocument::~XtblDocument()
 
 void XtblDocument::Update(GuiState* state)
 {
+    static bool showedNoProjectWarning = false;
+    if (!state->CurrentProject->Loaded() && !showedNoProjectWarning)
+    {
+        ShowMessageBox("You need to have a project open to edit xtbls. Please open a project or create a new one via `File > New project` in the main menu bar.", "No project open", MB_OK);
+        showedNoProjectWarning = true;
+    }
+
     ImGui::Columns(2);
     if (FirstDraw)
         ImGui::SetColumnWidth(0, 300.0f);
