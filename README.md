@@ -5,6 +5,7 @@ A modding tool for the game Red Faction Guerilla. The main goal is to make it ea
 - [Current features](https://github.com/Moneyl/Nanoforge#current-features)
 - [Planned features](https://github.com/Moneyl/Nanoforge#planned-features)
 - [Screenshots](https://github.com/Moneyl/Nanoforge#screenshots)
+- [Build instructions](https://github.com/Moneyl/Nanoforge#build-instructions)
 
 ## Current features
 Below are the current features of Nanoforge. See the screenshots section for examples.
@@ -37,3 +38,18 @@ This next picture shows texture viewing. RFG textures come in a pair of two file
 This final image shows a top down view of the whole main campaign map to demonstrate that Nanoforge can view the map at full scale.
 
 ![](https://i.imgur.com/onv4Dln.jpg)
+
+## Build instructions
+Below are the steps to manually build Nanoforge from source. Prebuilt versions are available in [Releases](https://github.com/Moneyl/Nanoforge/releases).
+
+### Requirements
+To build Nanoforge from source you'll need these programs:
+- [Visual Studio 2019 with C++ Cmake tools](https://visualstudio.microsoft.com/downloads/) - If you already installed VS2019 and didn't check the CMake option you can install it by clicking `Tools > Get Tools and Features`, then checking "C++ Cmake tools for Windows" in the Individual Components tab of the installer.
+- [Git](https://git-scm.com/) - For downloading dependencies.
+
+### Steps
+1) Clone the repo with `git clone https://github.com/Moneyl/Nanoforge.git`
+2) `cd` into the directory you cloned to repo to then download the dependencies with `git submodule update --init --recursive`
+3) Open the project in VS2019 by right clicking the folder you cloned it in and selecting "Open in Visual Studio". Alternatively select the folder with `File > Open > Folder...` in VS2019.
+4) Build the project with `Build > Build Nanoforge.exe` (Ctrl + B). The first time opening the project you might need to wait for CMake config to finish before the option becomes available. I recommend using the "x64-RelWithDebInfo" build option since it'll be optimized but still have some debug info so you can use the debugger. Nanoforge is very slow when built with the normal debug option.
+5) Once it's done building you can run it with the debugger attached using F5 or without using Ctrl + F5.
