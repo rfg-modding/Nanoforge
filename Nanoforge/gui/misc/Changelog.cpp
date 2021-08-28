@@ -115,6 +115,9 @@ R"(# Links
   * See [Nanoforge texture editing](https://www.redfactionwiki.com/wiki/Nanoforge_Texture_Editing) for a guide on using Nanoforge to edit textures.
 
 # Changelog
+## v0.18.1 - Texture mod bugfix
+Fixes bug with editing files in str2_pc files that would output an invalid final mod.
+
 ## v0.18.0 - Quality of life improvements
 Bugfixes and QOL improvements to make Nanoforge nicer to use.
 
