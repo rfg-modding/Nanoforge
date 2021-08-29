@@ -607,7 +607,7 @@ std::span<LowLodTerrainVertex> TerritoryDocument::WorkerThread_GenerateTerrainNo
 
     //Generate list of faces and face normals
     std::vector<Face> faces = {};
-    for (u32 i = 0; i < indices.size() - 3; i++)
+    for (u32 i = 0; i < indices.size() - 2; i++)
     {
         u32 index0 = indices[i];
         u32 index1 = indices[i + 1];
