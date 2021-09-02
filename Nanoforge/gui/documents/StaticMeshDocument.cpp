@@ -56,7 +56,8 @@ void StaticMeshDocument::Update(GuiState* state)
     ImVec2 contentAreaSize;
     contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
     contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
-    Scene->HandleResize(contentAreaSize.x, contentAreaSize.y);
+    if(contentAreaSize.x > 0.0f && contentAreaSize.y > 0.0f)
+        Scene->HandleResize(contentAreaSize.x, contentAreaSize.y);
 
     //Store initial position so we can draw buttons over the scene texture after drawing it
     ImVec2 initialPos = ImGui::GetCursorPos();

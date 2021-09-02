@@ -7,20 +7,6 @@
 #include "render/resources/Scene.h"
 #include <future>
 
-//Used internally by TerritoryDocument
-struct ShortVec4
-{
-    i16 x = 0;
-    i16 y = 0;
-    i16 z = 0;
-    i16 w = 0;
-
-    ShortVec4 operator-(const ShortVec4& B)
-    {
-        return ShortVec4{ x - B.x, y - B.y, z - B.z, w - B.w };
-    }
-};
-
 class TerritoryDocument : public IDocument
 {
 public:
@@ -39,7 +25,7 @@ private:
     //Loads vertex and index data of each zones terrain mesh
     void WorkerThread_LoadTerrainMeshes(GuiState* state);
     void WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state);
-    std::span<LowLodTerrainVertex> WorkerThread_GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices);
+    bool WorkerThread_FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight);
 
     string TerritoryName;
     string TerritoryShortname;

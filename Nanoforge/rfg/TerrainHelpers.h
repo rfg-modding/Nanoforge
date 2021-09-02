@@ -5,19 +5,14 @@
 #include <vector>
 #include <span>
 
-//Stride = 20 bytes
 struct LowLodTerrainVertex
 {
-    //8 bytes
     i16 x = 0;
     i16 y = 0;
     i16 z = 0;
     i16 w = 0;
-
-    //12 bytes
-    Vec3 normal;
 };
-static_assert(sizeof(LowLodTerrainVertex) == 20, "LowLodTerrainVertex size incorrect!");
+static_assert(sizeof(LowLodTerrainVertex) == 8, "LowLodTerrainVertex size incorrect!");
 
 //Data for a single zones terrain. Made up of 9 smaller meshes which are stitched together
 struct TerrainInstance
@@ -39,6 +34,12 @@ struct TerrainInstance
     //Blend texture dimensions
     u32 BlendTextureWidth = 0;
     u32 BlendTextureHeight = 0;
+
+    bool HasTexture1 = false;
+    PegFile10 Texture1;
+    std::span<u8> Texture1Bytes;
+    u32 Texture1Width = 0;
+    u32 Texture1Height = 0;
 
     //Index of this terrain subpiece on 3x3 grid that makes up the terrain of a single zone
     int TerrainSubpieceIndex = 0;

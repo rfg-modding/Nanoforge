@@ -203,7 +203,7 @@ void Scene::InitPrimitiveState()
     //Create linelist primitive vertex buffer
     lineVertexBuffer_.Create(d3d11Device_, 1200, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 
-    linelistShader_.Load(linelistShaderPath_, d3d11Device_, config_->GetBoolReadonly("Use geometry shaders").value());
+    linelistShader_.Load(LineListShaderPath, d3d11Device_, config_->GetBoolReadonly("Use geometry shaders").value());
 
     //Create linelist vertex layout
     D3D11_INPUT_ELEMENT_DESC inputLayout[] =

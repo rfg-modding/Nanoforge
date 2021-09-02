@@ -20,13 +20,12 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 
     //Init scene camera
     Scene->Cam.Init({ -2573.0f, 200.0f, 963.0f }, 80.0f, { (f32)Scene->Width(), (f32)Scene->Height() }, 1.0f, 10000.0f);
-    Scene->SetShader(terrainShaderPath_);
+    Scene->SetShader(LowLodTerrainShaderPath);
     Scene->SetVertexLayout
     ({
         { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0,  DXGI_FORMAT_R32G32B32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-        });
-    Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2f;
+    });
+    Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.5f;
 
     //Create worker thread to load terrain meshes in background
     WorkerFuture = std::async(std::launch::async, &TerritoryDocument::WorkerThread, this, state);
@@ -89,7 +88,7 @@ void TerritoryDocument::Update(GuiState* state)
                 {
                     //Create and setup texture2d
                     Texture2D texture2d;
-                    texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "_alpha00.cvbm_pc";
+                    texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "comb.cvbm_pc";
                     DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
                     D3D11_SUBRESOURCE_DATA textureSubresourceData;
                     textureSubresourceData.pSysMem = instance.BlendTextureBytes.data();
@@ -103,6 +102,25 @@ void TerritoryDocument::Update(GuiState* state)
 
                     renderObject.UseTextures = true;
                     renderObject.DiffuseTexture = texture2d;
+                }
+                if (instance.HasTexture1)
+                {
+                    //Create and setup texture2d
+                    Texture2D texture2d;
+                    texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "_ovl.cvbm_pc";
+                    DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
+                    D3D11_SUBRESOURCE_DATA textureSubresourceData;
+                    textureSubresourceData.pSysMem = instance.Texture1Bytes.data();
+                    textureSubresourceData.SysMemSlicePitch = 0;
+                    textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.Texture1Width, instance.Texture1Height);
+                    state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
+                    texture2d.Create(Scene->d3d11Device_, instance.Texture1Width, instance.Texture1Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
+                    texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
+                    texture2d.CreateSampler(); //Need sampler too
+                    state->Renderer->ContextMutex.unlock();
+
+                    renderObject.UseTextures = true;
+                    renderObject.SpecularTexture = texture2d;
                 }
             }
 
@@ -145,8 +163,8 @@ void TerritoryDocument::Update(GuiState* state)
     ImVec2 contentAreaSize;
     contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
     contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
-
-    Scene->HandleResize(contentAreaSize.x, contentAreaSize.y);
+    if (contentAreaSize.x > 0.0f && contentAreaSize.y > 0.0f)
+        Scene->HandleResize(contentAreaSize.x, contentAreaSize.y);
 
     //Store initial position so we can draw buttons over the scene texture after drawing it
     ImVec2 initialPos = ImGui::GetCursorPos();
@@ -394,9 +412,10 @@ void TerritoryDocument::WorkerThread_ClearData()
         if (instance.HasBlendTexture)
         {
             //Cleanup peg texture data
-            instance.BlendPeg.Cleanup();
-            //Set to nullptr and 0. Don't have to delete this since it's really referencing the data owned by BlendPeg
             instance.BlendTextureBytes = std::span<u8>((u8*)nullptr, 0);
+            instance.BlendPeg.Cleanup(); //Clears data the span pointed to
+            instance.Texture1Bytes = std::span<u8>((u8*)nullptr, 0);
+            instance.Texture1.Cleanup(); //Clears data the span pointed to
         }
     }
     //Clear instance list
@@ -510,32 +529,17 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
         cpuFileIndex += static_cast<u32>(cpuFile.Position() - meshDataBlockStart) / 4;
         terrain.Meshes.push_back(meshData);
 
-        //Read index data
-        gpuFile.Align(16); //Indices always start here
-        u32 indicesSize = meshData.NumIndices * meshData.IndexSize;
-        u8* indexBuffer = new u8[indicesSize];
-        gpuFile.ReadToMemory(indexBuffer, indicesSize);
-        terrain.Indices.push_back(std::span<u16>{ (u16*)indexBuffer, indicesSize / meshData.IndexSize });
-
-        //Read vertex data
+        //Read index buffer
         gpuFile.Align(16);
-        u32 verticesSize = meshData.NumVertices * meshData.VertexStride0;
-        u8* vertexBuffer = new u8[verticesSize];
-        gpuFile.ReadToMemory(vertexBuffer, verticesSize);
+        u16* indexBuffer = new u16[meshData.NumIndices];
+        gpuFile.ReadToMemory(indexBuffer, meshData.NumIndices * meshData.IndexSize);
+        terrain.Indices.push_back(std::span<u16>(indexBuffer, meshData.NumIndices));
 
-        //Exit early if document closes
-        if (!Open)
-            break;
-
-        std::span<LowLodTerrainVertex> verticesWithNormals = WorkerThread_GenerateTerrainNormals
-        (
-            std::span<ShortVec4>{ (ShortVec4*)vertexBuffer, verticesSize / meshData.VertexStride0},
-            std::span<u16>{ (u16*)indexBuffer, indicesSize / meshData.IndexSize }
-        );
-        terrain.Vertices.push_back(verticesWithNormals);
-
-        //Free vertex buffer, no longer need this copy. verticesWithNormals copied the data it needed from this one
-        delete[] vertexBuffer;
+        //Read vertex buffer
+        gpuFile.Align(16);
+        LowLodTerrainVertex* vertexBuffer = new LowLodTerrainVertex[meshData.NumVertices];
+        gpuFile.ReadToMemory(vertexBuffer, meshData.NumVertices * meshData.VertexStride0);
+        terrain.Vertices.push_back(std::span<LowLodTerrainVertex>(vertexBuffer, meshData.NumVertices));
 
         u32 endMeshCrc = gpuFile.ReadUint32();
         if (meshCrc != endMeshCrc)
@@ -551,54 +555,13 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
     if (!Open)
         return;
 
-    //Todo: Use + "_alpha00" here to get the blend weights texture, load high res textures, and apply those. Will make terrain texture higher res and have specular + normal maps
-    //Todo: Remember to also change the DXGI_FORMAT for the Texture2D to DXGI_FORMAT_R8G8B8A8_UNORM since that's what the _alpha00 textures used instead of DXT1
-    //Get terrain blending texture
+    //Get comb texture. Used to color low lod terrain
     string blendTextureName = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "comb.cvbm_pc";
-    auto blendTextureHandlesCpu = state->PackfileVFS->GetFiles(blendTextureName, true, true);
-    if (blendTextureHandlesCpu.size() > 0)
-    {
-        FileHandle& blendTextureHandle = blendTextureHandlesCpu[0];
-        auto* containerBlend = blendTextureHandle.GetContainer();
-        if (!containerBlend)
-            THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
+    terrain.HasBlendTexture = WorkerThread_FindTexture(state->PackfileVFS, blendTextureName, terrain.BlendPeg, terrain.BlendTextureBytes, terrain.BlendTextureWidth, terrain.BlendTextureHeight);
 
-        //Get mesh file byte arrays
-        auto cpuFileBytesBlend = containerBlend->ExtractSingleFile(blendTextureName, true);
-        auto gpuFileBytesBlend = containerBlend->ExtractSingleFile(Path::GetFileNameNoExtension(blendTextureName) + ".gvbm_pc", true);
-
-        //Ensure the texture files were extracted
-        if (!cpuFileBytesBlend)
-            THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
-        if (!gpuFileBytesBlend)
-            THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
-
-        BinaryReader cpuFileBlend(cpuFileBytesBlend.value());
-        BinaryReader gpuFileBlend(gpuFileBytesBlend.value());
-
-        terrain.BlendPeg.Read(cpuFileBlend, gpuFileBlend);
-        terrain.BlendPeg.ReadTextureData(gpuFileBlend, terrain.BlendPeg.Entries[0]);
-        auto maybeBlendTexturePixelData = terrain.BlendPeg.GetTextureData(0);
-        if (maybeBlendTexturePixelData)
-        {
-            terrain.HasBlendTexture = true;
-            terrain.BlendTextureBytes = maybeBlendTexturePixelData.value();
-            terrain.BlendTextureWidth = terrain.BlendPeg.Entries[0].Width;
-            terrain.BlendTextureHeight = terrain.BlendPeg.Entries[0].Height;
-        }
-        else
-        {
-            Log->warn("Failed to extract pixel data for terrain blend texture {}", blendTextureName);
-        }
-
-        delete containerBlend;
-        delete[] cpuFileBytesBlend.value().data();
-        delete[] gpuFileBytesBlend.value().data();
-    }
-    else
-    {
-        Log->warn("Couldn't find blend texture for {}.", terrainMesh.Filename());
-    }
+    //Get ovl texture. Used to light low lod terrain
+    string texture1Name = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "_ovl.cvbm_pc";
+    terrain.HasTexture1 = WorkerThread_FindTexture(state->PackfileVFS, texture1Name, terrain.Texture1, terrain.Texture1Bytes, terrain.Texture1Width, terrain.Texture1Height);
 
     //Acquire resource lock before writing terrain instance data to the instance list
     std::lock_guard<std::mutex> lock(ResourceLock);
@@ -606,73 +569,50 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
     NewTerrainInstanceAdded = true;
 }
 
-std::span<LowLodTerrainVertex> TerritoryDocument::WorkerThread_GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices)
+bool TerritoryDocument::WorkerThread_FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight)
 {
-    PROFILER_FUNCTION();
-    struct Face
+    //Search for texture
+    auto searchResult = vfs->GetFiles(textureName, true, true);
+    if (searchResult.size() == 0)
     {
-        u32 verts[3];
-    };
-
-    //Generate list of faces and face normals
-    std::vector<Face> faces = {};
-    for (u32 i = 0; i < indices.size() - 2; i++)
-    {
-        u32 index0 = indices[i];
-        u32 index1 = indices[i + 1];
-        u32 index2 = indices[i + 2];
-
-        faces.emplace_back(Face{ .verts = {index0, index1, index2} });
+        Log->warn("Couldn't find {} for {}.", textureName, TerritoryName);
+        return false;
     }
 
-    //Exit early if document closes
-    if (!Open)
-        return std::span<LowLodTerrainVertex>();
+    FileHandle& handle = searchResult[0];
+    auto* container = handle.GetContainer();
+    if (!container)
+        THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
 
-    //Generate list of vertices with position and normal data
-    u8* vertBuffer = new u8[vertices.size() * sizeof(LowLodTerrainVertex)];
-    std::span<LowLodTerrainVertex> outVerts((LowLodTerrainVertex*)vertBuffer, vertices.size());
-    for (u32 i = 0; i < vertices.size(); i++)
+    //Get mesh file byte arrays
+    auto cpuFileBytes = container->ExtractSingleFile(textureName, true);
+    auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(textureName) + ".gvbm_pc", true);
+
+    //Ensure the texture files were extracted
+    if (!cpuFileBytes)
+        THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
+    if (!gpuFileBytes)
+        THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
+
+    BinaryReader gpuFile(cpuFileBytes.value());
+    BinaryReader cpuFile(gpuFileBytes.value());
+
+    peg.Read(gpuFile, cpuFile);
+    peg.ReadTextureData(cpuFile, peg.Entries[0]);
+    auto maybeTexturePixelData = peg.GetTextureData(0);
+    if (maybeTexturePixelData)
     {
-        outVerts[i].x = vertices[i].x;
-        outVerts[i].y = vertices[i].y;
-        outVerts[i].z = vertices[i].z;
-        outVerts[i].w = vertices[i].w;
-        outVerts[i].normal = { 0.0f, 0.0f, 0.0f };
+        textureBytes = maybeTexturePixelData.value();
+        textureWidth = peg.Entries[0].Width;
+        textureHeight = peg.Entries[0].Height;
     }
-    for (auto& face : faces)
+    else
     {
-        //Exit early if document closes
-        if (!Open)
-            return outVerts;
-
-        const u32 ia = face.verts[0];
-        const u32 ib = face.verts[1];
-        const u32 ic = face.verts[2];
-
-        Vec3 vert0 = { (f32)vertices[ia].x, (f32)vertices[ia].y, (f32)vertices[ia].z };
-        Vec3 vert1 = { (f32)vertices[ib].x, (f32)vertices[ib].y, (f32)vertices[ib].z };
-        Vec3 vert2 = { (f32)vertices[ic].x, (f32)vertices[ic].y, (f32)vertices[ic].z };
-
-        Vec3 e1 = vert1 - vert0;
-        Vec3 e2 = vert2 - vert1;
-        Vec3 normal = e1.Cross(e2);
-
-        //Todo: Make sure this isn't subtly wrong
-        //Attempt to flip normal if it's pointing in wrong direction. Seems to result in correct normals
-        if (normal.y < 0.0f)
-        {
-            normal.x *= -1.0f;
-            normal.y *= -1.0f;
-            normal.z *= -1.0f;
-        }
-        outVerts[ia].normal += normal;
-        outVerts[ib].normal += normal;
-        outVerts[ic].normal += normal;
+        Log->warn("Failed to extract pixel data for terrain blend texture {}", textureName);
     }
-    for (u32 i = 0; i < vertices.size(); i++)
-    {
-        outVerts[i].normal = outVerts[i].normal.Normalize();
-    }
-    return outVerts;
+
+    delete container;
+    delete[] cpuFileBytes.value().data();
+    delete[] gpuFileBytes.value().data();
+    return true;
 }

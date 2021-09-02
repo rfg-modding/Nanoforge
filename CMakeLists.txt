@@ -5,8 +5,8 @@ project ("Nanoforge")
 # Set this to true to enable ASAN. It can catch many common memory bugs. More info here: https://docs.microsoft.com/en-us/cpp/sanitizers/asan?view=msvc-160
 # It's disabled by default because it causes the app to run much slower. ASAN should be disabled for release builds.
 set(ENABLE_ASAN FALSE)
-set(ENABLE_PROFILER FALSE)
-set(ENABLE_EDIT_AND_CONTINUE TRUE)
+set(ENABLE_PROFILER TRUE)
+set(ENABLE_EDIT_AND_CONTINUE FALSE)
 
 set(CMAKE_CXX_STANDARD           20)
 set(CMAKE_CXX_STANDARD_REQUIRED  ON)

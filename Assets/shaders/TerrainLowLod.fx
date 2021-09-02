@@ -14,7 +14,7 @@ cbuffer cbPerFrame
     float3 DiffuseColor;
     int Padding1; //Padding since DirectX::XMVector is really 16 bytes
 
-    //Intensity of diffuse light 
+    //Intensity of diffuse light
     float DiffuseIntensity;
     //Bias of elevation coloring in ShadeMode 1. If 0 elevation won't effect color
     float ElevationFactorBias;
@@ -28,15 +28,24 @@ cbuffer cbPerFrame
 struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
-    float3 Normal : NORMAL;
     float4 ZonePos : POSITION0;
     float2 Uv : TEXCOORD;
 };
 
-Texture2D WeightTexture : register(t0);
-SamplerState WeightSampler : register(s0);
+Texture2D Texture0 : register(t0);
+Texture2D Texture1 : register(t1);
+Texture2D Texture2 : register(t2);
+Texture2D Texture3 : register(t3);
+Texture2D Texture4 : register(t4);
+Texture2D Texture5 : register(t5);
+SamplerState Sampler0 : register(s0);
+SamplerState Sampler1 : register(s1);
+SamplerState Sampler2 : register(s2);
+SamplerState Sampler3 : register(s3);
+SamplerState Sampler4 : register(s4);
+SamplerState Sampler5 : register(s5);
 
-VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
+VS_OUTPUT VS(int4 inPos : POSITION)
 {
     VS_OUTPUT output;
 
@@ -52,7 +61,8 @@ VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
     float terrainRange = terrainMax - terrainMin;
     terrainRange *= 0.9980; //Hack to fill in gaps between zones. May cause object positions to be slightly off
     float zoneRange = zoneMax - zoneMin;
-    
+
+    //Scale position
     float4 posFloat = float4(inPos.x, inPos.y, inPos.z, inPos.w);
     posFloat.x = (((posFloat.x - terrainMin) * zoneRange) / terrainRange) + zoneMin;
     posFloat.y = (((posFloat.y - terrainMin) * zoneRange) / terrainRange) + zoneMin;
@@ -61,9 +71,8 @@ VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
     posFloat.y *= 2.0f;
     output.ZonePos = posFloat;
     output.Pos = mul(posFloat, WVP);
-    output.Normal = inNormal;
 
-    //Calculate UV of blend weight texture sample for this terrain location
+    //Calc texture UV
     output.Uv.x = ((posFloat.x + 255.5f) / 511.0f);
     output.Uv.y = ((posFloat.z + 255.5f) / 511.0f);
     output.Uv.x *= 0.9980; //Part of hack to fix terrain gaps. Must scale UVs since we're scaling the terrain size
@@ -73,27 +82,23 @@ VS_OUTPUT VS(int4 inPos : POSITION, float3 inNormal : NORMAL)
 }
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
-{
-    //Todo: Use _alpha00 textures + high res terrain textures to make a higher quality version of this shader. 
-    //Get low res terrain color with comb texture
-    float4 blendValues = WeightTexture.Sample(WeightSampler, input.Uv);
+{    
+    //Get terrain color from _comb texture and adjust it's brightness
+    float4 blendValues = Texture0.Sample(Sampler0, input.Uv);
     float gamma = 0.45f;
     float3 terrainColor = pow(blendValues.xyz, float3(1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
 
-    //Sun direction for diffuse lighting
-    float3 sunDir = float3(0.436f, -1.0f, 0.598f);
+    //Get pre-calculated lighting from _ovl texture
+    float3 lighting = Texture1.Sample(Sampler1, input.Uv).xyz;
+
+    //Ambient + diffuse lighting
     float ambientIntensity = 0.05f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
+    float3 diffuse = lighting * DiffuseColor * DiffuseIntensity * terrainColor;
 
-    //Diffuse
-    float3 lightDir = normalize(-sunDir);
-    float diff = max(dot(input.Normal, lightDir), 0.0f);
-    float3 diffuse = diff * terrainColor * DiffuseColor * DiffuseIntensity;
-
-    //Adjust range from [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0] and set color to elevation
+    //Normalized elevation for ShadeMode 0
+    //Normalized elevation for ShadeMode 0. [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0]
     float elevationNormalized = (input.ZonePos.y + 255.5f) / 511.0f;
-    float elevationFactor = (elevationNormalized - 0.5);
-    elevationFactor *= ElevationFactorBias; //Scale elevation factor to make high terrain brightless less harsh
 
     if(ShadeMode == 0)
     {
