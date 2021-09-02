@@ -8,6 +8,7 @@
 #include "gui/util/WinUtil.h"
 #include "rfg/xtbl/XtblManager.h"
 #include "rfg/xtbl/Xtbl.h"
+#include "util/Profiler.h"
 
 XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, IXtblNode* startingNode)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer), state_(state)
@@ -49,6 +50,8 @@ XtblDocument::~XtblDocument()
 
 void XtblDocument::Update(GuiState* state)
 {
+    PROFILER_FUNCTION();
+
     static bool showedNoProjectWarning = false;
     if (!state->CurrentProject->Loaded() && !showedNoProjectWarning)
     {

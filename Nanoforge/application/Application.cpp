@@ -6,6 +6,7 @@
 #include "render/camera/Camera.h"
 #include "Log.h"
 #include "gui/util/WinUtil.h"
+#include "util/Profiler.h"
 #include "common/string/String.h"
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/ringbuffer_sink.h>
@@ -37,6 +38,9 @@ void Application::Run()
 
 void Application::Init()
 {
+    PROFILER_SET_THREAD_NAME("Main thread");
+    PROFILER_FUNCTION();
+
     //Init logger
     printf("[info] Initializing logger...\n");
     logSinks_.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
@@ -72,6 +76,7 @@ void Application::Init()
 
 void Application::MainLoop()
 {
+    PROFILER_FUNCTION();
     TRACE();
     MSG msg; //Create a new message structure
     ZeroMemory(&msg, sizeof(MSG)); //Clear message structure to NULL
@@ -88,24 +93,34 @@ void Application::MainLoop()
         NewFrame();
 
         //Update cameras and UI
-        for (auto& scene : renderer_.Scenes)
         {
-            scene->Cam.DoFrame(deltaTime_);
+            PROFILER_SCOPED("Render scenes");
+            for (auto& scene : renderer_.Scenes)
+            {
+                scene->Cam.DoFrame(deltaTime_);
+            }
         }
+
         gui_.Update(deltaTime_);
 
         //Render this frame
         renderer_.DoFrame(deltaTime_);
 
         //Sleep until target framerate is reached
-        while (FrameTimer.ElapsedSecondsPrecise() < targetFramerateDelta)
         {
-            //Sleep is used here instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this.
-            f32 timeToTargetFramerateMs = (targetFramerateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f;
-            Sleep((DWORD)timeToTargetFramerateMs);
+            PROFILER_SCOPED("Wait for target framerate");
+            while (FrameTimer.ElapsedSecondsPrecise() < targetFramerateDelta)
+            {
+                //Sleep is used here instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this.
+                f32 timeToTargetFramerateMs = (targetFramerateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f;
+                Sleep((DWORD)timeToTargetFramerateMs);
+            }
         }
+
         deltaTime_ = FrameTimer.ElapsedSecondsPrecise();
         FrameTimer.Reset();
+
+        PROFILER_FRAME_END();
     }
 }
 

@@ -1,4 +1,5 @@
 #include "RenderObject.h"
+#include "util/Profiler.h"
 
 void RenderObject::Create(const Mesh& mesh, const Vec3& position)
 {
@@ -10,6 +11,8 @@ void RenderObject::Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObj
 {
     if (!Visible)
         return;
+
+    PROFILER_FUNCTION();
 
     //Shader constants for this object
     PerObjectConstants constants;

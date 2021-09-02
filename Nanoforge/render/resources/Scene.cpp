@@ -4,6 +4,7 @@
 #include "Log.h"
 #include "util/StringHelpers.h"
 #include "application/Config.h"
+#include "util/Profiler.h"
 
 //Todo: Stick this in a debug namespace
 void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
@@ -49,6 +50,7 @@ void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
 
 void Scene::Draw(f32 deltaTime)
 {
+    PROFILER_FUNCTION();
     TotalTime += deltaTime;
 
     //Don't draw scene if critical data not set
@@ -82,8 +84,6 @@ void Scene::Draw(f32 deltaTime)
     d3d11Context_->VSSetConstantBuffers(0, 1, perObjectBuffer_.GetAddressOf());
     for (auto& renderObject : Objects)
         renderObject.Draw(d3d11Context_, perObjectBuffer_, Cam);
-
-
 
     //Prepare state to render primitives
     d3d11Context_->RSSetState(primitiveRasterizerState_.Get());

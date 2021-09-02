@@ -24,6 +24,7 @@
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
 #include "gui/documents/LocalizationDocument.h"
+#include "util/Profiler.h"
 
 //Used in MainGui::DrawMainMenuBar()
 std::vector<const char*> TerritoryList =
@@ -108,6 +109,8 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
 
 void MainGui::Update(f32 deltaTime)
 {
+    PROFILER_FUNCTION();
+
     //Draw always visible UI elements
     DrawMainMenuBar();
     DrawDockspace();

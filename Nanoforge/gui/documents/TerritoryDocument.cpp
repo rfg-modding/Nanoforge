@@ -7,6 +7,7 @@
 #include "gui/documents/PegHelpers.h"
 #include "Log.h"
 #include <span>
+#include "util/Profiler.h"
 
 TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, string territoryShortname)
     : TerritoryName(territoryName), TerritoryShortname(territoryShortname)
@@ -53,6 +54,8 @@ TerritoryDocument::~TerritoryDocument()
 
 void TerritoryDocument::Update(GuiState* state)
 {
+    PROFILER_FUNCTION();
+
     //Only redraw scene if window is focused
     Scene->NeedsRedraw = ImGui::IsWindowFocused();
     if (WorkerDone) //Once worker thread is done clear its temporary data
@@ -330,6 +333,7 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
 
 void TerritoryDocument::WorkerThread(GuiState* state)
 {
+    PROFILER_FUNCTION();
     //Wait for packfile thread to finish.
     while (!state->PackfileVFS || !state->PackfileVFS->Ready())
     {
@@ -401,6 +405,7 @@ void TerritoryDocument::WorkerThread_ClearData()
 
 void TerritoryDocument::WorkerThread_LoadTerrainMeshes(GuiState* state)
 {
+    PROFILER_FUNCTION();
     state->SetStatus(ICON_FA_SYNC " Loading terrain meshes for " + Title, Working);
 
     //Must store futures for std::async to run functions asynchronously
@@ -446,6 +451,9 @@ void TerritoryDocument::WorkerThread_LoadTerrainMeshes(GuiState* state)
 
 void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state)
 {
+    PROFILER_FUNCTION();
+    PROFILER_SET_THREAD_NAME((terrainMesh.Filename() + " terrain worker").c_str());
+
     //Get packfile that holds terrain meshes
     auto* container = terrainMesh.GetContainer();
     if (!container)
@@ -600,6 +608,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
 
 std::span<LowLodTerrainVertex> TerritoryDocument::WorkerThread_GenerateTerrainNormals(std::span<ShortVec4> vertices, std::span<u16> indices)
 {
+    PROFILER_FUNCTION();
     struct Face
     {
         u32 verts[3];

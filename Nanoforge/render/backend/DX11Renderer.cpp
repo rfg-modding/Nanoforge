@@ -51,6 +51,10 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u
     //Quick fix for view being distorted before first window resize
     HandleResize();
 
+#ifdef TRACY_ENABLE
+    tracyContext_ = PROFILER_D3D11_CONTEXT(d3d11Device_.Get(), d3d11Context_.Get());
+#endif
+
     initialized_ = true;
 }
 
@@ -63,6 +67,10 @@ DX11Renderer::~DX11Renderer()
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+
+#ifdef TRACY_ENABLE
+    PROFILER_D3D11_CONTEXT_DESTROY(tracyContext_);
+#endif
 
     ReleaseCOM(swapChain_);
     d3d11Device_.Reset();
@@ -77,6 +85,9 @@ void DX11Renderer::NewFrame(f32 deltaTime) const
 
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
+    PROFILER_FUNCTION();
+    PROFILER_D3D11_ZONE(tracyContext_, "Renderer::DoFrame()");
+
     std::lock_guard<std::mutex> lock(ContextMutex);
     d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
     d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
@@ -97,6 +108,10 @@ void DX11Renderer::DoFrame(f32 deltaTime)
     swapChain_->Present(0, 0);
 
     ImGui::EndFrame();
+
+#ifdef TRACY_ENABLE
+    PROFILER_D3D11_COLLECT(tracyContext_);
+#endif
 }
 
 void DX11Renderer::HandleResize()

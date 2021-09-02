@@ -4,6 +4,7 @@
 #include "gui/GuiState.h"
 #include "RfgTools++/hashes/Hash.h"
 #include "Log.h"
+#include "util/Profiler.h"
 
 LocalizationDocument::LocalizationDocument(GuiState* state)
 {
@@ -17,6 +18,7 @@ LocalizationDocument::~LocalizationDocument()
 
 void LocalizationDocument::Update(GuiState* state)
 {
+    PROFILER_FUNCTION();
     state->FontManager->FontL.Push();
     ImGui::Text(ICON_FA_LANGUAGE " Strings");
     state->FontManager->FontL.Pop();

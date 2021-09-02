@@ -29,9 +29,11 @@ add_executable (Nanoforge ${SOURCES}
     ${CMAKE_SOURCE_DIR}/dependencies/tinyxml2/tinyxml2.cpp
     # imnodes files
     ${CMAKE_SOURCE_DIR}/dependencies/imnodes/imnodes.cpp
-    #nativefiledialog files
+    # nativefiledialog files
     ${CMAKE_SOURCE_DIR}/dependencies/nativefiledialog/src/nfd_common.c
     ${CMAKE_SOURCE_DIR}/dependencies/nativefiledialog/src/nfd_win.cpp
+    # Tracy client files
+    ${CMAKE_SOURCE_DIR}/dependencies/tracy/TracyClient.cpp
     )
 
 # Add include directories
@@ -54,6 +56,7 @@ target_include_directories(Nanoforge SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/nativefiledialog/src/
     ${CMAKE_SOURCE_DIR}/Dependencies/nativefiledialog/src/include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui_markdown/
+    ${CMAKE_SOURCE_DIR}/Dependencies/tracy/
 )
 
 # Copy assets directory to binary dir after builds
@@ -74,10 +77,12 @@ else()
     target_link_libraries(Nanoforge PRIVATE ${CMAKE_SOURCE_DIR}/lib/DirectXTex.lib)
 endif()
 
-# Enable VS edit and continue if using MSVC, in a debug build and ASAN is disabled. ASAN doesn't support edit and continue.
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT ENABLE_ASAN)
-        target_compile_options(Nanoforge PRIVATE "/ZI")
-        target_link_options(Nanoforge PRIVATE "/SAFESEH:NO")
+# Enable VS edit and continue if using MSVC, in a debug build and ASAN and the profiler are disabled. ASAN and tracy don't support edit and continue.
+if(ENABLE_EDIT_AND_CONTINUE AND NOT ENABLE_ASAN AND NOT ENABLE_PROFILER)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+        if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            target_compile_options(Nanoforge PRIVATE "/ZI")
+            target_link_options(Nanoforge PRIVATE "/SAFESEH:NO")
+        endif()
     endif()
 endif()

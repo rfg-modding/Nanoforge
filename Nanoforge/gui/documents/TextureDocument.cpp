@@ -7,6 +7,7 @@
 #include "PegHelpers.h"
 #include "util/RfgUtil.h"
 #include "application/project/Project.h"
+#include "util/Profiler.h"
 
 TextureDocument::TextureDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
@@ -68,6 +69,8 @@ TextureDocument::~TextureDocument()
 
 void TextureDocument::Update(GuiState* state)
 {
+    PROFILER_FUNCTION();
+
     //Controls max size of selected image in gui relative to the size of it's column
     static f32 imageViewSizeMultiplier = 0.85f;
     //ImGui::SliderFloat("Image view multiplier", &imageViewSizeMultiplier, 0.05f, 1.0f);

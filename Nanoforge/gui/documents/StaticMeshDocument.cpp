@@ -11,7 +11,7 @@
 #include "PegHelpers.h"
 #include <imgui_internal.h>
 #include <optional>
-
+#include "util/Profiler.h"
 
 StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
@@ -46,6 +46,8 @@ StaticMeshDocument::~StaticMeshDocument()
 
 void StaticMeshDocument::Update(GuiState* state)
 {
+    PROFILER_FUNCTION();
+
     //Camera only handles input if window is focused
     Scene->Cam.InputActive = ImGui::IsWindowFocused();
     //Only redraw scene if window is focused

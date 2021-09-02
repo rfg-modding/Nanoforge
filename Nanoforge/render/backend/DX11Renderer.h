@@ -2,6 +2,7 @@
 #include "common/Typedefs.h"
 #include "rfg/TerrainHelpers.h"
 #include "render/resources/Scene.h"
+#include "util/Profiler.h"
 #include <ext/WindowsWrapper.h>
 #include <DirectXMath.h>
 #include <d3d11.h>
@@ -28,7 +29,7 @@ public:
     void DoFrame(f32 deltaTime);
     void HandleResize();
     HWND GetSystemWindowHandle() { return hwnd_; }
-    
+
     //Creates a shader resource view from the provided input and returns it. Up to user to free it once they're done
     ImTextureID TextureDataToHandle(std::span<u8> data, DXGI_FORMAT format, u32 width, u32 height);
     u32 WindowWidth() { return windowWidth_; }
@@ -80,4 +81,8 @@ private:
 
     bool initialized_ = false;
     u32 drawCount_ = 0;
+
+#ifdef TRACY_ENABLE
+    TracyD3D11Ctx tracyContext_ = nullptr;
+#endif
 };

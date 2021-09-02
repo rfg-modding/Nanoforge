@@ -27,3 +27,6 @@
 [submodule "Dependencies/imgui_markdown"]
 	path = Dependencies/imgui_markdown
 	url = https://github.com/juliettef/imgui_markdown.git
+[submodule "Dependencies/tracy"]
+	path = Dependencies/tracy
+	url = https://github.com/wolfpld/tracy.git
