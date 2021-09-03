@@ -5,6 +5,8 @@
 #include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
 #include <RfgTools++\formats\textures\PegFile10.h>
 #include "gui/documents/PegHelpers.h"
+#include "RfgTools++/formats/meshes/TerrainLowLod.h"
+#include "RfgTools++/formats/meshes/Terrain.h"
 #include "Log.h"
 #include <span>
 #include "util/Profiler.h"
@@ -358,6 +360,8 @@ void TerritoryDocument::WorkerThread(GuiState* state)
         Sleep(50);
     }
 
+    TerrainThreadTimer.Reset();
+
     //Read all zones from zonescript_terr01.vpp_pc
     state->SetStatus(ICON_FA_SYNC " Loading zones for " + Title, Working);
     Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname);
@@ -366,7 +370,7 @@ void TerritoryDocument::WorkerThread(GuiState* state)
     TerritoryDataLoaded = true;
 
     std::vector<ZoneData>& zoneFiles = Territory.ZoneFiles;
-    Log->info("Loaded {} zones for {}", zoneFiles.size(), Title);
+    Log->info("Loaded {} zones for {} in {} seconds", zoneFiles.size(), Title, TerrainThreadTimer.ElapsedSecondsPrecise());
 
     //Move camera close to zone with the most objects by default. Convenient as some territories have origins distant from each other
     if (zoneFiles.size() > 0 && zoneFiles[0].Zone.Objects.size() > 0)
@@ -406,7 +410,6 @@ void TerritoryDocument::WorkerThread_ClearData()
         //Clear vectors
         instance.Indices.clear();
         instance.Vertices.clear();
-        instance.Meshes.clear();
 
         //Clear blend texture data
         if (instance.HasBlendTexture)
@@ -465,7 +468,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMeshes(GuiState* state)
     for (auto& future : futures)
         future.wait();
 
-    Log->info("Done loading terrain meshes for {}", Title);
+    Log->info("Done loading terrain meshes for {}. Took {} seconds", Title, TerrainThreadTimer.ElapsedSecondsPrecise());
 }
 
 void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec3 position, GuiState* state)
@@ -495,6 +498,7 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
     //Create new instance
     TerrainInstance terrain;
     terrain.Position = position;
+    terrain.DataLowLod.Read(cpuFile, terrainMesh.Filename());
 
     //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
     u32 cpuFileIndex = 0;
@@ -505,45 +509,12 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
         if (!Open)
             break;
 
-        //Get mesh crc from gpu file. Will use this to find the mesh description data section of the cpu file which starts and ends with this value
-        //In while loop since a mesh file pair can have multiple meshes inside
-        u32 meshCrc = gpuFile.ReadUint32();
-        if (meshCrc == 0)
-            THROW_EXCEPTION("Failed to read next mesh data block hash in terrain mesh gpu file.");
+        std::optional<MeshInstanceData> meshData = terrain.DataLowLod.ReadSubmeshData(gpuFile, i);
+        if (!meshData.has_value())
+            THROW_EXCEPTION("Failed to read submesh {} from {}.", i, terrainMesh.Filename());
 
-        //Find next mesh data block in cpu file
-        while (true)
-        {
-            //This is done instead of using BinaryReader::ReadUint32() because that method was incredibly slow (+ several minutes slow)
-            if (cpuFileAsUintArray[cpuFileIndex] == meshCrc)
-                break;
-
-            cpuFileIndex++;
-        }
-        u64 meshDataBlockStart = (cpuFileIndex * 4) - 4;
-        cpuFile.SeekBeg(meshDataBlockStart);
-
-        //Read mesh data block. Contains info on vertex + index layout + size + format
-        MeshDataBlock meshData;
-        meshData.Read(cpuFile);
-        cpuFileIndex += static_cast<u32>(cpuFile.Position() - meshDataBlockStart) / 4;
-        terrain.Meshes.push_back(meshData);
-
-        //Read index buffer
-        gpuFile.Align(16);
-        u16* indexBuffer = new u16[meshData.NumIndices];
-        gpuFile.ReadToMemory(indexBuffer, meshData.NumIndices * meshData.IndexSize);
-        terrain.Indices.push_back(std::span<u16>(indexBuffer, meshData.NumIndices));
-
-        //Read vertex buffer
-        gpuFile.Align(16);
-        LowLodTerrainVertex* vertexBuffer = new LowLodTerrainVertex[meshData.NumVertices];
-        gpuFile.ReadToMemory(vertexBuffer, meshData.NumVertices * meshData.VertexStride0);
-        terrain.Vertices.push_back(std::span<LowLodTerrainVertex>(vertexBuffer, meshData.NumVertices));
-
-        u32 endMeshCrc = gpuFile.ReadUint32();
-        if (meshCrc != endMeshCrc)
-            THROW_EXCEPTION("Verification hashes at the start and end of terrain gpu file don't match.");
+        terrain.Indices.push_back(ConvertSpan<u8, u16>(meshData.value().IndexBuffer));
+        terrain.Vertices.push_back(ConvertSpan<u8, LowLodTerrainVertex>(meshData.value().VertexBuffer));
     }
 
     //Clear resources
@@ -572,14 +543,14 @@ void TerritoryDocument::WorkerThread_LoadTerrainMesh(FileHandle terrainMesh, Vec
 bool TerritoryDocument::WorkerThread_FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight)
 {
     //Search for texture
-    auto searchResult = vfs->GetFiles(textureName, true, true);
-    if (searchResult.size() == 0)
+    std::vector<FileHandle> search = vfs->GetFiles(textureName, true, true);
+    if (search.size() == 0)
     {
         Log->warn("Couldn't find {} for {}.", textureName, TerritoryName);
         return false;
     }
 
-    FileHandle& handle = searchResult[0];
+    FileHandle& handle = search[0];
     auto* container = handle.GetContainer();
     if (!container)
         THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
@@ -590,9 +561,9 @@ bool TerritoryDocument::WorkerThread_FindTexture(PackfileVFS* vfs, const string&
 
     //Ensure the texture files were extracted
     if (!cpuFileBytes)
-        THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
+        THROW_EXCEPTION("Failed to extract texture cpu file {}", textureName);
     if (!gpuFileBytes)
-        THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
+        THROW_EXCEPTION("Failed to extract texture gpu file {}", textureName);
 
     BinaryReader gpuFile(cpuFileBytes.value());
     BinaryReader cpuFile(gpuFileBytes.value());

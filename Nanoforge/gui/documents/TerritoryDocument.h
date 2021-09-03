@@ -5,6 +5,7 @@
 #include "rfg/Territory.h"
 #include "rfg/TerrainHelpers.h"
 #include "render/resources/Scene.h"
+#include "common/timing/Timer.h"
 #include <future>
 
 class TerritoryDocument : public IDocument
@@ -39,6 +40,7 @@ private:
     bool NewTerrainInstanceAdded = false;
     bool PrimitivesNeedRedraw = true;
     bool TerritoryDataLoaded = false;
+    Timer TerrainThreadTimer;
 
     GuiState* state_ = nullptr;
 };

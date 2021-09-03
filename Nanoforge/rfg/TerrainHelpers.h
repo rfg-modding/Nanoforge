@@ -2,6 +2,8 @@
 #include "common/Typedefs.h"
 #include <RfgTools++\formats\meshes\MeshDataBlock.h>
 #include <RfgTools++\formats\textures\PegFile10.h>
+#include <RfgTools++/formats/meshes/TerrainLowLod.h>
+#include <RfgTools++/formats/meshes/Terrain.h>
 #include <vector>
 #include <span>
 
@@ -18,7 +20,7 @@ static_assert(sizeof(LowLodTerrainVertex) == 8, "LowLodTerrainVertex size incorr
 struct TerrainInstance
 {
     string Name;
-    std::vector<MeshDataBlock> Meshes = {}; //Low lod terrain files have 9 meshes (not technically submeshes)
+    TerrainLowLod DataLowLod;
     std::vector<std::span<u16>> Indices = {};
     std::vector<std::span<LowLodTerrainVertex>> Vertices = {};
     bool Visible = true;
