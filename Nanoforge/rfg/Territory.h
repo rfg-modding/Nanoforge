@@ -1,8 +1,12 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "PackfileVFS.h"
+#include "common/timing/Timer.h"
+#include "rfg/TerrainHelpers.h"
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\types\Vec4.h>
+#include <future>
+#include <mutex>
 
 //Wrapper around ZonePc36 used by Territory
 struct ZoneData
@@ -31,44 +35,45 @@ struct ZoneObjectClass
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
 
+class GuiState;
+
 //Loads all zone files for a territory and tracks info about them and their contents
 class Territory
 {
 public:
     //Set values needed for it to function
     void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname);
-    //Load all zone files and gather info about them
-    void LoadZoneData();
-    //Reset / clear data in preparation for territory reload
-    void ResetTerritoryData();
-    //Returns true if zone data has been loaded and is ready for use
-    bool Ready() { return zoneDataLoaded_; }
+    std::future<void> LoadAsync(GuiState* state); //Starts a thread that loads the territory zones, terrain, etc
+    void StopLoadThread() { loadThreadShouldStop_ = true; }
+    void ClearLoadThreadData(); //Clear temporary data accrued by the load threads
+    bool LoadThreadRunning() { return loadThreadRunning_; }
+    bool Ready() { return ready_; } //Returns true if the territory is loaded and ready for use
 
-    //Whether or not this object should be shown based on filtering settings
-    bool ShouldShowObjectClass(u32 classnameHash);
-    //Checks if a object class is in the selected zones class list
-    bool ObjectClassRegistered(u32 classnameHash, u32& outIndex);
-    //Update number of instances of each object class for visible zones
-    void UpdateObjectClassInstanceCounts();
-    //Scans all zone objects for any object class types that aren't known. Used for filtering and coloring purposes
-    void InitObjectClassData();
+    bool ShouldShowObjectClass(u32 classnameHash); //Returns true if the object should be visible. Based on zone object list filtering options
+    bool ObjectClassRegistered(u32 classnameHash, u32& outIndex); //Returns true if the object type with this classname hash is known
+    void UpdateObjectClassInstanceCounts(); //Update number of instances of each object class for visible zones
+    void InitObjectClassData(); //Initialize object class data. Used for identification and filtering.
     ZoneObjectClass& GetObjectClass(u32 classnameHash);
 
     std::vector<ZoneData> ZoneFiles;
     std::vector<ZoneObjectClass> ZoneObjectClasses = {};
+    std::mutex ZoneFilesLock;
+    std::vector<TerrainInstance> TerrainInstances = {};
+    std::mutex TerrainLock;
 
     u32 LongestZoneName = 0;
+    Timer LoadThreadTimer;
 
 private:
-    //Determine short name for zone if possible. E.g. terr01_07_02.rfgzone_pc -> 07_02
-    //Goal is to hide unecessary info such as the territory, prefix, and extension where possible
-    //Still has full name for situations where that info is useful or for users who prefer that format
-    //Note: Assumes persistence prefix "p_" has already been checked for and that Name has already been set.
-    void SetZoneShortName(ZoneData& zone);
+    void LoadThread(GuiState* state); //Top level loading thread
+    void LoadWorkerThread(GuiState* state, Packfile3* packfile, const char* zoneFilename); //Loads a single zone and its assets
+    bool FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight);
+    void SetZoneShortName(ZoneData& zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
 
     PackfileVFS* packfileVFS_ = nullptr;
-    //Name of the vpp_pc file that zone data is loaded from at startup
-    string territoryFilename_;
+    string territoryFilename_; //Name of the vpp_pc file that zone data is loaded from at startup
     string territoryShortname_;
-    bool zoneDataLoaded_ = false;
+    bool ready_ = false;
+    bool loadThreadShouldStop_ = false;
+    bool loadThreadRunning_ = false;
 };

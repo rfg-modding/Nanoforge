@@ -21,6 +21,7 @@ struct TerrainInstance
 {
     string Name;
     TerrainLowLod DataLowLod;
+    Terrain Data;
     std::vector<std::span<u16>> Indices = {};
     std::vector<std::span<LowLodTerrainVertex>> Vertices = {};
     bool Visible = true;
