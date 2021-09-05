@@ -8,6 +8,7 @@
 #include <functional>
 #include <spdlog/fmt/fmt.h>
 #include "Log.h"
+#include "util/Profiler.h"
 
 ScriptxEditor::ScriptxEditor(GuiState* state)
 {
@@ -21,6 +22,7 @@ ScriptxEditor::~ScriptxEditor()
 
 void ScriptxEditor::Update(GuiState* state, bool* open)
 {
+    PROFILER_FUNCTION();
     ImGui::SetNextWindowSize({ 400.0f, 400.0f }, ImGuiCond_Appearing);
     if (!ImGui::Begin("Scriptx viewer", open))
     {

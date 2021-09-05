@@ -7,6 +7,7 @@
 #include "gui/documents/LocalizationDocument.h"
 #include "render/imgui/imgui_ext.h"
 #include "common/string/String.h"
+#include "util/Profiler.h"
 #include <regex>
 #include <thread>
 
@@ -22,6 +23,7 @@ FileExplorer::~FileExplorer()
 
 void FileExplorer::Update(GuiState* state, bool* open)
 {
+    PROFILER_FUNCTION();
     if (!ImGui::Begin("File explorer", open))
     {
         ImGui::End();
@@ -79,6 +81,7 @@ void FileExplorer::Update(GuiState* state, bool* open)
 
 void FileExplorer::UpdateSearchBar(GuiState* state)
 {
+    PROFILER_FUNCTION();
     if (ImGui::InputText("Search", &SearchTerm))
     {
         SearchChanged = true;

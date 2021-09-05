@@ -1,5 +1,6 @@
 #include "LogPanel.h"
 #include "render/imgui/imgui_ext.h"
+#include "util/Profiler.h"
 
 LogPanel::LogPanel()
 {
@@ -13,6 +14,7 @@ LogPanel::~LogPanel()
 
 void LogPanel::Update(GuiState* state, bool* open)
 {
+    PROFILER_FUNCTION();
     if (!ImGui::Begin("Log", open))
     {
         ImGui::End();

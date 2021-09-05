@@ -84,6 +84,9 @@ void Application::MainLoop()
     FrameTimer.Start();
     while (!Exit) //Loop until stage finishes or app exit variable is set to true
     {
+        static const char* MainFrame = "MainFrame";
+        PROFILER_FRAME_MARK_START(MainFrame);
+
         //Dispatch window messages
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
@@ -105,6 +108,7 @@ void Application::MainLoop()
 
         //Render this frame
         renderer_.DoFrame(deltaTime_);
+        PROFILER_FRAME_MARK_END(MainFrame);
 
         //Sleep until target framerate is reached
         {
@@ -119,8 +123,7 @@ void Application::MainLoop()
 
         deltaTime_ = FrameTimer.ElapsedSecondsPrecise();
         FrameTimer.Reset();
-
-        PROFILER_FRAME_END();
+        PROFILER_FRAME_MARK();
     }
 }
 

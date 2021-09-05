@@ -1,4 +1,5 @@
 #include "PropertyPanel.h"
+#include "util/Profiler.h"
 
 PropertyPanel::PropertyPanel()
 {
@@ -12,6 +13,7 @@ PropertyPanel::~PropertyPanel()
 
 void PropertyPanel::Update(GuiState* state, bool* open)
 {
+    PROFILER_FUNCTION();
     if (!ImGui::Begin("Properties", open))
     {
         ImGui::End();

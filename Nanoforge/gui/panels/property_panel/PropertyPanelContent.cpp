@@ -12,9 +12,11 @@
 #include "RfgTools++/formats/zones/properties/special/DistrictFlagsProperty.h"
 #include "RfgTools++/formats/zones/properties/compound/ListProperty.h"
 #include "RfgTools++/formats/zones/properties/special/NavpointDataProperty.h"
+#include "util/Profiler.h"
 
 void DrawPackfileData(GuiState* state, Packfile3* packfile)
 {
+    PROFILER_FUNCTION();
     gui::LabelAndValue("Name:", packfile->Name());
     gui::LabelAndValue("Version:", std::to_string(packfile->Header.Version));
     gui::LabelAndValue("Flags:", std::to_string(packfile->Header.Flags));
@@ -28,6 +30,7 @@ void DrawPackfileData(GuiState* state, Packfile3* packfile)
 
 void PropertyPanel_VppContent(GuiState* state)
 {
+    PROFILER_FUNCTION();
     if (!state->FileExplorer_SelectedNode)
         return;
 
@@ -49,6 +52,7 @@ void PropertyPanel_VppContent(GuiState* state)
 
 void PropertyPanel_Str2Content(GuiState* state)
 {
+    PROFILER_FUNCTION();
     if (!state->FileExplorer_SelectedNode)
         return;
 
@@ -58,7 +62,7 @@ void PropertyPanel_Str2Content(GuiState* state)
     if (state->FileExplorer_SelectedNode != lastSelectedNode)
     {
         lastSelectedNode = state->FileExplorer_SelectedNode;
-        
+
         //Containers aren't stored long term by the packfileVFS so we must delete it ourselves once done with it
         if (container)
             delete container;
@@ -77,6 +81,7 @@ void PropertyPanel_Str2Content(GuiState* state)
 
 void PropertyPanel_ZoneObject(GuiState* state)
 {
+    PROFILER_FUNCTION();
     if (!state->SelectedObject)
     {
         ImGui::Text("%s Select a zone object to see it's properties", ICON_FA_EXCLAMATION_CIRCLE);

@@ -3,6 +3,7 @@
 #include "property_panel/PropertyPanelContent.h"
 #include "RfgTools++/formats/zones/properties/primitive/StringProperty.h"
 #include "render/imgui/imgui_ext.h"
+#include "util/Profiler.h"
 
 ZoneObjectsList::ZoneObjectsList()
 {
@@ -16,6 +17,7 @@ ZoneObjectsList::~ZoneObjectsList()
 
 void ZoneObjectsList::Update(GuiState* state, bool* open)
 {
+    PROFILER_FUNCTION();
     if (!ImGui::Begin("Zone objects", open))
     {
         ImGui::End();
@@ -90,25 +92,33 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
             //Draw each node
 
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
-            //Loop through visible zones
-            for (auto& zone : state->CurrentTerritory->ZoneFiles)
+            if (state->CurrentTerritory->Ready())
             {
-                if (!zone.RenderBoundingBoxes)
-                    continue;
-
-                //Close zone node if none of it's child objects a visible (based on object type filters)
-                bool anyChildrenVisible = ZoneAnyChildObjectsVisible(state, zone);
-                if (ImGui::TreeNodeEx(zone.Name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
-                    (!anyChildrenVisible ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)))
+                //Loop through visible zones
+                for (auto& zone : state->CurrentTerritory->ZoneFiles)
                 {
-                    for (auto& object : zone.Zone.ObjectsHierarchical)
-                    {
-                        DrawObjectNode(state, object);
-                    }
-                    ImGui::TreePop();
-                }
+                    if (!zone.RenderBoundingBoxes)
+                        continue;
 
+                    //Close zone node if none of it's child objects a visible (based on object type filters)
+                    bool anyChildrenVisible = ZoneAnyChildObjectsVisible(state, zone);
+                    if (ImGui::TreeNodeEx(zone.Name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+                        (!anyChildrenVisible ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)))
+                    {
+                        for (auto& object : zone.Zone.ObjectsHierarchical)
+                        {
+                            DrawObjectNode(state, object);
+                        }
+                        ImGui::TreePop();
+                    }
+
+                }
             }
+            else
+            {
+                ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Loading zones...");
+            }
+
             ImGui::PopStyleVar();
             ImGui::EndChild();
         }

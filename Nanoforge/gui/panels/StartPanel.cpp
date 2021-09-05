@@ -11,6 +11,7 @@
 #include "gui/misc/Changelog.h"
 #include "gui/misc/SettingsGui.h"
 #include "WorkerThread.h"
+#include "util/Profiler.h"
 #include <future>
 #include <imgui_markdown.h>
 #include "Log.h"
@@ -30,6 +31,7 @@ StartPanel::~StartPanel()
 
 void StartPanel::Update(GuiState* state, bool* open)
 {
+    PROFILER_FUNCTION();
     if (!ImGui::Begin("Start page", open))
     {
         ImGui::End();

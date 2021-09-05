@@ -3,6 +3,7 @@
 #include "common/string/String.h"
 #include "common/filesystem/Path.h"
 #include "render/imgui/imgui_ext.h"
+#include "util/Profiler.h"
 
 ZoneList::ZoneList()
 {
@@ -16,6 +17,7 @@ ZoneList::~ZoneList()
 
 void ZoneList::Update(GuiState* state, bool* open)
 {
+    PROFILER_FUNCTION();
     if (!ImGui::Begin("Zones", open))
     {
         ImGui::End();
