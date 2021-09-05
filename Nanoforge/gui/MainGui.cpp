@@ -457,8 +457,18 @@ void MainGui::DrawMainMenuBar()
 
             //FPS value
             drawList->AddText(cursorPos, ImGui::ColorConvertFloat4ToU32(gui::SecondaryTextColor), framerate.c_str(), framerate.c_str() + decimal + 3);
-            cursorPos.x += ImGui::CalcTextSize(framerate.c_str(), framerate.c_str() + decimal + 3).x;
+            cursorPos.x += 45.0f;
         }
+
+        //Draw warning if the profiler is enabled so it's not accidentally compiled into release builds.
+        //Can cause huge memory usage as it'll buffer the data locally until it connects to the tracy client, which most users won't be running.
+#ifdef TRACY_ENABLE
+        const char* text = ICON_FA_EXCLAMATION_TRIANGLE " PROFILER ENABLED";
+        cursorPos.y += 1.0f;
+        drawList->AddText(cursorPos, ImGui::GetColorU32({ 1.0f, 0.5f, 0.153f, 1.0f }), text, text + strlen(text));
+        cursorPos.x += ImGui::CalcTextSize(text).x;
+        cursorPos.y -= 1.0f;
+#endif
 
         ImGui::EndMainMenuBar();
     }
