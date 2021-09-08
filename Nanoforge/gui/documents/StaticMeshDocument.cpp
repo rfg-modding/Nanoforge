@@ -144,6 +144,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
     if (ImGui::Button(ICON_FA_SUN))
         ImGui::OpenPopup("##SceneSettingsPopup");
     state->FontManager->FontL.Pop();
+
     if (ImGui::BeginPopup("##SceneSettingsPopup"))
     {
         state->FontManager->FontL.Push();
@@ -177,6 +178,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
     if (ImGui::Button(ICON_FA_INFO_CIRCLE))
         ImGui::OpenPopup("##MeshInfoPopup");
     state->FontManager->FontL.Pop();
+
     if (ImGui::BeginPopup("##MeshInfoPopup"))
     {
         //Header / general data
@@ -185,16 +187,16 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
-        gui::LabelAndValue("Header size:", std::to_string(StaticMesh.CpuDataSize) + " bytes");
-        gui::LabelAndValue("Data size:", std::to_string(StaticMesh.GpuDataSize) + " bytes");
+        gui::LabelAndValue("Header size:", std::to_string(StaticMesh.MeshInfo.CpuDataSize) + " bytes");
+        gui::LabelAndValue("Data size:", std::to_string(StaticMesh.MeshInfo.GpuDataSize) + " bytes");
         gui::LabelAndValue("Num LODs:", std::to_string(StaticMesh.NumLods));
-        gui::LabelAndValue("Num submeshes:", std::to_string(StaticMesh.NumSubmeshes));
+        gui::LabelAndValue("Num submeshes:", std::to_string(StaticMesh.MeshInfo.NumSubmeshes));
         gui::LabelAndValue("Num materials:", std::to_string(StaticMesh.Header.NumMaterials));
-        gui::LabelAndValue("Num vertices:", std::to_string(StaticMesh.VertexBufferConfig.NumVerts));
-        gui::LabelAndValue("Num indices:", std::to_string(StaticMesh.IndexBufferConfig.NumIndices));
-        gui::LabelAndValue("Vertex format:", to_string(StaticMesh.VertexBufferConfig.Format));
-        gui::LabelAndValue("Vertex size:", std::to_string(StaticMesh.VertexBufferConfig.VertexStride0));
-        gui::LabelAndValue("Index size:", std::to_string(StaticMesh.IndexBufferConfig.IndexSize));
+        gui::LabelAndValue("Num vertices:", std::to_string(StaticMesh.MeshInfo.NumVertices));
+        gui::LabelAndValue("Num indices:", std::to_string(StaticMesh.MeshInfo.NumIndices));
+        gui::LabelAndValue("Vertex format:", to_string(StaticMesh.MeshInfo.VertFormat));
+        gui::LabelAndValue("Vertex size:", std::to_string(StaticMesh.MeshInfo.VertexStride0));
+        gui::LabelAndValue("Index size:", std::to_string(StaticMesh.MeshInfo.IndexSize));
 
         //Submesh data
         ImGui::Separator();
@@ -203,51 +205,20 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
-        //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
-        Scene->NeedsRedraw = true;
-
-        //Buttons to show/hide all submeshes at once
-        if (ImGui::Button("Show all"))
-        {
-            for (u32 i = 0; i < StaticMesh.SubMeshes.size(); i++)
-            {
-                RenderObject& renderObj = Scene->Objects[RenderObjectIndices[i]];
-                renderObj.Visible = true;
-            }
-        }
+        //LOD level selector
+        auto& mesh = Scene->Objects[0].ObjectMesh;
+        u32 lodLevel = mesh.GetLodLevel();
+        u32 min = 0;
+        u32 max = mesh.NumLods() - 1;
+        bool lodChanged = ImGui::SliderScalar("LOD Level", ImGuiDataType_U32, &lodLevel, &min, &max, nullptr);
         ImGui::SameLine();
-        if (ImGui::Button("Hide all"))
+        gui::HelpMarker("Lower is higher quality.", state->FontManager->FontDefault.GetFont());
+        if (lodChanged)
         {
-            for (u32 i = 0; i < StaticMesh.SubMeshes.size(); i++)
-            {
-                RenderObject& renderObj = Scene->Objects[RenderObjectIndices[i]];
-                renderObj.Visible = false;
-            }
+            mesh.SetLodLevel(lodLevel);
+            Scene->NeedsRedraw = true;
         }
 
-        if (ImGui::BeginChild("##MeshInfoSubmeshesList", ImVec2(200.0f, 150.0f)))
-        {
-            ImGui::Columns(2);
-            ImGui::SetColumnWidth(0, 100.0f);
-            ImGui::SetColumnWidth(1, 100.0f);
-            for (u32 i = 0; i < StaticMesh.SubMeshes.size(); i++)
-            {
-                SubmeshData& submesh = StaticMesh.SubMeshes[i];
-                if (i >= RenderObjectIndices.size()) //Skip submeshes that aren't fully loaded yet
-                    continue;
-
-                RenderObject& renderObj = Scene->Objects[RenderObjectIndices[i]];
-                if (ImGui::Selectable(("Submesh " + std::to_string(i)).c_str()))
-                {
-                    //Todo: Edge highlight / glow selected submesh
-                }
-                ImGui::NextColumn();
-                ImGui::Checkbox(("##SubmeshVisibility" + std::to_string(i)).c_str(), &renderObj.Visible);
-                ImGui::NextColumn();
-            }
-            ImGui::EndChild();
-        }
-        ImGui::Columns(1);
         ImGui::EndPopup();
     }
 
@@ -350,7 +321,6 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
 {
     WorkerStatusString = "Parsing header...";
 
-    //Todo: Move into worker thread once working. Just here for prototyping
     //Get gpu filename
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
     if (!Open) //Exit early check
@@ -395,7 +365,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     else if (ext == ".ccmesh_pc")
         StaticMesh.Read(cpuFileReader, Filename, 0xFAC351A9, 4);
 
-    Log->info("Mesh vertex format: {}", to_string(StaticMesh.VertexBufferConfig.Format));
+    Log->info("Mesh vertex format: {}", to_string(StaticMesh.MeshInfo.VertFormat));
 
     //Check if the document was closed. If so, end worker thread early
     if (!Open)
@@ -404,7 +374,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     //Todo: Put this in renderer / RenderObject code somewhere so it can be reused by other mesh code
     //Vary input and shader based on vertex format
     WorkerStatusString = "Setting up scene...";
-    VertexFormat format = StaticMesh.VertexBufferConfig.Format;
+    VertexFormat format = StaticMesh.MeshInfo.VertFormat;
     state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
     Scene->SetShader(shaderFolderPath_ + to_string(format) + ".fx");
     if (format == VertexFormat::Pixlit1Uv)
@@ -414,7 +384,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "NORMAL", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            });
+        });
     }
     else if (format == VertexFormat::Pixlit1UvNmap)
     {
@@ -424,7 +394,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
             { "NORMAL", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TANGENT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            });
+        });
     }
     else if (format == VertexFormat::Pixlit1UvNmapCa)
     {
@@ -436,7 +406,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
             { "BLENDWEIGHT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "BLENDINDEX", 0,  DXGI_FORMAT_R8G8B8A8_UINT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            });
+        });
     }
     else if (format == VertexFormat::Pixlit2UvNmap)
     {
@@ -447,7 +417,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
             { "TANGENT", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 1,  DXGI_FORMAT_R16G16_SINT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            });
+        });
     }
     else if (format == VertexFormat::Pixlit3UvNmap)
     {
@@ -459,7 +429,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
             { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 1,  DXGI_FORMAT_R16G16_SINT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 2,  DXGI_FORMAT_R16G16_SINT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            });
+        });
     }
     else if (format == VertexFormat::Pixlit3UvNmapCa)
     {
@@ -473,190 +443,149 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
             { "TEXCOORD", 0,  DXGI_FORMAT_R16G16_SINT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 1,  DXGI_FORMAT_R16G16_SINT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 2,  DXGI_FORMAT_R16G16_SINT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            });
+        });
     }
     state->Renderer->ContextMutex.unlock();
 
-    //Hide all submeshes except first if num submeshes = num lods. Generally the other submeshes are low lod meshes
-    bool hideLowLodMeshes = StaticMesh.NumLods == StaticMesh.NumSubmeshes;
-
-    //Track list of textures found and not found to avoid repeat searches
-    std::unordered_map<string, Texture2D_Ext> foundTextures = {};
-    std::unordered_map<string, int> missingTextures = {};
-
     //Two steps for each submesh: Get index/vertex buffers and find textures
-    u32 numSteps = StaticMesh.SubMeshes.size() * 2;
+    u32 numSteps = 2;
     f32 stepSize = 1.0f / (f32)numSteps;
 
-    for (u32 i = 0; i < StaticMesh.SubMeshes.size(); i++)
+    //Check if the document was closed. If so, end worker thread early
+    if (!Open)
+        return;
+
+    WorkerStatusString = "Loading mesh...";
+
+    //Read index and vertex buffers from gpu file
+    auto maybeMeshData = StaticMesh.ReadMeshData(gpuFileReader);
+    if (!maybeMeshData)
+        THROW_EXCEPTION("Failed to read submesh mesh data for static mesh document.");
+
+    //Load mesh and create render object from it
+    state->Renderer->ContextMutex.lock();
+    MeshInstanceData meshData = maybeMeshData.value();
+    Mesh mesh;
+    mesh.Create(Scene->d3d11Device_, Scene->d3d11Context_, meshData, StaticMesh.NumLods);
+    auto& renderObject = Scene->Objects.emplace_back();
+    renderObject.Create(mesh, Vec3{ 0.0f, 0.0f, 0.0f });
+    renderObject.SetScale(25.0f);
+    state->Renderer->ContextMutex.unlock();
+
+    WorkerProgressFraction += stepSize;
+    WorkerDone = true;
+
+    bool foundDiffuse = false;
+    bool foundSpecular = false;
+    bool foundNormal = false;
+
+    //Todo: Fully support RFGs material system. Currently just takes diffuse, normal, and specular textures
+    //Remove duplicates
+    std::vector<string> textures = StaticMesh.TextureNames;
+    std::sort(textures.begin(), textures.end());
+    textures.erase(std::unique(textures.begin(), textures.end()), textures.end());
+    for (auto& texture : textures)
+        texture = String::ToLower(texture);
+
+    //Remove textures that don't fit the current material system of Nanoforge
+    textures.erase(std::remove_if(textures.begin(), textures.end(),
+        [](string& str)
+        {
+            return !(String::EndsWith(str, "_d.tga") || String::EndsWith(str, "_n.tga") || String::EndsWith(str, "_s.tga") ||
+                     String::EndsWith(str, "_d_low.tga") || String::EndsWith(str, "_n_low.tga") || String::EndsWith(str, "_s_low.tga"));
+        }), textures.end());
+
+    //Load textures
+    for (auto& textureName : textures)
     {
         //Check if the document was closed. If so, end worker thread early
         if (!Open)
-            return;
-
-        WorkerStatusString = "Loading submesh " + std::to_string(i) + "...";
-
-        //Read index and vertex buffers from gpu file
-        auto maybeMeshData = StaticMesh.ReadSubmeshData(gpuFileReader, i);
-        if (!maybeMeshData)
-            THROW_EXCEPTION("Failed to read submesh mesh data for static mesh document.");
-
-        state->Renderer->ContextMutex.lock();
-        MeshInstanceData meshData = maybeMeshData.value();
-        auto& renderObject = Scene->Objects.emplace_back();
-        RenderObjectIndices.push_back(Scene->Objects.size() - 1);
-        Mesh mesh;
-        mesh.Create(Scene->d3d11Device_, Scene->d3d11Context_, meshData.VertexBuffer, meshData.IndexBuffer,
-            StaticMesh.VertexBufferConfig.NumVerts, DXGI_FORMAT_R16_UINT, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-        renderObject.Create(mesh, Vec3{ 0.0f, 0.0f, 0.0f });
-        renderObject.SetScale(25.0f);
-        if (hideLowLodMeshes && i > 0)
-            renderObject.Visible = false;
-        state->Renderer->ContextMutex.unlock();
-
-        WorkerProgressFraction += stepSize;
-
-        //Todo: Better handle materials. This works okay but doesn't always properly apply textures to meshes with multiple submeshes with different materials
-        WorkerStatusString = "Locating textures for submesh " + std::to_string(i) + "...";
-        bool foundDiffuse = false;
-        bool foundSpecular = false;
-        bool foundNormal = false;
-        for (auto& textureName : StaticMesh.TextureNames)
         {
-            //Check if the document was closed. If so, end worker thread early
-            if (!Open)
-            {
-                delete[] meshData.IndexBuffer.data();
-                delete[] meshData.VertexBuffer.data();
-                return;
-            }
-
-            string textureNameLower = String::ToLower(textureName);
-            bool missing = missingTextures.find(textureNameLower) != missingTextures.end();
-            if (missing) //Skip textures that weren't found in previous searches
-                continue;
-
-            if (!foundDiffuse && String::Contains(textureNameLower, "_d"))
-            {
-                std::optional<Texture2D_Ext> texture = {};
-                bool notInCache = foundTextures.find(textureNameLower) == foundTextures.end();
-                if (notInCache)
-                    texture = FindTexture(state, textureNameLower, true);
-                else
-                    texture = foundTextures[textureNameLower];
-
-                if (texture)
-                {
-                    if (notInCache)
-                        Log->info("Found diffuse texture {} for {}", texture->Texture.Name, Filename);
-                    else
-                        Log->info("Using cached copy of {} for {}", texture->Texture.Name, Filename);
-
-                    std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                    renderObject.UseTextures = true;
-                    renderObject.DiffuseTexture = texture.value().Texture;
-                    foundDiffuse = true;
-
-                    //Set diffuse texture used for export as first one found
-                    if (DiffuseMapPegPath == "")
-                    {
-                        DiffuseMapPegPath = texture.value().CpuFilePath;
-                        DiffuseTextureName = texture.value().Texture.Name;
-                    }
-
-                    if (foundTextures.find(textureNameLower) == foundTextures.end())
-                        foundTextures[textureNameLower] = texture.value();
-                }
-                else
-                {
-                    missingTextures[textureNameLower] = 0;
-                    Log->warn("Failed to find diffuse texture {} for {}", textureNameLower, Filename);
-                }
-            }
-            else if (!foundNormal && String::Contains(textureNameLower, "_n"))
-            {
-                std::optional<Texture2D_Ext> texture = {};
-                bool notInCache = foundTextures.find(textureNameLower) == foundTextures.end();
-                if (notInCache)
-                    texture = FindTexture(state, textureNameLower, true);
-                else
-                    texture = foundTextures[textureNameLower];
-
-                if (texture)
-                {
-                    if (notInCache)
-                        Log->info("Found normal map {} for {}", texture->Texture.Name, Filename);
-                    else
-                        Log->info("Using cached copy of {} for {}", texture->Texture.Name, Filename);
-
-                    std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                    renderObject.UseTextures = true;
-                    renderObject.NormalTexture = texture.value().Texture;
-                    foundNormal = true;
-
-                    //Set normal texture used for export as first one found
-                    if (NormalMapPegPath == "")
-                    {
-                        NormalMapPegPath = texture.value().CpuFilePath;
-                        NormalTextureName = texture.value().Texture.Name;
-                    }
-
-                    if (foundTextures.find(textureNameLower) == foundTextures.end())
-                        foundTextures[textureNameLower] = texture.value();
-                }
-                else
-                {
-                    missingTextures[textureNameLower] = 0;
-                    Log->warn("Failed to find normal map {} for {}", textureNameLower, Filename);
-                }
-            }
-            else if (!foundSpecular && String::Contains(textureNameLower, "_s"))
-            {
-                std::optional<Texture2D_Ext> texture = {};
-                bool notInCache = foundTextures.find(textureNameLower) == foundTextures.end();
-                if (notInCache)
-                    texture = FindTexture(state, textureNameLower, true);
-                else
-                    texture = foundTextures[textureNameLower];
-
-                if (texture)
-                {
-                    if (notInCache)
-                        Log->info("Found specular map {} for {}", texture->Texture.Name, Filename);
-                    else
-                        Log->info("Using cached copy of {} for {}", texture->Texture.Name, Filename);
-
-                    std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                    renderObject.UseTextures = true;
-                    renderObject.SpecularTexture = texture.value().Texture;
-                    foundSpecular = true;
-
-                    //Set specular texture used for export as first one found
-                    if (SpecularMapPegPath == "")
-                    {
-                        SpecularMapPegPath = texture.value().CpuFilePath;
-                        SpecularTextureName = texture.value().Texture.Name;
-                    }
-
-                    if (foundTextures.find(textureNameLower) == foundTextures.end())
-                        foundTextures[textureNameLower] = texture.value();
-                }
-                else
-                {
-                    missingTextures[textureNameLower] = 0;
-                    Log->warn("Failed to find specular map {} for {}", textureNameLower, Filename);
-                }
-            }
+            delete[] meshData.IndexBuffer.data();
+            delete[] meshData.VertexBuffer.data();
+            return;
         }
 
-        WorkerProgressFraction += stepSize;
+        string textureNameLower = String::ToLower(textureName);
+        if (!foundDiffuse && String::Contains(textureNameLower, "_d"))
+        {
+            std::optional<Texture2D_Ext> texture = FindTexture(state, textureNameLower, true);
+            if (texture)
+            {
+                Log->info("Found diffuse texture {} for {}", texture->Texture.Name, Filename);
+                std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
+                renderObject.UseTextures = true;
+                renderObject.DiffuseTexture = texture.value().Texture;
+                foundDiffuse = true;
 
-        //Clear mesh data
-        delete[] meshData.IndexBuffer.data();
-        delete[] meshData.VertexBuffer.data();
+                //Store path for exporting
+                if (DiffuseMapPegPath == "")
+                {
+                    DiffuseMapPegPath = texture.value().CpuFilePath;
+                    DiffuseTextureName = texture.value().Texture.Name;
+                }
+            }
+            else
+            {
+                Log->warn("Failed to find diffuse texture {} for {}", textureNameLower, Filename);
+            }
+        }
+        else if (!foundNormal && String::Contains(textureNameLower, "_n"))
+        {
+            std::optional<Texture2D_Ext> texture = FindTexture(state, textureNameLower, true);
+            if (texture)
+            {
+                Log->info("Found normal map {} for {}", texture->Texture.Name, Filename);
+
+                std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
+                renderObject.UseTextures = true;
+                renderObject.NormalTexture = texture.value().Texture;
+                foundNormal = true;
+
+                //Store path for exporting
+                if (NormalMapPegPath == "")
+                {
+                    NormalMapPegPath = texture.value().CpuFilePath;
+                    NormalTextureName = texture.value().Texture.Name;
+                }
+            }
+            else
+            {
+                Log->warn("Failed to find normal map {} for {}", textureNameLower, Filename);
+            }
+        }
+        else if (!foundSpecular && String::Contains(textureNameLower, "_s"))
+        {
+            std::optional<Texture2D_Ext> texture = FindTexture(state, textureNameLower, true);
+            if (texture)
+            {
+                Log->info("Found specular map {} for {}", texture->Texture.Name, Filename);
+
+                std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
+                renderObject.UseTextures = true;
+                renderObject.SpecularTexture = texture.value().Texture;
+                foundSpecular = true;
+
+                //Store path for exporting
+                if (SpecularMapPegPath == "")
+                {
+                    SpecularMapPegPath = texture.value().CpuFilePath;
+                    SpecularTextureName = texture.value().Texture.Name;
+                }
+            }
+            else
+            {
+                Log->warn("Failed to find specular map {} for {}", textureNameLower, Filename);
+            }
+        }
     }
 
-    WorkerDone = true;
+    WorkerProgressFraction += stepSize;
+
+    //Clear mesh data
+    delete[] meshData.IndexBuffer.data();
+    delete[] meshData.VertexBuffer.data();
+
     WorkerStatusString = "Done! " ICON_FA_CHECK;
     Log->info("Worker thread for {} finished.", Title);
 }
@@ -669,12 +598,14 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
 //Will return a default texture if the target isn't found.
 std::optional<Texture2D_Ext> StaticMeshDocument::FindTexture(GuiState* state, const string& name, bool lookForHighResVariant)
 {
+    PROFILER_FUNCTION();
+
     //Look for high res variant if requested and string fits high res search requirements
     if (lookForHighResVariant && String::Contains(name, "_low_"))
     {
         //Replace _low_ with _. This is the naming scheme I've seen many high res variants follow
         string highResName = String::Replace(name, "_low_", "_");
-        auto texture = GetTexture(state, highResName);
+        auto texture = GetTexture(state, highResName, false);
 
         //Return high res variant if it was found
         if (texture)
@@ -684,50 +615,73 @@ std::optional<Texture2D_Ext> StaticMeshDocument::FindTexture(GuiState* state, co
     DocumentClosedCheck();
 
     //Else look for the specified texture
-    return GetTexture(state, name);
+    return GetTexture(state, name, true);
 }
 
-std::optional<Texture2D_Ext> StaticMeshDocument::GetTexture(GuiState* state, const string& textureName)
+std::optional<Texture2D_Ext> StaticMeshDocument::GetTexture(GuiState* state, const string& textureName, bool useLastResortSearches)
 {
-    //First search current str2_pc if the mesh is inside one
-    if (InContainer)
-    {
-        Packfile3* container = state->PackfileVFS->GetContainer(ParentName, VppName);
-        if (container)
-        {
-            auto texture = GetTextureFromPackfile(state, container, textureName, true);
-            delete container; //Delete container since they're loaded on demand
+    PROFILER_FUNCTION();
 
-            //Return texture if it was found
-            if (texture)
-                return texture;
-        }
-    }
-
-    //Then search parent vpp
+    //Search parent vpp
     DocumentClosedCheck();
+    WorkerStatusString = fmt::format("Searching for textures in {}...", VppName);
     auto parentSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile(VppName), textureName);
     if (parentSearchResult)
         return parentSearchResult;
 
-    //Last resort is to search dlc01_precache, terr01_l0, and terr01_l1
-    DocumentClosedCheck();
-    auto dlcPrecacheSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("dlc01_precache.vpp_pc"), textureName);
-    if (dlcPrecacheSearchResult)
-        return dlcPrecacheSearchResult;
+    if (useLastResortSearches)
+    {
+        if (String::Contains(textureName, "rayen_haira"))
+        {
+            WorkerStatusString = fmt::format("Searching for textures in dlcp01_items.vpp_pc...");
+            auto parentSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("dlcp01_items.vpp_pc"), textureName);
+            if (parentSearchResult)
+                return parentSearchResult;
+        }
+        if (String::Contains(textureName, "edf_mpc_biggun"))
+        {
+            WorkerStatusString = fmt::format("Searching for textures in terr01_l1.vpp_pc...");
+            auto parentSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("terr01_l1.vpp_pc"), textureName);
+            if (parentSearchResult)
+                return parentSearchResult;
+        }
 
-    DocumentClosedCheck();
-    auto terrL0SearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("terr01_l0.vpp_pc"), textureName);
-    if (terrL0SearchResult)
-        return terrL0SearchResult;
+        //Search some other vpps that commonly have mesh textures
+        static const std::vector<string> searchList =
+        {
+            "dlc01_precache.vpp_pc",
+            "items.vpp_pc",
+            "dlcp01_items.vpp_pc",
+            "terr01_l1.vpp_pc",
+            "terr01_l0.vpp_pc",
+            "vehicles_r.vpp_pc"
+        };
+        for (auto& packfile : searchList)
+        {
+            WorkerStatusString = fmt::format("Searching for textures in {}...", packfile);
+            auto result = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile(packfile), textureName);
+            if (result)
+                return result;
+        }
 
-    DocumentClosedCheck();
-    return GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("terr01_l1.vpp_pc"), textureName);
+        //As a last resort search every file
+        for (Packfile3& packfile : state->PackfileVFS->packfiles_)
+        {
+            WorkerStatusString = fmt::format("Searching all packfiles for textures as a last resort. This could take a while...");
+            auto result = GetTextureFromPackfile(state, &packfile, textureName);
+            if (result)
+                return result;
+        }
+    }
+
+    return {};
 }
 
 //Tries to find a cpeg with a subtexture with the provided name and create a Texture2D from it. Searches all cpeg/cvbm files in packfile. First checks pegs then searches in str2s
-std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState* state, Packfile3* packfile, const string& textureName, bool isStr2)
+std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState* state, Packfile3* packfile, const string& textureName)
 {
+    PROFILER_FUNCTION();
+
     if (!packfile)
         return {};
 
@@ -745,39 +699,51 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState
         //Try to get texture from each cpeg/cvbm
         if (ext == ".cpeg_pc" || ext == ".cvbm_pc")
         {
-            auto texture = GetTextureFromPeg(state, packfile->Name(), entryName, textureName, isStr2);
+            auto texture = GetTextureFromPeg(state, packfile->Name(), packfile->Name(), entryName, textureName, false);
             if (texture)
                 return texture;
         }
     }
 
-    //Then search inside each str2 if this packfile isn't a str2
-    if (!isStr2)
+    //Then search inside each str2
+    for (u32 i = 0; i < packfile->Entries.size(); i++)
     {
-        for (u32 i = 0; i < packfile->Entries.size(); i++)
+        //Check if the document was closed. If so, end worker thread early
+        DocumentClosedCheck();
+
+        Packfile3Entry& entry = packfile->Entries[i];
+        const char* entryName = packfile->EntryNames[i];
+        string ext = Path::GetExtension(entryName);
+
+        //Try to get texture from each str2
+        if (ext == ".str2_pc")
         {
-            //Check if the document was closed. If so, end worker thread early
-            DocumentClosedCheck();
+            //Find container
+            auto containerBytes = packfile->ExtractSingleFile(entryName, false);
+            if (!containerBytes)
+                continue;
 
-            Packfile3Entry& entry = packfile->Entries[i];
-            const char* entryName = packfile->EntryNames[i];
-            string ext = Path::GetExtension(entryName);
-
-            //Try to get texture from each str2
-            if (ext == ".str2_pc")
+            //Parse container and get file byte buffer
+            Packfile3 container(containerBytes.value());
+            container.SetName(entryName);
+            container.ReadMetadata();
+            for (u32 i = 0; i < container.Entries.size(); i++)
             {
-                //Find container
-                auto containerBytes = packfile->ExtractSingleFile(entryName, false);
-                if (!containerBytes)
-                    continue;
+                //Check if the document was closed. If so, end worker thread early
+                if (!Open)
+                    return {};
 
-                //Parse container and get file byte buffer
-                Packfile3 container(containerBytes.value());
-                container.SetName(entryName);
-                container.ReadMetadata();
-                auto texture = GetTextureFromPackfile(state, &container, textureName, true);
-                if (texture)
-                    return texture;
+                Packfile3Entry& entry = container.Entries[i];
+                const char* entryName = container.EntryNames[i];
+                string ext = Path::GetExtension(entryName);
+
+                //Try to get texture from each cpeg/cvbm
+                if (ext == ".cpeg_pc" || ext == ".cvbm_pc")
+                {
+                    auto texture = GetTextureFromPeg(state, packfile->Name(), container.Name(), entryName, textureName, true);
+                    if (texture)
+                        return texture;
+                }
             }
         }
     }
@@ -788,21 +754,24 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState
 
 //Tries to open a cpeg/cvbm pegName in the provided packfile and create a Texture2D from a sub-texture with the name textureName
 std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* state,
+    const string& vppName, //Name of the vpp_pc the peg or it's parent is in
     const string& parentName, //If inContainer == true this is the name of str2_pc the peg is in. Else it is the same as VppName
     const string& pegName, //Name of the cpeg_pc or cvbm_pc file that holds the target texture
     const string& textureName, //Name of the target texture. E.g. "sledgehammer_d.tga"
     bool inContainer) //Whether or not the cpeg_pc/cvbm_pc is in a str2_pc file or not
 {
+    PROFILER_FUNCTION();
+
     //Get gpu filename
     string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(pegName);
 
     //Get path to cpu file and gpu file in cache
     auto maybeCpuFilePath = inContainer ?
-        state->PackfileVFS->GetFilePath(VppName, parentName, pegName) :
-        state->PackfileVFS->GetFilePath(VppName, pegName);
+        state->PackfileVFS->GetFilePath(vppName, parentName, pegName) :
+        state->PackfileVFS->GetFilePath(vppName, pegName);
     auto maybeGpuFilePath = inContainer ?
-        state->PackfileVFS->GetFilePath(VppName, parentName, gpuFilename) :
-        state->PackfileVFS->GetFilePath(VppName, gpuFilename);
+        state->PackfileVFS->GetFilePath(vppName, parentName, gpuFilename) :
+        state->PackfileVFS->GetFilePath(vppName, gpuFilename);
 
     //Error handling for when cpu or gpu file aren't found
     if (!maybeCpuFilePath || !maybeGpuFilePath)

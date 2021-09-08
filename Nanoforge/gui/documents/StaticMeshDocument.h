@@ -30,9 +30,9 @@ private:
     void WorkerThread(GuiState* state);
     void DrawOverlayButtons(GuiState* state);
     std::optional<Texture2D_Ext> FindTexture(GuiState* state, const string& name, bool lookForHighResVariant);
-    std::optional<Texture2D_Ext> GetTexture(GuiState* state, const string& textureName);
-    std::optional<Texture2D_Ext> GetTextureFromPackfile(GuiState* state, Packfile3* packfile, const string& textureName, bool isStr2 = false);
-    std::optional<Texture2D_Ext> GetTextureFromPeg(GuiState* state, const string& parentName, const string& pegName, const string& textureName, bool inContainer);
+    std::optional<Texture2D_Ext> GetTexture(GuiState* state, const string& textureName, bool useLastResortSearches = false);
+    std::optional<Texture2D_Ext> GetTextureFromPackfile(GuiState* state, Packfile3* packfile, const string& textureName);
+    std::optional<Texture2D_Ext> GetTextureFromPeg(GuiState* state, const string& vppName, const string& parentName, const string& pegName, const string& textureName, bool inContainer);
 
     string Filename;
     string ParentName;
@@ -42,7 +42,6 @@ private:
     string GpuFilePath;
     StaticMesh StaticMesh;
     Handle<Scene> Scene = nullptr;
-    std::vector<u32> RenderObjectIndices;
 
     std::future<void> WorkerFuture;
     string WorkerStatusString;

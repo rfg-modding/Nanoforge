@@ -86,9 +86,9 @@ void DX11Renderer::NewFrame(f32 deltaTime) const
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
     PROFILER_FUNCTION();
+    std::lock_guard<std::mutex> lock(ContextMutex);
     PROFILER_D3D11_ZONE(tracyContext_, "Renderer::DoFrame()");
 
-    std::lock_guard<std::mutex> lock(ContextMutex);
     d3d11Context_->OMSetDepthStencilState(depthStencilState_, 0);
     d3d11Context_->OMSetBlendState(blendState_, nullptr, 0xffffffff);
     d3d11Context_->RSSetState(rasterizerState_);

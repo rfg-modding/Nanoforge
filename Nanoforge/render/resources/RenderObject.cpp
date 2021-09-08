@@ -38,7 +38,5 @@ void RenderObject::Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObj
         NormalTexture.Bind(d3d11Context, 2);
     }
 
-    //Bind objects mesh and draw it
-    ObjectMesh.Bind(d3d11Context);
-    d3d11Context->DrawIndexed(ObjectMesh.NumIndices(), 0, 0);
+    ObjectMesh.Draw(d3d11Context);
 }
