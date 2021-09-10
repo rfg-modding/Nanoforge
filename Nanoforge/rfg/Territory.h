@@ -43,11 +43,12 @@ class Territory
 public:
     //Set values needed for it to function
     void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname);
+    bool Ready() { return ready_; } //Returns true if the territory is loaded and ready for use
+
     std::future<void> LoadAsync(GuiState* state); //Starts a thread that loads the territory zones, terrain, etc
     void StopLoadThread() { loadThreadShouldStop_ = true; }
     void ClearLoadThreadData(); //Clear temporary data accrued by the load threads
     bool LoadThreadRunning() { return loadThreadRunning_; }
-    bool Ready() { return ready_; } //Returns true if the territory is loaded and ready for use
 
     bool ShouldShowObjectClass(u32 classnameHash); //Returns true if the object should be visible. Based on zone object list filtering options
     bool ObjectClassRegistered(u32 classnameHash, u32& outIndex); //Returns true if the object type with this classname hash is known

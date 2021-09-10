@@ -5,9 +5,11 @@
 #include "common/string/String.h"
 #include "Log.h"
 #include "util/Profiler.h"
+#include "util/RfgUtil.h"
 #include "util/MeshUtil.h"
 #include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
 #include <synchapi.h> //For Sleep()
+#include <ranges>
 
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
@@ -32,16 +34,22 @@ void Territory::ClearLoadThreadData()
     for (auto& instance : TerrainInstances)
     {
         //Free vertex and index buffers
-        for (u32 i = 0; i < instance.Indices.size(); i++)
+        for (auto& mesh : instance.LowLodMeshes)
         {
-            if (instance.Indices[i].data())
-                delete instance.Indices[i].data();
-            if (instance.Vertices[i].data())
-                delete instance.Vertices[i].data();
+            if (mesh.IndexBuffer.data())
+                delete[] mesh.IndexBuffer.data();
+            if (mesh.VertexBuffer.data())
+                delete[] mesh.VertexBuffer.data();
         }
-        //Clear vectors
-        instance.Indices.clear();
-        instance.Vertices.clear();
+        instance.LowLodMeshes.clear();
+
+        for (auto& subzone : instance.Subzones)
+        {
+            if (subzone.InstanceData.IndexBuffer.data())
+                delete[] subzone.InstanceData.IndexBuffer.data();
+            if (subzone.InstanceData.VertexBuffer.data())
+                delete[] subzone.InstanceData.VertexBuffer.data();
+        }
 
         //Clear blend texture data
         if (instance.HasBlendTexture)
@@ -85,7 +93,8 @@ void Territory::LoadThread(GuiState* state)
     //Get mission and activity zones (layer_pc files) if territory has any
     std::vector<FileHandle> missionLayerFiles = {};
     std::vector<FileHandle> activityLayerFiles = {};
-    PROFILER_BLOCK_WRAP("Find mission and activity zones",
+    {
+        PROFILER_SCOPED("Find mission and activity zones");
         if (String::Contains(territoryFilename_, "terr01"))
         {
             missionLayerFiles = packfileVFS_->GetFiles("missions.vpp_pc", "*.layer_pc", true, false);
@@ -96,12 +105,14 @@ void Territory::LoadThread(GuiState* state)
             missionLayerFiles = packfileVFS_->GetFiles("dlcp01_missions.vpp_pc", "*.layer_pc", true, false);
             activityLayerFiles = packfileVFS_->GetFiles("dlcp01_activities.vpp_pc", "*.layer_pc", true, false);
         }
-    );
+    }
 
     /*Todo: If lock contention becomes a performance issue construct the ZoneData instances locally and add them to ZoneFiles after loading is finished.
             Note: You'll need to fix copying behavior for ZoneData first, likely by implementing copy and move constructors. Currently they get corrupted on copy.*/
     //Reserve enough space for all possible zones
-    ZoneFiles.reserve(packfile->Entries.size() + missionLayerFiles.size() + activityLayerFiles.size());
+    size_t maxZoneCount = packfile->Entries.size() + missionLayerFiles.size() + activityLayerFiles.size();
+    ZoneFiles.reserve(maxZoneCount);
+    TerrainInstances.reserve(maxZoneCount);
 
     //Spawn a thread for each zone
     std::vector<std::future<void>> workerFutures;
@@ -119,7 +130,8 @@ void Territory::LoadThread(GuiState* state)
 
     //Load mission zones
     EarlyStopCheck();
-    PROFILER_BLOCK_WRAP("Load mission layers",
+    {
+        PROFILER_SCOPED("Load mission layers");
         for (auto& layerFile : missionLayerFiles)
         {
             auto fileBuffer = layerFile.Get();
@@ -140,11 +152,12 @@ void Territory::LoadThread(GuiState* state)
 
             delete[] fileBuffer.data();
         }
-    );
+    }
 
     //Load activity zones
     EarlyStopCheck();
-    PROFILER_BLOCK_WRAP("Load activity layers",
+    {
+        PROFILER_SCOPED("Load activity layers");
         for (auto& layerFile : activityLayerFiles)
         {
             auto fileBuffer = layerFile.Get();
@@ -165,23 +178,22 @@ void Territory::LoadThread(GuiState* state)
 
             delete[] fileBuffer.data();
         }
-    );
+    }
 
     //Wait for all workers to finish
-    PROFILER_BLOCK_WRAP("Wait for territory load worker threads",
+    {
+        PROFILER_SCOPED("Wait for territory load worker threads");
         for (auto& future : workerFutures)
             future.wait();
-    );
+    }
 
     EarlyStopCheck();
-    PROFILER_BLOCK_WRAP("Sort zones by object count",
-        //Sort vector by object count for convenience
-        std::sort(ZoneFiles.begin(), ZoneFiles.end(),
-        [](const ZoneData& a, const ZoneData& b)
-        {
-            return a.Zone.Header.NumObjects > b.Zone.Header.NumObjects;
-        });
-    );
+    //Sort vector by object count for convenience
+    std::sort(ZoneFiles.begin(), ZoneFiles.end(),
+    [](const ZoneData& a, const ZoneData& b)
+    {
+        return a.Zone.Header.NumObjects > b.Zone.Header.NumObjects;
+    });
 
     //Get zone name with most characters for UI purposes
     u32 longest = 0;
@@ -217,7 +229,8 @@ void Territory::LoadWorkerThread(GuiState* state, Packfile3* packfile, const cha
     ZoneFilesLock.lock();
     ZoneData& zoneFile = ZoneFiles.emplace_back();
     ZoneFilesLock.unlock();
-    PROFILER_BLOCK_WRAP("Load zone",
+    {
+        PROFILER_SCOPED("Load zone");
         auto fileBuffer = packfile->ExtractSingleFile(zoneFilename);
         if (!fileBuffer)
             THROW_EXCEPTION("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
@@ -232,7 +245,7 @@ void Territory::LoadWorkerThread(GuiState* state, Packfile3* packfile, const cha
             zoneFile.Persistent = true;
 
         delete[] fileBuffer.value().data();
-    );
+    }
 
     //Check if the zone has terrain by looking for an obj_zone object with terrain_file_name property
     EarlyStopCheck();
@@ -249,80 +262,143 @@ void Territory::LoadWorkerThread(GuiState* state, Packfile3* packfile, const cha
     if (terrainName.ends_with('\0'))
         terrainName.pop_back();
 
-    PROFILER_BLOCK_WRAP("Load low lod terrain",
-        string lowLodTerrainName = terrainName + ".cterrain_pc";
-        auto lowLodTerrainCpuFileHandles = state->PackfileVFS->GetFiles(lowLodTerrainName, true, true);
-        if (lowLodTerrainCpuFileHandles.size() == 0)
+    //Create new terrain instance
+    TerrainLock.lock();
+    TerrainInstance& terrain = TerrainInstances.emplace_back();
+    TerrainLock.unlock();
+    terrain.Name = terrainName;
+
+    //{
+    //    PROFILER_SCOPED("Load low lod terrain")
+    //    string lowLodTerrainName = terrainName + ".cterrain_pc";
+    //    auto lowLodTerrainCpuFileHandles = state->PackfileVFS->GetFiles(lowLodTerrainName, true, true);
+    //    if (lowLodTerrainCpuFileHandles.size() == 0)
+    //    {
+    //        Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zoneFile.Name);
+    //        return;
+    //    }
+
+    //    FileHandle terrainMesh = lowLodTerrainCpuFileHandles[0];
+    //    Vec3 position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
+
+    //    //Get packfile that holds terrain meshes
+    //    auto* container = terrainMesh.GetContainer();
+    //    if (!container)
+    //        THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
+
+    //    //Get mesh file byte arrays
+    //    auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
+    //    auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
+
+    //    //Ensure the mesh files were extracted
+    //    if (!cpuFileBytes)
+    //        THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
+    //    if (!gpuFileBytes)
+    //        THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
+
+    //    BinaryReader cpuFile(cpuFileBytes.value());
+    //    BinaryReader gpuFile(gpuFileBytes.value());
+
+    //    terrain.Position = position;
+    //    terrain.DataLowLod.Read(cpuFile, terrainMesh.Filename());
+
+    //    //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
+    //    for (u32 i = 0; i < 9; i++)
+    //    {
+    //        EarlyStopCheck();
+    //        std::optional<MeshInstanceData> meshData = terrain.DataLowLod.ReadMeshData(gpuFile, i);
+    //        if (!meshData.has_value())
+    //            THROW_EXCEPTION("Failed to read submesh {} from {}.", i, terrainMesh.Filename());
+
+    //        terrain.LowLodMeshes.push_back(meshData.value());
+    //    }
+
+    //    //Clear resources
+    //    delete container;
+    //    delete[] cpuFileBytes.value().data();
+    //    delete[] gpuFileBytes.value().data();
+    //    EarlyStopCheck();
+
+    //    //Get comb texture. Used to color low lod terrain
+    //    string blendTextureName = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "comb.cvbm_pc";
+    //    terrain.HasBlendTexture = FindTexture(state->PackfileVFS, blendTextureName, terrain.BlendPeg, terrain.BlendTextureBytes, terrain.BlendTextureWidth, terrain.BlendTextureHeight);
+
+    //    //Get ovl texture. Used to light low lod terrain
+    //    string texture1Name = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "_ovl.cvbm_pc";
+    //    terrain.HasTexture1 = FindTexture(state->PackfileVFS, texture1Name, terrain.Texture1, terrain.Texture1Bytes, terrain.Texture1Width, terrain.Texture1Height);
+    //}
+
+    EarlyStopCheck();
+    {
+        PROFILER_SCOPED("Load high lod terrain");
+        //Search for high lod terrain mesh files. Should be 9 of them per zone.
+        std::vector<FileHandle> highLodSearchResult = state->PackfileVFS->GetFiles(terrainName + "_*", true);
+        for (auto& file : highLodSearchResult)
         {
-            Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zoneFile.Name);
-            return;
+            if (Path::GetExtension(file.Filename()) != ".ctmesh_pc")
+                continue;
+
+            //Valid high lod terrain file found. Load and parse it
+            auto* container = file.GetContainer();
+            if (!container)
+                THROW_EXCEPTION("Failed to get container pointer for a high lod terrain mesh.");
+
+            //Get mesh file data
+            auto cpuFileBytes = container->ExtractSingleFile(file.Filename(), true);
+            auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(file.Filename()) + ".gtmesh_pc", true);
+
+            //Ensure the mesh files were extracted
+            if (!cpuFileBytes)
+                THROW_EXCEPTION("Failed to extract high lod terrain mesh cpu file.");
+            if (!gpuFileBytes)
+                THROW_EXCEPTION("Failed to extract high lod terrain mesh gpu file.");
+
+            BinaryReader cpuFile(cpuFileBytes.value());
+            BinaryReader gpuFile(gpuFileBytes.value());
+
+            //Parse high lod terrain mesh
+            TerrainSubzone& subzone = terrain.Subzones.emplace_back();
+            subzone.Data.Read(cpuFile, file.Filename());
+
+            //Read terrain mesh data
+            std::optional<MeshInstanceData> meshData = subzone.Data.ReadTerrainMeshData(gpuFile);
+            if (!meshData)
+            {
+                Log->error("Failed to read mesh data for {}. Halting loading of subzone.", file.Filename());
+                delete container;
+                delete[] cpuFileBytes.value().data();
+                delete[] gpuFileBytes.value().data();
+                continue;
+            }
+            subzone.InstanceData = meshData.value();
+
+            //Todo: Load road and stitch meshes
+
+            delete container;
+            delete[] cpuFileBytes.value().data();
+            delete[] gpuFileBytes.value().data();
+
+            //Get comb texture. Used to color low lod terrain
+            string blendTextureName = terrainName + "comb.cvbm_pc";
+            terrain.HasBlendTexture = FindTexture(state->PackfileVFS, blendTextureName, terrain.BlendPeg, terrain.BlendTextureBytes, terrain.BlendTextureWidth, terrain.BlendTextureHeight);
+
+            //Get ovl texture. Used to light low lod terrain
+            string texture1Name = terrainName + "_ovl.cvbm_pc";
+            terrain.HasTexture1 = FindTexture(state->PackfileVFS, texture1Name, terrain.Texture1, terrain.Texture1Bytes, terrain.Texture1Width, terrain.Texture1Height);
         }
+    }
 
-        FileHandle terrainMesh = lowLodTerrainCpuFileHandles[0];
-        Vec3 position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
-
-        //Get packfile that holds terrain meshes
-        auto* container = terrainMesh.GetContainer();
-        if (!container)
-            THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
-
-        //Todo: This does a full extract twice on the container due to the way single file extracts work. Fix this
-        //Get mesh file byte arrays
-        auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
-        auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
-
-        //Ensure the mesh files were extracted
-        if (!cpuFileBytes)
-            THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
-        if (!gpuFileBytes)
-            THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
-
-        BinaryReader cpuFile(cpuFileBytes.value());
-        BinaryReader gpuFile(gpuFileBytes.value());
-
-        //Create new instance
-        TerrainInstance terrain;
-        terrain.Position = position;
-        terrain.DataLowLod.Read(cpuFile, terrainMesh.Filename());
-
-        //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
-        u32 cpuFileIndex = 0;
-        u32* cpuFileAsUintArray = (u32*)cpuFileBytes.value().data();
-        for (u32 i = 0; i < 9; i++)
-        {
-            EarlyStopCheck();
-            std::optional<MeshInstanceData> meshData = terrain.DataLowLod.ReadMeshData(gpuFile, i);
-            if (!meshData.has_value())
-                THROW_EXCEPTION("Failed to read submesh {} from {}.", i, terrainMesh.Filename());
-
-            terrain.Indices.push_back(ConvertSpan<u8, u16>(meshData.value().IndexBuffer));
-            terrain.Vertices.push_back(ConvertSpan<u8, LowLodTerrainVertex>(meshData.value().VertexBuffer));
-        }
-
-        //Clear resources
-        delete container;
-        delete[] cpuFileBytes.value().data();
-        delete[] gpuFileBytes.value().data();
-        EarlyStopCheck();
-
-        //Get comb texture. Used to color low lod terrain
-        string blendTextureName = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "comb.cvbm_pc";
-        terrain.HasBlendTexture = FindTexture(state->PackfileVFS, blendTextureName, terrain.BlendPeg, terrain.BlendTextureBytes, terrain.BlendTextureWidth, terrain.BlendTextureHeight);
-
-        //Get ovl texture. Used to light low lod terrain
-        string texture1Name = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "_ovl.cvbm_pc";
-        terrain.HasTexture1 = FindTexture(state->PackfileVFS, texture1Name, terrain.Texture1, terrain.Texture1Bytes, terrain.Texture1Width, terrain.Texture1Height);
-
-        //Acquire resource lock before writing terrain instance data to the instance list
-        std::lock_guard<std::mutex> lock(TerrainLock);
-        TerrainInstances.push_back(terrain);
-    );
+    //Done loading, store terrain instance and mark for renderer.
+    terrain.NeedsRenderInit = true;
+    terrain.Success = true;
 
     EarlyStopCheck();
 }
 
 bool Territory::FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight)
 {
+    PROFILER_FUNCTION();
+
     //Search for texture
     std::vector<FileHandle> search = vfs->GetFiles(textureName, true, true);
     if (search.size() == 0)
@@ -338,7 +414,7 @@ bool Territory::FindTexture(PackfileVFS* vfs, const string& textureName, PegFile
 
     //Get mesh file byte arrays
     auto cpuFileBytes = container->ExtractSingleFile(textureName, true);
-    auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(textureName) + ".gvbm_pc", true);
+    auto gpuFileBytes = container->ExtractSingleFile(RfgUtil::CpuFilenameToGpuFilename(textureName), true);
 
     //Ensure the texture files were extracted
     if (!cpuFileBytes)
@@ -346,11 +422,11 @@ bool Territory::FindTexture(PackfileVFS* vfs, const string& textureName, PegFile
     if (!gpuFileBytes)
         THROW_EXCEPTION("Failed to extract texture gpu file {}", textureName);
 
-    BinaryReader gpuFile(cpuFileBytes.value());
-    BinaryReader cpuFile(gpuFileBytes.value());
+    BinaryReader cpuFile(cpuFileBytes.value());
+    BinaryReader gpuFile(gpuFileBytes.value());
 
-    peg.Read(gpuFile, cpuFile);
-    peg.ReadTextureData(cpuFile, peg.Entries[0]);
+    peg.Read(cpuFile);
+    peg.ReadTextureData(gpuFile, peg.Entries[0]);
     auto maybeTexturePixelData = peg.GetTextureData(0);
     if (maybeTexturePixelData)
     {
@@ -364,8 +440,6 @@ bool Territory::FindTexture(PackfileVFS* vfs, const string& textureName, PegFile
     }
 
     delete container;
-    delete[] cpuFileBytes.value().data();
-    delete[] gpuFileBytes.value().data();
     return true;
 }
 

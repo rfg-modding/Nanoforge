@@ -16,16 +16,28 @@ struct LowLodTerrainVertex
 };
 static_assert(sizeof(LowLodTerrainVertex) == 8, "LowLodTerrainVertex size incorrect!");
 
+struct TerrainVertex
+{
+    u32 Position; //Two i16 values. Decompressed into xyz pos in the vertex shader
+    u32 Normal; //4 u8 values. Scaled to normalized float3 in the vertex shader
+};
+static_assert(sizeof(TerrainVertex) == 8, "TerrainVertex size incorrect!");
+
+struct TerrainSubzone
+{
+    Terrain Data;
+    MeshInstanceData InstanceData;
+};
+
 //Data for a single zones terrain. Made up of 9 smaller meshes which are stitched together
 struct TerrainInstance
 {
     string Name;
     TerrainLowLod DataLowLod;
-    Terrain Data;
-    std::vector<std::span<u16>> Indices = {};
-    std::vector<std::span<LowLodTerrainVertex>> Vertices = {};
+    std::vector<MeshInstanceData> LowLodMeshes = {};
+    std::vector<TerrainSubzone> Subzones = {};
     bool Visible = true;
-    bool RenderDataInitialized = false;
+    bool NeedsRenderInit = false;
     Vec3 Position;
 
     //If true BlendTextureBytes has data
@@ -46,4 +58,7 @@ struct TerrainInstance
 
     //Index of this terrain subpiece on 3x3 grid that makes up the terrain of a single zone
     int TerrainSubpieceIndex = 0;
+
+    //TODO: ***********REMOVE BEFORE COMITTING***************
+    bool Success = false;
 };
