@@ -785,7 +785,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* sta
     BinaryReader cpuFileReader(cpuFilePath);
     BinaryReader gpuFileReader(gpuFilePath);
     PegFile10 peg;
-    peg.Read(cpuFileReader, gpuFileReader);
+    peg.Read(cpuFileReader);
 
     //See if target texture is in peg. If so extract it and create a Texture2D from it
     for (auto& entry : peg.Entries)

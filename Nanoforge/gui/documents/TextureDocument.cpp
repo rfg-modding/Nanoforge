@@ -43,7 +43,7 @@ TextureDocument::TextureDocument(GuiState* state, string filename, string parent
     //Parse peg
     BinaryReader cpuFileReader(CpuFilePath);
     BinaryReader gpuFileReader(GpuFilePath);
-    Peg.Read(cpuFileReader, gpuFileReader);
+    Peg.Read(cpuFileReader);
 
     //Fill texture list with nullptrs. When a sub-image of the peg is opened it'll be rendered from this list.
     //If the index of the sub-image is a nullptr then it'll be loaded from the peg gpu file

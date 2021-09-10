@@ -20,8 +20,7 @@ namespace PegHelpers
         //Open and parse peg
         PegFile10 peg;
         BinaryReader cpuFile(cpuFilePath);
-        BinaryReader gpuFile(gpuFilePath);
-        peg.Read(cpuFile, gpuFile);
+        peg.Read(cpuFile);
 
         //Export all entires
         ExportAll(peg, gpuFilePath, exportFolderPath);
@@ -62,8 +61,7 @@ namespace PegHelpers
         //Open and parse peg
         PegFile10 peg;
         BinaryReader cpuFile(cpuFilePath);
-        BinaryReader gpuFile(gpuFilePath);
-        peg.Read(cpuFile, gpuFile);
+        peg.Read(cpuFile);
 
         //Export target entry
         ExportSingle(peg, gpuFilePath, entryIndex, exportFolderPath);
@@ -77,8 +75,7 @@ namespace PegHelpers
         //Open and parse peg
         PegFile10 peg;
         BinaryReader cpuFile(cpuFilePath);
-        BinaryReader gpuFile(gpuFilePath);
-        peg.Read(cpuFile, gpuFile);
+        peg.Read(cpuFile);
 
         //Get entry index
         auto entryIndex = peg.GetEntryIndex(entryName);
