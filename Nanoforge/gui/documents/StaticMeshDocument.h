@@ -3,6 +3,7 @@
 #include "IDocument.h"
 #include "gui/GuiState.h"
 #include "render/resources/Scene.h"
+#include "util/TaskScheduler.h"
 #include "RfgTools++/formats/meshes/StaticMesh.h"
 #include <future>
 #include <vector>
@@ -27,7 +28,7 @@ public:
 
 private:
     //Worker thread that loads a mesh and locates its textures in the background
-    void WorkerThread(GuiState* state);
+    void WorkerThread(Handle<Task> task, GuiState* state);
     void DrawOverlayButtons(GuiState* state);
     std::optional<Texture2D_Ext> FindTexture(GuiState* state, const string& name, bool lookForHighResVariant);
     std::optional<Texture2D_Ext> GetTexture(GuiState* state, const string& textureName, bool useLastResortSearches = false);
@@ -43,10 +44,9 @@ private:
     StaticMesh StaticMesh;
     Handle<Scene> Scene = nullptr;
 
-    std::future<void> WorkerFuture;
+    Handle<Task> meshLoadTask_ = nullptr;
     string WorkerStatusString;
     f32 WorkerProgressFraction = 0.0f;
-    bool WorkerDone = false;
 
     string DiffuseMapPegPath = "";
     string SpecularMapPegPath = "";
@@ -56,4 +56,5 @@ private:
     string NormalTextureName;
 
     GuiState* state_ = nullptr;
+    bool meshExportEnabled_ = false;
 };

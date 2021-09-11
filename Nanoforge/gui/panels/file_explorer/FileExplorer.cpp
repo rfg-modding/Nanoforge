@@ -56,7 +56,7 @@ void FileExplorer::Update(GuiState* state, bool* open)
 
     //Search bar
     UpdateSearchBar(state);
-    if (runningSearchThread_)
+    if (searchTask_->Running())
     {
         ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Running search...");
         ImGui::End();
@@ -104,12 +104,9 @@ void FileExplorer::UpdateSearchBar(GuiState* state)
         return;
 
     //If existing search is running force it to stop
-    if (runningSearchThread_)
+    if (searchTask_->Running())
     {
-        searchThreadForceStop_ = true;
-        searchThreadFuture_.wait();
-        searchThreadForceStop_ = false;
-        runningSearchThread_ = false;
+        searchTask_->CancelAndWait();
     }
 
     //If the search term changed then update cached search checks. They're cached to avoid checking the search term every frame
@@ -160,8 +157,7 @@ void FileExplorer::UpdateSearchBar(GuiState* state)
 
     //Start search thread
     SearchChanged = false;
-    runningSearchThread_ = true;
-    searchThreadFuture_ = std::async(std::launch::async, &FileExplorer::SearchThread, this);
+    TaskScheduler::QueueTask(searchTask_, std::bind(&FileExplorer::SearchThread, this));
 }
 
 void FileExplorer::SearchThread()
@@ -169,14 +165,12 @@ void FileExplorer::SearchThread()
     for (auto& node : FileTree)
     {
         //Exit early if search thread signalled to stop
-        if (searchThreadForceStop_)
+        if (searchTask_->Cancelled())
             return;
 
         //Check if subnodes match search term
         UpdateNodeSearchResultsRecursive(node);
     }
-
-    runningSearchThread_ = false;
 }
 
 void FileExplorer::GenerateFileTree(GuiState* state)
@@ -398,7 +392,7 @@ void FileExplorer::UpdateNodeSearchResultsRecursive(FileExplorerNode& node)
     for (auto& childNode : node.Children)
     {
         //Exit early if search thread signalled to stop
-        if (searchThreadForceStop_)
+        if (searchTask_->Cancelled())
             return;
 
         UpdateNodeSearchResultsRecursive(childNode);
@@ -549,7 +543,7 @@ bool FileExplorer::AnyChildNodesFitSearch(FileExplorerNode& node)
     for (auto& childNode : node.Children)
     {
         //Exit early if search thread signalled to stop
-        if (searchThreadForceStop_)
+        if (searchTask_->Cancelled())
             return true;
 
         if (DoesNodeFitSearch(childNode) || AnyChildNodesFitSearch(childNode))

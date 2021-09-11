@@ -38,7 +38,7 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
     //Start territory loading thread
     Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname);
     state->CurrentTerritoryUpdateDebugDraw = true;
-    WorkerFuture = Territory.LoadAsync(state);
+    TerritoryLoadTask = Territory.LoadAsync(state);
 }
 
 TerritoryDocument::~TerritoryDocument()
@@ -46,7 +46,7 @@ TerritoryDocument::~TerritoryDocument()
     //Wait for worker thread to exit
     Open = false;
     Territory.StopLoadThread();
-    WorkerFuture.wait();
+    TerritoryLoadTask->Wait();
     if(!WorkerResourcesFreed)
         Territory.ClearLoadThreadData();
 

@@ -4,6 +4,7 @@
 #include "gui/GuiState.h"
 #include "rfg/Territory.h"
 #include "rfg/TerrainHelpers.h"
+#include "util/TaskScheduler.h"
 #include "render/resources/Scene.h"
 #include "common/timing/Timer.h"
 #include <future>
@@ -25,7 +26,7 @@ private:
     string TerritoryShortname;
     Territory Territory;
     Handle<Scene> Scene = nullptr;
-    std::future<void> WorkerFuture;
+    Handle<Task> TerritoryLoadTask = nullptr;
     bool WorkerResourcesFreed = false;
     bool PrimitivesNeedRedraw = true;
     Timer TerrainThreadTimer;

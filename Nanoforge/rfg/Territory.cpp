@@ -3,6 +3,7 @@
 #include "common/filesystem/Path.h"
 #include "common/filesystem/File.h"
 #include "common/string/String.h"
+#include "util/TaskScheduler.h"
 #include "Log.h"
 #include "util/Profiler.h"
 #include "util/RfgUtil.h"
@@ -21,11 +22,15 @@ void Territory::Init(PackfileVFS* packfileVFS, const string& territoryFilename, 
     territoryShortname_ = territoryShortname;
 }
 
-std::future<void> Territory::LoadAsync(GuiState* state)
+Handle<Task> Territory::LoadAsync(GuiState* state)
 {
     loadThreadRunning_ = true;
     loadThreadShouldStop_ = false;
-    return std::async(std::launch::async, &Territory::LoadThread, this, state);
+
+    //Create and queue territory load task
+    Handle<Task> task = Task::Create(fmt::format("Loading {}...", territoryFilename_));
+    TaskScheduler::QueueTask(task, std::bind(&Territory::LoadThread, this, task, state));
+    return task;
 }
 
 void Territory::ClearLoadThreadData()
@@ -72,7 +77,7 @@ void Territory::ClearLoadThreadData()
 } \
 
 
-void Territory::LoadThread(GuiState* state)
+void Territory::LoadThread(Handle<Task> task, GuiState* state)
 {
     PROFILER_FUNCTION();
     while (!packfileVFS_ || !packfileVFS_->Ready()) //Wait for packfile thread to finish.
@@ -115,7 +120,7 @@ void Territory::LoadThread(GuiState* state)
     TerrainInstances.reserve(maxZoneCount);
 
     //Spawn a thread for each zone
-    std::vector<std::future<void>> workerFutures;
+    std::vector<Handle<Task>> zoneLoadTasks;
     for (u32 i = 0; i < packfile->Entries.size(); i++)
     {
         const char* filename = packfile->EntryNames[i];
@@ -123,8 +128,9 @@ void Territory::LoadThread(GuiState* state)
         if (extension != ".rfgzone_pc")
             continue;
 
-        //Spawn worker thread to load zone and its assets
-        workerFutures.push_back(std::async(std::launch::async, &Territory::LoadWorkerThread, this, state, packfile, filename));
+        //Queue task to load this zone
+        Handle<Task> zoneLoadTask = Task::Create(fmt::format("Loading {}...", filename));
+        TaskScheduler::QueueTask(zoneLoadTask, std::bind(&Territory::LoadWorkerThread, this, zoneLoadTask, state, packfile, filename));
     }
     EarlyStopCheck();
 
@@ -183,8 +189,8 @@ void Territory::LoadThread(GuiState* state)
     //Wait for all workers to finish
     {
         PROFILER_SCOPED("Wait for territory load worker threads");
-        for (auto& future : workerFutures)
-            future.wait();
+        for (auto& task : zoneLoadTasks)
+            task->Wait();
     }
 
     EarlyStopCheck();
@@ -220,7 +226,7 @@ void Territory::LoadThread(GuiState* state)
     ready_ = true;
 }
 
-void Territory::LoadWorkerThread(GuiState* state, Packfile3* packfile, const char* zoneFilename)
+void Territory::LoadWorkerThread(Handle<Task> task, GuiState* state, Packfile3* packfile, const char* zoneFilename)
 {
     EarlyStopCheck();
     PROFILER_FUNCTION();

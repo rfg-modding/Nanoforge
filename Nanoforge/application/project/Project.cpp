@@ -72,7 +72,7 @@ void Project::Close()
 void Project::PackageMod(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     WorkerRunning = true;
-    WorkerResult = std::async(std::launch::async, &Project::PackageModThread, this, outputPath, vfs, xtblManager);
+    TaskScheduler::QueueTask(PackageModTask, std::bind(&Project::PackageModThread, this, PackageModTask, outputPath, vfs, xtblManager));
 }
 
 string Project::GetCachePath()
@@ -159,7 +159,7 @@ bool Project::LoadProjectFile(const string& projectFilePath)
     return true;
 }
 
-bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
+void Project::PackageModThread(Handle<Task> task, const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     //Reset public thread state
     WorkerState = "";
@@ -198,7 +198,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
         if (PackagingCancelled)
         {
             WorkerRunning = false;
-            return false;
+            return;
         }
 
         //Split edited file cache path
@@ -240,7 +240,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
                 if (PackagingCancelled)
                 {
                     WorkerRunning = false;
-                    return false;
+                    return;
                 }
 
                 //Parse freshly packed str2
@@ -263,7 +263,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
                 if (!currentAsm)
                 {
                     Log->error("Failed to find asm_pc file for str2_pc file \"{}\" in mod packaging thread!", str2Filename);
-                    return false;
+                    return;
                 }
                 WorkerState = fmt::format("Updating {}...", asmName);
                 WorkerPercentage += packagingStepSize;
@@ -272,7 +272,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
                 if (PackagingCancelled)
                 {
                     WorkerRunning = false;
-                    return false;
+                    return;
                 }
 
                 //Update asm_pc from freshly packed str2
@@ -294,7 +294,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
                 if (!asmContainer)
                 {
                     Log->error("Failed to find container for str2_pc file \"{}\" in asmFile \"{}\" in in mod packaging thread!", str2Filename, asmName);
-                    return false;
+                    return;
                 }
 
                 //Todo: Support adding/remove files from str2s. This assumes its the same files but edited
@@ -396,7 +396,7 @@ bool Project::PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblM
     WorkerRunning = false;
     WorkerFinished = true;
 
-    return true;
+    return;
 }
 
 bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager, const string& outputPath)

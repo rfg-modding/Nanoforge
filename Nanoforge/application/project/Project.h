@@ -1,8 +1,9 @@
 #pragma once
-#include <tinyxml2/tinyxml2.h>
 #include "Common/Typedefs.h"
+#include "util/TaskScheduler.h"
 #include "rfg/FileCache.h"
 #include "FileEdit.h"
+#include <tinyxml2/tinyxml2.h>
 #include <vector>
 #include <future>
 
@@ -49,13 +50,13 @@ public:
     bool PackagingCancelled = false;
     string WorkerState;
     f32 WorkerPercentage = 0.0f;
-    std::future<bool> WorkerResult;
+    Handle<Task> PackageModTask = Task::Create("Packaging mod...");
 
 private:
     bool LoadProjectFile(const string& projectFilePath);
 
     //Mod packaging functions
-    bool PackageModThread(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
+    void PackageModThread(Handle<Task> task, const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
     bool PackageXtblEdits(tinyxml2::XMLElement* modBlock, PackfileVFS* vfs, XtblManager* xtblManager, const string& outputPath);
 
     bool loaded_ = false;

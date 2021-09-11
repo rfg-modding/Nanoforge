@@ -8,6 +8,8 @@
 #include <future>
 #include <mutex>
 
+class Task;
+
 //Wrapper around ZonePc36 used by Territory
 struct ZoneData
 {
@@ -45,7 +47,7 @@ public:
     void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname);
     bool Ready() { return ready_; } //Returns true if the territory is loaded and ready for use
 
-    std::future<void> LoadAsync(GuiState* state); //Starts a thread that loads the territory zones, terrain, etc
+    Handle<Task> LoadAsync(GuiState* state); //Starts a thread that loads the territory zones, terrain, etc
     void StopLoadThread() { loadThreadShouldStop_ = true; }
     void ClearLoadThreadData(); //Clear temporary data accrued by the load threads
     bool LoadThreadRunning() { return loadThreadRunning_; }
@@ -66,8 +68,8 @@ public:
     Timer LoadThreadTimer;
 
 private:
-    void LoadThread(GuiState* state); //Top level loading thread
-    void LoadWorkerThread(GuiState* state, Packfile3* packfile, const char* zoneFilename); //Loads a single zone and its assets
+    void LoadThread(Handle<Task> task, GuiState* state); //Top level loading thread
+    void LoadWorkerThread(Handle<Task> task, GuiState* state, Packfile3* packfile, const char* zoneFilename); //Loads a single zone and its assets
     bool FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight);
     void SetZoneShortName(ZoneData& zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
 

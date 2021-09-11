@@ -10,6 +10,7 @@
 #include "gui/MainGui.h"
 #include "project/Project.h"
 #include "application/Config.h"
+#include "util/TaskScheduler.h"
 #include <ext/WindowsWrapper.h>
 #include <chrono>
 #include <spdlog/spdlog.h>

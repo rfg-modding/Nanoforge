@@ -30,14 +30,15 @@ StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string 
     Scene->Cam.LookAt({ 0.0f, 0.0f, 0.0f });
 
     //Create worker thread to load terrain meshes in background
-    WorkerFuture = std::async(std::launch::async, &StaticMeshDocument::WorkerThread, this, state);
+    meshLoadTask_ = Task::Create(fmt::format("Loading {}...", filename));
+    TaskScheduler::QueueTask(meshLoadTask_, std::bind(&StaticMeshDocument::WorkerThread, this, meshLoadTask_, state));
 }
 
 StaticMeshDocument::~StaticMeshDocument()
 {
     //Wait for worker thread to so we don't destroy resources it's using
     Open = false;
-    WorkerFuture.wait();
+    meshLoadTask_->CancelAndWait();
 
     //Delete scene and free its resources
     state_->Renderer->DeleteScene(Scene);
@@ -253,8 +254,8 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
             MeshExportPath = result.value();
         }
 
-        //Draw export button that is disabled if the worker thread isn't done loading the mesh
-        if (!WorkerDone)
+        //Disable mesh export button if export is disabled
+        if (!meshExportEnabled_)
         {
             ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
@@ -297,7 +298,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
                 StaticMesh.WriteToObj(GpuFilePath, MeshExportPath, diffuseMapName, specularMapPath, normalMapPath);
             }
         }
-        if (!WorkerDone)
+        if (!meshExportEnabled_)
         {
             ImGui::PopItemFlag();
             ImGui::PopStyleVar();
@@ -317,14 +318,16 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
     ImGui::ProgressBar(WorkerProgressFraction, ImVec2(230.0f, ImGui::GetFontSize() * 1.1f));
 }
 
-void StaticMeshDocument::WorkerThread(GuiState* state)
+//Used to end mesh load task early if it was cancelled
+#define TaskEarlyExitCheck() if (meshLoadTask_->Cancelled()) return;
+
+void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 {
     WorkerStatusString = "Parsing header...";
 
     //Get gpu filename
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
-    if (!Open) //Exit early check
-        return;
+    TaskEarlyExitCheck();
 
     //Get path to cpu file and gpu file in cache
     auto maybeCpuFilePath = InContainer ?
@@ -339,18 +342,15 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     {
         Log->error("Static mesh worker thread encountered error! Failed to find cpu file: \"{}\" in \"{}\"", Filename, InContainer ? VppName + "/" + ParentName : VppName);
         WorkerStatusString = "Error encountered. Check log.";
-        WorkerDone = true;
         return;
     }
     if (!maybeGpuFilePath)
     {
         Log->error("Static mesh worker thread encountered error! Failed to find gpu file: \"{}\" in \"{}\"", gpuFileName, InContainer ? VppName + "/" + ParentName : VppName);
         WorkerStatusString = "Error encountered. Check log.";
-        WorkerDone = true;
         return;
     }
-    if (!Open) //Exit early check
-        return;
+    TaskEarlyExitCheck();
 
     CpuFilePath = maybeCpuFilePath.value();
     GpuFilePath = maybeGpuFilePath.value();
@@ -367,9 +367,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
 
     Log->info("Mesh vertex format: {}", to_string(StaticMesh.MeshInfo.VertFormat));
 
-    //Check if the document was closed. If so, end worker thread early
-    if (!Open)
-        return;
+    TaskEarlyExitCheck();
 
     //Todo: Put this in renderer / RenderObject code somewhere so it can be reused by other mesh code
     //Vary input and shader based on vertex format
@@ -451,9 +449,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     u32 numSteps = 2;
     f32 stepSize = 1.0f / (f32)numSteps;
 
-    //Check if the document was closed. If so, end worker thread early
-    if (!Open)
-        return;
+    TaskEarlyExitCheck();
 
     WorkerStatusString = "Loading mesh...";
 
@@ -473,7 +469,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     state->Renderer->ContextMutex.unlock();
 
     WorkerProgressFraction += stepSize;
-    WorkerDone = true;
+    meshExportEnabled_ = true;
 
     bool foundDiffuse = false;
     bool foundSpecular = false;
@@ -499,7 +495,7 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     for (auto& textureName : textures)
     {
         //Check if the document was closed. If so, end worker thread early
-        if (!Open)
+        if (meshLoadTask_->Cancelled())
         {
             delete[] meshData.IndexBuffer.data();
             delete[] meshData.VertexBuffer.data();
@@ -590,8 +586,8 @@ void StaticMeshDocument::WorkerThread(GuiState* state)
     Log->info("Worker thread for {} finished.", Title);
 }
 
-//Used by texture search functions to stop the search early if the document is closed
-#define DocumentClosedCheck() if(!Open) { return {}; }
+//Used by texture search functions to stop the search early if mesh load task is cancelled
+#define TaskEarlyExitCheck2() if (meshLoadTask_->Cancelled()) return {};
 
 //Finds a texture and creates a directx texture resource from it. textureName is the textureName of a texture inside a cpeg/cvbm. So for example, sledgehammer_high_n.tga, which is in sledgehammer_high.cpeg_pc
 //Will try to find a high res version of the texture first if lookForHighResVariant is true.
@@ -611,8 +607,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::FindTexture(GuiState* state, co
         if (texture)
             return texture;
     }
-    //Check if the document was closed. If so, end worker thread early
-    DocumentClosedCheck();
+    TaskEarlyExitCheck2();
 
     //Else look for the specified texture
     return GetTexture(state, name, true);
@@ -623,7 +618,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTexture(GuiState* state, con
     PROFILER_FUNCTION();
 
     //Search parent vpp
-    DocumentClosedCheck();
+    TaskEarlyExitCheck2();
     WorkerStatusString = fmt::format("Searching for textures in {}...", VppName);
     auto parentSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile(VppName), textureName);
     if (parentSearchResult)
@@ -688,9 +683,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState
     //First search top level cpeg/cvbm files
     for (u32 i = 0; i < packfile->Entries.size(); i++)
     {
-        //Check if the document was closed. If so, end worker thread early
-        if (!Open)
-            return {};
+        TaskEarlyExitCheck2();
 
         Packfile3Entry& entry = packfile->Entries[i];
         const char* entryName = packfile->EntryNames[i];
@@ -709,7 +702,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState
     for (u32 i = 0; i < packfile->Entries.size(); i++)
     {
         //Check if the document was closed. If so, end worker thread early
-        DocumentClosedCheck();
+        TaskEarlyExitCheck2();
 
         Packfile3Entry& entry = packfile->Entries[i];
         const char* entryName = packfile->EntryNames[i];
@@ -729,9 +722,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState
             container.ReadMetadata();
             for (u32 i = 0; i < container.Entries.size(); i++)
             {
-                //Check if the document was closed. If so, end worker thread early
-                if (!Open)
-                    return {};
+                TaskEarlyExitCheck2();
 
                 Packfile3Entry& entry = container.Entries[i];
                 const char* entryName = container.EntryNames[i];

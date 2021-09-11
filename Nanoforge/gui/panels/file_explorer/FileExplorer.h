@@ -5,6 +5,7 @@
 #include "common/filesystem/Path.h"
 #include "Log.h"
 #include "common/timing/Timer.h"
+#include "util/TaskScheduler.h"
 #include "FileExplorerNode.h"
 #include <vector>
 #include <regex>
@@ -73,11 +74,8 @@ private:
     bool FileTreeNeedsRegen = true;
 
 private:
-
     //Search thread data. Searches are run on another thread to avoid lagging the main thread.
     Timer searchChangeTimer_ { true };
     std::mutex searchThreadMutex_;
-    std::future<void> searchThreadFuture_;
-    bool runningSearchThread_ = false;
-    bool searchThreadForceStop_ = false;
+    Handle<Task> searchTask_ = Task::Create("Regenerating file tree...");
 };

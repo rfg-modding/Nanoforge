@@ -10,7 +10,7 @@
 #include "gui/util/HelperGuis.h"
 #include "gui/misc/Changelog.h"
 #include "gui/misc/SettingsGui.h"
-#include "WorkerThread.h"
+#include "rfg/Tasks.h"
 #include "util/Profiler.h"
 #include <future>
 #include <imgui_markdown.h>
@@ -128,7 +128,7 @@ void StartPanel::DrawDataPathSelector(GuiState* state)
             dataPathValid_ = RfgUtil::AutoDetectDataPath(state->Config);
 
         //Start data folder parse thread
-        workerFuture_ = std::async(std::launch::async, &DataFolderParseThread, state);
+        TaskScheduler::QueueTask(dataFolderParseTask_, std::bind(DataFolderParseTask, dataFolderParseTask_, state));
         FirstRun = false;
     }
 
@@ -169,9 +169,9 @@ void StartPanel::DrawDataPathSelector(GuiState* state)
     }
 
     //Start data folder parse thread when possible
-    if (needDataPathParse_ && !WorkerRunning)
+    if (needDataPathParse_ && !dataFolderParseTask_->Running())
     {
-        workerFuture_ = std::async(std::launch::async, &DataFolderParseThread, state);
+        TaskScheduler::QueueTask(dataFolderParseTask_, std::bind(DataFolderParseTask, dataFolderParseTask_, state));
         needDataPathParse_ = false;
     }
 }

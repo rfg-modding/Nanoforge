@@ -34,6 +34,8 @@ void Application::Run()
         return;
 
     MainLoop();
+
+    TaskScheduler::Shutdown();
 }
 
 void Application::Init()
@@ -55,6 +57,9 @@ void Application::Init()
     config_.Load();
     config_.EnsureVariableExists("Data path", ConfigType::String);
     auto dataPath = config_.GetVariable("Data path");
+
+    //Init TaskScheduler. Used to manage background threads
+    TaskScheduler::Init(&config_);
 
     //Init renderer and gui
     fontManager_.Init(&config_);
