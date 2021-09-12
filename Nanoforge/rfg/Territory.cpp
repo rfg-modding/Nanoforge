@@ -131,6 +131,7 @@ void Territory::LoadThread(Handle<Task> task, GuiState* state)
         //Queue task to load this zone
         Handle<Task> zoneLoadTask = Task::Create(fmt::format("Loading {}...", filename));
         TaskScheduler::QueueTask(zoneLoadTask, std::bind(&Territory::LoadWorkerThread, this, zoneLoadTask, state, packfile, filename));
+        zoneLoadTasks.push_back(zoneLoadTask);
     }
     EarlyStopCheck();
 
