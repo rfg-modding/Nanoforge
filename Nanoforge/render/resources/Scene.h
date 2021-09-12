@@ -21,9 +21,9 @@ class Config;
 #else
     const string shaderFolderPath_ = "./Assets/shaders/";
 #endif
-const string LowLodTerrainShaderPath = shaderFolderPath_ + "TerrainLowLod.fx";
-const string TerrainShaderPath = shaderFolderPath_ + "Terrain.fx";
-const string LineListShaderPath = shaderFolderPath_ + "Linelist.fx";
+const string LowLodTerrainShaderPath = shaderFolderPath_ + "TerrainLowLod.hlsl";
+const string TerrainShaderPath = shaderFolderPath_ + "Terrain.hlsl";
+const string LineListShaderPath = shaderFolderPath_ + "Linelist.hlsl";
 
 //Buffer for per-frame shader constants (set once per frame)
 struct PerFrameConstants

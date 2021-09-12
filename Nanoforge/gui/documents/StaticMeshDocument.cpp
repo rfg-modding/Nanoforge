@@ -374,7 +374,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     WorkerStatusString = "Setting up scene...";
     VertexFormat format = StaticMesh.MeshInfo.VertFormat;
     state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
-    Scene->SetShader(shaderFolderPath_ + to_string(format) + ".fx");
+    Scene->SetShader(shaderFolderPath_ + to_string(format) + ".hlsl");
     if (format == VertexFormat::Pixlit1Uv)
     {
         Scene->SetVertexLayout
