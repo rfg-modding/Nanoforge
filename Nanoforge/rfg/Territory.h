@@ -3,6 +3,7 @@
 #include "PackfileVFS.h"
 #include "common/timing/Timer.h"
 #include "rfg/TerrainHelpers.h"
+#include "render/resources/Scene.h"
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\types\Vec4.h>
 #include <future>
@@ -47,9 +48,8 @@ public:
     void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname);
     bool Ready() { return ready_; } //Returns true if the territory is loaded and ready for use
 
-    Handle<Task> LoadAsync(GuiState* state); //Starts a thread that loads the territory zones, terrain, etc
+    Handle<Task> LoadAsync(Handle<Scene> scene, GuiState* state); //Starts a thread that loads the territory zones, terrain, etc
     void StopLoadThread() { loadThreadShouldStop_ = true; }
-    void ClearLoadThreadData(); //Clear temporary data accrued by the load threads
     bool LoadThreadRunning() { return loadThreadRunning_; }
 
     bool ShouldShowObjectClass(u32 classnameHash); //Returns true if the object should be visible. Based on zone object list filtering options
@@ -68,8 +68,8 @@ public:
     Timer LoadThreadTimer;
 
 private:
-    void LoadThread(Handle<Task> task, GuiState* state); //Top level loading thread
-    void LoadWorkerThread(Handle<Task> task, GuiState* state, Packfile3* packfile, const char* zoneFilename); //Loads a single zone and its assets
+    void LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state); //Top level loading thread
+    void LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Packfile3* packfile, const char* zoneFilename); //Loads a single zone and its assets
     bool FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight);
     void SetZoneShortName(ZoneData& zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
 

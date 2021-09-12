@@ -54,6 +54,7 @@ private:
 
     //Frame timing variables
     f32 deltaTime_ = 0.01f;
+    DWORD lastFramelimiterSleepMs_ = 0;
     const u32 targetFramerate = 60;
     const f32 targetFramerateDelta = 1.0f / static_cast<f32>(targetFramerate);
 

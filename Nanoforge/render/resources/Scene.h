@@ -63,8 +63,11 @@ public:
     //Clear any existing primitives and force the primitive vertex buffers to be updated
     void ResetPrimitives();
 
+    Handle<RenderObject> CreateRenderObject();
+
     Camera Cam;
-    std::vector<RenderObject> Objects = {};
+    std::vector<Handle<RenderObject>> Objects = {};
+    std::mutex ObjectCreationMutex;
     DirectX::XMFLOAT4 ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
     f32 TotalTime = 0.0f; //Total frame time
 

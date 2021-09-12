@@ -16,9 +16,8 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 {
     state_ = state;
 
-    //Create scene instance and store index
-    state->Renderer->CreateScene();
-    Scene = state->Renderer->Scenes.back();
+    //Create scene
+    Scene = state->Renderer->CreateScene();
 
     //Init scene camera
     Scene->Cam.Init({ 250.0f, 500.0f, 250.0f }, 80.0f, { (f32)Scene->Width(), (f32)Scene->Height() }, 1.0f, 10000.0f);
@@ -37,8 +36,8 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 
     //Start territory loading thread
     Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname);
+    TerritoryLoadTask = Territory.LoadAsync(Scene, state);
     state->CurrentTerritoryUpdateDebugDraw = true;
-    TerritoryLoadTask = Territory.LoadAsync(state);
 }
 
 TerritoryDocument::~TerritoryDocument()
@@ -46,9 +45,7 @@ TerritoryDocument::~TerritoryDocument()
     //Wait for worker thread to exit
     Open = false;
     Territory.StopLoadThread();
-    TerritoryLoadTask->Wait();
-    if(!WorkerResourcesFreed)
-        Territory.ClearLoadThreadData();
+    TerritoryLoadTask->CancelAndWait();
 
     if (state_->CurrentTerritory == &Territory)
     {
@@ -66,119 +63,6 @@ void TerritoryDocument::Update(GuiState* state)
 
     //Only redraw scene if window is focused
     Scene->NeedsRedraw = ImGui::IsWindowFocused();
-
-    //Create dx11 resources for terrain meshes as they're loaded
-    for (auto& instance : Territory.TerrainInstances)
-    {
-        //Skip already-initialized terrain instances
-        if (!instance.NeedsRenderInit)
-            continue;
-
-        //Initialize low lod terrain
-        //for (u32 i = 0; i < 9; i++)
-        //{
-        //    auto& renderObject = Scene->Objects.emplace_back();
-        //    Mesh mesh;
-        //    mesh.Create(Scene->d3d11Device_, Scene->d3d11Context_, instance.LowLodMeshes[i]);
-        //    renderObject.Create(mesh, instance.Position);
-
-        //    if (instance.HasBlendTexture)
-        //    {
-        //        //Create and setup texture2d
-        //        Texture2D texture2d;
-        //        texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "comb.cvbm_pc";
-        //        DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-        //        D3D11_SUBRESOURCE_DATA textureSubresourceData;
-        //        textureSubresourceData.pSysMem = instance.BlendTextureBytes.data();
-        //        textureSubresourceData.SysMemSlicePitch = 0;
-        //        textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.BlendTextureWidth, instance.BlendTextureHeight);
-        //        state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
-        //        texture2d.Create(Scene->d3d11Device_, instance.BlendTextureWidth, instance.BlendTextureHeight, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-        //        texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-        //        texture2d.CreateSampler(); //Need sampler too
-        //        state->Renderer->ContextMutex.unlock();
-
-        //        renderObject.UseTextures = true;
-        //        renderObject.DiffuseTexture = texture2d;
-        //    }
-        //    if (instance.HasTexture1)
-        //    {
-        //        //Create and setup texture2d
-        //        Texture2D texture2d;
-        //        texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "_ovl.cvbm_pc";
-        //        DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-        //        D3D11_SUBRESOURCE_DATA textureSubresourceData;
-        //        textureSubresourceData.pSysMem = instance.Texture1Bytes.data();
-        //        textureSubresourceData.SysMemSlicePitch = 0;
-        //        textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.Texture1Width, instance.Texture1Height);
-        //        state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
-        //        texture2d.Create(Scene->d3d11Device_, instance.Texture1Width, instance.Texture1Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-        //        texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-        //        texture2d.CreateSampler(); //Need sampler too
-        //        state->Renderer->ContextMutex.unlock();
-
-        //        renderObject.UseTextures = true;
-        //        renderObject.SpecularTexture = texture2d;
-        //    }
-        //}
-
-        //Initialize high lod terrain
-        for (u32 i = 0; i < 9; i++)
-        {
-            auto& subzone = instance.Subzones[i];
-            auto& renderObject = Scene->Objects.emplace_back();
-            Mesh mesh;
-            mesh.Create(Scene->d3d11Device_, subzone.InstanceData, 1);
-            renderObject.Create(mesh, subzone.Data.Subzone.Position);
-
-            //Todo: ***********REMOVE BEFORE COMMIT. THIS SHOULD BE IN THE LOW LOD TERRAIN SECTION. ONLY HERE FOR TESTING*************************
-            if (instance.HasBlendTexture)
-            {
-                //Create and setup texture2d
-                Texture2D texture2d;
-                texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "comb.cvbm_pc";
-                DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-                D3D11_SUBRESOURCE_DATA textureSubresourceData;
-                textureSubresourceData.pSysMem = instance.BlendTextureBytes.data();
-                textureSubresourceData.SysMemSlicePitch = 0;
-                textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.BlendTextureWidth, instance.BlendTextureHeight);
-                texture2d.Create(Scene->d3d11Device_, instance.BlendTextureWidth, instance.BlendTextureHeight, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-                texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-                texture2d.CreateSampler(); //Need sampler too
-
-                renderObject.UseTextures = true;
-                renderObject.DiffuseTexture = texture2d;
-            }
-            if (instance.HasTexture1)
-            {
-                //Create and setup texture2d
-                Texture2D texture2d;
-                texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "_ovl.cvbm_pc";
-                DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-                D3D11_SUBRESOURCE_DATA textureSubresourceData;
-                textureSubresourceData.pSysMem = instance.Texture1Bytes.data();
-                textureSubresourceData.SysMemSlicePitch = 0;
-                textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.Texture1Width, instance.Texture1Height);
-                texture2d.Create(Scene->d3d11Device_, instance.Texture1Width, instance.Texture1Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-                texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-                texture2d.CreateSampler(); //Need sampler too
-
-                renderObject.UseTextures = true;
-                renderObject.SpecularTexture = texture2d;
-            }
-        }
-
-        //Set bool so the instance isn't initialized more than once
-        instance.NeedsRenderInit = false;
-        Scene->NeedsRedraw = true; //Redraw scene if new terrain meshes added
-    }
-
-    //Once worker thread is done clear its temporary data
-    if (!Territory.LoadThreadRunning() && !WorkerResourcesFreed)
-    {
-        Territory.ClearLoadThreadData();
-        WorkerResourcesFreed = true;
-    }
 
     //Set current territory to most recently focused territory window
     if (ImGui::IsWindowFocused())

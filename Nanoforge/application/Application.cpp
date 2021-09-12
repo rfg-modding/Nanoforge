@@ -121,8 +121,11 @@ void Application::MainLoop()
             while (FrameTimer.ElapsedSecondsPrecise() < targetFramerateDelta)
             {
                 //Sleep is used here instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this.
-                f32 timeToTargetFramerateMs = (targetFramerateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f;
-                Sleep((DWORD)timeToTargetFramerateMs);
+                lastFramelimiterSleepMs_ = (DWORD)((targetFramerateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f);
+                if (lastFramelimiterSleepMs_ > (DWORD)(targetFramerateDelta * 1000.0f))
+                    break;
+
+                Sleep((DWORD)lastFramelimiterSleepMs_);
             }
         }
 

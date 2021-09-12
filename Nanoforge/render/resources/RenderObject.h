@@ -26,6 +26,7 @@ public:
         Scale.y = scale;
         Scale.z = scale;
     }
+    bool Initialized() { return initialized_; }
 
     Mesh ObjectMesh;
     Vec3 Scale = { 1.0f, 1.0f, 1.0f };
@@ -37,7 +38,6 @@ public:
     Texture2D SpecularTexture;
     Texture2D NormalTexture;
 
-    //Todo: Terrain specific, should be in a material once material support is added
-    //Index of this terrain subpiece on 3x3 grid that makes up the terrain of a single zone
-    int TerrainSubpieceIndex = 0;
+private:
+    bool initialized_ = false;
 };

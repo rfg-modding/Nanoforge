@@ -162,11 +162,11 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         ImGui::SameLine();
         if (ImGui::Button("Set all"))
         {
-            Scene->Objects[0].Scale.x = tempScale;
-            Scene->Objects[0].Scale.y = tempScale;
-            Scene->Objects[0].Scale.z = tempScale;
+            Scene->Objects[0]->Scale.x = tempScale;
+            Scene->Objects[0]->Scale.y = tempScale;
+            Scene->Objects[0]->Scale.z = tempScale;
         }
-        ImGui::DragFloat3("Scale", (float*)&Scene->Objects[0].Scale, 0.01, 1.0f, 100.0f);
+        ImGui::DragFloat3("Scale", (float*)&Scene->Objects[0]->Scale, 0.01, 1.0f, 100.0f);
 
         ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&Scene->perFrameStagingBuffer_.DiffuseColor));
         ImGui::SliderFloat("Diffuse intensity", &Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 1.0f);
@@ -207,7 +207,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         ImGui::Separator();
 
         //LOD level selector
-        auto& mesh = Scene->Objects[0].ObjectMesh;
+        auto& mesh = Scene->Objects[0]->ObjectMesh;
         u32 lodLevel = mesh.GetLodLevel();
         u32 min = 0;
         u32 max = mesh.NumLods() - 1;
@@ -462,9 +462,9 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     MeshInstanceData meshData = maybeMeshData.value();
     Mesh mesh;
     mesh.Create(Scene->d3d11Device_, meshData, StaticMesh.NumLods);
-    auto& renderObject = Scene->Objects.emplace_back();
-    renderObject.Create(mesh, Vec3{ 0.0f, 0.0f, 0.0f });
-    renderObject.SetScale(1.0f);
+    Handle<RenderObject> renderObject = Scene->CreateRenderObject();
+    renderObject->Create(mesh, Vec3{ 0.0f, 0.0f, 0.0f });
+    renderObject->SetScale(1.0f);
 
     //Set camera position to get a better view of the mesh
     {
@@ -517,8 +517,8 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
             {
                 Log->info("Found diffuse texture {} for {}", texture->Texture.Name, Filename);
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                renderObject.UseTextures = true;
-                renderObject.DiffuseTexture = texture.value().Texture;
+                renderObject->UseTextures = true;
+                renderObject->DiffuseTexture = texture.value().Texture;
                 foundDiffuse = true;
 
                 //Store path for exporting
@@ -541,8 +541,8 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
                 Log->info("Found normal map {} for {}", texture->Texture.Name, Filename);
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                renderObject.UseTextures = true;
-                renderObject.NormalTexture = texture.value().Texture;
+                renderObject->UseTextures = true;
+                renderObject->NormalTexture = texture.value().Texture;
                 foundNormal = true;
 
                 //Store path for exporting
@@ -565,8 +565,8 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
                 Log->info("Found specular map {} for {}", texture->Texture.Name, Filename);
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                renderObject.UseTextures = true;
-                renderObject.SpecularTexture = texture.value().Texture;
+                renderObject->UseTextures = true;
+                renderObject->SpecularTexture = texture.value().Texture;
                 foundSpecular = true;
 
                 //Store path for exporting

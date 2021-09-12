@@ -79,11 +79,17 @@ void Scene::Draw(f32 deltaTime)
     d3d11Context_->IASetInputLayout(vertexLayout_.Get());
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-    //Draw all render objects
+    //Bind material data
     shader_.Bind(d3d11Context_);
     d3d11Context_->VSSetConstantBuffers(0, 1, perObjectBuffer_.GetAddressOf());
-    for (auto& renderObject : Objects)
-        renderObject.Draw(d3d11Context_, perObjectBuffer_, Cam);
+
+    //Draw all render objects
+    {
+        std::lock_guard<std::mutex> lock(ObjectCreationMutex);
+        for (Handle<RenderObject> renderObject : Objects)
+            if(renderObject->Initialized())
+                renderObject->Draw(d3d11Context_, perObjectBuffer_, Cam);
+    }
 
     //Prepare state to render primitives
     d3d11Context_->RSSetState(primitiveRasterizerState_.Get());
@@ -272,4 +278,12 @@ void Scene::ResetPrimitives()
 {
     primitiveBufferNeedsUpdate_ = true;
     lineVertices_.clear();
+}
+
+Handle<RenderObject> Scene::CreateRenderObject()
+{
+    std::lock_guard<std::mutex> lock(ObjectCreationMutex);
+    Handle<RenderObject> obj = CreateHandle<RenderObject>();
+    Objects.push_back(obj);
+    return obj;
 }
