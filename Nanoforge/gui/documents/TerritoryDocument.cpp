@@ -68,7 +68,6 @@ void TerritoryDocument::Update(GuiState* state)
     Scene->NeedsRedraw = ImGui::IsWindowFocused();
 
     //Create dx11 resources for terrain meshes as they're loaded
-    Territory.TerrainLock.lock();
     for (auto& instance : Territory.TerrainInstances)
     {
         //Skip already-initialized terrain instances
@@ -129,7 +128,7 @@ void TerritoryDocument::Update(GuiState* state)
             auto& subzone = instance.Subzones[i];
             auto& renderObject = Scene->Objects.emplace_back();
             Mesh mesh;
-            mesh.Create(Scene->d3d11Device_, Scene->d3d11Context_, subzone.InstanceData, 1);
+            mesh.Create(Scene->d3d11Device_, subzone.InstanceData, 1);
             renderObject.Create(mesh, subzone.Data.Subzone.Position);
 
             //Todo: ***********REMOVE BEFORE COMMIT. THIS SHOULD BE IN THE LOW LOD TERRAIN SECTION. ONLY HERE FOR TESTING*************************
@@ -143,11 +142,9 @@ void TerritoryDocument::Update(GuiState* state)
                 textureSubresourceData.pSysMem = instance.BlendTextureBytes.data();
                 textureSubresourceData.SysMemSlicePitch = 0;
                 textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.BlendTextureWidth, instance.BlendTextureHeight);
-                state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
                 texture2d.Create(Scene->d3d11Device_, instance.BlendTextureWidth, instance.BlendTextureHeight, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
                 texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
                 texture2d.CreateSampler(); //Need sampler too
-                state->Renderer->ContextMutex.unlock();
 
                 renderObject.UseTextures = true;
                 renderObject.DiffuseTexture = texture2d;
@@ -162,11 +159,9 @@ void TerritoryDocument::Update(GuiState* state)
                 textureSubresourceData.pSysMem = instance.Texture1Bytes.data();
                 textureSubresourceData.SysMemSlicePitch = 0;
                 textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.Texture1Width, instance.Texture1Height);
-                state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
                 texture2d.Create(Scene->d3d11Device_, instance.Texture1Width, instance.Texture1Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
                 texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
                 texture2d.CreateSampler(); //Need sampler too
-                state->Renderer->ContextMutex.unlock();
 
                 renderObject.UseTextures = true;
                 renderObject.SpecularTexture = texture2d;
@@ -177,7 +172,6 @@ void TerritoryDocument::Update(GuiState* state)
         instance.NeedsRenderInit = false;
         Scene->NeedsRedraw = true; //Redraw scene if new terrain meshes added
     }
-    Territory.TerrainLock.unlock();
 
     //Once worker thread is done clear its temporary data
     if (!Territory.LoadThreadRunning() && !WorkerResourcesFreed)

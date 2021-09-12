@@ -459,14 +459,21 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
         THROW_EXCEPTION("Failed to read submesh mesh data for static mesh document.");
 
     //Load mesh and create render object from it
-    state->Renderer->ContextMutex.lock();
     MeshInstanceData meshData = maybeMeshData.value();
     Mesh mesh;
-    mesh.Create(Scene->d3d11Device_, Scene->d3d11Context_, meshData, StaticMesh.NumLods);
+    mesh.Create(Scene->d3d11Device_, meshData, StaticMesh.NumLods);
     auto& renderObject = Scene->Objects.emplace_back();
     renderObject.Create(mesh, Vec3{ 0.0f, 0.0f, 0.0f });
-    renderObject.SetScale(25.0f);
-    state->Renderer->ContextMutex.unlock();
+    renderObject.SetScale(1.0f);
+
+    //Set camera position to get a better view of the mesh
+    {
+        auto& submesh0 = StaticMesh.MeshInfo.Submeshes[0];
+        Vec3 pos = submesh0.Bmax - submesh0.Bmin;
+        Scene->Cam.SetPosition(pos.z, pos.y, pos.x); //x and z intentionally switched since that usually has a better result
+        Scene->Cam.SetNearPlane(0.1f);
+        Scene->Cam.Speed = 0.05f;
+    }
 
     WorkerProgressFraction += stepSize;
     meshExportEnabled_ = true;

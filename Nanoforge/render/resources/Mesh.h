@@ -13,7 +13,7 @@ class Mesh
 {
 public:
     //Creates mesh from provided data
-    void Create(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, MeshInstanceData data, u32 numLods = 1);
+    void Create(ComPtr<ID3D11Device> d3d11Device, MeshInstanceData data, u32 numLods = 1);
     //Bind vertex and index buffers to context
     void Draw(ComPtr<ID3D11DeviceContext> d3d11Context);
     //Get underlying pointer to d3d11 vertex buffer

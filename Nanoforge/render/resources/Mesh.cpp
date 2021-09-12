@@ -1,7 +1,7 @@
 #include "Mesh.h"
 #include "Log.h"
 
-void Mesh::Create(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, MeshInstanceData data, u32 numLods)
+void Mesh::Create(ComPtr<ID3D11Device> d3d11Device, MeshInstanceData data, u32 numLods)
 {
     //All RFG meshes seen so far use these
     static const DXGI_FORMAT IndexBufferFormat = DXGI_FORMAT_R16_UINT;
@@ -22,10 +22,8 @@ void Mesh::Create(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> 
     info_ = data.Info;
 
     //Create and set data for index and vertex buffers
-    indexBuffer_.Create(d3d11Device, static_cast<u32>(data.IndexBuffer.size_bytes()), D3D11_BIND_INDEX_BUFFER);
-    indexBuffer_.SetData(d3d11Context, data.IndexBuffer.data());
-    vertexBuffer_.Create(d3d11Device, static_cast<u32>(data.VertexBuffer.size_bytes()), D3D11_BIND_VERTEX_BUFFER);
-    vertexBuffer_.SetData(d3d11Context, data.VertexBuffer.data());
+    indexBuffer_.Create(d3d11Device, static_cast<u32>(data.IndexBuffer.size_bytes()), D3D11_BIND_INDEX_BUFFER, data.IndexBuffer.data());
+    vertexBuffer_.Create(d3d11Device, static_cast<u32>(data.VertexBuffer.size_bytes()), D3D11_BIND_VERTEX_BUFFER, data.VertexBuffer.data());
 }
 
 void Mesh::Draw(ComPtr<ID3D11DeviceContext> d3d11Context)

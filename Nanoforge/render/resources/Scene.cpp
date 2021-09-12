@@ -201,7 +201,7 @@ void Scene::InitPrimitiveState()
     DxCheck(d3d11Device_->CreateRasterizerState(&rasterizerDesc, primitiveRasterizerState_.GetAddressOf()), "Primitive rasterizer state creation failed!");
 
     //Create linelist primitive vertex buffer
-    lineVertexBuffer_.Create(d3d11Device_, 1200, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+    lineVertexBuffer_.Create(d3d11Device_, 1200, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 
     linelistShader_.Load(LineListShaderPath, d3d11Device_, config_->GetBoolReadonly("Use geometry shaders").value());
 
