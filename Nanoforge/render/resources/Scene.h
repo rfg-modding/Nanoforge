@@ -16,7 +16,7 @@
 class Config;
 
 //Todo: Add build path variable that's set by cmake to the project root path for debug
-#ifdef DEBUG_BUILD
+#ifdef DEVELOPMENT_BUILD
     const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/";
 #else
     const string shaderFolderPath_ = "./Assets/shaders/";

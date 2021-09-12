@@ -7,6 +7,9 @@ project ("Nanoforge")
 set(ENABLE_ASAN FALSE)
 set(ENABLE_PROFILER FALSE)
 set(ENABLE_EDIT_AND_CONTINUE FALSE)
+# Enables define of the same name. For behavior that should only exist in development builds.
+# Separate from DEBUG_BUILD macro for testing dev builds in Release mode.
+set(DEVELOPMENT_BUILD FALSE)
 
 set(CMAKE_CXX_STANDARD           20)
 set(CMAKE_CXX_STANDARD_REQUIRED  ON)
@@ -20,6 +23,9 @@ add_compile_definitions(NOMINMAX)
 
 if(ENABLE_PROFILER)
     add_compile_definitions(TRACY_ENABLE)
+endif()
+if(DEVELOPMENT_BUILD)
+    add_compile_definitions(DEVELOPMENT_BUILD)
 endif()
 
 # Set options for MSVC compiler (currently the only one Nanoforge is developed with)

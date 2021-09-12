@@ -114,7 +114,7 @@ void MainGui::Update(f32 deltaTime)
     //Draw always visible UI elements
     DrawMainMenuBar();
     DrawDockspace();
-#ifdef DEBUG_BUILD
+#ifdef DEVELOPMENT_BUILD
     ImGui::ShowDemoWindow();
 #endif
 
