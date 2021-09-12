@@ -93,6 +93,8 @@ public:
 	void Wait(u32 waitTimeMs = 0)
 	{
 		std::unique_lock lock(waitMutex_);
+		if (completed_ || !running_)
+			return;
 
 		//Wait until task is completed or the provided wait time elapses
 		auto waitFunc = [this]() -> bool { return completed_ || !running_; };

@@ -116,6 +116,7 @@ void TaskScheduler::ThreadWaitForTask(u32 threadIndex)
 
 		//Signal that the task is complete
 		taskData->completed_ = true;
+		taskData->waitCondition_.notify_all();
 		taskData->running_ = false;
 		threadTasks_[threadIndex] = nullptr;
 	}

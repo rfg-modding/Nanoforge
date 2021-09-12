@@ -384,15 +384,15 @@ void Territory::LoadWorkerThread(Handle<Task> task, GuiState* state, Packfile3* 
             delete container;
             delete[] cpuFileBytes.value().data();
             delete[] gpuFileBytes.value().data();
-
-            //Get comb texture. Used to color low lod terrain
-            string blendTextureName = terrainName + "comb.cvbm_pc";
-            terrain.HasBlendTexture = FindTexture(state->PackfileVFS, blendTextureName, terrain.BlendPeg, terrain.BlendTextureBytes, terrain.BlendTextureWidth, terrain.BlendTextureHeight);
-
-            //Get ovl texture. Used to light low lod terrain
-            string texture1Name = terrainName + "_ovl.cvbm_pc";
-            terrain.HasTexture1 = FindTexture(state->PackfileVFS, texture1Name, terrain.Texture1, terrain.Texture1Bytes, terrain.Texture1Width, terrain.Texture1Height);
         }
+
+        //Get comb texture. Used to color low lod terrain
+        string blendTextureName = terrainName + "comb.cvbm_pc";
+        terrain.HasBlendTexture = FindTexture(state->PackfileVFS, blendTextureName, terrain.BlendPeg, terrain.BlendTextureBytes, terrain.BlendTextureWidth, terrain.BlendTextureHeight);
+
+        //Get ovl texture. Used to light low lod terrain
+        string texture1Name = terrainName + "_ovl.cvbm_pc";
+        terrain.HasTexture1 = FindTexture(state->PackfileVFS, texture1Name, terrain.Texture1, terrain.Texture1Bytes, terrain.Texture1Width, terrain.Texture1Height);
     }
 
     //Done loading, store terrain instance and mark for renderer.
