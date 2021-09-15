@@ -15,35 +15,22 @@ TextureDocument::TextureDocument(GuiState* state, string filename, string parent
     //Get gpu filename
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
 
-    //Get path to cpu file and gpu file in cache
-    auto maybeCpuFilePath = InContainer ?
-        state->PackfileVFS->GetFilePath(VppName, ParentName, Filename) :
-        state->PackfileVFS->GetFilePath(VppName, Filename);
-    auto maybeGpuFilePath = InContainer ?
-        state->PackfileVFS->GetFilePath(VppName, ParentName, gpuFileName) :
-        state->PackfileVFS->GetFilePath(VppName, gpuFileName);
+    //Get file data
+    Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+    packfile->ReadMetadata();
+    std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
+    std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
 
-    //Error handling for when cpu or gpu file aren't found
-    if (!maybeCpuFilePath)
-    {
-        Log->error("Texture document constructor encountered error! Failed to find texture cpu file: \"{}\" in \"{}\"", Filename, InContainer ? VppName + "/" + ParentName : VppName);
-        Open = false;
-        return;
-    }
-    if (!maybeGpuFilePath)
-    {
-        Log->error("Texture document constructor encountered error! Failed to find texture gpu file: \"{}\" in \"{}\"", gpuFileName, InContainer ? VppName + "/" + ParentName : VppName);
-        Open = false;
-        return;
-    }
-
-    CpuFilePath = maybeCpuFilePath.value();
-    GpuFilePath = maybeGpuFilePath.value();
-
-    //Parse peg
-    BinaryReader cpuFileReader(CpuFilePath);
-    BinaryReader gpuFileReader(GpuFilePath);
+    //Read mesh header
+    BinaryReader cpuFileReader(cpuFileBytes);
+    BinaryReader gpuFileReader(gpuFileBytes);
     Peg.Read(cpuFileReader);
+
+    if (InContainer)
+        delete packfile;
+
+    delete[] cpuFileBytes.data();
+    delete[] gpuFileBytes.data();
 
     //Fill texture list with nullptrs. When a sub-image of the peg is opened it'll be rendered from this list.
     //If the index of the sub-image is a nullptr then it'll be loaded from the peg gpu file
@@ -205,7 +192,15 @@ void TextureDocument::Update(GuiState* state)
         ImTextureID entryTexture = ImageTextures[SelectedIndex];
         if (!entryTexture && !CreateFailed)
         {
-            BinaryReader gpuFileReader(GpuFilePath);
+            //Get gpu filename
+            string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
+
+            //Get file data
+            Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+            packfile->ReadMetadata();
+            std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+            BinaryReader gpuFileReader(gpuFileBytes);
+
             Peg.ReadTextureData(gpuFileReader, entry);
             DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat);
             ImTextureID id = state->Renderer->TextureDataToHandle(entry.RawData, format, entry.Width, entry.Height);
@@ -218,6 +213,11 @@ void TextureDocument::Update(GuiState* state)
             {
                 ImageTextures[SelectedIndex] = id;
             }
+
+            if (InContainer)
+                delete packfile;
+
+            delete[] gpuFileBytes.data();
         }
         else
         {
@@ -241,9 +241,17 @@ void TextureDocument::Save(GuiState* state)
 {
     if (state->CurrentProject->Loaded())
     {
+        //Get gpu filename
+        string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
+
+        //Get file data
+        Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+        packfile->ReadMetadata();
+        std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+        BinaryReader gpuFileReader(gpuFileBytes);
+
         //Read all texture data from unedited gpu file
-        BinaryReader gpuFileOriginal(GpuFilePath);
-        Peg.ReadAllTextureData(gpuFileOriginal, false); //Read all texture data and don't overwrite edited files
+        Peg.ReadAllTextureData(gpuFileReader, false); //Read all texture data and don't overwrite edited files
 
         //Base output path relative to project root
         string pathBaseRelative = VppName + "\\";
@@ -273,6 +281,10 @@ void TextureDocument::Save(GuiState* state)
         state->CurrentProject->AddEdit(FileEdit{ "TextureEdit", pathBaseRelative + Filename });
         state->CurrentProject->Save();
 
+        if (InContainer)
+            delete packfile;
+
+        delete[] gpuFileBytes.data();
         Log->info("Saved \"{}\"", Filename);
     }
     else
@@ -289,12 +301,15 @@ void TextureDocument::PickPegExportFolder(GuiState* state)
     if (!result)
         return;
 
+    //Note: Disabled due to removal of FileCache, which was a pain to maintain and overcomplicated.
+    //      This is a temporary break. It will be fixed before the next release.
+
     //If result is valid export the texture(s)
-    Log->info("Extract all window selection: \"{}\"", result.value());
-    if (ExtractType == PegExtractType::All)
-        PegHelpers::ExportAll(Peg, GpuFilePath, result.value() + "\\");
-    else if (ExtractType == PegExtractType::SingleFile)
-        PegHelpers::ExportSingle(Peg, GpuFilePath, SelectedIndex, result.value() + "\\");
+    //Log->info("Extract all window selection: \"{}\"", result.value());
+    //if (ExtractType == PegExtractType::All)
+    //    PegHelpers::ExportAll(Peg, GpuFilePath, result.value() + "\\");
+    //else if (ExtractType == PegExtractType::SingleFile)
+    //    PegHelpers::ExportSingle(Peg, GpuFilePath, SelectedIndex, result.value() + "\\");
 }
 
 void TextureDocument::PickPegImportTexture(GuiState* state)

@@ -40,10 +40,6 @@ XtblDocument::~XtblDocument()
     //Can't just delete the xtbl since other xtbls could reference this one
     if (ResetOnClose)
     {
-        auto newPath = state_->PackfileVFS->GetFilePath(vppName_, filename_);
-        if(newPath.has_value())
-            xtbl_->FilePath = newPath.value();
-
         xtbl_->Reload();
     }
 }

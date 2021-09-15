@@ -1,7 +1,6 @@
 #pragma once
 #include "Common/Typedefs.h"
 #include "util/TaskScheduler.h"
-#include "rfg/FileCache.h"
 #include "FileEdit.h"
 #include <tinyxml2/tinyxml2.h>
 #include <vector>
@@ -33,8 +32,6 @@ public:
     string Path;
     //Name of the project file
     string ProjectFilename;
-    //The project cache. Located at Path + "\\Cache\\"
-    FileCache Cache;
     //If true there are changes which haved been saved yet. Used by the GUI
     bool UnsavedChanges = false;
     //If true Nanoforge will repack table.vpp_pc with any edited files in it.

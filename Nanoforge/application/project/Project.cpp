@@ -15,7 +15,6 @@ bool Project::Load(const string& projectFilePath)
     Edits.clear();
     Path = Path::GetParentDirectory(projectFilePath);
     ProjectFilename = Path::GetFileName(projectFilePath);
-    Cache.Load(GetCachePath());
     loaded_ = LoadProjectFile(projectFilePath);
     return loaded_;
 }
@@ -82,7 +81,7 @@ string Project::GetCachePath()
 
 void Project::RescanCache()
 {
-    Cache.Load(GetCachePath());
+
 }
 
 void Project::AddEdit(FileEdit edit)

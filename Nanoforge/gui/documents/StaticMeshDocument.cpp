@@ -330,39 +330,18 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
     TaskEarlyExitCheck();
 
-    //Get path to cpu file and gpu file in cache
-    auto maybeCpuFilePath = InContainer ?
-        state->PackfileVFS->GetFilePath(VppName, ParentName, Filename) :
-        state->PackfileVFS->GetFilePath(VppName, Filename);
-    auto maybeGpuFilePath = InContainer ?
-        state->PackfileVFS->GetFilePath(VppName, ParentName, gpuFileName) :
-        state->PackfileVFS->GetFilePath(VppName, gpuFileName);
+    //Get mesh data
+    Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+    packfile->ReadMetadata();
+    std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
+    std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
 
-    //Error handling for when cpu or gpu file aren't found
-    if (!maybeCpuFilePath)
-    {
-        Log->error("Static mesh worker thread encountered error! Failed to find cpu file: \"{}\" in \"{}\"", Filename, InContainer ? VppName + "/" + ParentName : VppName);
-        WorkerStatusString = "Error encountered. Check log.";
-        return;
-    }
-    if (!maybeGpuFilePath)
-    {
-        Log->error("Static mesh worker thread encountered error! Failed to find gpu file: \"{}\" in \"{}\"", gpuFileName, InContainer ? VppName + "/" + ParentName : VppName);
-        WorkerStatusString = "Error encountered. Check log.";
-        return;
-    }
-    TaskEarlyExitCheck();
-
-    CpuFilePath = maybeCpuFilePath.value();
-    GpuFilePath = maybeGpuFilePath.value();
-
-    //Read cpu file
-    BinaryReader cpuFileReader(CpuFilePath);
-    BinaryReader gpuFileReader(GpuFilePath);
+    //Read mesh header
+    BinaryReader cpuFileReader(cpuFileBytes);
+    BinaryReader gpuFileReader(gpuFileBytes);
     string ext = Path::GetExtension(Filename);
-    //Todo: Move signature + version into class or helper function. Users of StaticMesh::Read shouldn't need to know these to use it
     if (ext == ".csmesh_pc")
-        StaticMesh.Read(cpuFileReader, Filename, 0xC0FFEE11, 5);
+        StaticMesh.Read(cpuFileReader, Filename, 0xC0FFEE11, 5); //Todo: Move signature + version into class or helper function.
     else if (ext == ".ccmesh_pc")
         StaticMesh.Read(cpuFileReader, Filename, 0xFAC351A9, 4);
 
@@ -370,8 +349,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
     TaskEarlyExitCheck();
 
-    //Todo: Put this in renderer / RenderObject code somewhere so it can be reused by other mesh code
-    //Vary input and shader based on vertex format
+    //Get material based on vertex format
     WorkerStatusString = "Setting up scene...";
     VertexFormat format = StaticMesh.MeshInfo.VertFormat;
     auto material = Render::GetMaterial(to_string(format));
@@ -522,6 +500,12 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     }
 
     WorkerProgressFraction += stepSize;
+
+    if (InContainer)
+        delete packfile;
+
+    delete[] cpuFileBytes.data();
+    delete[] gpuFileBytes.data();
 
     //Clear mesh data
     delete[] meshData.IndexBuffer.data();
@@ -701,25 +685,17 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* sta
     //Get gpu filename
     string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(pegName);
 
-    //Get path to cpu file and gpu file in cache
-    auto maybeCpuFilePath = inContainer ?
-        state->PackfileVFS->GetFilePath(vppName, parentName, pegName) :
-        state->PackfileVFS->GetFilePath(vppName, pegName);
-    auto maybeGpuFilePath = inContainer ?
-        state->PackfileVFS->GetFilePath(vppName, parentName, gpuFilename) :
-        state->PackfileVFS->GetFilePath(vppName, gpuFilename);
+    Packfile3* packfile = inContainer ? state->PackfileVFS->GetContainer(parentName, vppName) : state->PackfileVFS->GetPackfile(vppName);
+    if(inContainer)
+        packfile->ReadMetadata();
+    std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(pegName, true).value();
+    std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFilename, true).value();
 
-    //Error handling for when cpu or gpu file aren't found
-    if (!maybeCpuFilePath || !maybeGpuFilePath)
-        return {};
-
-    string cpuFilePath = maybeCpuFilePath.value();
-    string gpuFilePath = maybeGpuFilePath.value();
+    BinaryReader cpuFileReader(cpuFileBytes);
+    BinaryReader gpuFileReader(gpuFileBytes);
 
     //Parse peg file
     std::optional<Texture2D_Ext> out = {};
-    BinaryReader cpuFileReader(cpuFilePath);
-    BinaryReader gpuFileReader(gpuFilePath);
     PegFile10 peg;
     peg.Read(cpuFileReader);
 
@@ -746,10 +722,16 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* sta
             texture2d.CreateSampler(); //Need sampler too
             state->Renderer->ContextMutex.unlock();
 
-            out = Texture2D_Ext{ .Texture = texture2d, .CpuFilePath = cpuFilePath };
+            out = Texture2D_Ext{ .Texture = texture2d, .CpuFilePath = pegName };
             break;
         }
     }
+
+    if (inContainer)
+        delete packfile;
+
+    delete[] cpuFileBytes.data();
+    delete[] gpuFileBytes.data();
 
     //Release allocated memory and return output
     peg.Cleanup();

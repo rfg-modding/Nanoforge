@@ -1,10 +1,11 @@
 #pragma once
 #include "FileHandle.h"
-#include "FileCache.h"
 #include <RfgTools++\formats\packfiles\Packfile3.h>
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\formats\asm\AsmFile5.h>
 #include <vector>
+#include <future>
+#include <mutex>
 
 //Enum used internally by PackfileVFS during file searches
 enum class SearchType
@@ -41,24 +42,12 @@ public:
     //If true this class is ready for use by guis / other code
     bool Ready() const { return ready_; }
 
-    //Gets the path of a file in the cache. The file will be extracted and cached if it's not already cached. Arguments:
-    //packfileName: the name of the .vpp_pc file the target file is in
-    //filename1: Either the target file or the str2_pc file that contains it
-    //filename2: Either the target name or an empty string ""
-    std::optional<string> GetFilePath(const string& packfileName, const string& filename1, const string& filename2 = "");
-    //Returns if the provided file exists
-    bool Exists(const string& packfileName, const string& filename1, const string& filename2 = "");
-    //Adds file to global cache. Arguments follow same rules as ::GetFile(). Returns false if file caching fails
-    bool AddFileToCache(const string& packfileName, const string& filename1, const string& filename2);
-
     std::vector<Packfile3> packfiles_ = {};
 
 private:
     //Check if target string is a search match based on the search filter and type
     bool CheckSearchMatch(s_view target, s_view filter, SearchType searchType = SearchType::Direct);
 
-    //Global file cache
-    FileCache globalFileCache_;
     //The current project
     Project* project_ = nullptr;
     //RFG data folder path
