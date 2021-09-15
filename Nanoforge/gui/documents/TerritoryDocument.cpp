@@ -1,15 +1,8 @@
 #include "TerritoryDocument.h"
 #include "render/backend/DX11Renderer.h"
-#include "common/filesystem/Path.h"
-#include "util/MeshUtil.h"
-#include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
-#include <RfgTools++\formats\textures\PegFile10.h>
-#include "gui/documents/PegHelpers.h"
-#include "RfgTools++/formats/meshes/TerrainLowLod.h"
-#include "RfgTools++/formats/meshes/Terrain.h"
-#include "Log.h"
-#include <span>
 #include "util/Profiler.h"
+#include "render/Render.h"
+#include "Log.h"
 
 TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, string territoryShortname)
     : TerritoryName(territoryName), TerritoryShortname(territoryShortname)
@@ -21,17 +14,14 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 
     //Init scene camera
     Scene->Cam.Init({ 250.0f, 500.0f, 250.0f }, 80.0f, { (f32)Scene->Width(), (f32)Scene->Height() }, 1.0f, 10000.0f);
-    //Scene->SetShader(LowLodTerrainShaderPath);
-    //Scene->SetVertexLayout
-    //({
-    //    { "POSITION", 0,  DXGI_FORMAT_R16G16B16A16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    //});
-    Scene->SetShader(TerrainShaderPath);
-    Scene->SetVertexLayout
-    ({
-        { "POSITION", 0,  DXGI_FORMAT_R16G16_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0,  DXGI_FORMAT_R8G8B8A8_UNORM, 0, 4, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    });
+    auto terrainMaterial = Render::GetMaterial("Terrain");
+    if (!terrainMaterial.has_value())
+    {
+        Log->error("Failed to locate material 'Terrain' for TerritoryDocument");
+        Open = false;
+        return;
+    }
+    Scene->material = terrainMaterial.value();
     Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.5f;
 
     //Start territory loading thread

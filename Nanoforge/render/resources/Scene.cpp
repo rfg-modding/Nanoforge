@@ -4,6 +4,7 @@
 #include "Log.h"
 #include "util/StringHelpers.h"
 #include "application/Config.h"
+#include "render/Render.h"
 #include "util/Profiler.h"
 
 //Todo: Stick this in a debug namespace
@@ -29,44 +30,27 @@ void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d
     perObjectBuffer_.Create(d3d11Device_, sizeof(PerObjectConstants), D3D11_BIND_CONSTANT_BUFFER);
 }
 
-void Scene::SetShader(const string& path)
-{
-    shader_.Load(path, d3d11Device_, config_->GetBoolReadonly("Use geometry shaders").value());
-    shaderSet_ = true;
-}
-
-void Scene::SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout)
-{
-    auto pVSBlob = shader_.GetVertexShaderBytes();
-
-    //Create the input layout
-    if (FAILED(d3d11Device_->CreateInputLayout(layout.data(), layout.size(), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), vertexLayout_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create scene vertex layout.");
-
-    //Set the input layout
-    d3d11Context_->IASetInputLayout(vertexLayout_.Get());
-    vertexLayoutSet_ = true;
-}
-
 void Scene::Draw(f32 deltaTime)
 {
+    if (errorOccurred_ || !material.Ready() || !linelistMaterial_.Ready())
+        return;
+
     PROFILER_FUNCTION();
     TotalTime += deltaTime;
 
-    //Don't draw scene if critical data not set
-    if (!shaderSet_ || !vertexLayoutSet_)
-        return;
-
     //Reload shaders if necessary
-    shader_.TryReload();
-    linelistShader_.TryReload();
+    material.TryShaderReload();
+    linelistMaterial_.TryShaderReload();
 
     //Set render target and clear it
     d3d11Context_->ClearRenderTargetView(sceneViewTexture_.GetRenderTargetView(), reinterpret_cast<const float*>(&ClearColor));
     d3d11Context_->ClearDepthStencilView(depthBufferTexture_.GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     d3d11Context_->OMSetRenderTargets(1, sceneViewTexture_.GetRenderTargetViewPP(), depthBufferTexture_.GetDepthStencilView());
     d3d11Context_->RSSetViewports(1, &sceneViewport_);
+
+    //Prepare state to render triangle strip meshes
     d3d11Context_->RSSetState(meshRasterizerState_.Get());
+    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
     //Update per-frame constant buffer
     perFrameStagingBuffer_.Time += deltaTime;
@@ -75,27 +59,24 @@ void Scene::Draw(f32 deltaTime)
     perFrameBuffer_.SetData(d3d11Context_, &perFrameStagingBuffer_);
     d3d11Context_->PSSetConstantBuffers(0, 1, perFrameBuffer_.GetAddressOf());
 
-    //Draw render objects
-    d3d11Context_->IASetInputLayout(vertexLayout_.Get());
-    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    //Update per object buffer
+    d3d11Context_->VSSetConstantBuffers(0, 1, perObjectBuffer_.GetAddressOf());
 
     //Bind material data
-    shader_.Bind(d3d11Context_);
-    d3d11Context_->VSSetConstantBuffers(0, 1, perObjectBuffer_.GetAddressOf());
+    material.Use(d3d11Context_);
 
     //Draw all render objects
     {
         std::lock_guard<std::mutex> lock(ObjectCreationMutex);
         for (Handle<RenderObject> renderObject : Objects)
-            if(renderObject->Initialized())
+            if (renderObject->Initialized())
                 renderObject->Draw(d3d11Context_, perObjectBuffer_, Cam);
     }
 
     //Prepare state to render primitives
     d3d11Context_->RSSetState(primitiveRasterizerState_.Get());
-    d3d11Context_->IASetInputLayout(linelistVertexLayout_.Get());
+    linelistMaterial_.Use(d3d11Context_);
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    linelistShader_.Bind(d3d11Context_);
 
     //Update primitive vertex buffers if necessary
     u32 linelistVertexStride = sizeof(ColoredVertex);
@@ -113,7 +94,6 @@ void Scene::Draw(f32 deltaTime)
         lineVertices_.clear();
         primitiveBufferNeedsUpdate_ = false;
     }
-
     d3d11Context_->IASetVertexBuffers(0, 1, lineVertexBuffer_.GetAddressOf(), &linelistVertexStride, &vertexOffset);
 
     //Shader constants for all primitives
@@ -209,19 +189,14 @@ void Scene::InitPrimitiveState()
     //Create linelist primitive vertex buffer
     lineVertexBuffer_.Create(d3d11Device_, 1200, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 
-    linelistShader_.Load(LineListShaderPath, d3d11Device_, config_->GetBoolReadonly("Use geometry shaders").value());
-
-    //Create linelist vertex layout
-    D3D11_INPUT_ELEMENT_DESC inputLayout[] =
+    auto material = Render::GetMaterial("Linelist");
+    if (!material.has_value())
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-
-    auto pVSBlob = linelistShader_.GetVertexShaderBytes();
-    //Create the input layout
-    if (FAILED(d3d11Device_->CreateInputLayout(inputLayout, 2, pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), linelistVertexLayout_.GetAddressOf())))
-        THROW_EXCEPTION("Failed to create scene primitive vertex layout.");
+        Log->error("Failed to locate material 'Linelist' for Scene primitive rendering. Scene disabled.");
+        errorOccurred_ = true;
+        return;
+    }
+    linelistMaterial_ = material.value();
 }
 
 void Scene::InitRenderTarget()

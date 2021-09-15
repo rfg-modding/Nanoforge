@@ -6,10 +6,17 @@
 #include "common/filesystem/File.h"
 #include "common/string/String.h"
 
-void Shader::Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device, bool useGeometryShaders)
+//Todo: Add build path variable that's set by cmake to the project root path for debug
+#ifdef DEVELOPMENT_BUILD
+const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/";
+#else
+const string shaderFolderPath_ = "./Assets/shaders/";
+#endif
+
+void Shader::Load(const string& shaderName, ComPtr<ID3D11Device> d3d11Device, bool useGeometryShaders)
 {
     //Store args in member variables for reloads
-    shaderPath_ = shaderPath;
+    shaderPath_ = shaderFolderPath_ + shaderName;
     d3d11Device_ = d3d11Device;
     shaderWriteTime_ = std::filesystem::last_write_time(shaderPath_);
     useGeometryShaders_ = useGeometryShaders;
@@ -49,7 +56,7 @@ void Shader::Load(const string& shaderPath, ComPtr<ID3D11Device> d3d11Device, bo
     }
 
     //Check if the shader file contains the string "void GS(". If that's found attempt to load a geometry shader
-    bool geomShaderFound = String::Contains(File::ReadToString(shaderPath), "GS") && useGeometryShaders;
+    bool geomShaderFound = String::Contains(File::ReadToString(shaderPath_), "GS") && useGeometryShaders;
     if (geomShaderFound)
     {
         //Compile geometry shader if one was found. Still continues if it fails to compile since geometry shaders are optional

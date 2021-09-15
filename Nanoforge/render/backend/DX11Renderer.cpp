@@ -24,6 +24,7 @@
 #include "Log.h"
 #include "gui/documents/PegHelpers.h"
 #include "application/Config.h"
+#include "render/Render.h"
 
 void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager, Config* config)
 {
@@ -54,6 +55,9 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u
 #ifdef TRACY_ENABLE
     tracyContext_ = PROFILER_D3D11_CONTEXT(d3d11Device_.Get(), d3d11Context_.Get());
 #endif
+
+    //Init global render state
+    Render::Init(d3d11Device_, d3d11Context_, config);
 
     initialized_ = true;
 }

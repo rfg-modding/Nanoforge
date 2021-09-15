@@ -2,6 +2,7 @@
 #include "common/Typedefs.h"
 #include "render/resources/RenderObject.h"
 #include "render/resources/Texture2D.h"
+#include "render/resources/Material.h"
 #include "render/resources/Shader.h"
 #include "render/resources/Buffer.h"
 #include "render/resources/Mesh.h"
@@ -15,16 +16,6 @@
 
 class Config;
 
-//Todo: Add build path variable that's set by cmake to the project root path for debug
-#ifdef DEVELOPMENT_BUILD
-    const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/";
-#else
-    const string shaderFolderPath_ = "./Assets/shaders/";
-#endif
-const string LowLodTerrainShaderPath = shaderFolderPath_ + "TerrainLowLod.hlsl";
-const string TerrainShaderPath = shaderFolderPath_ + "Terrain.hlsl";
-const string LineListShaderPath = shaderFolderPath_ + "Linelist.hlsl";
-
 //Buffer for per-frame shader constants (set once per frame)
 struct PerFrameConstants
 {
@@ -36,8 +27,6 @@ struct PerFrameConstants
     f32 Time = 0.0f;
     Vec2 ViewportDimensions;
 };
-//
-
 const Vec3 ColorWhite(1.0f, 1.0f, 1.0f);
 
 //Scenes represent different environments or objects that are being rendered. Each frame active scenes are rendered to a texture/render target
@@ -47,8 +36,6 @@ class Scene
 {
 public:
     void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, Config* config);
-    void SetShader(const string& path);
-    void SetVertexLayout(const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
     void Draw(f32 deltaTime);
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
     void HandleResize(u32 windowWidth, u32 windowHeight);
@@ -58,7 +45,6 @@ public:
 
     //Primitive drawing functions. Must be called each frame
     void DrawLine(const Vec3& start, const Vec3& end, const Vec3& color = ColorWhite);
-    //void DrawLineStrip(const std::vector<Vec3>& points, const Vec3& color = ColorWhite);
     void DrawBox(const Vec3& min, const Vec3& max, const Vec3& color = ColorWhite);
     //Clear any existing primitives and force the primitive vertex buffers to be updated
     void ResetPrimitives();
@@ -79,6 +65,8 @@ public:
     ComPtr<ID3D11Device> d3d11Device_ = nullptr;
     ComPtr<ID3D11DeviceContext> d3d11Context_ = nullptr;
 
+    Material material;
+
     bool NeedsRedraw = true;
 
 private:
@@ -98,11 +86,7 @@ private:
     Buffer perObjectBuffer_; //Gpu side copy of the buffer
 
     //Vertex layout used by all meshes in this scene
-    ComPtr<ID3D11InputLayout> vertexLayout_ = nullptr;
     ComPtr<ID3D11RasterizerState> meshRasterizerState_ = nullptr;
-    Shader shader_;
-    bool shaderSet_ = false;
-    bool vertexLayoutSet_ = false;
 
     //Data used for drawing primitives
     struct ColoredVertex //Used by primitives that need different colors per vertex
@@ -112,8 +96,7 @@ private:
     };
 
     ComPtr<ID3D11RasterizerState> primitiveRasterizerState_ = nullptr;
-    ComPtr<ID3D11InputLayout> linelistVertexLayout_ = nullptr;
-    Shader linelistShader_;
+    Material linelistMaterial_;
 
     //Primitive drawing temporary buffers. Cleared each frame
     //Line and linestrip data. Lines are also used to draw boxes
@@ -123,4 +106,5 @@ private:
     bool primitiveBufferNeedsUpdate_ = true;
 
     Config* config_ = nullptr;
+    bool errorOccurred_ = false;
 };
