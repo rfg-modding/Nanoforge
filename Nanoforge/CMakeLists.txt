@@ -69,6 +69,7 @@ add_custom_command(TARGET Nanoforge POST_BUILD
 target_link_libraries(Nanoforge PRIVATE Common)
 target_link_libraries(Nanoforge PRIVATE RfgTools++)
 target_link_libraries(Nanoforge PRIVATE spdlog)
+target_link_libraries(Nanoforge PRIVATE Winmm.dll) # Needed for timeBeginPeriod in Application.cpp
 
 # Have to manually link pre-built versions of these for the moment since it wasn't playing nice with cmake add_subdirectory
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

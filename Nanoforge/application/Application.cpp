@@ -16,6 +16,8 @@
 #include <filesystem>
 #include <future>
 #include <variant>
+#include <ext/WindowsWrapper.h>
+#include <timeapi.h>
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -118,6 +120,9 @@ void Application::MainLoop()
         //Sleep until target framerate is reached
         {
             PROFILER_SCOPED("Wait for target framerate");
+            //Set resolution of OS timers to 1 ms to get reasonably accurate Sleep() calls
+            //For some reason this isn't always needed. It was added when Sleep() started taking 15ms more than it should have after a windows update.
+            timeBeginPeriod(1);
             while (FrameTimer.ElapsedSecondsPrecise() < targetFramerateDelta)
             {
                 //Sleep is used here instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this.
@@ -127,6 +132,7 @@ void Application::MainLoop()
 
                 Sleep((DWORD)lastFramelimiterSleepMs_);
             }
+            timeEndPeriod(1); //Disable custom system timer resolution
         }
 
         deltaTime_ = FrameTimer.ElapsedSecondsPrecise();
