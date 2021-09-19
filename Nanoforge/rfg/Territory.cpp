@@ -241,132 +241,140 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     TerrainLock.unlock();
     terrain.Name = terrainName;
 
-    //{
-    //    PROFILER_SCOPED("Load low lod terrain")
-    //    string lowLodTerrainName = terrainName + ".cterrain_pc";
-    //    auto lowLodTerrainCpuFileHandles = state->PackfileVFS->GetFiles(lowLodTerrainName, true, true);
-    //    if (lowLodTerrainCpuFileHandles.size() == 0)
-    //    {
-    //        Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zoneFile.Name);
-    //        return;
-    //    }
+    {
+        PROFILER_SCOPED("Load low lod terrain")
+        std::vector<MeshInstanceData> lowLodMeshes = { };
 
-    //    FileHandle terrainMesh = lowLodTerrainCpuFileHandles[0];
-    //    Vec3 position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
+        bool hasTexture0 = false;
+        PegFile10 texture0;
+        std::span<u8> texture0Bytes;
+        u32 texture0Width = 0;
+        u32 texture0Height = 0;
 
-    //    //Get packfile that holds terrain meshes
-    //    auto* container = terrainMesh.GetContainer();
-    //    if (!container)
-    //        THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
+        bool hasTexture1 = false;
+        PegFile10 texture1;
+        std::span<u8> texture1Bytes;
+        u32 texture1Width = 0;
+        u32 texture1Height = 0;
 
-    //    //Get mesh file byte arrays
-    //    auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
-    //    auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
+        string lowLodTerrainName = terrainName + ".cterrain_pc";
+        auto lowLodTerrainCpuFileHandles = state->PackfileVFS->GetFiles(lowLodTerrainName, true, true);
+        if (lowLodTerrainCpuFileHandles.size() == 0)
+        {
+            Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zoneFile.Name);
+            return;
+        }
 
-    //    //Ensure the mesh files were extracted
-    //    if (!cpuFileBytes)
-    //        THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
-    //    if (!gpuFileBytes)
-    //        THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
+        FileHandle terrainMesh = lowLodTerrainCpuFileHandles[0];
+        Vec3 position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
 
-    //    BinaryReader cpuFile(cpuFileBytes.value());
-    //    BinaryReader gpuFile(gpuFileBytes.value());
+        //Get packfile that holds terrain meshes
+        auto* container = terrainMesh.GetContainer();
+        if (!container)
+            THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
 
-    //    terrain.Position = position;
-    //    terrain.DataLowLod.Read(cpuFile, terrainMesh.Filename());
+        //Get mesh file byte arrays
+        auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
+        auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
 
-    //    //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
-    //    for (u32 i = 0; i < 9; i++)
-    //    {
-    //        EarlyStopCheck();
-    //        std::optional<MeshInstanceData> meshData = terrain.DataLowLod.ReadMeshData(gpuFile, i);
-    //        if (!meshData.has_value())
-    //            THROW_EXCEPTION("Failed to read submesh {} from {}.", i, terrainMesh.Filename());
+        //Ensure the mesh files were extracted
+        if (!cpuFileBytes)
+            THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
+        if (!gpuFileBytes)
+            THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
 
-    //        terrain.LowLodMeshes.push_back(meshData.value());
-    //    }
+        BinaryReader cpuFile(cpuFileBytes.value());
+        BinaryReader gpuFile(gpuFileBytes.value());
 
-    //    //Clear resources
-    //    delete container;
-    //    delete[] cpuFileBytes.value().data();
-    //    delete[] gpuFileBytes.value().data();
-    //    EarlyStopCheck();
+        terrain.Position = position;
+        terrain.DataLowLod.Read(cpuFile, terrainMesh.Filename());
 
-    //    //Get comb texture. Used to color low lod terrain
-    //    string blendTextureName = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "comb.cvbm_pc";
-    //    terrain.HasBlendTexture = FindTexture(state->PackfileVFS, blendTextureName, terrain.BlendPeg, terrain.BlendTextureBytes, terrain.BlendTextureWidth, terrain.BlendTextureHeight);
+        //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
+        for (u32 i = 0; i < 9; i++)
+        {
+            EarlyStopCheck();
+            std::optional<MeshInstanceData> meshData = terrain.DataLowLod.ReadMeshData(gpuFile, i);
+            if (!meshData.has_value())
+                THROW_EXCEPTION("Failed to read submesh {} from {}.", i, terrainMesh.Filename());
 
-    //    //Get ovl texture. Used to light low lod terrain
-    //    string texture1Name = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "_ovl.cvbm_pc";
-    //    terrain.HasTexture1 = FindTexture(state->PackfileVFS, texture1Name, terrain.Texture1, terrain.Texture1Bytes, terrain.Texture1Width, terrain.Texture1Height);
+            lowLodMeshes.push_back(meshData.value());
+        }
+        EarlyStopCheck();
 
-    //    ////Initialize low lod terrain
-    //    //for (u32 i = 0; i < 9; i++)
-    //    //{
-    //    //    auto& renderObject = Scene->Objects.emplace_back();
-    //    //    Mesh mesh;
-    //    //    mesh.Create(Scene->d3d11Device_, Scene->d3d11Context_, instance.LowLodMeshes[i]);
-    //    //    renderObject.Create(mesh, instance.Position);
+        //Get comb texture. Used to color low lod terrain
+        string blendTextureName = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "comb.cvbm_pc";
+        hasTexture0 = FindTexture(state->PackfileVFS, blendTextureName, texture0, texture0Bytes, texture0Width, texture0Height);
 
-    //    //    if (instance.HasBlendTexture)
-    //    //    {
-    //    //        //Create and setup texture2d
-    //    //        Texture2D texture2d;
-    //    //        texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "comb.cvbm_pc";
-    //    //        DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-    //    //        D3D11_SUBRESOURCE_DATA textureSubresourceData;
-    //    //        textureSubresourceData.pSysMem = instance.BlendTextureBytes.data();
-    //    //        textureSubresourceData.SysMemSlicePitch = 0;
-    //    //        textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.BlendTextureWidth, instance.BlendTextureHeight);
-    //    //        state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
-    //    //        texture2d.Create(Scene->d3d11Device_, instance.BlendTextureWidth, instance.BlendTextureHeight, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-    //    //        texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-    //    //        texture2d.CreateSampler(); //Need sampler too
-    //    //        state->Renderer->ContextMutex.unlock();
+        //Get ovl texture. Used to light low lod terrain
+        string texture1Name = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "_ovl.cvbm_pc";
+        hasTexture1 = FindTexture(state->PackfileVFS, texture1Name, texture1, texture1Bytes, texture1Width, texture1Height);
 
-    //    //        renderObject.UseTextures = true;
-    //    //        renderObject.DiffuseTexture = texture2d;
-    //    //    }
-    //    //    if (instance.HasTexture1)
-    //    //    {
-    //    //        //Create and setup texture2d
-    //    //        Texture2D texture2d;
-    //    //        texture2d.Name = Path::GetFileNameNoExtension(instance.Name) + "_ovl.cvbm_pc";
-    //    //        DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-    //    //        D3D11_SUBRESOURCE_DATA textureSubresourceData;
-    //    //        textureSubresourceData.pSysMem = instance.Texture1Bytes.data();
-    //    //        textureSubresourceData.SysMemSlicePitch = 0;
-    //    //        textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, instance.Texture1Width, instance.Texture1Height);
-    //    //        state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
-    //    //        texture2d.Create(Scene->d3d11Device_, instance.Texture1Width, instance.Texture1Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-    //    //        texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-    //    //        texture2d.CreateSampler(); //Need sampler too
-    //    //        state->Renderer->ContextMutex.unlock();
+        //Initialize low lod terrain
+        for (u32 i = 0; i < 9; i++)
+        {
+            Handle<RenderObject> renderObject = scene->CreateRenderObject("TerrainLowLod", Mesh{ scene->d3d11Device_, lowLodMeshes[i] }, terrain.Position);
+            TerrainLock.lock();
+            terrain.LowLodMeshes.push_back(renderObject);
+            TerrainLock.unlock();
+            renderObject->Visible = false;
 
-    //    //        renderObject.UseTextures = true;
-    //    //        renderObject.SpecularTexture = texture2d;
-    //    //    }
-    //    //
-    //    //    for (auto& mesh : terrain.LowLodMeshes)
-    //    //    {
-    //    //        if (mesh.IndexBuffer.data())
-    //    //            delete[] mesh.IndexBuffer.data();
-    //    //        if (mesh.VertexBuffer.data())
-    //    //            delete[] mesh.VertexBuffer.data();
-    //    //    }
-    //    //    terrain.LowLodMeshes.clear();
+            if (hasTexture0)
+            {
+                //Create and setup texture2d
+                Texture2D texture2d;
+                texture2d.Name = Path::GetFileNameNoExtension(terrain.Name) + "comb.cvbm_pc";
+                DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
+                D3D11_SUBRESOURCE_DATA textureSubresourceData;
+                textureSubresourceData.pSysMem = texture0Bytes.data();
+                textureSubresourceData.SysMemSlicePitch = 0;
+                textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, texture0Width, texture0Height);
+                texture2d.Create(scene->d3d11Device_, texture0Width, texture0Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
+                texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
+                texture2d.CreateSampler(); //Need sampler too
 
-    //    //    if (terrain.HasBlendTexture)
-    //    //    {
-    //    //        //Cleanup peg texture data
-    //    //        terrain.BlendTextureBytes = std::span<u8>((u8*)nullptr, 0);
-    //    //        terrain.BlendPeg.Cleanup(); //Clears data the span pointed to
-    //    //        terrain.Texture1Bytes = std::span<u8>((u8*)nullptr, 0);
-    //    //        terrain.Texture1.Cleanup(); //Clears data the span pointed to
-    //    //    }
-    //    //
-    //    //}
-    //}
+                renderObject->UseTextures = true;
+                renderObject->DiffuseTexture = texture2d;
+            }
+            if (hasTexture1)
+            {
+                //Create and setup texture2d
+                Texture2D texture2d;
+                texture2d.Name = Path::GetFileNameNoExtension(terrain.Name) + "_ovl.cvbm_pc";
+                DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
+                D3D11_SUBRESOURCE_DATA textureSubresourceData;
+                textureSubresourceData.pSysMem = texture1Bytes.data();
+                textureSubresourceData.SysMemSlicePitch = 0;
+                textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, texture1Width, texture1Height);
+                texture2d.Create(scene->d3d11Device_, texture1Width, texture1Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
+                texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
+                texture2d.CreateSampler(); //Need sampler too
+
+                renderObject->UseTextures = true;
+                renderObject->SpecularTexture = texture2d;
+            }
+        }
+
+
+        //Cleanup low lod meshes
+        for (auto& mesh : lowLodMeshes)
+        {
+            if (mesh.IndexBuffer.data())
+                delete[] mesh.IndexBuffer.data();
+            if (mesh.VertexBuffer.data())
+                delete[] mesh.VertexBuffer.data();
+        }
+
+        //Cleanup high lod mesh textures
+        if (hasTexture0)
+            texture0.Cleanup();
+        if (hasTexture1)
+            texture1.Cleanup();
+
+        //Clear resources
+        delete container;
+        delete[] cpuFileBytes.value().data();
+        delete[] gpuFileBytes.value().data();
+    }
 
     EarlyStopCheck();
     {
@@ -445,10 +453,10 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         for (u32 i = 0; i < 9; i++)
         {
             auto& subzone = terrain.Subzones[i];
-            Handle<RenderObject> renderObject = scene->CreateRenderObject();
-            Mesh mesh;
-            mesh.Create(scene->d3d11Device_, highLodMeshes[i], 1);
-            renderObject->Create(mesh, subzone.Subzone.Position);
+            Handle<RenderObject> renderObject = scene->CreateRenderObject("Terrain", Mesh{scene->d3d11Device_, highLodMeshes[i]}, subzone.Subzone.Position);
+            TerrainLock.lock();
+            terrain.HighLodMeshes.push_back(renderObject);
+            TerrainLock.unlock();
 
             if (hasTexture0)
             {

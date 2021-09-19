@@ -1,13 +1,6 @@
 #include "RenderObject.h"
 #include "util/Profiler.h"
 
-void RenderObject::Create(const Mesh& mesh, const Vec3& position)
-{
-    ObjectMesh = mesh;
-    Position = position;
-    initialized_ = true;
-}
-
 void RenderObject::Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObjectBuffer, Camera& cam)
 {
     if (!Visible)

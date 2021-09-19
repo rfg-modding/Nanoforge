@@ -352,14 +352,6 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     //Get material based on vertex format
     WorkerStatusString = "Setting up scene...";
     VertexFormat format = StaticMesh.MeshInfo.VertFormat;
-    auto material = Render::GetMaterial(to_string(format));
-    if (!material.has_value())
-    {
-        Log->error("Failed to locate material '{}' for StaticMeshDocument", to_string(format));
-        Open = false;
-        return;
-    }
-    Scene->material = material.value();
 
     //Two steps for each submesh: Get index/vertex buffers and find textures
     u32 numSteps = 2;
@@ -376,11 +368,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
     //Load mesh and create render object from it
     MeshInstanceData meshData = maybeMeshData.value();
-    Mesh mesh;
-    mesh.Create(Scene->d3d11Device_, meshData, StaticMesh.NumLods);
-    Handle<RenderObject> renderObject = Scene->CreateRenderObject();
-    renderObject->Create(mesh, Vec3{ 0.0f, 0.0f, 0.0f });
-    renderObject->SetScale(1.0f);
+    Handle<RenderObject> renderObject = Scene->CreateRenderObject(to_string(format), Mesh{ Scene->d3d11Device_, meshData, StaticMesh.NumLods });
 
     //Set camera position to get a better view of the mesh
     {

@@ -9,6 +9,7 @@
 #include "render/camera/Camera.h"
 #include "rfg/TerrainHelpers.h"
 #include "RfgTools++/types/Vec2.h"
+#include <unordered_map>
 #include <filesystem>
 #include <d3d11.h>
 #include <array>
@@ -49,7 +50,7 @@ public:
     //Clear any existing primitives and force the primitive vertex buffers to be updated
     void ResetPrimitives();
 
-    Handle<RenderObject> CreateRenderObject();
+    Handle<RenderObject> CreateRenderObject(const string& materialName, const Mesh& mesh, const Vec3& position = { 0.0f, 0.0f, 0.0f });
 
     Camera Cam;
     std::vector<Handle<RenderObject>> Objects = {};
@@ -64,8 +65,6 @@ public:
     //General render state
     ComPtr<ID3D11Device> d3d11Device_ = nullptr;
     ComPtr<ID3D11DeviceContext> d3d11Context_ = nullptr;
-
-    Material material;
 
     bool NeedsRedraw = true;
 
@@ -88,6 +87,9 @@ private:
     //Vertex layout used by all meshes in this scene
     ComPtr<ID3D11RasterizerState> meshRasterizerState_ = nullptr;
 
+    //Track object materials so objects can be batch rendered by material
+    std::unordered_map<string, std::vector<Handle<RenderObject>>> objectMaterials_;
+
     //Data used for drawing primitives
     struct ColoredVertex //Used by primitives that need different colors per vertex
     {
@@ -96,7 +98,7 @@ private:
     };
 
     ComPtr<ID3D11RasterizerState> primitiveRasterizerState_ = nullptr;
-    Material linelistMaterial_;
+    Material* linelistMaterial_ = nullptr;
 
     //Primitive drawing temporary buffers. Cleared each frame
     //Line and linestrip data. Lines are also used to draw boxes

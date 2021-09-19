@@ -15,8 +15,7 @@ struct PerObjectConstants
 class RenderObject
 {
 public:
-    //Create a render object
-    void Create(const Mesh& mesh, const Vec3& position);
+    RenderObject(const Mesh& mesh, const Vec3& position) : ObjectMesh(mesh), Position(position), initialized_(true) { }
     //Draw the objects mesh
     void Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObjectBuffer, Camera& cam);
     //Set uniform scale

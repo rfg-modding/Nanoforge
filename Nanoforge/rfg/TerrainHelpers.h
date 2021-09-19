@@ -4,7 +4,9 @@
 #include <RfgTools++\formats\textures\PegFile10.h>
 #include <RfgTools++/formats/meshes/TerrainLowLod.h>
 #include <RfgTools++/formats/meshes/Terrain.h>
+#include "render/resources/RenderObject.h"
 #include <vector>
+#include <mutex>
 #include <span>
 
 struct LowLodTerrainVertex
@@ -31,4 +33,7 @@ struct TerrainInstance
     std::vector<Terrain> Subzones = {};
     bool Visible = true;
     Vec3 Position;
+
+    std::vector<Handle<RenderObject>> LowLodMeshes;
+    std::vector<Handle<RenderObject>> HighLodMeshes;
 };

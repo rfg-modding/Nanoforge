@@ -32,15 +32,14 @@ void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d
 
 void Scene::Draw(f32 deltaTime)
 {
-    if (errorOccurred_ || !material.Ready() || !linelistMaterial_.Ready())
+    if (errorOccurred_ || !linelistMaterial_ || !linelistMaterial_->Ready())
         return;
 
     PROFILER_FUNCTION();
     TotalTime += deltaTime;
 
     //Reload shaders if necessary
-    material.TryShaderReload();
-    linelistMaterial_.TryShaderReload();
+    linelistMaterial_->TryShaderReload();
 
     //Set render target and clear it
     d3d11Context_->ClearRenderTargetView(sceneViewTexture_.GetRenderTargetView(), reinterpret_cast<const float*>(&ClearColor));
@@ -62,20 +61,33 @@ void Scene::Draw(f32 deltaTime)
     //Update per object buffer
     d3d11Context_->VSSetConstantBuffers(0, 1, perObjectBuffer_.GetAddressOf());
 
-    //Bind material data
-    material.Use(d3d11Context_);
-
-    //Draw all render objects
+    //Draw render objects
     {
         std::lock_guard<std::mutex> lock(ObjectCreationMutex);
-        for (Handle<RenderObject> renderObject : Objects)
-            if (renderObject->Initialized())
-                renderObject->Draw(d3d11Context_, perObjectBuffer_, Cam);
+
+        //Batch render objects by material
+        for (auto& kv : objectMaterials_)
+        {
+            //Get and bind the material
+            Material* material = Render::GetMaterial(kv.first);
+            if(!material)
+            {
+                Log->error("Failed to get material '{}'", kv.first);
+                continue;
+            }
+            material->TryShaderReload(); //Reload shaders if necessary
+            material->Use(d3d11Context_);
+
+            //Render all objects using the material
+            for (Handle<RenderObject> renderObject : kv.second)
+                if (renderObject->Initialized())
+                    renderObject->Draw(d3d11Context_, perObjectBuffer_, Cam);
+        }
     }
 
     //Prepare state to render primitives
     d3d11Context_->RSSetState(primitiveRasterizerState_.Get());
-    linelistMaterial_.Use(d3d11Context_);
+    linelistMaterial_->Use(d3d11Context_);
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
     //Update primitive vertex buffers if necessary
@@ -190,13 +202,13 @@ void Scene::InitPrimitiveState()
     lineVertexBuffer_.Create(d3d11Device_, 1200, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 
     auto material = Render::GetMaterial("Linelist");
-    if (!material.has_value())
+    if (!material)
     {
         Log->error("Failed to locate material 'Linelist' for Scene primitive rendering. Scene disabled.");
         errorOccurred_ = true;
         return;
     }
-    linelistMaterial_ = material.value();
+    linelistMaterial_ = material;
 }
 
 void Scene::InitRenderTarget()
@@ -255,10 +267,15 @@ void Scene::ResetPrimitives()
     lineVertices_.clear();
 }
 
-Handle<RenderObject> Scene::CreateRenderObject()
+Handle<RenderObject> Scene::CreateRenderObject(const string& materialName, const Mesh& mesh, const Vec3& position)
 {
     std::lock_guard<std::mutex> lock(ObjectCreationMutex);
-    Handle<RenderObject> obj = CreateHandle<RenderObject>();
+    Handle<RenderObject> obj = CreateHandle<RenderObject>(mesh, position);
     Objects.push_back(obj);
+
+    //Map object to its material
+    auto materialObjectList = objectMaterials_.try_emplace(materialName, std::vector<Handle<RenderObject>>());
+    materialObjectList.first->second.push_back(obj); //Add obj to list of objects that use the same material
+
     return obj;
 }

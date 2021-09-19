@@ -94,7 +94,7 @@ void Shader::TryReload()
     //Wait for a moment as a quickfix to a crash that happens when we read the shader as it's being saved
     Log->info("Reloading shader \"{}\"", Path::GetFileName(shaderPath_));
     Sleep(250);
-    Load(shaderPath_, d3d11Device_, useGeometryShaders_);
+    Load(Path::GetFileName(shaderPath_), d3d11Device_, useGeometryShaders_);
 }
 
 void Shader::Bind(ComPtr<ID3D11DeviceContext> d3d11Context)

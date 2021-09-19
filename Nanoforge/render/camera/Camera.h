@@ -2,6 +2,7 @@
 #include <Common/Typedefs.h>
 #include <ext/WindowsWrapper.h>
 #include "util/MathUtil.h"
+#include <RfgTools++/types/Vec3.h>
 #include <DirectXMath.h>
 
 enum CameraDirection { up, down, left, right, forward, backward };
@@ -32,6 +33,7 @@ public:
     [[nodiscard]] DirectX::XMVECTOR Forward() const;
     [[nodiscard]] DirectX::XMVECTOR Backward() const;
     [[nodiscard]] DirectX::XMVECTOR Position() const;
+    [[nodiscard]] Vec3 PositionVec3() const;
 
     void UpdateRotationFromMouse(f32 mouseXDelta, f32 mouseYDelta);
 

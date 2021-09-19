@@ -14,15 +14,7 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 
     //Init scene camera
     Scene->Cam.Init({ 250.0f, 500.0f, 250.0f }, 80.0f, { (f32)Scene->Width(), (f32)Scene->Height() }, 1.0f, 10000.0f);
-    auto terrainMaterial = Render::GetMaterial("Terrain");
-    if (!terrainMaterial.has_value())
-    {
-        Log->error("Failed to locate material 'Terrain' for TerritoryDocument");
-        Open = false;
-        return;
-    }
-    Scene->material = terrainMaterial.value();
-    Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.5f;
+    Scene->perFrameStagingBuffer_.DiffuseIntensity = 2.0f;
 
     //Start territory loading thread
     Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname);
@@ -64,6 +56,39 @@ void TerritoryDocument::Update(GuiState* state)
     else
     {
         Scene->Cam.InputActive = false;
+    }
+
+    //Force visibility update if new terrain instances are loaded
+    if (numTerrainInstances_ != Territory.TerrainInstances.size())
+    {
+        numTerrainInstances_ = Territory.TerrainInstances.size();
+        terrainVisiblityUpdateNeeded_ = true;
+    }
+
+    //Update high/low lod mesh visibility based on camera distance
+    if (ImGui::IsWindowFocused() || terrainVisiblityUpdateNeeded_)
+    {
+        f32 highLodTerrainDistance = highLodTerrainEnabled_ ? highLodTerrainDistance_ : -1.0f;
+        std::lock_guard<std::mutex> lock(Territory.TerrainLock);
+        for (auto& terrain : Territory.TerrainInstances)
+        {
+            u32 numMeshes = std::min({ terrain.LowLodMeshes.size(), terrain.HighLodMeshes.size(), terrain.Subzones.size()});
+            for (u32 i = 0; i < numMeshes; i++)
+            {
+                auto& subzone = terrain.Subzones[i];
+                f32 distanceFromCamera = subzone.Subzone.Position.Distance(Scene->Cam.PositionVec3());
+
+                //Determine if low or high lod meshes should be used
+                bool lowLodVisible = distanceFromCamera > highLodTerrainDistance;
+                bool highLodVisible = !lowLodVisible;
+
+                //Set mesh visibility
+                terrain.LowLodMeshes[i]->Visible = lowLodVisible;
+                terrain.HighLodMeshes[i]->Visible = highLodVisible;
+            }
+
+        }
+        terrainVisiblityUpdateNeeded_ = false;
     }
 
     //Move camera if triggered by another gui panel
@@ -203,6 +228,18 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
 
             ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&Scene->perFrameStagingBuffer_.DiffuseColor));
             ImGui::SliderFloat("Diffuse intensity", &Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 2.0f);
+        }
+
+        if (ImGui::Checkbox("High lod terrain enabled", &highLodTerrainEnabled_))
+        {
+            terrainVisiblityUpdateNeeded_ = true;
+        }
+        if (highLodTerrainEnabled_)
+        {
+            ImGui::SliderFloat("High lod distance", &highLodTerrainDistance_, 0.0f, 10000.0f);
+            ImGui::SameLine();
+            gui::HelpMarker("Low lod terrain will be used at this distance away from the camera.", ImGui::GetIO().FontDefault);
+            terrainVisiblityUpdateNeeded_ = true;
         }
 
         ImGui::EndPopup();

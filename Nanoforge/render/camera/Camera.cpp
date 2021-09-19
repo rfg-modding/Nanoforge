@@ -244,6 +244,11 @@ DirectX::XMVECTOR Camera::Position() const
     return camPosition;
 }
 
+Vec3 Camera::PositionVec3() const
+{
+    return Vec3(camPosition.m128_f32[0], camPosition.m128_f32[1], camPosition.m128_f32[2]);
+}
+
 void Camera::UpdateRotationFromMouse(f32 xDelta, f32 yDelta)
 {
     //Adjust pitch and yaw

@@ -81,7 +81,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float3 terrainColor = pow(blendValues.xyz, float3(1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
 
     //Sun direction for diffuse lighting
-    float3 sunDir = float3(0.436f, -1.0f, 0.598f);
+    float3 sunDir = float3(1.0f, -1.0f, 0.0f);
 
     float ambientIntensity = 0.05f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);

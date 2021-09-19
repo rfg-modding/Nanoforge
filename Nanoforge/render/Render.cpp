@@ -73,11 +73,11 @@ void Render::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> 
     }};
 }
 
-std::optional<Material> Render::GetMaterial(const string& name)
+Material* Render::GetMaterial(const string& name)
 {
     auto search = materials_.find(name);
     if (search != materials_.end())
-        return search->second;
-    
+        return &search->second;
+
     return {};
 }
