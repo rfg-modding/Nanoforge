@@ -75,8 +75,11 @@ void TerritoryDocument::Update(GuiState* state)
             u32 numMeshes = std::min({ terrain.LowLodMeshes.size(), terrain.HighLodMeshes.size(), terrain.Subzones.size()});
             for (u32 i = 0; i < numMeshes; i++)
             {
+                //Calc distance from camera ignoring Y so elevation doesn't matter
                 auto& subzone = terrain.Subzones[i];
-                f32 distanceFromCamera = subzone.Subzone.Position.Distance(Scene->Cam.PositionVec3());
+                Vec2 subzonePos = subzone.Subzone.Position.XZ();
+                Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
+                f32 distanceFromCamera = subzonePos.Distance(cameraPos);
 
                 //Determine if low or high lod meshes should be used
                 bool lowLodVisible = distanceFromCamera > highLodTerrainDistance;
@@ -238,7 +241,7 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
         {
             ImGui::SliderFloat("High lod distance", &highLodTerrainDistance_, 0.0f, 10000.0f);
             ImGui::SameLine();
-            gui::HelpMarker("Low lod terrain will be used at this distance away from the camera.", ImGui::GetIO().FontDefault);
+            gui::HelpMarker("Beyond this distance from the camera low lod terrain is used.", ImGui::GetIO().FontDefault);
             terrainVisiblityUpdateNeeded_ = true;
         }
 
