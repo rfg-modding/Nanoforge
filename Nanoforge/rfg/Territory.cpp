@@ -380,6 +380,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     {
         PROFILER_SCOPED("Load high lod terrain");
         std::vector<MeshInstanceData> highLodMeshes = { };
+        std::vector<std::tuple<u32, MeshInstanceData>> stitchMeshes = { }; //First part of tuple is subzone index, since not all of them have stitches
+        std::vector<std::tuple<u32, u32, MeshInstanceData>> roadMeshes = { }; //(submesh index, road mesh index, mesh data)
 
         bool hasTexture0 = false;
         PegFile10 texture0;
@@ -395,6 +397,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
         //Search for high lod terrain mesh files. Should be 9 of them per zone.
         std::vector<FileHandle> highLodSearchResult = state->PackfileVFS->GetFiles(terrainName + "_*", true);
+        u32 subzoneIndex = 0;
         for (auto& file : highLodSearchResult)
         {
             if (Path::GetExtension(file.Filename()) != ".ctmesh_pc")
@@ -426,7 +429,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             std::optional<MeshInstanceData> meshData = subzone.ReadTerrainMeshData(gpuFile);
             if (!meshData)
             {
-                Log->error("Failed to read mesh data for {}. Halting loading of subzone.", file.Filename());
+                Log->error("Failed to read terrain mesh data for {}. Halting loading of subzone.", file.Filename());
                 delete container;
                 delete[] cpuFileBytes.value().data();
                 delete[] gpuFileBytes.value().data();
@@ -434,11 +437,26 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             }
             highLodMeshes.push_back(meshData.value());
 
-            //Todo: Load road and stitch meshes
+            //Load stitch meshes
+            std::optional<MeshInstanceData> stitchMeshData = subzone.ReadStitchMeshData(gpuFile);
+            if (stitchMeshData)
+                stitchMeshes.push_back({ subzoneIndex, stitchMeshData.value() });
+
+            //Load road meshes
+            std::optional<std::vector<MeshInstanceData>> roadMeshData = subzone.ReadRoadMeshData(gpuFile);
+            if (roadMeshData)
+            {
+                for (u32 i = 0; i < roadMeshData.value().size(); i++)
+                {
+                    auto& roadMesh = roadMeshData.value()[i];
+                    roadMeshes.push_back({ subzoneIndex, i, roadMesh });
+                }
+            }
 
             delete container;
             delete[] cpuFileBytes.value().data();
             delete[] gpuFileBytes.value().data();
+            subzoneIndex++;
         }
 
         //Get comb texture. Used to color low lod terrain
@@ -496,10 +514,59 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             scene->NeedsRedraw = true; //Redraw scene if new terrain meshes added
         }
 
+        //Initialize stitch meshes
+        for (auto& stitch : stitchMeshes)
+        {
+            u32 subzoneIndex = std::get<0>(stitch);
+            MeshInstanceData instanceData = std::get<1>(stitch);
+            Terrain& subzone = terrain.Subzones[subzoneIndex];
+            TerrainStitchInstance& roadStitch = subzone.StitchInstances.back(); //Final instance is for road stitch meshes
+            Handle<RenderObject> stitchObject = scene->CreateRenderObject("TerrainStitch", Mesh{ scene->d3d11Device_, instanceData }, roadStitch.Position);
+
+            TerrainLock.lock();
+            terrain.StitchMeshes.push_back(StitchMesh{.Mesh = stitchObject, .SubzoneIndex = subzoneIndex });
+            TerrainLock.unlock();
+        }
+
+        //Initialize road meshes
+        for (auto& road : roadMeshes)
+        {
+            u32 subzoneIndex = std::get<0>(road);
+            u32 roadIndex = std::get<1>(road);
+            MeshInstanceData instanceData = std::get<2>(road);
+            Terrain& subzone = terrain.Subzones[subzoneIndex];
+            RoadMeshData& roadData = subzone.RoadMeshDatas[roadIndex];
+            Handle<RenderObject> roadObject = scene->CreateRenderObject("TerrainRoad", Mesh{ scene->d3d11Device_, instanceData }, roadData.Position);
+
+            TerrainLock.lock();
+            terrain.RoadMeshes.push_back(RoadMesh{ .Mesh = roadObject, .SubzoneIndex = subzoneIndex });
+            TerrainLock.unlock();
+        }
+
         //Cleanup high lod mesh data
         for (u32 i = 0; i < terrain.Subzones.size(); i++)
         {
             MeshInstanceData& instanceData = highLodMeshes[i];
+            if (instanceData.IndexBuffer.data())
+                delete[] instanceData.IndexBuffer.data();
+            if (instanceData.VertexBuffer.data())
+                delete[] instanceData.VertexBuffer.data();
+        }
+
+        //Cleanup stitch mesh data
+        for (auto& stitch : stitchMeshes)
+        {
+            MeshInstanceData& instanceData = std::get<1>(stitch);
+            if (instanceData.IndexBuffer.data())
+                delete[] instanceData.IndexBuffer.data();
+            if (instanceData.VertexBuffer.data())
+                delete[] instanceData.VertexBuffer.data();
+        }
+
+        //Cleanup road mesh data
+        for (auto& road : roadMeshes)
+        {
+            MeshInstanceData& instanceData = std::get<2>(road);
             if (instanceData.IndexBuffer.data())
                 delete[] instanceData.IndexBuffer.data();
             if (instanceData.VertexBuffer.data())

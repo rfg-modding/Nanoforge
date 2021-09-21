@@ -61,7 +61,9 @@ VS_OUTPUT VS(float4 inPos : POSITION0, float4 inNormal : NORMAL0, float4 inTange
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
-    float4 color = Texture0.Sample(Sampler0, input.Uv);
+    //Note: Temporary color until terrain texturing is fully implemented
+    float4 color = 0.4f;
+    //float4 color = Texture0.Sample(Sampler0, input.Uv);
 
     //Sun direction for diffuse lighting
     float3 sunDir = float3(1.0f, -1.0f, 0.0f);

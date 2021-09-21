@@ -68,8 +68,8 @@ void TerritoryDocument::Update(GuiState* state)
     //Update high/low lod mesh visibility based on camera distance
     if (ImGui::IsWindowFocused() || terrainVisiblityUpdateNeeded_)
     {
-        f32 highLodTerrainDistance = highLodTerrainEnabled_ ? highLodTerrainDistance_ : -1.0f;
         std::lock_guard<std::mutex> lock(Territory.TerrainLock);
+        f32 highLodTerrainDistance = highLodTerrainEnabled_ ? highLodTerrainDistance_ : -1.0f;
         for (auto& terrain : Territory.TerrainInstances)
         {
             u32 numMeshes = std::min({ terrain.LowLodMeshes.size(), terrain.HighLodMeshes.size(), terrain.Subzones.size()});
@@ -88,6 +88,12 @@ void TerritoryDocument::Update(GuiState* state)
                 //Set mesh visibility
                 terrain.LowLodMeshes[i]->Visible = lowLodVisible;
                 terrain.HighLodMeshes[i]->Visible = highLodVisible;
+                for (auto& stitchMesh : terrain.StitchMeshes)
+                    if (stitchMesh.SubzoneIndex == i)
+                        stitchMesh.Mesh->Visible = highLodVisible;
+                for (auto& roadMesh : terrain.RoadMeshes)
+                    if (roadMesh.SubzoneIndex == i)
+                        roadMesh.Mesh->Visible = highLodVisible;
             }
 
         }

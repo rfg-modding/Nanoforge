@@ -25,6 +25,18 @@ struct TerrainVertex
 };
 static_assert(sizeof(TerrainVertex) == 8, "TerrainVertex size incorrect!");
 
+struct StitchMesh
+{
+    Handle<RenderObject> Mesh;
+    u32 SubzoneIndex;
+};
+
+struct RoadMesh
+{
+    Handle<RenderObject> Mesh;
+    u32 SubzoneIndex;
+};
+
 //Data for a single zones terrain. Made up of 9 smaller meshes which are stitched together
 struct TerrainInstance
 {
@@ -34,6 +46,11 @@ struct TerrainInstance
     bool Visible = true;
     Vec3 Position;
 
+    //Low lod
     std::vector<Handle<RenderObject>> LowLodMeshes;
+
+    //High lod
     std::vector<Handle<RenderObject>> HighLodMeshes;
+    std::vector<StitchMesh> StitchMeshes;
+    std::vector<RoadMesh> RoadMeshes;
 };
