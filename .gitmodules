@@ -17,6 +17,7 @@
 	path = Dependencies/imnodes
 	url = https://github.com/Nelarius/imnodes.git
 [submodule "Dependencies/DirectXTex"]
+	path = Dependencies/DirectXTex
 	url = https://github.com/microsoft/DirectXTex.git
 [submodule "lib"]
 	path = lib
