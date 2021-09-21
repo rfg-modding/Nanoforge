@@ -70,7 +70,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float4 outColor = float4(ambient, 1.0f);
 
     //Sun direction for diffuse lighting
-    float3 sunPos = float3(30.0f, 0.0f, 30.0f);
+    float3 sunPos = float3(30.0f, 30.0f, 30.0f);
     float3 sunDir = normalize(float3(0.0f, 0.0f, 0.0f) - sunPos);
 
     //Diffuse light contribution
