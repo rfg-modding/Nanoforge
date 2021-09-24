@@ -23,6 +23,7 @@ public:
     u32 NumVertices() { return numVertices_; }
     //Get num indices
     u32 NumIndices() { return numIndices_; }
+    u32 NumSubmeshes() { return info_.NumSubmeshes; }
 
     u32 NumLods() { return numLods_; }
     u32 GetLodLevel() { return lodLevel_; }

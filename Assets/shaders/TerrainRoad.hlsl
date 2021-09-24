@@ -2,6 +2,7 @@
 cbuffer cbPerObject
 {
     float4x4 WVP;
+    float4 WorldPosition;
 };
 
 cbuffer cbPerFrame

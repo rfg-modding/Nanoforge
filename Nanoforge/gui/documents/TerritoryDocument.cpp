@@ -14,7 +14,7 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 
     //Init scene camera
     Scene->Cam.Init({ 250.0f, 500.0f, 250.0f }, 80.0f, { (f32)Scene->Width(), (f32)Scene->Height() }, 1.0f, 10000.0f);
-    Scene->perFrameStagingBuffer_.DiffuseIntensity = 2.0f;
+    Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.0f;
 
     //Start territory loading thread
     Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname);

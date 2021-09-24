@@ -245,17 +245,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         PROFILER_SCOPED("Load low lod terrain")
         std::vector<MeshInstanceData> lowLodMeshes = { };
 
-        bool hasTexture0 = false;
-        PegFile10 texture0;
-        std::span<u8> texture0Bytes;
-        u32 texture0Width = 0;
-        u32 texture0Height = 0;
-
-        bool hasTexture1 = false;
-        PegFile10 texture1;
-        std::span<u8> texture1Bytes;
-        u32 texture1Width = 0;
-        u32 texture1Height = 0;
+        std::optional<Texture2D> texture0 = {};
+        std::optional<Texture2D> texture1 = {};
 
         string lowLodTerrainName = terrainName + ".cterrain_pc";
         auto lowLodTerrainCpuFileHandles = state->PackfileVFS->GetFiles(lowLodTerrainName, true, true);
@@ -301,13 +292,9 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         }
         EarlyStopCheck();
 
-        //Get comb texture. Used to color low lod terrain
-        string blendTextureName = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "comb.cvbm_pc";
-        hasTexture0 = FindTexture(state->PackfileVFS, blendTextureName, texture0, texture0Bytes, texture0Width, texture0Height);
-
-        //Get ovl texture. Used to light low lod terrain
-        string texture1Name = Path::GetFileNameNoExtension(terrainMesh.Filename()) + "_ovl.cvbm_pc";
-        hasTexture1 = FindTexture(state->PackfileVFS, texture1Name, texture1, texture1Bytes, texture1Width, texture1Height);
+        //Load comb and ovl textures, used to color and light low lod terrain, respectively.
+        texture0 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, terrainName + "comb.cvbm_pc");
+        texture1 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, terrainName + "_ovl.cvbm_pc");
 
         //Initialize low lod terrain
         for (u32 i = 0; i < 9; i++)
@@ -318,42 +305,17 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             TerrainLock.unlock();
             renderObject->Visible = false;
 
-            if (hasTexture0)
+            if (texture0)
             {
-                //Create and setup texture2d
-                Texture2D texture2d;
-                texture2d.Name = Path::GetFileNameNoExtension(terrain.Name) + "comb.cvbm_pc";
-                DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-                D3D11_SUBRESOURCE_DATA textureSubresourceData;
-                textureSubresourceData.pSysMem = texture0Bytes.data();
-                textureSubresourceData.SysMemSlicePitch = 0;
-                textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, texture0Width, texture0Height);
-                texture2d.Create(scene->d3d11Device_, texture0Width, texture0Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-                texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-                texture2d.CreateSampler(); //Need sampler too
-
                 renderObject->UseTextures = true;
-                renderObject->DiffuseTexture = texture2d;
+                renderObject->Texture0 = texture0.value();
             }
-            if (hasTexture1)
+            if (texture1)
             {
-                //Create and setup texture2d
-                Texture2D texture2d;
-                texture2d.Name = Path::GetFileNameNoExtension(terrain.Name) + "_ovl.cvbm_pc";
-                DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-                D3D11_SUBRESOURCE_DATA textureSubresourceData;
-                textureSubresourceData.pSysMem = texture1Bytes.data();
-                textureSubresourceData.SysMemSlicePitch = 0;
-                textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, texture1Width, texture1Height);
-                texture2d.Create(scene->d3d11Device_, texture1Width, texture1Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-                texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-                texture2d.CreateSampler(); //Need sampler too
-
                 renderObject->UseTextures = true;
-                renderObject->SpecularTexture = texture2d;
+                renderObject->Texture1 = texture1.value();
             }
         }
-
 
         //Cleanup low lod meshes
         for (auto& mesh : lowLodMeshes)
@@ -363,12 +325,6 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             if (mesh.VertexBuffer.data())
                 delete[] mesh.VertexBuffer.data();
         }
-
-        //Cleanup high lod mesh textures
-        if (hasTexture0)
-            texture0.Cleanup();
-        if (hasTexture1)
-            texture1.Cleanup();
 
         //Clear resources
         delete container;
@@ -383,17 +339,15 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         std::vector<std::tuple<u32, MeshInstanceData>> stitchMeshes = { }; //First part of tuple is subzone index, since not all of them have stitches
         std::vector<std::tuple<u32, u32, MeshInstanceData>> roadMeshes = { }; //(submesh index, road mesh index, mesh data)
 
-        bool hasTexture0 = false;
-        PegFile10 texture0;
-        std::span<u8> texture0Bytes;
-        u32 texture0Width = 0;
-        u32 texture0Height = 0;
-
-        bool hasTexture1 = false;
-        PegFile10 texture1;
-        std::span<u8> texture1Bytes;
-        u32 texture1Width = 0;
-        u32 texture1Height = 0;
+        std::optional<Texture2D> blendTexture = {}; //Used to blend up to 4 other textures on high lod terrain
+        std::optional<Texture2D> texture1 = {};
+        std::optional<Texture2D> texture2 = {};
+        std::optional<Texture2D> texture3 = {};
+        std::optional<Texture2D> texture4 = {};
+        std::optional<Texture2D> texture5 = {};
+        std::optional<Texture2D> texture6 = {};
+        std::optional<Texture2D> texture7 = {};
+        std::optional<Texture2D> texture8 = {};
 
         //Search for high lod terrain mesh files. Should be 9 of them per zone.
         std::vector<FileHandle> highLodSearchResult = state->PackfileVFS->GetFiles(terrainName + "_*", true);
@@ -459,13 +413,61 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             subzoneIndex++;
         }
 
-        //Get comb texture. Used to color low lod terrain
-        string blendTextureName = terrainName + "comb.cvbm_pc";
-        hasTexture0 = FindTexture(state->PackfileVFS, blendTextureName, texture0, texture0Bytes, texture0Width, texture0Height);
+        //Load blend texture
+        blendTexture = LoadTexture(scene->d3d11Device_, state->PackfileVFS, terrainName + "_alpha00.cvbm_pc");
 
-        //Get ovl texture. Used to light low lod terrain
-        string texture1Name = terrainName + "_ovl.cvbm_pc";
-        hasTexture1 = FindTexture(state->PackfileVFS, texture1Name, texture1, texture1Bytes, texture1Width, texture1Height);
+        //Locate and load high lod terrain textures
+        u32 terrainTextureIndex = 0;
+        u32 numTerrainTextures = 0;
+        std::vector<string>& terrainTextureNames = terrain.DataLowLod.TerrainMaterialNames;
+        while (terrainTextureIndex < terrainTextureNames.size() - 1)
+        {
+            string& current = terrainTextureNames[terrainTextureIndex];
+            string& next = terrainTextureNames[terrainTextureIndex + 1];
+
+            //Ignored texture, skip. Likely used by game as a holdin when terrain has < 4 materials
+            if (String::EqualIgnoreCase(current, "misc-white.tga"))
+            {
+                terrainTextureIndex += 2; //Skip 2 since it's always followed by flat-normalmap.tga, which is also ignored
+                continue;
+            }
+            //These are ignored since we already load them by default
+            if (String::Contains(current, "alpha00.tga") || String::Contains(current, "comb.tga"))
+            {
+                terrainTextureIndex++;
+                continue;
+            }
+            //Ensure this texture is diffuse (ends with _d), and the next is normal (ends with _n)
+            if (!String::Contains(String::ToLower(current), "_d.tga") || !String::Contains(String::ToLower(next), "_n.tga"))
+            {
+                terrainTextureIndex++;
+                continue;
+            }
+
+            switch (numTerrainTextures)
+            {
+            case 0:
+                texture1 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(current, ".tga", ".cvbm_pc"));
+                texture2 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(next, ".tga", ".cvbm_pc"));
+                break;
+            case 1:
+                texture3 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(current, ".tga", ".cvbm_pc"));
+                texture4 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(next, ".tga", ".cvbm_pc"));
+                break;
+            case 2:
+                texture5 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(current, ".tga", ".cvbm_pc"));
+                texture6 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(next, ".tga", ".cvbm_pc"));
+                break;
+            case 3:
+                texture7 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(current, ".tga", ".cvbm_pc"));
+                texture8 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(next, ".tga", ".cvbm_pc"));
+                break;
+            default:
+                break;
+            }
+            numTerrainTextures++;
+            terrainTextureIndex += 2;
+        }
 
         //Initialize high lod terrain
         for (u32 i = 0; i < 9; i++)
@@ -476,39 +478,50 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             terrain.HighLodMeshes.push_back(renderObject);
             TerrainLock.unlock();
 
-            if (hasTexture0)
+            if (blendTexture)
             {
-                //Create and setup texture2d
-                Texture2D texture2d;
-                texture2d.Name = Path::GetFileNameNoExtension(terrain.Name) + "comb.cvbm_pc";
-                DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-                D3D11_SUBRESOURCE_DATA textureSubresourceData;
-                textureSubresourceData.pSysMem = texture0Bytes.data();
-                textureSubresourceData.SysMemSlicePitch = 0;
-                textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, texture0Width, texture0Height);
-                texture2d.Create(scene->d3d11Device_, texture0Width, texture0Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-                texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-                texture2d.CreateSampler(); //Need sampler too
-
                 renderObject->UseTextures = true;
-                renderObject->DiffuseTexture = texture2d;
+                renderObject->Texture0 = blendTexture.value();
             }
-            if (hasTexture1)
+            if (texture1)
             {
-                //Create and setup texture2d
-                Texture2D texture2d;
-                texture2d.Name = Path::GetFileNameNoExtension(terrain.Name) + "_ovl.cvbm_pc";
-                DXGI_FORMAT dxgiFormat = DXGI_FORMAT_BC1_UNORM;
-                D3D11_SUBRESOURCE_DATA textureSubresourceData;
-                textureSubresourceData.pSysMem = texture1Bytes.data();
-                textureSubresourceData.SysMemSlicePitch = 0;
-                textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, texture1Width, texture1Height);
-                texture2d.Create(scene->d3d11Device_, texture1Width, texture1Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-                texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-                texture2d.CreateSampler(); //Need sampler too
-
                 renderObject->UseTextures = true;
-                renderObject->SpecularTexture = texture2d;
+                renderObject->Texture1 = texture1.value();
+            }
+            if (texture2)
+            {
+                renderObject->UseTextures = true;
+                renderObject->Texture2 = texture2.value();
+            }
+            if (texture3)
+            {
+                renderObject->UseTextures = true;
+                renderObject->Texture3 = texture3.value();
+            }
+            if (texture4)
+            {
+                renderObject->UseTextures = true;
+                renderObject->Texture4 = texture4.value();
+            }
+            if (texture5)
+            {
+                renderObject->UseTextures = true;
+                renderObject->Texture5 = texture5.value();
+            }
+            if (texture6)
+            {
+                renderObject->UseTextures = true;
+                renderObject->Texture6 = texture6.value();
+            }
+            if (texture7)
+            {
+                renderObject->UseTextures = true;
+                renderObject->Texture7 = texture7.value();
+            }
+            if (texture8)
+            {
+                renderObject->UseTextures = true;
+                renderObject->Texture8 = texture8.value();
             }
 
             scene->NeedsRedraw = true; //Redraw scene if new terrain meshes added
@@ -526,6 +539,52 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             TerrainLock.lock();
             terrain.StitchMeshes.push_back(StitchMesh{.Mesh = stitchObject, .SubzoneIndex = subzoneIndex });
             TerrainLock.unlock();
+
+            if (blendTexture)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture0 = blendTexture.value();
+            }
+            if (texture1)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture1 = texture1.value();
+            }
+            if (texture2)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture2 = texture2.value();
+            }
+            if (texture3)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture3 = texture3.value();
+            }
+            if (texture4)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture4 = texture4.value();
+            }
+            if (texture5)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture5 = texture5.value();
+            }
+            if (texture6)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture6 = texture6.value();
+            }
+            if (texture7)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture7 = texture7.value();
+            }
+            if (texture8)
+            {
+                stitchObject->UseTextures = true;
+                stitchObject->Texture8 = texture8.value();
+            }
         }
 
         //Initialize road meshes
@@ -572,18 +631,12 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             if (instanceData.VertexBuffer.data())
                 delete[] instanceData.VertexBuffer.data();
         }
-
-        //Cleanup high lod mesh textures
-        if (hasTexture0)
-            texture0.Cleanup();
-        if (hasTexture1)
-            texture1.Cleanup();
     }
 
     EarlyStopCheck();
 }
 
-bool Territory::FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight)
+std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device, PackfileVFS* vfs, const string& textureName)
 {
     PROFILER_FUNCTION();
 
@@ -592,43 +645,79 @@ bool Territory::FindTexture(PackfileVFS* vfs, const string& textureName, PegFile
     if (search.size() == 0)
     {
         Log->warn("Couldn't find {} for {}.", textureName, territoryFilename_);
-        return false;
+        return {};
     }
 
+    //Get texture packfile
     FileHandle& handle = search[0];
-    auto* container = handle.GetContainer();
-    if (!container)
+    auto* packfile = handle.InContainer() ? handle.GetContainer() : handle.GetPackfile();
+    if (!packfile)
         THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
 
-    //Get mesh file byte arrays
-    auto cpuFileBytes = container->ExtractSingleFile(textureName, true);
-    auto gpuFileBytes = container->ExtractSingleFile(RfgUtil::CpuFilenameToGpuFilename(textureName), true);
-
-    //Ensure the texture files were extracted
+    //Extract texture
+    auto cpuFileBytes = packfile->ExtractSingleFile(textureName, true);
+    auto gpuFileBytes = packfile->ExtractSingleFile(RfgUtil::CpuFilenameToGpuFilename(textureName), true);
     if (!cpuFileBytes)
         THROW_EXCEPTION("Failed to extract texture cpu file {}", textureName);
     if (!gpuFileBytes)
         THROW_EXCEPTION("Failed to extract texture gpu file {}", textureName);
 
+    //Read pixel data
     BinaryReader cpuFile(cpuFileBytes.value());
     BinaryReader gpuFile(gpuFileBytes.value());
-
+    PegFile10 peg;
     peg.Read(cpuFile);
     peg.ReadTextureData(gpuFile, peg.Entries[0]);
-    auto maybeTexturePixelData = peg.GetTextureData(0);
-    if (maybeTexturePixelData)
+    PegEntry10& entry = peg.Entries[0];
+    auto pixels = peg.GetTextureData(0);
+    if (!pixels)
     {
-        textureBytes = maybeTexturePixelData.value();
-        textureWidth = peg.Entries[0].Width;
-        textureHeight = peg.Entries[0].Height;
-    }
-    else
-    {
+        if (handle.InContainer())
+            delete packfile;
+
         Log->warn("Failed to extract pixel data for terrain blend texture {}", textureName);
+        return {};
     }
 
-    delete container;
-    return true;
+    //Create renderer texture
+    bool srgb = (peg.Flags & 512) != 0;
+    DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
+    std::vector<D3D11_SUBRESOURCE_DATA> textureData;
+    { //Generate subresource data entry for each mip level
+        u64 dataOffset = 0;
+        u32 width = entry.Width;
+        u32 height = entry.Height;
+        for (u32 i = 0; i < entry.MipLevels; i++)
+        {
+            D3D11_SUBRESOURCE_DATA& textureSubresourceData = textureData.emplace_back();
+            textureSubresourceData.pSysMem = pixels.value().data() + dataOffset;
+            textureSubresourceData.SysMemSlicePitch = 0;
+            textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(format, width);
+
+            if (entry.BitmapFormat == PegFormat::PC_DXT1)
+                dataOffset += 8 * (width * height / (4 * 4)); //8 bytes per 4x4 pixel block
+            if (entry.BitmapFormat == PegFormat::PC_DXT3)
+                dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
+            if (entry.BitmapFormat == PegFormat::PC_DXT5)
+                dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
+
+            width /= 2;
+            height /= 2;
+        }
+    }
+
+    Texture2D texture2d;
+    texture2d.Name = textureName;
+    texture2d.Create(d3d11Device, entry.Width, entry.Height, format, D3D11_BIND_SHADER_RESOURCE, textureData.data(), peg.Entries[0].MipLevels);
+    texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
+    texture2d.CreateSampler(); //Need sampler too
+
+    //Cleanup resources
+    peg.Cleanup();
+    if (handle.InContainer())
+        delete packfile;
+
+    return texture2d;
 }
 
 bool Territory::ShouldShowObjectClass(u32 classnameHash)

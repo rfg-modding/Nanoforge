@@ -2,6 +2,7 @@
 cbuffer cbPerObject
 {
     float4x4 WVP;
+    float4 WorldPosition;
 };
 
 cbuffer cbPerFrame
@@ -35,7 +36,7 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL)
 {
     VS_OUTPUT output;
     output.Pos = mul(inPos, WVP);
-    output.Normal = inNormal, WVP;
+    output.Normal = inNormal;
     return output;
 }
 

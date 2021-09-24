@@ -2,6 +2,7 @@
 cbuffer cbPerObject
 {
     float4x4 WVP;
+    float4 WorldPosition;
 };
 
 cbuffer cbPerFrame
@@ -75,7 +76,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 
     //Diffuse light contribution
     float3 lightDir = normalize(-sunDir);
-    float diff = max(dot(input.Normal, lightDir), 0.0f);
+    float diff = max(dot(input.Normal + normal, lightDir), 0.0f);
     float3 diffuse = (diff * color.xyz * DiffuseColor * DiffuseIntensity);
     outColor += float4(diffuse, 1.0f);
 

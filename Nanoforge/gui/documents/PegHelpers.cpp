@@ -39,12 +39,13 @@ namespace PegHelpers
         peg.ReadTextureData(gpuFile, entry);
 
         //Now we need to tell DirectXTex how to output this data
-        DXGI_FORMAT format = PegFormatToDxgiFormat(entry.BitmapFormat);
+        bool srgb = (peg.Flags & 512) != 0;
+        DXGI_FORMAT format = PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
         DirectX::Image image;
         image.width = entry.Width;
         image.height = entry.Height;
         image.format = format;
-        image.rowPitch = CalcRowPitch(format, entry.Width, entry.Height);
+        image.rowPitch = CalcRowPitch(format, entry.Width);
         image.slicePitch = entry.RawData.size_bytes();
         image.pixels = entry.RawData.data();
 
@@ -142,16 +143,16 @@ namespace PegHelpers
         entry.Edited = true;
     }
 
-    DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input)
+    DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input, bool srgb)
     {
         if (input == PegFormat::PC_DXT1)
-            return DXGI_FORMAT_BC1_UNORM; //DXT1
+            return srgb ? DXGI_FORMAT_BC1_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM; //DXT1
         else if (input == PegFormat::PC_DXT3)
-            return DXGI_FORMAT_BC2_UNORM; //DXT2/3
+            return srgb ? DXGI_FORMAT_BC2_UNORM_SRGB : DXGI_FORMAT_BC2_UNORM; //DXT2/3
         else if (input == PegFormat::PC_DXT5)
-            return DXGI_FORMAT_BC3_UNORM; //DXT4/5
+            return srgb ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC3_UNORM; //DXT4/5
         else if (input == PegFormat::PC_8888)
-            return DXGI_FORMAT_R8G8B8A8_UNORM;
+            return srgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
         else
             THROW_EXCEPTION("Unknown or unsupported peg format \"{}\"", input);
     }
@@ -225,15 +226,15 @@ namespace PegHelpers
         }
     }
 
-    u32 CalcRowPitch(DXGI_FORMAT format, u32 width, u32 height)
+    u32 CalcRowPitch(DXGI_FORMAT format, u32 numPixels)
     {
-        if (format == DXGI_FORMAT_BC1_UNORM) //DXT1
-            return 8 * (width / 4);
-        else if (format == DXGI_FORMAT_BC2_UNORM) //DXT2/3
-            return 16 * (width / 4);
-        else if (format == DXGI_FORMAT_BC3_UNORM) //DXT4/5
-            return 16 * (width / 4);
-        else if (format == DXGI_FORMAT_R8G8B8A8_UNORM) //RGBA, 8 bits per pixel
-            return 4 * width;
+        if (format == DXGI_FORMAT_BC1_UNORM || format == DXGI_FORMAT_BC1_UNORM_SRGB) //DXT1
+            return 8 * (numPixels / 4);
+        else if (format == DXGI_FORMAT_BC2_UNORM || format == DXGI_FORMAT_BC2_UNORM_SRGB) //DXT2/3
+            return 16 * (numPixels / 4);
+        else if (format == DXGI_FORMAT_BC3_UNORM || format == DXGI_FORMAT_BC3_UNORM_SRGB) //DXT4/5
+            return 16 * (numPixels / 4);
+        else if (format == DXGI_FORMAT_R8G8B8A8_UNORM || format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB) //RGBA, 8 bits per pixel
+            return 4 * numPixels;
     }
 }

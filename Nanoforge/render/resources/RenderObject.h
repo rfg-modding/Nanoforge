@@ -10,6 +10,7 @@
 struct PerObjectConstants
 {
     DirectX::XMMATRIX MVP;
+    DirectX::XMVECTOR WorldPosition;
 };
 
 class RenderObject
@@ -33,9 +34,16 @@ public:
     bool Visible = true;
 
     bool UseTextures = false;
-    Texture2D DiffuseTexture;
-    Texture2D SpecularTexture;
-    Texture2D NormalTexture;
+    std::optional<Texture2D> Texture0;
+    std::optional<Texture2D> Texture1;
+    std::optional<Texture2D> Texture2;
+    std::optional<Texture2D> Texture3;
+    std::optional<Texture2D> Texture4;
+    std::optional<Texture2D> Texture5;
+    std::optional<Texture2D> Texture6;
+    std::optional<Texture2D> Texture7;
+    std::optional<Texture2D> Texture8;
+    std::optional<Texture2D> Texture9;
 
 private:
     bool initialized_ = false;

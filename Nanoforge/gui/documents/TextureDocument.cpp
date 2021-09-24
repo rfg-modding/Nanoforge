@@ -202,7 +202,8 @@ void TextureDocument::Update(GuiState* state)
             BinaryReader gpuFileReader(gpuFileBytes);
 
             Peg.ReadTextureData(gpuFileReader, entry);
-            DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat);
+            bool srgb = (Peg.Flags & 512) != 0;
+            DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
             ImTextureID id = state->Renderer->TextureDataToHandle(entry.RawData, format, entry.Width, entry.Height);
             if (!id)
             {

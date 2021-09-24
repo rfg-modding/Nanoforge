@@ -18,15 +18,15 @@ namespace PegHelpers
     void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath);
     //Export single entry from peg
     void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, const string& entryName, const string& exportFolderPath);
-    
+
     //Import texture and replace provided entry with it's data
     void ImportTexture(PegFile10& peg, u32 targetIndex, const string& importFilePath);
     //Convert peg format to dxgi format
-    DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input);
+    DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input, bool srgb);
     //Convert dxgi format to peg format
     PegFormat DxgiFormatToPegFormat(DXGI_FORMAT input);
     //Convert PegFormat enum to string
     string PegFormatToString(PegFormat input);
     //Calculate size of a row in bytes for an image based on it's dxgi format and dimensions
-    u32 CalcRowPitch(DXGI_FORMAT format, u32 width, u32 height);
+    u32 CalcRowPitch(DXGI_FORMAT format, u32 numPixels);
 }

@@ -422,7 +422,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
                 Log->info("Found diffuse texture {} for {}", texture->Texture.Name, Filename);
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->DiffuseTexture = texture.value().Texture;
+                renderObject->Texture0 = texture.value().Texture;
                 foundDiffuse = true;
 
                 //Store path for exporting
@@ -446,7 +446,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->NormalTexture = texture.value().Texture;
+                renderObject->Texture2 = texture.value().Texture;
                 foundNormal = true;
 
                 //Store path for exporting
@@ -470,7 +470,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->SpecularTexture = texture.value().Texture;
+                renderObject->Texture1 = texture.value().Texture;
                 foundSpecular = true;
 
                 //Store path for exporting
@@ -698,16 +698,16 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* sta
             //Create and setup texture2d
             Texture2D texture2d;
             texture2d.Name = textureName;
-            DXGI_FORMAT dxgiFormat = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat);
+            bool srgb = (peg.Flags & 512) != 0;
+            DXGI_FORMAT dxgiFormat = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
             D3D11_SUBRESOURCE_DATA textureSubresourceData;
             textureSubresourceData.pSysMem = textureData.data();
             textureSubresourceData.SysMemSlicePitch = 0;
-            textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, entry.Width, entry.Height);
+            textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, entry.Width);
 
             state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
             texture2d.Create(Scene->d3d11Device_, entry.Width, entry.Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-            texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-            texture2d.CreateSampler(); //Need sampler too
+            texture2d.CreateSampler(); //Create sampler for shader use
             state->Renderer->ContextMutex.unlock();
 
             out = Texture2D_Ext{ .Texture = texture2d, .CpuFilePath = pegName };

@@ -1,10 +1,11 @@
 #include "Texture2D.h"
 #include "render/util/DX11Helpers.h"
 
-void Texture2D::Create(ComPtr<ID3D11Device> d3d11Device, u32 width, u32 height, DXGI_FORMAT format, D3D11_BIND_FLAG bindFlags, D3D11_SUBRESOURCE_DATA* data)
+void Texture2D::Create(ComPtr<ID3D11Device> d3d11Device, u32 width, u32 height, DXGI_FORMAT format, D3D11_BIND_FLAG bindFlags, D3D11_SUBRESOURCE_DATA* data, u32 numMipLevels)
 {
     d3d11Device_ = d3d11Device;
     format_ = format;
+    mipLevels_ = numMipLevels;
 
     //Clear any existing resources. This way you can call ::Create repeatedly to resize or recreate the texture
     depthStencilView_.Reset();
@@ -16,7 +17,7 @@ void Texture2D::Create(ComPtr<ID3D11Device> d3d11Device, u32 width, u32 height, 
     ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
     textureDesc.Width = width;
     textureDesc.Height = height;
-    textureDesc.MipLevels = 1;
+    textureDesc.MipLevels = numMipLevels;
     textureDesc.ArraySize = 1;
     textureDesc.Format = format_;
     textureDesc.SampleDesc.Count = 1;
@@ -24,9 +25,9 @@ void Texture2D::Create(ComPtr<ID3D11Device> d3d11Device, u32 width, u32 height, 
     textureDesc.BindFlags = bindFlags;
     textureDesc.CPUAccessFlags = 0;
     textureDesc.MiscFlags = 0;
-    d3d11Device->CreateTexture2D(&textureDesc, data, texture_.GetAddressOf());
+    HRESULT result = d3d11Device->CreateTexture2D(&textureDesc, data, texture_.GetAddressOf());
     if (!texture_)
-        THROW_EXCEPTION("Failed to create Texture2D.");
+        THROW_EXCEPTION("Failed to create Texture2D. Result: {}", result);
 }
 
 void Texture2D::CreateRenderTargetView()
@@ -55,7 +56,7 @@ void Texture2D::CreateShaderResourceView()
     shaderResourceViewDesc.Format = format_;
     shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-    shaderResourceViewDesc.Texture2D.MipLevels = 1;
+    shaderResourceViewDesc.Texture2D.MipLevels = mipLevels_;
 
     //Create the shader resource view
     if(FAILED(d3d11Device_->CreateShaderResourceView(texture_.Get(), &shaderResourceViewDesc, shaderResourceView_.GetAddressOf())))

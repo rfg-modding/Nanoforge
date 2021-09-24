@@ -2,6 +2,7 @@
 cbuffer cbPerObject
 {
     float4x4 WVP;
+    float4 WorldPosition;
 };
 
 cbuffer cbPerFrame
@@ -64,7 +65,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
     
     //Output color
-    float4 outColor = float4(ambient, 1.0f);
+    float4 outColor = float4(ambient, 0.01f);
 
     //Sun direction for diffuse lighting
     float3 sunPos = float3(30.0f, 30.0f, 30.0f);

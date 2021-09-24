@@ -26,6 +26,7 @@ cbuffer cbPerFrame
 cbuffer cbPerObject
 {
     float4x4 WVP;
+    float4 WorldPosition;
 };
 
 struct VS_OUTPUT

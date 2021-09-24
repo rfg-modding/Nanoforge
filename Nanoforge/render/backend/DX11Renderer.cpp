@@ -147,7 +147,7 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
     //Setup texture data subresource
     textureData.pSysMem = data.data();
     textureData.SysMemSlicePitch = 0;
-    textureData.SysMemPitch = PegHelpers::CalcRowPitch(format, width, height);
+    textureData.SysMemPitch = PegHelpers::CalcRowPitch(format, width);
 
     //Set texture description and create texture
     ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));

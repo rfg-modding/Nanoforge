@@ -2,6 +2,7 @@
 cbuffer cbPerObject
 {
     float4x4 WVP;
+    float4 WorldPosition;
 };
 
 cbuffer cbPerFrame
@@ -95,9 +96,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float ambientIntensity = 0.05f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
     float3 diffuse = lighting * DiffuseColor * DiffuseIntensity * terrainColor;
-    diffuse *= 0.5f; //Arbitrarily darken low lod terrain so it matches high lod terrain
 
-    //Normalized elevation for ShadeMode 0
     //Normalized elevation for ShadeMode 0. [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0]
     float elevationNormalized = (input.ZonePos.y + 255.5f) / 511.0f;
 

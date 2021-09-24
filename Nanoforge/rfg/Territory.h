@@ -70,7 +70,8 @@ public:
 private:
     void LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state); //Top level loading thread
     void LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Packfile3* packfile, const char* zoneFilename); //Loads a single zone and its assets
-    bool FindTexture(PackfileVFS* vfs, const string& textureName, PegFile10& peg, std::span<u8>& textureBytes, u32& textureWidth, u32& textureHeight);
+    //Find and load RFG texture (cvbm or cpeg) and create a renderer texture from its first subtexture
+    std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, PackfileVFS* vfs, const string& textureName);
     void SetZoneShortName(ZoneData& zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
 
     PackfileVFS* packfileVFS_ = nullptr;
