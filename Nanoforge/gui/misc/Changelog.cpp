@@ -115,6 +115,20 @@ R"(# Links
   * See [Nanoforge texture editing](https://www.redfactionwiki.com/wiki/Nanoforge_Texture_Editing) for a guide on using Nanoforge to edit textures.
 
 # Changelog
+## v0.19.0 - High resolution terrain + Mesh viewer improvements
+This release adds support for high lod terrain meshes and high resolution terrain textures (see it via `Tools > Open Territory`). It also fixes some mesh rendering bugs and improves mesh texture search to stall less often.
+
+### Changes
+  * Higher quality terrain meshes and textures. Low lod terrain is used past a certain distance which is adjustable in the territory viewer.
+  * You can now export meshes before all textures are found. That way you can still export meshes if texture searching is taking a long time.
+  * Added LOD level selector for meshes that have multiple lod levels.
+  * Added task scheduler to prevent excessive CPU usage. The effect of this is that `File > Settings` has a MaxThreads setting. This lets you limit how many threads can be used by background tasks. By default it saves 2 threads for your system to avoid lagging your entire PC during intensive tasks like level loading. Note: Nanoforge will show more threads than your max in task manager, but most of these are system or driver threads that are idle most of the time.
+  * Added 'Tasks' button at the bottom left of the screen that shows a list of active background tasks when clicked.
+  * BUG: Fixed mesh rendering and export bugs like erroneous triangles and inside out meshes. Occurred when meshes consisted of multiple submeshes.
+  * BUG: Fixed most infinite texture searches in the mesh viewer. Some still may take a long time.
+  * BUG: Fixed missing triangles in low lod terrain.
+  * BUG: Fixed a crash when minimizing a window while a mesh or territory viewer is open.
+
 ## v0.18.1 - Texture mod bugfix
 Fixes bug with editing files in str2_pc files that would output an invalid final mod.
 
@@ -236,7 +250,7 @@ This release makes a few improvements to the file explorer search bar and zone o
 Improves object bounding box visibility by making them thicker.
 
 ## Changes
-  * Added wide line support for object bounding boxes. This requires geometry shader support. Most systems should support these by now but if Nanoforge refuses to run try setting `UseGeometryShaders` in settings.xml to `False` (this will disable line thickness control). You can change line thickness by editing the thickness value at the top of `Assets/Shaders/Linelist.fx` with a text editor. Shaders are automatically reloaded when edited so you can edit the value while Nanoforge is running.
+  * Added wide line support for object bounding boxes. This requires geometry shader support. Most systems should support these by now but if Nanoforge refuses to run try setting `UseGeometryShaders` in settings.xml to `False` (this will disable line thickness control). You can change line thickness by editing the thickness value at the top of `Assets/Shaders/Linelist.hlsl` with a text editor. Shaders are automatically reloaded when edited so you can edit the value while Nanoforge is running.
 
 
 ## v0.8.0 - UI improvements and bugfixes
