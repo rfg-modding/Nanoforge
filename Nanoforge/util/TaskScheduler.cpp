@@ -84,7 +84,9 @@ void TaskScheduler::QueueTask(Handle<Task> task, std::function<void()> function)
 void TaskScheduler::ThreadWaitForTask(u32 threadIndex)
 {
 	string threadName = fmt::format("Task thread {}", threadIndex);
+#ifndef WIN7_COMPATIBILITY_MODE //SetThreadDescription requires win10 v1607 or higher
 	SetThreadDescription(threads_[threadIndex].native_handle(), String::ToWideString(threadName).c_str()); //Set name for debuggers
+#endif
 	PROFILER_SET_THREAD_NAME(threadName.c_str()); //Set name for profiler
 
 	//Run tasks as they are queued up

@@ -10,6 +10,8 @@ set(ENABLE_EDIT_AND_CONTINUE FALSE)
 # Enables define of the same name. For behavior that should only exist in development builds.
 # Separate from DEBUG_BUILD macro for testing dev builds in Release mode.
 set(DEVELOPMENT_BUILD FALSE)
+# Disable features that aren't compatible with windows 7
+set(WIN7_COMPATIBILITY_MODE TRUE)
 
 set(CMAKE_CXX_STANDARD           20)
 set(CMAKE_CXX_STANDARD_REQUIRED  ON)
@@ -26,6 +28,9 @@ if(ENABLE_PROFILER)
 endif()
 if(DEVELOPMENT_BUILD)
     add_compile_definitions(DEVELOPMENT_BUILD)
+endif()
+if(WIN7_COMPATIBILITY_MODE)
+    add_compile_definitions(WIN7_COMPATIBILITY_MODE)
 endif()
 
 # Set options for MSVC compiler (currently the only one Nanoforge is developed with)
