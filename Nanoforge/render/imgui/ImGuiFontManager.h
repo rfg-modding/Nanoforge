@@ -18,7 +18,13 @@ public:
     void Pop() const { ImGui::PopFont(); }
     void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges, Config* config)
     {
-        config->EnsureVariableExists("UI Scale", ConfigType::Float);
+        if (!config->Exists("UI Scale"))
+        {
+            config->EnsureVariableExists("UI Scale", ConfigType::Float);
+            std::get<f32>(config->GetVariable("UI Scale")->Value) = 1.0f;
+            config->Save();
+        }
+
         size_ *= config->GetFloatReadonly("UI Scale").value();
         //Load normal font
         io.Fonts->AddFontFromFileTTF(gui::FontPath, size_);
