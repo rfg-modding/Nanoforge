@@ -46,16 +46,17 @@ SamplerState NormalSampler : register(s2);
 VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent : TANGENT, float4 inBoneWeight : BLENDWEIGHT, 
              uint4 inBoneIndex : BLENDINDEX, int2 inUv : TEXCOORD)
 {
-    //Todo: See if necessary/good idea to convert to tangent space so things are correct even with rotations. See: https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     VS_OUTPUT output;
     output.Pos = mul(inPos, WVP);
-    output.Normal = inNormal;//mul(inNormal, WVP);
+
+    //Adjust range from [0, 1] to [-1, 1]
+    output.Normal = normalize(inNormal * 2.0f - 1.0f);
+    output.Normal.w = 1.0f;
+
     output.Tangent = mul(inTangent, WVP);
 
-    //For some reason need to divide these by 1024 to get proper values. Would've expected 2^16 / 2 to normalize
-    output.Uv = float2(float(inUv.x), float(inUv.y));
-    output.Uv.x = output.Uv.x / 1024.0f;
-    output.Uv.y = output.Uv.y / 1024.0f;
+    //Divide by 1024 to normalize
+    output.Uv = float2(inUv.x, inUv.y) / 1024.0f;
 
     return output;
 }
@@ -63,36 +64,29 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     float4 color = DiffuseTexture.Sample(DiffuseSampler, input.Uv);
-    float4 normal = NormalTexture.Sample(NormalSampler, input.Uv);
+    float4 normal = normalize(input.Normal + (NormalTexture.Sample(NormalSampler, input.Uv) * 2.0 - 1.0));
     float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv);
 
     //Ambient light
-    float ambientIntensity = 0.01f;
-    float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
+    float ambientIntensity = 0.05f;
+    float3 ambient = ambientIntensity * color;
     
-    //Output color
-    float4 outColor = float4(ambient, 1.0f);
-
-    //Sun direction for diffuse lighting
+    //Sun direction
     float3 sunPos = float3(30.0f, 30.0f, 30.0f);
     float3 sunDir = normalize(float3(0.0f, 0.0f, 0.0f) - sunPos);
 
-    //Diffuse light contribution
+    //Diffuse
     float3 lightDir = normalize(-sunDir);
-    float diff = max(dot(input.Normal, lightDir), 0.0f);
-    float3 diffuse = (diff * color.xyz * DiffuseColor * DiffuseIntensity);
-    outColor += float4(diffuse, 1.0f);
+    float diff = max(dot(lightDir, normal), 0.0f);
+    float3 diffuse = diff * color.xyz * DiffuseColor * DiffuseIntensity;
 
     //Specular highlights
     float3 viewDir = normalize(ViewPos - input.Pos);
-    float3 reflectDir = reflect(lightDir, input.Normal);
-    float spec = dot(normalize(reflectDir), normalize(viewDir));
-    if(spec > 0.0f) //Avoid adding dark spots
-    {
-        spec = pow(spec, 32);
-        outColor += spec * specularStrength;// * float4(DiffuseColor, 1.0f);
-    }
+    float3 reflectDir = reflect(-lightDir, normal);
+    float highlightSize = 8.0f; //Smaller = bigger specular highlights
+    float spec = pow(dot(viewDir, reflectDir), highlightSize);
+    float3 specular = spec * specularStrength;
 
     //Final output
-    return outColor;
+    return float4(ambient + diffuse + specular, 1.0f);
 }

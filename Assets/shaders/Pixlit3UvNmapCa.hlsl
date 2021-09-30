@@ -49,60 +49,50 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
              float4 inBoneWeight : BLENDWEIGHT, uint4 inBoneIndex : BLENDINDEX, 
              int2 inUv0 : TEXCOORD0, int2 inUv1 : TEXCOORD1, int2 inUv2 : TEXCOORD2)
 {
-    //Todo: See if necessary/good idea to convert to tangent space so things are correct even with rotations. See: https://learnopengl.com/Advanced-Lighting/Normal-Mapping
     VS_OUTPUT output;
     output.Pos = mul(inPos, WVP);
-    output.Normal = inNormal, WVP;
+
+    //Adjust range from [0, 1] to [-1, 1]
+    output.Normal = normalize(inNormal * 2.0f - 1.0f);
+    output.Normal.w = 1.0f;
+
     output.Tangent = mul(inTangent, WVP);
 
-    //For some reason need to divide these by 1024 to get proper values. Would've expected 2^16 / 2 to normalize
-    output.Uv0 = float2(float(inUv0.x), float(inUv0.y));
-    output.Uv0.x = output.Uv0.x / 1024.0f;
-    output.Uv0.y = output.Uv0.y / 1024.0f;
-    output.Uv1 = float2(float(inUv1.x), float(inUv1.y));
-    output.Uv1.x = output.Uv1.x / 1024.0f;
-    output.Uv1.y = output.Uv1.y / 1024.0f;
-    output.Uv2 = float2(float(inUv2.x), float(inUv2.y));
-    output.Uv2.x = output.Uv2.x / 1024.0f;
-    output.Uv2.y = output.Uv2.y / 1024.0f;
+    //Divide by 1024 to normalize
+    output.Uv0 = float2(inUv0.x, inUv0.y) / 1024.0f;
+    output.Uv1 = float2(inUv1.x, inUv1.y) / 1024.0f;
+    output.Uv2 = float2(inUv2.x, inUv2.y) / 1024.0f;
 
     return output;
 }
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
-    //Todo: Determine if using 2nd and 3rd UV maps correctly
+    //Todo: Figure out how second and third UVs should be used. All textures look wrong when sampled with them
     float4 color = DiffuseTexture.Sample(DiffuseSampler, input.Uv0);
-    float4 normal = NormalTexture.Sample(NormalSampler, input.Uv1);
-    float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv2);
+    float4 normal = normalize(input.Normal + (NormalTexture.Sample(NormalSampler, input.Uv0) * 2.0 - 1.0));
+    float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv0);
 
     //Ambient light
-    float ambientIntensity = 0.01f;
-    float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
-    
-    //Output color
-    float4 outColor = float4(ambient, 1.0f);
+    float ambientIntensity = 0.05f;
+    float3 ambient = ambientIntensity * color.xyz;
 
-    //Sun direction for diffuse lighting
+    //Sun direction
     float3 sunPos = float3(30.0f, 30.0f, 30.0f);
     float3 sunDir = normalize(float3(0.0f, 0.0f, 0.0f) - sunPos);
 
-    //Diffuse light contribution
+    //Diffuse
     float3 lightDir = normalize(-sunDir);
-    float diff = max(dot(input.Normal, lightDir), 0.0f);
-    float3 diffuse = (diff * color.xyz * DiffuseColor * DiffuseIntensity);
-    outColor += float4(diffuse, 1.0f);
+    float diff = max(dot(lightDir, normal), 0.0f);
+    float3 diffuse = diff * color.xyz * DiffuseColor * DiffuseIntensity;
 
     //Specular highlights
     float3 viewDir = normalize(ViewPos - input.Pos);
-    float3 reflectDir = reflect(lightDir, input.Normal);
-    float spec = dot(normalize(reflectDir), normalize(viewDir));
-    if(spec > 0.0f) //Avoid adding dark spots
-    {
-        spec = pow(spec, 32);
-        outColor += spec * specularStrength;// * float4(DiffuseColor, 1.0f);
-    }
+    float3 reflectDir = reflect(-lightDir, normal);
+    float highlightSize = 8.0f; //Smaller = bigger specular highlights
+    float spec = pow(dot(viewDir, reflectDir), highlightSize);
+    float3 specular = spec * specularStrength;
 
     //Final output
-    return outColor;
+    return float4(ambient + diffuse + specular, 1.0f);
 }

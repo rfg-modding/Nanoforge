@@ -36,7 +36,11 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL)
 {
     VS_OUTPUT output;
     output.Pos = mul(inPos, WVP);
-    output.Normal = inNormal, WVP;
+    
+    //Adjust range from [0, 1] to [-1, 1]
+    output.Normal = normalize(inNormal * 2.0f - 1.0f);
+    output.Normal.w = 1.0f;
+
     return output;
 }
 
@@ -49,18 +53,14 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float ambientIntensity = 0.01f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
     
-    //Output color
-    float4 outColor = float4(ambient, 1.0f);
-
-    //Sun direction for diffuse lighting
+    //Sun direction
     float3 sunDir = float3(1.0f, -1.0f, 0.0f);
 
-    //Diffuse light contribution
+    //Diffuse
     float3 lightDir = normalize(-sunDir);
-    float diff = max(dot(input.Normal, lightDir), 0.0f);
-    float3 diffuse = (diff * color.xyz * DiffuseColor * DiffuseIntensity);
-    outColor += float4(diffuse, 1.0f);
+    float diff = max(dot(lightDir, normal), 0.0f);
+    float3 diffuse = diff * color.xyz * DiffuseColor * DiffuseIntensity;
 
     //Final output
-    return outColor;
+    return float4(ambient + diffuse, 1.0f);
 }
