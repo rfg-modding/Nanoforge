@@ -90,12 +90,13 @@ private:
     //Track object materials so objects can be batch rendered by material
     std::unordered_map<string, std::vector<Handle<RenderObject>>> objectMaterials_;
 
-    //Data used for drawing primitives
-    struct ColoredVertex //Used by primitives that need different colors per vertex
+    //Used for line and box drawing
+    struct ColoredVertex
     {
         Vec3 Position;
-        Vec3 Color;
+        u8 r, g, b, a;
     };
+    static_assert(sizeof(ColoredVertex) == 16, "sizeof(ColoredVertex) must be 16 bytes.");
 
     ComPtr<ID3D11RasterizerState> primitiveRasterizerState_ = nullptr;
     Material* linelistMaterial_ = nullptr;

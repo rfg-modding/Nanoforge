@@ -86,7 +86,7 @@ void Render::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> 
     materials_["Linelist"] = { d3d11Device, config, "Linelist.hlsl",
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+        { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     }};
 }
 
@@ -97,4 +97,10 @@ Material* Render::GetMaterial(const string& name)
         return &search->second;
 
     return {};
+}
+
+void Render::ReloadEditedShaders()
+{
+    for (auto& kv : materials_)
+        kv.second.TryShaderReload();
 }

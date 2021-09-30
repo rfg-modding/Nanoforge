@@ -42,7 +42,7 @@ struct PS_INPUT
     float EdgeDistance : EDGE_DISTANCE;
 };
 
-VS_OUTPUT VS(float3 inPos : POSITION, float3 inColor : COLOR)
+VS_OUTPUT VS(float3 inPos : POSITION, float4 inColor : COLOR)
 {
     VS_OUTPUT output;
     output.Pos = mul(float4(inPos.xyz, 1.0f), WVP);

@@ -39,7 +39,7 @@ void Scene::Draw(f32 deltaTime)
     TotalTime += deltaTime;
 
     //Reload shaders if necessary
-    linelistMaterial_->TryShaderReload();
+    Render::ReloadEditedShaders();
 
     //Set render target and clear it
     d3d11Context_->ClearRenderTargetView(sceneViewTexture_.GetRenderTargetView(), reinterpret_cast<const float*>(&ClearColor));
@@ -75,7 +75,6 @@ void Scene::Draw(f32 deltaTime)
                 Log->error("Failed to get material '{}'", kv.first);
                 continue;
             }
-            material->TryShaderReload(); //Reload shaders if necessary
             material->Use(d3d11Context_);
 
             //Render all objects using the material
@@ -87,8 +86,8 @@ void Scene::Draw(f32 deltaTime)
 
     //Prepare state to render primitives
     d3d11Context_->RSSetState(primitiveRasterizerState_.Get());
-    linelistMaterial_->Use(d3d11Context_);
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    linelistMaterial_->Use(d3d11Context_);
 
     //Update primitive vertex buffers if necessary
     u32 linelistVertexStride = sizeof(ColoredVertex);
@@ -227,8 +226,8 @@ void Scene::CreateDepthBuffer()
 
 void Scene::DrawLine(const Vec3& start, const Vec3& end, const Vec3& color)
 {
-    lineVertices_.push_back({ start, color });
-    lineVertices_.push_back({ end, color });
+    lineVertices_.push_back({ start, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    lineVertices_.push_back({ end, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
     primitiveBufferNeedsUpdate_ = true;
 }
 
