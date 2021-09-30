@@ -28,15 +28,12 @@ Application* appInstance = nullptr;
 
 void Application::Run()
 {
+    //Init app and run main loop
     appInstance = this;
     Init();
-
-    //Return early if exit was requested
-    if (Exit)
-        return;
-
     MainLoop();
 
+    //Main loop finished
     TaskScheduler::Shutdown();
 }
 
@@ -121,7 +118,7 @@ void Application::MainLoop()
         {
             PROFILER_SCOPED("Wait for target framerate");
             //Set resolution of OS timers to 1 ms to get reasonably accurate Sleep() calls
-            //For some reason this isn't always needed. It was added when Sleep() started taking 15ms more than it should have after a windows update.
+            //This isn't always needed. It was added when Sleep() started taking 15ms more than it should have after a windows update.
             timeBeginPeriod(1);
             while (FrameTimer.ElapsedSecondsPrecise() < targetFramerateDelta)
             {
@@ -130,7 +127,7 @@ void Application::MainLoop()
                 if (lastFramelimiterSleepMs_ > (DWORD)(targetFramerateDelta * 1000.0f))
                     break;
 
-                Sleep((DWORD)lastFramelimiterSleepMs_);
+                Sleep(lastFramelimiterSleepMs_);
             }
             timeEndPeriod(1); //Disable custom system timer resolution
         }
