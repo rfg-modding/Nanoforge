@@ -9,6 +9,13 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
 {
     state_ = state;
 
+    //Determine if high lod terrain should be used
+    if (!state->Config->Exists("Disable high quality terrain"))
+    {
+        state->Config->CreateVariable("Disable high quality terrain", ConfigType::Bool, false);
+    }
+    useHighLodTerrain_ = !state->Config->GetBoolReadonly("Disable high quality terrain").value();
+
     //Create scene
     Scene = state->Renderer->CreateScene();
 
@@ -17,7 +24,7 @@ TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, stri
     Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2f;
 
     //Start territory loading thread
-    Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname);
+    Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname, useHighLodTerrain_);
     TerritoryLoadTask = Territory.LoadAsync(Scene, state);
     state->CurrentTerritoryUpdateDebugDraw = true;
 }
@@ -66,7 +73,7 @@ void TerritoryDocument::Update(GuiState* state)
     }
 
     //Update high/low lod mesh visibility based on camera distance
-    if (ImGui::IsWindowFocused() || terrainVisiblityUpdateNeeded_)
+    if ((ImGui::IsWindowFocused() || terrainVisiblityUpdateNeeded_) && useHighLodTerrain_)
     {
         std::lock_guard<std::mutex> lock(Territory.TerrainLock);
         f32 highLodTerrainDistance = highLodTerrainEnabled_ ? highLodTerrainDistance_ : -1.0f;
@@ -239,16 +246,19 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
             ImGui::SliderFloat("Diffuse intensity", &Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 2.0f);
         }
 
-        if (ImGui::Checkbox("High lod terrain enabled", &highLodTerrainEnabled_))
+        if (useHighLodTerrain_)
         {
-            terrainVisiblityUpdateNeeded_ = true;
-        }
-        if (highLodTerrainEnabled_)
-        {
-            ImGui::SliderFloat("High lod distance", &highLodTerrainDistance_, 0.0f, 10000.0f);
-            ImGui::SameLine();
-            gui::HelpMarker("Beyond this distance from the camera low lod terrain is used.", ImGui::GetIO().FontDefault);
-            terrainVisiblityUpdateNeeded_ = true;
+            if (ImGui::Checkbox("High lod terrain enabled", &highLodTerrainEnabled_))
+            {
+                terrainVisiblityUpdateNeeded_ = true;
+            }
+            if (highLodTerrainEnabled_)
+            {
+                ImGui::SliderFloat("High lod distance", &highLodTerrainDistance_, 0.0f, 10000.0f);
+                ImGui::SameLine();
+                gui::HelpMarker("Beyond this distance from the camera low lod terrain is used.", ImGui::GetIO().FontDefault);
+                terrainVisiblityUpdateNeeded_ = true;
+            }
         }
 
         ImGui::EndPopup();

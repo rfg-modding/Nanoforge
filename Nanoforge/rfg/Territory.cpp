@@ -16,11 +16,12 @@
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
 
-void Territory::Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname)
+void Territory::Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname, bool useHighLodTerrain)
 {
     packfileVFS_ = packfileVFS;
     territoryFilename_ = territoryFilename;
     territoryShortname_ = territoryShortname;
+    useHighLodTerrain_ = useHighLodTerrain;
 }
 
 Handle<Task> Territory::LoadAsync(Handle<Scene> scene, GuiState* state)
@@ -304,7 +305,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             TerrainLock.lock();
             terrain.LowLodMeshes.push_back(renderObject);
             TerrainLock.unlock();
-            renderObject->Visible = false;
+            renderObject->Visible = !useHighLodTerrain_;
             renderObject->UseTextures = texture0.has_value() || texture1.has_value();
             renderObject->Textures[0] = texture0;
             renderObject->Textures[1] = texture1;
@@ -326,6 +327,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     }
 
     EarlyStopCheck();
+    if(useHighLodTerrain_)
     {
         PROFILER_SCOPED("Load high lod terrain");
         std::vector<MeshInstanceData> highLodMeshes = { };
@@ -598,7 +600,6 @@ std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device
     auto cacheSearch = textureCache_.find(String::ToLower(textureName));
     if (cacheSearch != textureCache_.end())
     {
-        Log->info("Found cached copy of {}", textureName);
         return cacheSearch->second;
     }
 

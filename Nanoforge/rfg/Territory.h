@@ -46,7 +46,7 @@ class Territory
 {
 public:
     //Set values needed for it to function
-    void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname);
+    void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname, bool useHighLodTerrain);
     bool Ready() { return ready_; } //Returns true if the territory is loaded and ready for use
 
     Handle<Task> LoadAsync(Handle<Scene> scene, GuiState* state); //Starts a thread that loads the territory zones, terrain, etc
@@ -82,4 +82,5 @@ private:
     bool ready_ = false;
     bool loadThreadShouldStop_ = false;
     bool loadThreadRunning_ = false;
+    bool useHighLodTerrain_ = true;
 };

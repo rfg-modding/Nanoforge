@@ -36,6 +36,7 @@ private:
     bool highLodTerrainEnabled_ = true;
     bool terrainVisiblityUpdateNeeded_ = true;
     u32 numTerrainInstances_ = 0;
+    bool useHighLodTerrain_ = true;
 
     GuiState* state_ = nullptr;
 };
