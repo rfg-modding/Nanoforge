@@ -32,26 +32,12 @@ void RenderObject::Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObj
     //Bind textures
     if (UseTextures)
     {
-        if (Texture0.has_value())
-            Texture0.value().Bind(d3d11Context, 0);
-        if (Texture1.has_value())
-            Texture1.value().Bind(d3d11Context, 1);
-        if (Texture2.has_value())
-            Texture2.value().Bind(d3d11Context, 2);
-        if (Texture3.has_value())
-            Texture3.value().Bind(d3d11Context, 3);
-        if (Texture4.has_value())
-            Texture4.value().Bind(d3d11Context, 4);
-        if (Texture5.has_value())
-            Texture5.value().Bind(d3d11Context, 5);
-        if (Texture6.has_value())
-            Texture6.value().Bind(d3d11Context, 6);
-        if (Texture7.has_value())
-            Texture7.value().Bind(d3d11Context, 7);
-        if (Texture8.has_value())
-            Texture8.value().Bind(d3d11Context, 8);
-        if (Texture9.has_value())
-            Texture9.value().Bind(d3d11Context, 9);
+        for (u32 i = 0; i < Textures.size(); i++)
+        {
+            auto texture = Textures[i];
+            if (texture.has_value())
+                texture.value().Bind(d3d11Context, i);
+        }
     }
 
     ObjectMesh.Draw(d3d11Context);

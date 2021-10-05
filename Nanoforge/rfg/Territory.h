@@ -6,6 +6,7 @@
 #include "render/resources/Scene.h"
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\types\Vec4.h>
+#include <unordered_map>
 #include <future>
 #include <mutex>
 
@@ -73,6 +74,7 @@ private:
     //Find and load RFG texture (cvbm or cpeg) and create a renderer texture from its first subtexture
     std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, PackfileVFS* vfs, const string& textureName);
     void SetZoneShortName(ZoneData& zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
+    std::unordered_map<string, Texture2D> textureCache_; //Textures loaded during territory load are cached to prevent repeat loads. Cleared once territory is done loading.
 
     PackfileVFS* packfileVFS_ = nullptr;
     string territoryFilename_; //Name of the vpp_pc file that zone data is loaded from at startup

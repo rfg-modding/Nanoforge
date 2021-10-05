@@ -5,6 +5,7 @@
 #include "render/camera/Camera.h"
 #include "render/resources/Texture2D.h"
 #include <DirectXMath.h>
+#include <array>
 
 //Buffer for per-object shader constants (set once per object)
 struct PerObjectConstants
@@ -34,16 +35,7 @@ public:
     bool Visible = true;
 
     bool UseTextures = false;
-    std::optional<Texture2D> Texture0;
-    std::optional<Texture2D> Texture1;
-    std::optional<Texture2D> Texture2;
-    std::optional<Texture2D> Texture3;
-    std::optional<Texture2D> Texture4;
-    std::optional<Texture2D> Texture5;
-    std::optional<Texture2D> Texture6;
-    std::optional<Texture2D> Texture7;
-    std::optional<Texture2D> Texture8;
-    std::optional<Texture2D> Texture9;
+    std::array<std::optional<Texture2D>, 10> Textures;
 
 private:
     bool initialized_ = false;

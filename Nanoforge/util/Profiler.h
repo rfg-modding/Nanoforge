@@ -34,7 +34,7 @@
     #define PROFILER_FUNCTION()
     #define PROFILER_D3D11_CONTEXT(device, deviceContext)
     #define PROFILER_D3D11_CONTEXT_DESTROY(ctx)
-    #define PROFILER_D3D11_ZONE(name)
+    #define PROFILER_D3D11_ZONE(ctx, name)
     #define PROFILER_D3D11_COLLECT(ctx)
     #define PROFILER_FRAME_MARK()
     #define PROFILER_FRAME_MARK_START(name)

@@ -222,11 +222,11 @@ bool PackfileVFS::CheckSearchMatch(s_view target, s_view filter, SearchType sear
     switch (searchType)
     {
     case SearchType::Direct:
-        return filter == target;
+        return String::EqualIgnoreCase(filter, target);
     case SearchType::AnyStart:
-        return String::EndsWith(target, filter);
+        return String::EndsWith(String::ToLower(target), String::ToLower(filter));
     case SearchType::AnyEnd:
-        return String::StartsWith(target, filter);
+        return String::StartsWith(String::ToLower(target), String::ToLower(filter));
     default:
         THROW_EXCEPTION("Invalid or unsupported enum value \"{}\".", searchType);
     }

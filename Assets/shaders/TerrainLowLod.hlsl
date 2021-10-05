@@ -64,7 +64,7 @@ VS_OUTPUT VS(int4 inPos : POSITION)
     float zoneRange = zoneMax - zoneMin;
 
     //Scale position
-    float4 posFloat = float4(inPos.x, inPos.y, inPos.z, inPos.w);
+    float4 posFloat = inPos.xyzw;
     posFloat.x = (((posFloat.x - terrainMin) * zoneRange) / terrainRange) + zoneMin;
     posFloat.y = (((posFloat.y - terrainMin) * zoneRange) / terrainRange) + zoneMin;
     posFloat.z = (((posFloat.z - terrainMin) * zoneRange) / terrainRange) + zoneMin;
@@ -86,16 +86,19 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 {    
     //Get terrain color from _comb texture and adjust it's brightness
     float4 blendValues = Texture0.Sample(Sampler0, input.Uv);
-    float gamma = 0.45f;
-    float3 terrainColor = pow(blendValues.xyz, float3(1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
+    float gamma = 0.4f;
+    float3 terrainColor = pow(blendValues.xyz, 1.0 / gamma);
 
     //Get pre-calculated lighting from _ovl texture
-    float3 lighting = Texture1.Sample(Sampler1, input.Uv).xyz;
+    float3 lighting = Texture1.Sample(Sampler1, input.Uv).xyz;;
 
-    //Ambient + diffuse lighting
-    float ambientIntensity = 0.05f;
-    float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
+    //Ambient
+    float ambientIntensity = 0.10f;
+    float3 ambient = ambientIntensity * terrainColor;
+
+    //Diffuse
     float3 diffuse = lighting * DiffuseColor * DiffuseIntensity * terrainColor;
+    diffuse *= 1.7f; //Arbitrary scaling to look similar to high lod terrain. Temporary fix until high lod terrain is fully working
 
     //Normalized elevation for ShadeMode 0. [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0]
     float elevationNormalized = (input.ZonePos.y + 255.5f) / 511.0f;
@@ -108,7 +111,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     else if(ShadeMode == 1)
     {
         //Color terrain with basic lighting
-        return float4(diffuse, 1.0f) + float4(ambient, 1.0f);
+        return float4(ambient + diffuse, 1.0f);
     }
     else
     {

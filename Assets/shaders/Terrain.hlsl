@@ -31,7 +31,11 @@ struct VS_OUTPUT
     float4 Pos : SV_POSITION;
     float4 ZonePos : POSITION0;
     float3 Normal : NORMAL0;
-    float2 Uv : TEXCOORD;
+    float2 UvBase : TEXCOORD0;
+    float2 Uv0 : TEXCOORD1;
+    float2 Uv1 : TEXCOORD2;
+    float2 Uv2 : TEXCOORD3;
+    float2 Uv3 : TEXCOORD4;
 };
 
 Texture2D Texture0 : register(t0);
@@ -59,94 +63,91 @@ VS_OUTPUT VS(int2 inPos : POSITION0, float4 inNormal : NORMAL0)
 {
     VS_OUTPUT output;
 
-    float posy_scaled = inPos.y + 32768.0f;
-    float a = posy_scaled / 256.0f;
-    float b = posy_scaled;
-    float a_trunc = trunc(a);
-    float a_trunc_scaled = a_trunc * 256.0f;
+    //Initial range of inPos.xy is [-32768, 32767]
+    float4 posFinal; //Decompressed vertex position
+    float a = inPos.y + 32768.0f; //Adjust range to [0, 65535]
+    float b = a / 256.0f; //Adjust range to [0, 256]
 
-    float4 posScaled = float4(0.0f, 0.0f, 0.0f, 1.0f);
-    posScaled.x = b - a_trunc_scaled;
-    posScaled.y = inPos.x / 64.0f;
-    posScaled.z = a_trunc;
-    posScaled.w = 1.0f;
+    //Decompress the vertex position
+    posFinal.x = a - (trunc(b) * 256.0f);
+    posFinal.y = inPos.x / 64.0f; //Range: [-512, 512]
+    posFinal.z = trunc(b);
+    posFinal.w = 1.0f;
 
-    output.ZonePos = posScaled;
-    output.Pos = mul(posScaled, WVP);
+    output.ZonePos = posFinal;
+    output.Pos = mul(posFinal, WVP);
+
+    //Adjust range from [0, 1] to [-1, 1]
+    output.Normal = normalize(inNormal.xyz * 2.0f - 1.0f);
 
     //Calc texture UV relative to start of this map zone
-    float3 posWorld = posScaled.xyz + WorldPosition.xyz;
-    float x = (posWorld.x / 511.0f);
-    float z = (posWorld.z / 511.0f);
-    output.Uv = float2(x, z);
+    float3 posWorld = posFinal.xyz + WorldPosition.xyz;
+    output.UvBase = posWorld.xz / 511.0f;
 
-    output.Normal = inNormal.xyz;
+    //Adjustable per material scaling to reduce tiling
+    float2 material0Scale = float2(128.0f, 128.0f);
+    float2 material1Scale = float2(64.0f, 64.0f);
+    float2 material2Scale = float2(128.0f, 128.0f);
+    float2 material3Scale = float2(16.0f, 16.0f);
+
+    //Calculate material UVs
+    output.Uv0 = output.UvBase * material0Scale.xy;
+    output.Uv1 = output.UvBase * material1Scale.xy;
+    output.Uv2 = output.UvBase * material2Scale.xy;
+    output.Uv3 = output.UvBase * material3Scale.xy;
+
     return output;
 }
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
-{    
+{
     //Get weight of each texture from alpha00 texture
-    float4 blendWeights = Texture0.Sample(Sampler0, input.Uv);
+    float4 blendWeights = Texture0.Sample(Sampler0, input.UvBase);
 
-    //Terrain material scaling and offsetting. xy = scale, zw = offset
-    float4 layer0ScaleOffset = float4(64.0f, -64.0f, 0.0f, 0.0f);
-    float4 layer1ScaleOffset = float4(64.0f, -64.0f, 0.0f, 0.0f);
-    float4 layer2ScaleOffset = float4(64.0f, -64.0f, 0.0f, 0.0f);
-    float4 layer3ScaleOffset = float4(32.0f, -32.0f, 0.0f, 0.0f);
+    //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps.rsqrt
+    //Nanoforge uses it as a temporary way to get colors closer to the games colors
+    float4 combColor = Texture1.Sample(Sampler1, input.UvBase);
+    float combGamma = 0.45f;
+    combColor = pow(combColor.xyzw, 1.0 / combGamma);
     
-    //Get terrain colors and normals
-    float4 color0 = Texture1.Sample(Sampler1, (input.Uv + layer0ScaleOffset.zw) * layer0ScaleOffset.xy);
-    float4 normal0 = Texture2.Sample(Sampler2, (input.Uv + layer0ScaleOffset.zw) * layer0ScaleOffset.xy);
+    //Get data for terrain materials. 4 of them, each with their own diffuse and normal maps
+    //Sample diffuse maps
+    float4 color0 = Texture2.Sample(Sampler2, input.Uv0);
+    float4 color1 = Texture4.Sample(Sampler4, input.Uv1);
+    float4 color2 = Texture6.Sample(Sampler6, input.Uv2);
+    float4 color3 = Texture8.Sample(Sampler8, input.Uv3);
 
-    float4 color1 = Texture3.Sample(Sampler3, (input.Uv + layer1ScaleOffset.zw) * layer1ScaleOffset.xy);
-    float4 normal1 = Texture4.Sample(Sampler4, (input.Uv + layer1ScaleOffset.zw) * layer1ScaleOffset.xy);
+    //Sample normal maps
+    float4 normal0 = normalize(Texture3.Sample(Sampler3, input.Uv0) * 2 - 1);
+    float4 normal1 = normalize(Texture5.Sample(Sampler5, input.Uv1) * 2 - 1);
+    float4 normal2 = normalize(Texture7.Sample(Sampler7, input.Uv2) * 2 - 1);
+    float4 normal3 = normalize(Texture9.Sample(Sampler9, input.Uv3) * 2 - 1);
 
-    float4 color2 = Texture5.Sample(Sampler5, (input.Uv + layer2ScaleOffset.zw) * layer2ScaleOffset.xy);
-    float4 normal2 = Texture6.Sample(Sampler6, (input.Uv + layer2ScaleOffset.zw) * layer2ScaleOffset.xy);
-    
-    float4 color3 = Texture7.Sample(Sampler7, (input.Uv + layer3ScaleOffset.zw) * layer3ScaleOffset.xy);
-    float4 normal3 = Texture8.Sample(Sampler8, (input.Uv + layer3ScaleOffset.zw) * layer3ScaleOffset.xy);
-
-    normal0 *= 2.0f;
-    normal0 -= 1.0f;
-    normal0 = normalize(normal0);
-    normal1 *= 2.0f;
-    normal1 -= 1.0f;
-    normal1 = normalize(normal1);
-    normal2 *= 2.0f;
-    normal2 -= 1.0f;
-    normal2 = normalize(normal2);
-    normal3 *= 2.0f;
-    normal3 -= 1.0f;
-    normal3 = normalize(normal3);
-
-    float4 finalColor = color0;
+    //Calculate final diffuse color
+    float4 finalColor = color0 + combColor;
     finalColor += color3 * blendWeights.w;
     finalColor += color1 * blendWeights.z;
     finalColor += color2 * blendWeights.y;
     finalColor += color3 * blendWeights.x;
 
-    float4 finalNormal = float4(input.Normal, 1.0f);// + normal0;
+    //Calculate final normal
+    float4 finalNormal = float4(input.Normal, 1.0f) + normal0;
     finalNormal += normal3 * blendWeights.w;
     finalNormal += normal1 * blendWeights.z;
     finalNormal += normal2 * blendWeights.y;
     finalNormal += normal3 * blendWeights.x;
     finalNormal = normalize(finalNormal);
 
-    float gamma = 1.0f;
-    finalColor = pow(finalColor.xyzw, float4(1.0 / gamma, 1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
-
     //Sun direction for diffuse lighting
-    float3 sunPos = float3(30.0f, 30.0f, 30.0f);
-    float3 sunDir = normalize(float3(0.0f, 0.0f, 0.0f) - sunPos);
+    float3 sunDir = float3(1.0f, -1.0f, -0.2f);
 
-    float ambientIntensity = 0.01f;
-    float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
+    //Ambient
+    float ambientIntensity = 0.15f;
+    float3 ambient = ambientIntensity * finalColor;
 
     //Diffuse
-    float3 lightDir = normalize(-sunDir);
-    float diff = max(dot(finalNormal, lightDir), 0.0f);
+    float3 lightDir = -normalize(sunDir);
+    float diff = max(dot(lightDir, finalNormal), 0.0f);
     float3 diffuse = diff * finalColor * DiffuseColor * DiffuseIntensity;
 
     //Normalized elevation for ShadeMode 0. [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0]
@@ -160,8 +161,8 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     else if(ShadeMode == 1)
     {
         //Color terrain with basic lighting
-        //return float4(input.Normal.xyz, 1.0f);
-        return float4(diffuse, 1.0f) + float4(ambient, 1.0f);
+        //return float4(blendWeights.xyz, 1.0f);
+        return float4(ambient + diffuse, 1.0f);
     }
     else
     {

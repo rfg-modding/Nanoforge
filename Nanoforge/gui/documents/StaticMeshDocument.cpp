@@ -29,6 +29,7 @@ StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string 
     Scene->Cam.Speed = 0.25f;
     Scene->Cam.SprintSpeed = 0.4f;
     Scene->Cam.LookAt({ 0.0f, 0.0f, 0.0f });
+    Scene->perFrameStagingBuffer_.DiffuseIntensity = 2.5f;
 
     //Create worker thread to load terrain meshes in background
     meshLoadTask_ = Task::Create(fmt::format("Loading {}...", filename));
@@ -170,7 +171,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         ImGui::DragFloat3("Scale", (float*)&Scene->Objects[0]->Scale, 0.01, 1.0f, 100.0f);
 
         ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&Scene->perFrameStagingBuffer_.DiffuseColor));
-        ImGui::SliderFloat("Diffuse intensity", &Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 1.0f);
+        ImGui::SliderFloat("Diffuse intensity", &Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 3.0f);
 
         ImGui::EndPopup();
     }
@@ -422,7 +423,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
                 Log->info("Found diffuse texture {} for {}", texture->Texture.Name, Filename);
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->Texture0 = texture.value().Texture;
+                renderObject->Textures[0] = texture.value().Texture;
                 foundDiffuse = true;
 
                 //Store path for exporting
@@ -446,7 +447,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->Texture2 = texture.value().Texture;
+                renderObject->Textures[2] = texture.value().Texture;
                 foundNormal = true;
 
                 //Store path for exporting
@@ -470,7 +471,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->Texture1 = texture.value().Texture;
+                renderObject->Textures[1] = texture.value().Texture;
                 foundSpecular = true;
 
                 //Store path for exporting
@@ -708,6 +709,7 @@ std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* sta
             state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
             texture2d.Create(Scene->d3d11Device_, entry.Width, entry.Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
             texture2d.CreateSampler(); //Create sampler for shader use
+            texture2d.CreateShaderResourceView();
             state->Renderer->ContextMutex.unlock();
 
             out = Texture2D_Ext{ .Texture = texture2d, .CpuFilePath = pegName };
