@@ -23,6 +23,7 @@
 #include <imgui/imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
+#include "rfg/TextureIndex.h"
 #include "gui/documents/LocalizationDocument.h"
 #include "util/Profiler.h"
 
@@ -83,10 +84,10 @@ std::vector<const char*> TerritoryList =
     "wcdlc9"
 };
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization, TextureIndex* textureSearchIndex)
 {
     TRACE();
-    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager, config, localization };
+    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager, config, localization, textureSearchIndex };
 
     //Ensure that values used by the UI exist
     State.Config->EnsureVariableExists("Show FPS", ConfigType::Bool);
@@ -260,6 +261,29 @@ void MainGui::Update(f32 deltaTime)
         }
         openRecentProjectRequested_ = false;
     }
+
+    //Draw texture search index generation modal
+    if (showTextureSearchGenPopup_)
+    {
+        const char* popupName = "Generating texture search index";
+        ImGui::OpenPopup(popupName);
+        if (ImGui::BeginPopupModal(popupName))
+        {
+            ImGui::Text(State.TextureSearchIndex->TextureIndexGenTaskStatus.c_str());
+            ImGui::ProgressBar(State.TextureSearchIndex->TextureIndexGenTaskProgressFraction);
+
+            if (State.TextureSearchIndex->TextureIndexGenTask->Completed())
+            {
+                if (ImGui::Button("Close"))
+                {
+                    showTextureSearchGenPopup_ = false;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+
+            ImGui::EndPopup();
+        }
+    }
 }
 
 void MainGui::SaveFocusedDocument()
@@ -416,6 +440,13 @@ void MainGui::DrawMainMenuBar()
 
                 ImGui::EndMenu();
             }
+#ifdef DEBUG
+            if (ImGui::MenuItem("Generate texture search index") && !showTextureSearchGenPopup_)
+            {
+                State.TextureSearchIndex->StartTextureIndexGeneration();
+                showTextureSearchGenPopup_ = true;
+            }
+#endif
             ImGui::EndMenu();
         }
 

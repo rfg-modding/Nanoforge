@@ -116,16 +116,18 @@ R"(# Links
 
 # Changelog
 ## v0.19.0 - High resolution terrain + Mesh viewer improvements
-This release adds support for high lod terrain meshes and high resolution terrain textures (see it via `Tools > Open Territory`). It also fixes some mesh rendering bugs and improves mesh texture search to stall less often.
+This release adds support for high lod terrain meshes and high resolution terrain textures (see it via `Tools > Open Territory`). It also fixes some mesh rendering bugs and has a much quicker texture search that fails less often.
 
 ### Changes
-  * Higher quality terrain meshes and textures. Low lod terrain is used past a certain distance which is adjustable in the territory viewer.
+  * High resolution terrain meshes and textures in the map viewer. Can be disabled via `File > Settings`. Doesn't exactly match in game appearance yet. Loading the main map with high res terrain may use a lot of RAM until loading is complete. This can be lowered by decreasing the thread limit in `File > Settings`.
   * You can now export meshes before all textures are found. That way you can still export meshes if texture searching is taking a long time.
+  * The file cache used by previous versions was removed since it had minimal benefits. You can delete your 'Cache' folder if you're installing over an old version.
   * Added LOD level selector for meshes that have multiple lod levels.
-  * Added task scheduler to prevent excessive CPU usage. The effect of this is that `File > Settings` has a MaxThreads setting. This lets you limit how many threads can be used by background tasks. By default it saves 2 threads for your system to avoid lagging your entire PC during intensive tasks like level loading. Note: Nanoforge will show more threads than your max in task manager, but most of these are system or driver threads that are idle most of the time.
-  * Added 'Tasks' button at the bottom left of the screen that shows a list of active background tasks when clicked.
+  * Better use of normal maps in mesh viewer
+  * Nanoforge now limits the number of threads it uses for background tasks.  `File > Settings` has a MaxThreads setting. This lets you limit how many threads can be used by background tasks. By default it saves 2 threads for your system to avoid lagging your entire PC during intensive tasks like level loading.
+  * Added 'Tasks' button at the bottom left of the screen that shows the status of background tasks when clicked.
   * BUG: Fixed mesh rendering and export bugs like erroneous triangles and inside out meshes. Occurred when meshes consisted of multiple submeshes.
-  * BUG: Fixed most infinite texture searches in the mesh viewer. Some still may take a long time.
+  * BUG: Fixed slow texture searches in the mesh viewer.
   * BUG: Fixed missing triangles in low lod terrain.
   * BUG: Fixed a crash when minimizing a window while a mesh or territory viewer is open.
 

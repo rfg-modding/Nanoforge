@@ -4,6 +4,7 @@
 #include "application/Config.h"
 #include "util/TaskScheduler.h"
 #include "util/Profiler.h"
+#include "rfg/TextureIndex.h"
 #include "Log.h"
 #include <future>
 
@@ -22,6 +23,9 @@ void DataFolderParseTask(Handle<Task> task, GuiState* state)
 
     //Load localization strings from rfglocatext files
     state->Localization->LoadLocalizationData();
+
+    //Load texture search data
+    state->TextureSearchIndex->Load();
 
     state->ClearStatus();
 }

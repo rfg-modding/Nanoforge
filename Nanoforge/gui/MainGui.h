@@ -14,12 +14,13 @@ class DX11Renderer;
 class Project;
 class Config;
 class Localization;
+class TextureIndex;
 
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
 {
 public:
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization, TextureIndex* textureSearchIndex);
     void Update(f32 deltaTime);
     void SaveFocusedDocument();
 
@@ -42,6 +43,7 @@ private:
     bool showOpenProjectWindow_ = false;
     bool showSaveProjectWindow_ = false;
     bool showSettingsWindow_ = false;
+    bool showTextureSearchGenPopup_ = false;
     bool openProjectRequested_ = false;
     bool closeProjectRequested_ = false;
     bool openRecentProjectRequested_ = false;

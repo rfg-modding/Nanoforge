@@ -28,6 +28,10 @@ void Texture2D::Create(ComPtr<ID3D11Device> d3d11Device, u32 width, u32 height, 
     HRESULT result = d3d11Device->CreateTexture2D(&textureDesc, data, texture_.GetAddressOf());
     if (!texture_)
         THROW_EXCEPTION("Failed to create Texture2D. Result: {}", result);
+
+#ifdef DEBUG_BUILD
+    SetDebugName(texture_.Get(), Name);
+#endif
 }
 
 void Texture2D::CreateRenderTargetView()

@@ -5,6 +5,7 @@
 #include "render/backend/DX11Renderer.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
+#include "rfg/TextureIndex.h"
 #include "rfg/xtbl/XtblManager.h"
 #include "rfg/Localization.h"
 #include "gui/MainGui.h"
@@ -44,6 +45,7 @@ private:
     DX11Renderer renderer_;
     ImGuiFontManager fontManager_;
     PackfileVFS packfileVFS_;
+    TextureIndex textureSearchIndex_;
     XtblManager xtblManager_;
     Project project_;
     Localization localization_;

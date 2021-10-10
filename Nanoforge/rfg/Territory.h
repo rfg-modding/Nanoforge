@@ -1,6 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "PackfileVFS.h"
+#include "rfg/TextureIndex.h"
 #include "common/timing/Timer.h"
 #include "rfg/TerrainHelpers.h"
 #include "render/resources/Scene.h"
@@ -71,10 +72,10 @@ public:
 private:
     void LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state); //Top level loading thread
     void LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Packfile3* packfile, const char* zoneFilename); //Loads a single zone and its assets
-    //Find and load RFG texture (cvbm or cpeg) and create a renderer texture from its first subtexture
-    std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, PackfileVFS* vfs, const string& textureName);
+    //Load texture (xxx.tga) and create a render texture from it. Textures are cached to prevent repeat loads
+    std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, const string& textureName);
+
     void SetZoneShortName(ZoneData& zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
-    std::unordered_map<string, Texture2D> textureCache_; //Textures loaded during territory load are cached to prevent repeat loads. Cleared once territory is done loading.
 
     PackfileVFS* packfileVFS_ = nullptr;
     string territoryFilename_; //Name of the vpp_pc file that zone data is loaded from at startup
@@ -83,4 +84,5 @@ private:
     bool loadThreadShouldStop_ = false;
     bool loadThreadRunning_ = false;
     bool useHighLodTerrain_ = true;
+    std::unordered_map<string, Texture2D> textureCache_; //Textures loaded during territory load are cached to prevent repeat loads. Cleared once territory is done loading.
 };

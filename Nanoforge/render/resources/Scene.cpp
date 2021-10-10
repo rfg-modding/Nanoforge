@@ -7,13 +7,6 @@
 #include "render/Render.h"
 #include "util/Profiler.h"
 
-//Todo: Stick this in a debug namespace
-void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
-{
-    if (child != nullptr)
-        child->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<u32>(name.size()), name.c_str());
-}
-
 void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, Config* config)
 {
     d3d11Device_ = d3d11Device;

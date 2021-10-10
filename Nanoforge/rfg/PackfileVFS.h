@@ -1,5 +1,6 @@
 #pragma once
 #include "FileHandle.h"
+#include "util/TaskScheduler.h"
 #include <RfgTools++\formats\packfiles\Packfile3.h>
 #include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\formats\asm\AsmFile5.h>
@@ -25,20 +26,22 @@ public:
 
     //Scans metadata of all vpps in the data folder and loads the global file cache
     void ScanPackfilesAndLoadCache();
-    //Todo: Add support for C&C vpp_pc files. Supports C&C str2_pc files since they're small enough that full extract is reasonable
+
     //Gets files based on the provided search pattern. Searches str2_pc files if recursive is true.
-    //NOTE: Does not support vpp_pc files which are compressed + condensed (does support str2_pc files with those flags)
     std::vector<FileHandle> GetFiles(const std::vector<string>& searchFilters, bool recursive, bool oneResultPerFilter = false);
     std::vector<FileHandle> GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool oneResultPerFilter = false);
     std::vector<FileHandle> GetFiles(const string& filter, bool recursive, bool oneResultPerFilter = false);
     //Overload that only searches in a single packfile
     std::vector<FileHandle> GetFiles(const string& packfileName, const string& filter, bool recursive, bool oneResultPerFilter = false);
+    //Extract a file using it's path. E.g. "humans.vpp_pc/rfg_PC.str2_pc/mason_head.cpeg_pc". Caller must free span memory if successful
+    std::optional<std::span<u8>> GetFileBytes(const string& filePath);
 
     //Todo: Ensure these stay valid if we start changing packfiles_ after init. May want some handle class that can return packfiles
     //Attempt to get a packfile. Returns nullptr if it fails to find the packfile
-    Packfile3* GetPackfile(const string& name);
+    Packfile3* GetPackfile(const std::string_view name);
     //Get a container packfile (a .str2_pc file that's inside a .vpp_pc). Note: Caller must call container Cleanup() function and free it themselves
-    Packfile3* GetContainer(const string& name, const string& parentName);
+    Packfile3* GetContainer(const std::string_view name, const std::string_view parentName);
+
     //If true this class is ready for use by guis / other code
     bool Ready() const { return ready_; }
 

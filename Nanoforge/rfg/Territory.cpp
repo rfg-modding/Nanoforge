@@ -295,8 +295,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         EarlyStopCheck();
 
         //Load comb and ovl textures, used to color and light low lod terrain, respectively.
-        texture0 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, terrainName + "comb.cvbm_pc");
-        texture1 = LoadTexture(scene->d3d11Device_, state->PackfileVFS, terrainName + "_ovl.cvbm_pc");
+        texture0 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "comb.tga");
+        texture1 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_ovl.tga");
 
         //Initialize low lod terrain
         for (u32 i = 0; i < 9; i++)
@@ -403,8 +403,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         }
 
         //Load blend texture
-        blendTexture = LoadTexture(scene->d3d11Device_, state->PackfileVFS, terrainName + "_alpha00.cvbm_pc");
-        combTexture = LoadTexture(scene->d3d11Device_, state->PackfileVFS, terrainName + "comb.cvbm_pc");
+        blendTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_alpha00.tga");
+        combTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "comb.tga");
 
         //Locate and load high lod terrain textures
         u32 terrainTextureIndex = 0;
@@ -442,8 +442,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             }
 
             //Load textures
-            materialTextures[numTerrainTextures * 2] = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(current, ".tga", ".cvbm_pc"));
-            materialTextures[numTerrainTextures * 2 + 1] = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(next, ".tga", ".cvbm_pc"));
+            materialTextures[numTerrainTextures * 2] = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, current);
+            materialTextures[numTerrainTextures * 2 + 1] = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, next);
 
             numTerrainTextures++;
             terrainTextureIndex += 2;
@@ -542,8 +542,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
                 }
 
                 //Load textures
-                roadTextures[numRoadTextures * 2] = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(current, ".tga", ".cvbm_pc"));
-                roadTextures[numRoadTextures * 2 + 1] = LoadTexture(scene->d3d11Device_, state->PackfileVFS, String::Replace(next, ".tga", ".cvbm_pc"));
+                roadTextures[numRoadTextures * 2] = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, current);
+                roadTextures[numRoadTextures * 2 + 1] = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, next);
 
                 numRoadTextures++;
                 roadTextureIndex += 2;
@@ -592,113 +592,21 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     EarlyStopCheck();
 }
 
-std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device, PackfileVFS* vfs, const string& textureName)
+std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, const string& textureName)
 {
     PROFILER_FUNCTION();
 
     //Check if the texture was already loaded
     auto cacheSearch = textureCache_.find(String::ToLower(textureName));
     if (cacheSearch != textureCache_.end())
-    {
         return cacheSearch->second;
-    }
 
-    //Search for texture
-    std::vector<FileHandle> search = vfs->GetFiles(textureName, true, true);
-    if (search.size() == 0)
-    {
-        Log->warn("Couldn't find {} for {}.", textureName, territoryFilename_);
-        return {};
-    }
+    //Load texture
+    std::optional<Texture2D> texture = textureSearchIndex->GetRenderTexture(textureName, d3d11Device);
+    if (texture.has_value()) //Cache texture if successful
+        textureCache_[String::ToLower(textureName)] = texture.value();
 
-    //Get texture packfile
-    FileHandle& handle = search[0];
-    auto* packfile = handle.InContainer() ? handle.GetContainer() : handle.GetPackfile();
-    if (!packfile)
-        THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
-
-    //Extract texture
-    auto cpuFileBytes = packfile->ExtractSingleFile(textureName, true);
-    auto gpuFileBytes = packfile->ExtractSingleFile(RfgUtil::CpuFilenameToGpuFilename(textureName), true);
-    if (!cpuFileBytes)
-    {
-        if (handle.InContainer())
-            delete packfile;
-
-        THROW_EXCEPTION("Failed to extract texture cpu file {}", textureName);
-    }
-    if (!gpuFileBytes)
-    {
-        if (handle.InContainer())
-            delete packfile;
-
-        THROW_EXCEPTION("Failed to extract texture gpu file {}", textureName);
-    }
-
-    //Read pixel data
-    BinaryReader cpuFile(cpuFileBytes.value());
-    BinaryReader gpuFile(gpuFileBytes.value());
-    PegFile10 peg;
-    peg.Read(cpuFile);
-    peg.ReadTextureData(gpuFile, peg.Entries[0]);
-    PegEntry10& entry = peg.Entries[0];
-    auto pixels = peg.GetTextureData(0);
-    if (!pixels)
-    {
-        if (handle.InContainer())
-            delete packfile;
-
-        peg.Cleanup();
-        Log->warn("Failed to extract pixel data for terrain blend texture {}", textureName);
-        return {};
-    }
-
-    //Create renderer texture
-    bool srgb = (peg.Flags & 512) != 0;
-    DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
-    std::vector<D3D11_SUBRESOURCE_DATA> textureData;
-    {
-        //Generate subresource data entry for each mip level
-        u64 dataOffset = 0;
-        u32 width = entry.Width;
-        u32 height = entry.Height;
-        for (u32 i = 0; i < entry.MipLevels; i++)
-        {
-            D3D11_SUBRESOURCE_DATA& textureSubresourceData = textureData.emplace_back();
-            textureSubresourceData.pSysMem = pixels.value().data() + dataOffset;
-            textureSubresourceData.SysMemSlicePitch = 0;
-            textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(format, width);
-
-            if (entry.BitmapFormat == PegFormat::PC_DXT1)
-                dataOffset += 8 * (width * height / (4 * 4)); //8 bytes per 4x4 pixel block
-            if (entry.BitmapFormat == PegFormat::PC_DXT3)
-                dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
-            if (entry.BitmapFormat == PegFormat::PC_DXT5)
-                dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
-
-            width /= 2;
-            height /= 2;
-        }
-    }
-
-    Texture2D texture2d;
-    texture2d.Name = textureName;
-    texture2d.Create(d3d11Device, entry.Width, entry.Height, format, D3D11_BIND_SHADER_RESOURCE, textureData.data(), peg.Entries[0].MipLevels);
-    texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
-    texture2d.CreateSampler(); //Need sampler too
-
-    //Cleanup resources
-    peg.Cleanup();
-    if (handle.InContainer())
-        delete packfile;
-
-    delete[] cpuFileBytes.value().data();
-    delete[] gpuFileBytes.value().data();
-
-    //Cache the texture to prevent repeat loads
-    textureCache_[String::ToLower(textureName)] = texture2d;
-
-    return texture2d;
+    return texture;
 }
 
 bool Territory::ShouldShowObjectClass(u32 classnameHash)

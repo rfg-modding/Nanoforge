@@ -67,10 +67,11 @@ void Application::Init()
     gui::SetThemePreset(ThemePreset::Dark);
 
     packfileVFS_.Init(std::get<string>(dataPath->Value), &project_);
+    textureSearchIndex_.Init(&packfileVFS_);
     xtblManager_.Init(&packfileVFS_);
     localization_.Init(&packfileVFS_, &config_);
 
-    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_);
+    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_, &textureSearchIndex_);
 
     MaximizeWindow();
 

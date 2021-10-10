@@ -143,8 +143,9 @@ namespace PegHelpers
         entry.Edited = true;
     }
 
-    DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input, bool srgb)
+    DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input, u16 flags)
     {
+        bool srgb = (flags & 512) != 0;
         if (input == PegFormat::PC_DXT1)
             return srgb ? DXGI_FORMAT_BC1_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM; //DXT1
         else if (input == PegFormat::PC_DXT3)
@@ -236,5 +237,36 @@ namespace PegHelpers
             return 16 * (numPixels / 4);
         else if (format == DXGI_FORMAT_R8G8B8A8_UNORM || format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB) //RGBA, 8 bits per pixel
             return 4 * numPixels;
+    }
+
+    std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(PegEntry10& entry, u16 pegFlags, std::span<u8> pixels)
+    {
+        std::vector<D3D11_SUBRESOURCE_DATA> subresourceDatas = {};
+        DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, pegFlags);
+
+        //Generate D3D11_SUBRESOURCE_DATA for each mip level
+        u64 dataOffset = 0;
+        u32 width = entry.Width;
+        u32 height = entry.Height;
+        for (u32 i = 0; i < entry.MipLevels; i++)
+        {
+            D3D11_SUBRESOURCE_DATA& textureSubresourceData = subresourceDatas.emplace_back();
+            textureSubresourceData.pSysMem = pixels.data() + dataOffset;
+            textureSubresourceData.SysMemSlicePitch = 0;
+            textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(format, width);
+
+            //Note: Only other texture format known to be used by the game is PC_8888, which so far doesn't ever have multiple mip levels
+            if (entry.BitmapFormat == PegFormat::PC_DXT1)
+                dataOffset += 8 * (width * height / (4 * 4)); //8 bytes per 4x4 pixel block
+            if (entry.BitmapFormat == PegFormat::PC_DXT3)
+                dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
+            if (entry.BitmapFormat == PegFormat::PC_DXT5)
+                dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
+
+            width /= 2;
+            height /= 2;
+        }
+
+        return subresourceDatas;
     }
 }

@@ -13,6 +13,7 @@
 #include <imgui_internal.h>
 #include <optional>
 #include "util/Profiler.h"
+#include "rfg/TextureIndex.h"
 
 StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
@@ -274,30 +275,30 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
                 string diffuseMapName = "";
                 string specularMapPath = "";
                 string normalMapPath = "";
-                if (DiffuseMapPegPath != "")
-                {
-                    string cpuFilePath = DiffuseMapPegPath;
-                    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, DiffuseTextureName, MeshExportPath + "\\");
-                    diffuseMapName = String::Replace(DiffuseTextureName, ".tga", ".dds");
-                }
-                if (SpecularMapPegPath != "")
-                {
-                    string cpuFilePath = SpecularMapPegPath;
-                    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, SpecularTextureName, MeshExportPath + "\\");
-                    specularMapPath = String::Replace(SpecularTextureName, ".tga", ".dds");
-                }
-                if (NormalMapPegPath != "")
-                {
-                    string cpuFilePath = NormalMapPegPath;
-                    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, NormalTextureName, MeshExportPath + "\\");
-                    normalMapPath = String::Replace(NormalTextureName, ".tga", ".dds");
-                }
+                //if (DiffuseMapPegPath != "")
+                //{
+                //    string cpuFilePath = DiffuseMapPegPath;
+                //    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
+                //    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, DiffuseTextureName, MeshExportPath + "\\");
+                //    diffuseMapName = String::Replace(DiffuseTextureName, ".tga", ".dds");
+                //}
+                //if (SpecularMapPegPath != "")
+                //{
+                //    string cpuFilePath = SpecularMapPegPath;
+                //    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
+                //    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, SpecularTextureName, MeshExportPath + "\\");
+                //    specularMapPath = String::Replace(SpecularTextureName, ".tga", ".dds");
+                //}
+                //if (NormalMapPegPath != "")
+                //{
+                //    string cpuFilePath = NormalMapPegPath;
+                //    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
+                //    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, NormalTextureName, MeshExportPath + "\\");
+                //    normalMapPath = String::Replace(NormalTextureName, ".tga", ".dds");
+                //}
 
                 //Write mesh to obj
-                StaticMesh.WriteToObj(GpuFilePath, MeshExportPath, diffuseMapName, specularMapPath, normalMapPath);
+                //StaticMesh.WriteToObj(GpuFilePath, MeshExportPath, diffuseMapName, specularMapPath, normalMapPath);
             }
         }
         if (!meshExportEnabled_)
@@ -417,73 +418,55 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
         string textureNameLower = String::ToLower(textureName);
         if (!foundDiffuse && String::Contains(textureNameLower, "_d"))
         {
-            std::optional<Texture2D_Ext> texture = FindTexture(state, textureNameLower, true);
+            std::optional<Texture2D> texture = state->TextureSearchIndex->GetRenderTexture(textureName, Scene->d3d11Device_, true);
             if (texture)
             {
-                Log->info("Found diffuse texture {} for {}", texture->Texture.Name, Filename);
+                Log->info("Found diffuse texture {} for {}", textureName, Filename);
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->Textures[0] = texture.value().Texture;
+                renderObject->Textures[0] = texture.value();
+                DiffuseTextureName = textureName;
                 foundDiffuse = true;
-
-                //Store path for exporting
-                if (DiffuseMapPegPath == "")
-                {
-                    DiffuseMapPegPath = texture.value().CpuFilePath;
-                    DiffuseTextureName = texture.value().Texture.Name;
-                }
             }
             else
             {
-                Log->warn("Failed to find diffuse texture {} for {}", textureNameLower, Filename);
+                Log->warn("Failed to find diffuse texture {} for {}", textureName, Filename);
             }
         }
         else if (!foundNormal && String::Contains(textureNameLower, "_n"))
         {
-            std::optional<Texture2D_Ext> texture = FindTexture(state, textureNameLower, true);
+            std::optional<Texture2D> texture = state->TextureSearchIndex->GetRenderTexture(textureName, Scene->d3d11Device_, true);
             if (texture)
             {
-                Log->info("Found normal map {} for {}", texture->Texture.Name, Filename);
+                Log->info("Found normal map {} for {}", textureName, Filename);
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->Textures[2] = texture.value().Texture;
+                renderObject->Textures[2] = texture.value();
+                NormalTextureName = textureName;
                 foundNormal = true;
-
-                //Store path for exporting
-                if (NormalMapPegPath == "")
-                {
-                    NormalMapPegPath = texture.value().CpuFilePath;
-                    NormalTextureName = texture.value().Texture.Name;
-                }
             }
             else
             {
-                Log->warn("Failed to find normal map {} for {}", textureNameLower, Filename);
+                Log->warn("Failed to find normal map {} for {}", textureName, Filename);
             }
         }
         else if (!foundSpecular && String::Contains(textureNameLower, "_s"))
         {
-            std::optional<Texture2D_Ext> texture = FindTexture(state, textureNameLower, true);
+            std::optional<Texture2D> texture = state->TextureSearchIndex->GetRenderTexture(textureName, Scene->d3d11Device_, true);
             if (texture)
             {
-                Log->info("Found specular map {} for {}", texture->Texture.Name, Filename);
+                Log->info("Found specular map {} for {}", textureName, Filename);
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
-                renderObject->Textures[1] = texture.value().Texture;
+                renderObject->Textures[1] = texture.value();
+                SpecularTextureName = textureName;
                 foundSpecular = true;
-
-                //Store path for exporting
-                if (SpecularMapPegPath == "")
-                {
-                    SpecularMapPegPath = texture.value().CpuFilePath;
-                    SpecularTextureName = texture.value().Texture.Name;
-                }
             }
             else
             {
-                Log->warn("Failed to find specular map {} for {}", textureNameLower, Filename);
+                Log->warn("Failed to find specular map {} for {}", textureName, Filename);
             }
         }
     }
@@ -502,228 +485,4 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
     WorkerStatusString = "Done! " ICON_FA_CHECK;
     Log->info("Worker thread for {} finished.", Title);
-}
-
-//Used by texture search functions to stop the search early if mesh load task is cancelled
-#define TaskEarlyExitCheck2() if (meshLoadTask_->Cancelled()) return {};
-
-//Finds a texture and creates a directx texture resource from it. textureName is the textureName of a texture inside a cpeg/cvbm. So for example, sledgehammer_high_n.tga, which is in sledgehammer_high.cpeg_pc
-//Will try to find a high res version of the texture first if lookForHighResVariant is true.
-//Will return a default texture if the target isn't found.
-std::optional<Texture2D_Ext> StaticMeshDocument::FindTexture(GuiState* state, const string& name, bool lookForHighResVariant)
-{
-    PROFILER_FUNCTION();
-
-    //Look for high res variant if requested and string fits high res search requirements
-    if (lookForHighResVariant && String::Contains(name, "_low_"))
-    {
-        //Replace _low_ with _. This is the naming scheme I've seen many high res variants follow
-        string highResName = String::Replace(name, "_low_", "_");
-        auto texture = GetTexture(state, highResName, false);
-
-        //Return high res variant if it was found
-        if (texture)
-            return texture;
-    }
-    TaskEarlyExitCheck2();
-
-    //Else look for the specified texture
-    return GetTexture(state, name, true);
-}
-
-std::optional<Texture2D_Ext> StaticMeshDocument::GetTexture(GuiState* state, const string& textureName, bool useLastResortSearches)
-{
-    PROFILER_FUNCTION();
-
-    //Search parent vpp
-    TaskEarlyExitCheck2();
-    WorkerStatusString = fmt::format("Searching for textures in {}...", VppName);
-    auto parentSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile(VppName), textureName);
-    if (parentSearchResult)
-        return parentSearchResult;
-
-    if (useLastResortSearches)
-    {
-        if (String::Contains(textureName, "rayen_haira"))
-        {
-            WorkerStatusString = fmt::format("Searching for textures in dlcp01_items.vpp_pc...");
-            auto parentSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("dlcp01_items.vpp_pc"), textureName);
-            if (parentSearchResult)
-                return parentSearchResult;
-        }
-        if (String::Contains(textureName, "edf_mpc_biggun"))
-        {
-            WorkerStatusString = fmt::format("Searching for textures in terr01_l1.vpp_pc...");
-            auto parentSearchResult = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile("terr01_l1.vpp_pc"), textureName);
-            if (parentSearchResult)
-                return parentSearchResult;
-        }
-
-        //Search some other vpps that commonly have mesh textures
-        static const std::vector<string> searchList =
-        {
-            "dlc01_precache.vpp_pc",
-            "items.vpp_pc",
-            "dlcp01_items.vpp_pc",
-            "terr01_l1.vpp_pc",
-            "terr01_l0.vpp_pc",
-            "vehicles_r.vpp_pc"
-        };
-        for (auto& packfile : searchList)
-        {
-            WorkerStatusString = fmt::format("Searching for textures in {}...", packfile);
-            auto result = GetTextureFromPackfile(state, state->PackfileVFS->GetPackfile(packfile), textureName);
-            if (result)
-                return result;
-        }
-
-        //As a last resort search every file
-        for (Packfile3& packfile : state->PackfileVFS->packfiles_)
-        {
-            WorkerStatusString = fmt::format("Searching all packfiles for textures as a last resort. This could take a while...");
-            auto result = GetTextureFromPackfile(state, &packfile, textureName);
-            if (result)
-                return result;
-        }
-    }
-
-    return {};
-}
-
-//Tries to find a cpeg with a subtexture with the provided name and create a Texture2D from it. Searches all cpeg/cvbm files in packfile. First checks pegs then searches in str2s
-std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPackfile(GuiState* state, Packfile3* packfile, const string& textureName)
-{
-    PROFILER_FUNCTION();
-
-    if (!packfile)
-        return {};
-
-    //First search top level cpeg/cvbm files
-    for (u32 i = 0; i < packfile->Entries.size(); i++)
-    {
-        TaskEarlyExitCheck2();
-
-        Packfile3Entry& entry = packfile->Entries[i];
-        const char* entryName = packfile->EntryNames[i];
-        string ext = Path::GetExtension(entryName);
-
-        //Try to get texture from each cpeg/cvbm
-        if (ext == ".cpeg_pc" || ext == ".cvbm_pc")
-        {
-            auto texture = GetTextureFromPeg(state, packfile->Name(), packfile->Name(), entryName, textureName, false);
-            if (texture)
-                return texture;
-        }
-    }
-
-    //Then search inside each str2
-    for (u32 i = 0; i < packfile->Entries.size(); i++)
-    {
-        //Check if the document was closed. If so, end worker thread early
-        TaskEarlyExitCheck2();
-
-        Packfile3Entry& entry = packfile->Entries[i];
-        const char* entryName = packfile->EntryNames[i];
-        string ext = Path::GetExtension(entryName);
-
-        //Try to get texture from each str2
-        if (ext == ".str2_pc")
-        {
-            //Find container
-            auto containerBytes = packfile->ExtractSingleFile(entryName, false);
-            if (!containerBytes)
-                continue;
-
-            //Parse container and get file byte buffer
-            Packfile3 container(containerBytes.value());
-            container.SetName(entryName);
-            container.ReadMetadata();
-            for (u32 i = 0; i < container.Entries.size(); i++)
-            {
-                TaskEarlyExitCheck2();
-
-                Packfile3Entry& entry = container.Entries[i];
-                const char* entryName = container.EntryNames[i];
-                string ext = Path::GetExtension(entryName);
-
-                //Try to get texture from each cpeg/cvbm
-                if (ext == ".cpeg_pc" || ext == ".cvbm_pc")
-                {
-                    auto texture = GetTextureFromPeg(state, packfile->Name(), container.Name(), entryName, textureName, true);
-                    if (texture)
-                        return texture;
-                }
-            }
-        }
-    }
-
-    //If didn't find texture at this point then failed. Return empty
-    return {};
-}
-
-//Tries to open a cpeg/cvbm pegName in the provided packfile and create a Texture2D from a sub-texture with the name textureName
-std::optional<Texture2D_Ext> StaticMeshDocument::GetTextureFromPeg(GuiState* state,
-    const string& vppName, //Name of the vpp_pc the peg or it's parent is in
-    const string& parentName, //If inContainer == true this is the name of str2_pc the peg is in. Else it is the same as VppName
-    const string& pegName, //Name of the cpeg_pc or cvbm_pc file that holds the target texture
-    const string& textureName, //Name of the target texture. E.g. "sledgehammer_d.tga"
-    bool inContainer) //Whether or not the cpeg_pc/cvbm_pc is in a str2_pc file or not
-{
-    PROFILER_FUNCTION();
-
-    //Get gpu filename
-    string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(pegName);
-
-    Packfile3* packfile = inContainer ? state->PackfileVFS->GetContainer(parentName, vppName) : state->PackfileVFS->GetPackfile(vppName);
-    if(inContainer)
-        packfile->ReadMetadata();
-    std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(pegName, true).value();
-    std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFilename, true).value();
-
-    BinaryReader cpuFileReader(cpuFileBytes);
-    BinaryReader gpuFileReader(gpuFileBytes);
-
-    //Parse peg file
-    std::optional<Texture2D_Ext> out = {};
-    PegFile10 peg;
-    peg.Read(cpuFileReader);
-
-    //See if target texture is in peg. If so extract it and create a Texture2D from it
-    for (auto& entry : peg.Entries)
-    {
-        if (String::EqualIgnoreCase(entry.Name, textureName))
-        {
-            peg.ReadTextureData(gpuFileReader, entry);
-            std::span<u8> textureData = entry.RawData;
-
-            //Create and setup texture2d
-            Texture2D texture2d;
-            texture2d.Name = textureName;
-            bool srgb = (peg.Flags & 512) != 0;
-            DXGI_FORMAT dxgiFormat = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
-            D3D11_SUBRESOURCE_DATA textureSubresourceData;
-            textureSubresourceData.pSysMem = textureData.data();
-            textureSubresourceData.SysMemSlicePitch = 0;
-            textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(dxgiFormat, entry.Width);
-
-            state->Renderer->ContextMutex.lock(); //Lock ID3D11DeviceContext mutex. Only one thread allowed to access it at once
-            texture2d.Create(Scene->d3d11Device_, entry.Width, entry.Height, dxgiFormat, D3D11_BIND_SHADER_RESOURCE, &textureSubresourceData);
-            texture2d.CreateSampler(); //Create sampler for shader use
-            texture2d.CreateShaderResourceView();
-            state->Renderer->ContextMutex.unlock();
-
-            out = Texture2D_Ext{ .Texture = texture2d, .CpuFilePath = pegName };
-            break;
-        }
-    }
-
-    if (inContainer)
-        delete packfile;
-
-    delete[] cpuFileBytes.data();
-    delete[] gpuFileBytes.data();
-
-    //Release allocated memory and return output
-    peg.Cleanup();
-    return out;
 }

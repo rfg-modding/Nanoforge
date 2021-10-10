@@ -1,6 +1,7 @@
 #include "DX11Helpers.h"
 #include "Log.h"
 #include <d3dcompiler.h>
+#include <d3d11.h>
 #include <iostream>
 
 HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut, const char* defines)
@@ -29,4 +30,10 @@ HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCS
         pErrorBlob->Release();
 
     return S_OK;
+}
+
+void SetDebugName(ID3D11DeviceChild* child, const std::string& name)
+{
+    if (child != nullptr)
+        child->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<u32>(name.size()), name.c_str());
 }

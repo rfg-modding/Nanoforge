@@ -3,14 +3,11 @@
 #include "common/filesystem/File.h"
 #include "common/string/String.h"
 #include "application/project/Project.h"
-#include <RfgTools++/formats/textures/PegFile10.h>
 #include "Log.h"
 #include <filesystem>
 #include <iostream>
+#include <tuple>
 #include <ext/WindowsWrapper.h>
-
-//Global file cache path. Extracted files are put in this folder to avoid repeat extractions
-const string globalCachePath_ = ".\\Cache\\";
 
 void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
 {
@@ -67,11 +64,6 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchF
         //Loop through packfiles
         for (auto& packfile : packfiles_)
         {
-            //Todo: Add support for C&C packfiles
-            //C&C files not supported since single file extraction isn't supported yet for them
-            if (packfile.Compressed && packfile.Condensed)
-                continue;
-
             //Loop through all files in the packfile
             for (u32 i = 0; i < packfile.Entries.size(); i++)
             {
@@ -178,6 +170,72 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const string& packfileName, const 
     return handles;
 }
 
+std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
+{
+    //Split path by '/' into components
+    std::string_view packfile, container, file;
+    std::vector<std::string_view> split = String::SplitString(filePath, "/");
+    switch (split.size())
+    {
+    case 2: //Packfile/file
+        packfile = split[0];
+        file = split[1];
+        break;
+    case 3: //Packfile/container/file
+        packfile = split[0];
+        container = split[1];
+        file = split[2];
+        break;
+    case 4: //Packfile/container/file/subfile
+        packfile = split[0];
+        container = split[1];
+        file = split[2];
+        break;
+    case 0: //Empty path
+        Log->error("Empty path passed to PackfileVFS::GetFileBytes(). Can't parse.");
+    case 1: //Packfile/
+        Log->error("Invalid path passed to PackfileVFS::GetFileBytes(). Filename isn't present, can't parse.");
+    default:
+        return {};
+        break;
+    }
+
+    //Validate path components
+    if (Path::GetExtension(packfile) != ".vpp_pc")
+    {
+        Log->error("Invalid path passed to PackfileVFS::GetFileBytes(). Packfile extension is wrong. Expected '.vpp_pc', found {}", Path::GetExtension(packfile));
+        return {};
+    }
+    if (container != "" && Path::GetExtension(container) != ".str2_pc")
+    {
+        Log->error("Invalid path passed to PackfileVFS::GetFileBytes(). Container extension is wrong. Expected '.str2_pc', found {}", Path::GetExtension(container));
+        return {};
+    }
+    bool hasContainer = (container != "");
+
+    //Get packfile that contains target file
+    Packfile3* parent = hasContainer ? GetContainer(container, packfile) : GetPackfile(packfile);
+    if (!parent)
+    {
+        Log->error("Failed to extract parent file in PackfileVFS::GetFileBytes().");
+        return {};
+    }
+
+    //Extract file
+    std::optional<std::span<u8>> bytes = parent->ExtractSingleFile(file, true);
+    if (!bytes)
+    {
+        Log->error("Failed to extract target file '{}' in PackfileVFS::GetFileBytes()", file);
+        return {};
+    }
+
+    //Cleanup parent if it's a container. Dont need to clean up packfiles since they're permanantly held in memory
+    if (hasContainer)
+        delete parent;
+
+    return bytes;
+}
+
 std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool findOne)
 {
     return GetFiles(std::vector<string>(searchFilters), recursive, findOne);
@@ -189,7 +247,7 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const string& filter, bool recursi
     return GetFiles(std::vector<string>{filter}, recursive, findOne);
 }
 
-Packfile3* PackfileVFS::GetPackfile(const string& name)
+Packfile3* PackfileVFS::GetPackfile(const std::string_view name)
 {
     for (auto& packfile : packfiles_)
     {
@@ -199,7 +257,7 @@ Packfile3* PackfileVFS::GetPackfile(const string& name)
     return nullptr;
 }
 
-Packfile3* PackfileVFS::GetContainer(const string& name, const string& parentName)
+Packfile3* PackfileVFS::GetContainer(const std::string_view name, const std::string_view parentName)
 {
     Packfile3* packfile = GetPackfile(parentName);
     if (!packfile)
@@ -213,7 +271,7 @@ Packfile3* PackfileVFS::GetContainer(const string& name, const string& parentNam
         THROW_EXCEPTION("Failed to get packfile '{}' from '{}'", name, parentName);
 
     container->ReadMetadata();
-    container->SetName(name);
+    container->SetName(string(name));
     return container;
 }
 

@@ -23,6 +23,7 @@ class GuiState;
 class Project;
 class Config;
 class Localization;
+class TextureIndex;
 struct FileExplorerNode;
 //Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
 using PropertyPanelContentFunc = void(GuiState* state);
@@ -38,6 +39,7 @@ public:
     XtblManager* Xtbls = nullptr;
     Config* Config = nullptr;
     Localization* Localization = nullptr;
+    TextureIndex* TextureSearchIndex = nullptr;
 
     //Most recently selected territory. If you have multiple territories open this is the most recently selected window
     Territory* CurrentTerritory = nullptr;
