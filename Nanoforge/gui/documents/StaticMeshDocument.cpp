@@ -332,11 +332,18 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
     TaskEarlyExitCheck();
 
-    //Get mesh data
+    //Read packfile holding the mesh
     Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+    defer(if (InContainer) delete packfile);
+    if (!packfile)
+        THROW_EXCEPTION("Failed to get packfile {}/{}", VppName, ParentName);
     packfile->ReadMetadata();
+
+    //Read mesh data
     std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
     std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+    defer(delete[] cpuFileBytes.data());
+    defer(delete[] gpuFileBytes.data());
 
     //Read mesh header
     BinaryReader cpuFileReader(cpuFileBytes);
@@ -370,6 +377,8 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
     //Load mesh and create render object from it
     MeshInstanceData meshData = maybeMeshData.value();
+    defer(delete[] meshData.IndexBuffer.data());
+    defer(delete[] meshData.VertexBuffer.data());
     Handle<RenderObject> renderObject = Scene->CreateRenderObject(to_string(format), Mesh{ Scene->d3d11Device_, meshData, StaticMesh.NumLods });
 
     //Set camera position to get a better view of the mesh
@@ -409,11 +418,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     {
         //Check if the document was closed. If so, end worker thread early
         if (meshLoadTask_->Cancelled())
-        {
-            delete[] meshData.IndexBuffer.data();
-            delete[] meshData.VertexBuffer.data();
             return;
-        }
 
         string textureNameLower = String::ToLower(textureName);
         if (!foundDiffuse && String::Contains(textureNameLower, "_d"))
@@ -472,17 +477,6 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     }
 
     WorkerProgressFraction += stepSize;
-
-    if (InContainer)
-        delete packfile;
-
-    delete[] cpuFileBytes.data();
-    delete[] gpuFileBytes.data();
-
-    //Clear mesh data
-    delete[] meshData.IndexBuffer.data();
-    delete[] meshData.VertexBuffer.data();
-
     WorkerStatusString = "Done! " ICON_FA_CHECK;
     Log->info("Worker thread for {} finished.", Title);
 }

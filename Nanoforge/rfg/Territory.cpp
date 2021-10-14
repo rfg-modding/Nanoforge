@@ -107,6 +107,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         for (auto& layerFile : missionLayerFiles)
         {
             auto fileBuffer = layerFile.Get();
+            defer(delete[] fileBuffer.data());
             BinaryReader reader(fileBuffer);
 
             ZoneFilesLock.lock();
@@ -121,8 +122,6 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
             SetZoneShortName(zoneFile);
             if (String::StartsWith(zoneFile.Name, "p_"))
                 zoneFile.Persistent = true;
-
-            delete[] fileBuffer.data();
         }
     }
 
@@ -133,6 +132,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         for (auto& layerFile : activityLayerFiles)
         {
             auto fileBuffer = layerFile.Get();
+            defer(delete[] fileBuffer.data());
             BinaryReader reader(fileBuffer);
 
             ZoneFilesLock.lock();
@@ -147,8 +147,6 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
             SetZoneShortName(zoneFile);
             if (String::StartsWith(zoneFile.Name, "p_"))
                 zoneFile.Persistent = true;
-
-            delete[] fileBuffer.data();
         }
     }
 
@@ -210,6 +208,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         if (!fileBuffer)
             THROW_EXCEPTION("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
 
+        defer(delete[] fileBuffer.value().data());
+
         BinaryReader reader(fileBuffer.value());
         zoneFile.Name = Path::GetFileName(std::filesystem::path(zoneFilename));
         zoneFile.Zone.SetName(zoneFile.Name);
@@ -218,8 +218,6 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         SetZoneShortName(zoneFile);
         if (String::StartsWith(zoneFile.Name, "p_"))
             zoneFile.Persistent = true;
-
-        delete[] fileBuffer.value().data();
     }
 
     //Check if the zone has terrain by looking for an obj_zone object with terrain_file_name property
@@ -263,12 +261,15 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
         //Get packfile that holds terrain meshes
         auto* container = terrainMesh.GetContainer();
+        defer(delete container);
         if (!container)
             THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
 
         //Get mesh file byte arrays
         auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
         auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
+        defer(delete[] cpuFileBytes.value().data());
+        defer(delete[] gpuFileBytes.value().data());
 
         //Ensure the mesh files were extracted
         if (!cpuFileBytes)
@@ -292,9 +293,20 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
             lowLodMeshes.push_back(meshData.value());
         }
-        EarlyStopCheck();
+        //Cleanup loaded meshes at scope end
+        defer
+        (
+            for (auto& mesh : lowLodMeshes)
+            {
+                if (mesh.IndexBuffer.data())
+                    delete[] mesh.IndexBuffer.data();
+                if (mesh.VertexBuffer.data())
+                    delete[] mesh.VertexBuffer.data();
+            }
+        );
 
         //Load comb and ovl textures, used to color and light low lod terrain, respectively.
+        EarlyStopCheck();
         texture0 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "comb.tga");
         texture1 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_ovl.tga");
 
@@ -310,20 +322,6 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             renderObject->Textures[0] = texture0;
             renderObject->Textures[1] = texture1;
         }
-
-        //Cleanup low lod meshes
-        for (auto& mesh : lowLodMeshes)
-        {
-            if (mesh.IndexBuffer.data())
-                delete[] mesh.IndexBuffer.data();
-            if (mesh.VertexBuffer.data())
-                delete[] mesh.VertexBuffer.data();
-        }
-
-        //Clear resources
-        delete container;
-        delete[] cpuFileBytes.value().data();
-        delete[] gpuFileBytes.value().data();
     }
 
     EarlyStopCheck();
@@ -338,6 +336,40 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         std::optional<Texture2D> combTexture = {}; //Used to adjust terrain colors
         std::array<std::optional<Texture2D>, 8> materialTextures; //Up to 4 materials, each with one diffuse and normal map
 
+        //Cleanup mesh data at end of scope
+        defer
+        (
+            //Cleanup high lod mesh data
+            for (u32 i = 0; i < terrain.Subzones.size(); i++)
+            {
+                MeshInstanceData& instanceData = highLodMeshes[i];
+                if (instanceData.IndexBuffer.data())
+                    delete[] instanceData.IndexBuffer.data();
+                if (instanceData.VertexBuffer.data())
+                    delete[] instanceData.VertexBuffer.data();
+            }
+
+            //Cleanup stitch mesh data
+            for (auto& stitch : stitchMeshes)
+            {
+                MeshInstanceData& instanceData = std::get<1>(stitch);
+                if (instanceData.IndexBuffer.data())
+                    delete[] instanceData.IndexBuffer.data();
+                if (instanceData.VertexBuffer.data())
+                    delete[] instanceData.VertexBuffer.data();
+            }
+
+            //Cleanup road mesh data
+            for (auto& road : roadMeshes)
+            {
+                MeshInstanceData& instanceData = std::get<2>(road);
+                if (instanceData.IndexBuffer.data())
+                    delete[] instanceData.IndexBuffer.data();
+                if (instanceData.VertexBuffer.data())
+                    delete[] instanceData.VertexBuffer.data();
+            }
+        );
+
         //Search for high lod terrain mesh files. Should be 9 of them per zone.
         std::vector<FileHandle> highLodSearchResult = state->PackfileVFS->GetFiles(terrainName + "_*", true);
         u32 subzoneIndex = 0;
@@ -347,17 +379,21 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
                 continue;
 
             //Valid high lod terrain file found. Load and parse it
-            auto* container = file.GetContainer();
+            Packfile3* container = file.GetContainer();
+            defer(delete container);
             if (!container)
                 THROW_EXCEPTION("Failed to get container pointer for a high lod terrain mesh.");
 
             //Get mesh file data
             auto cpuFileBytes = container->ExtractSingleFile(file.Filename(), true);
             auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(file.Filename()) + ".gtmesh_pc", true);
+            defer(delete[] cpuFileBytes.value().data());
+            defer(delete[] gpuFileBytes.value().data());
 
             //Ensure the mesh files were extracted
             if (!cpuFileBytes)
                 THROW_EXCEPTION("Failed to extract high lod terrain mesh cpu file.");
+
             if (!gpuFileBytes)
                 THROW_EXCEPTION("Failed to extract high lod terrain mesh gpu file.");
 
@@ -373,9 +409,6 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             if (!meshData)
             {
                 Log->error("Failed to read terrain mesh data for {}. Halting loading of subzone.", file.Filename());
-                delete container;
-                delete[] cpuFileBytes.value().data();
-                delete[] gpuFileBytes.value().data();
                 continue;
             }
             highLodMeshes.push_back(meshData.value());
@@ -396,11 +429,9 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
                 }
             }
 
-            delete container;
-            delete[] cpuFileBytes.value().data();
-            delete[] gpuFileBytes.value().data();
             subzoneIndex++;
         }
+        EarlyStopCheck();
 
         //Load blend texture
         blendTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_alpha00.tga");
@@ -448,6 +479,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             numTerrainTextures++;
             terrainTextureIndex += 2;
         }
+        EarlyStopCheck();
 
         //Initialize high lod terrain
         for (u32 i = 0; i < 9; i++)
@@ -468,6 +500,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
             scene->NeedsRedraw = true; //Redraw scene when new terrain meshes are added
         }
+        EarlyStopCheck();
 
         //Initialize stitch meshes
         for (auto& stitch : stitchMeshes)
@@ -490,6 +523,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             for (u32 i = 0; i < materialTextures.size(); i++)
                 stitchObject->Textures[i + 2] = materialTextures[i];
         }
+        EarlyStopCheck();
 
         //Initialize road meshes
         for (auto& road : roadMeshes)
@@ -556,36 +590,6 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             roadObject->Textures[1] = combTexture;
             for (u32 i = 0; i < roadTextures.size(); i++)
                 roadObject->Textures[i + 2] = roadTextures[i];
-        }
-
-        //Cleanup high lod mesh data
-        for (u32 i = 0; i < terrain.Subzones.size(); i++)
-        {
-            MeshInstanceData& instanceData = highLodMeshes[i];
-            if (instanceData.IndexBuffer.data())
-                delete[] instanceData.IndexBuffer.data();
-            if (instanceData.VertexBuffer.data())
-                delete[] instanceData.VertexBuffer.data();
-        }
-
-        //Cleanup stitch mesh data
-        for (auto& stitch : stitchMeshes)
-        {
-            MeshInstanceData& instanceData = std::get<1>(stitch);
-            if (instanceData.IndexBuffer.data())
-                delete[] instanceData.IndexBuffer.data();
-            if (instanceData.VertexBuffer.data())
-                delete[] instanceData.VertexBuffer.data();
-        }
-
-        //Cleanup road mesh data
-        for (auto& road : roadMeshes)
-        {
-            MeshInstanceData& instanceData = std::get<2>(road);
-            if (instanceData.IndexBuffer.data())
-                delete[] instanceData.IndexBuffer.data();
-            if (instanceData.VertexBuffer.data())
-                delete[] instanceData.VertexBuffer.data();
         }
     }
 

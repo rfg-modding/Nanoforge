@@ -49,6 +49,8 @@ std::optional<PegFile10> TextureIndex::GetPeg(const std::string_view pegName) co
     string gpuFilePath = cpuFilePath.substr(0, cpuFilePath.find_last_of('/') + 1) + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
     std::optional<std::span<u8>> cpuFileBytes = packfileVFS_->GetFileBytes(cpuFilePath);
     std::optional<std::span<u8>> gpuFileBytes = packfileVFS_->GetFileBytes(gpuFilePath);
+    defer(delete[] cpuFileBytes.value().data());
+    defer(delete[] gpuFileBytes.value().data());
     if (!cpuFileBytes || !gpuFileBytes)
         return {};
 
@@ -58,10 +60,6 @@ std::optional<PegFile10> TextureIndex::GetPeg(const std::string_view pegName) co
     PegFile10 peg;
     peg.Read(cpuFile);
     peg.ReadAllTextureData(gpuFile); //Read textures into memory so the gpu file doesn't need to be passed around
-
-    //Cleanup resources
-    delete[] cpuFileBytes.value().data();
-    delete[] gpuFileBytes.value().data();
 
     return peg;
 }

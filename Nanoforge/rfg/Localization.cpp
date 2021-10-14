@@ -96,14 +96,12 @@ void Localization::LoadLocalizationClass(const string& filename, const string& c
         Log->error("Failed to extract {} in Localization.cpp.", filename);
         return;
     }
+    defer(delete[] fileBytes.value().data());
 
     //Parse rfglocatext file
     LocalizationFile3 localizationFile;
     BinaryReader reader(fileBytes.value());
     localizationFile.Read(reader, filename);
-
-    //Free byte buffer
-    delete[] fileBytes.value().data();
 
     //Create locale class
     auto& localeClass = Classes.emplace_back();

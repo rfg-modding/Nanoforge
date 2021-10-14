@@ -15,22 +15,23 @@ TextureDocument::TextureDocument(GuiState* state, string filename, string parent
     //Get gpu filename
     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
 
-    //Get file data
+    //Extract packfile holding the texture
     Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+    defer(if (InContainer) delete packfile);
+    if (!packfile)
+        THROW_EXCEPTION("Failed to get packfile {}/{}", VppName, ParentName);
     packfile->ReadMetadata();
+
+    //Extract texture bytes
     std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
     std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+    defer(delete[] cpuFileBytes.data());
+    defer(delete[] gpuFileBytes.data());
 
-    //Read mesh header
+    //Read texture header
     BinaryReader cpuFileReader(cpuFileBytes);
     BinaryReader gpuFileReader(gpuFileBytes);
     Peg.Read(cpuFileReader);
-
-    if (InContainer)
-        delete packfile;
-
-    delete[] cpuFileBytes.data();
-    delete[] gpuFileBytes.data();
 
     //Fill texture list with nullptrs. When a sub-image of the peg is opened it'll be rendered from this list.
     //If the index of the sub-image is a nullptr then it'll be loaded from the peg gpu file
@@ -195,10 +196,16 @@ void TextureDocument::Update(GuiState* state)
             //Get gpu filename
             string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
 
-            //Get file data
+            //Get packfile
             Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+            defer(if (InContainer) delete packfile);
+            if (!packfile)
+                THROW_EXCEPTION("Failed to get packfile {}/{}", VppName, ParentName);
             packfile->ReadMetadata();
+
+            //Get gpu file bytes
             std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+            defer(delete[] gpuFileBytes.data());
             BinaryReader gpuFileReader(gpuFileBytes);
 
             Peg.ReadTextureData(gpuFileReader, entry);
@@ -214,11 +221,6 @@ void TextureDocument::Update(GuiState* state)
             {
                 ImageTextures[SelectedIndex] = id;
             }
-
-            if (InContainer)
-                delete packfile;
-
-            delete[] gpuFileBytes.data();
         }
         else
         {
@@ -245,10 +247,16 @@ void TextureDocument::Save(GuiState* state)
         //Get gpu filename
         string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
 
-        //Get file data
+        //Get packfile
         Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+        defer(if (InContainer) delete packfile);
+        if (!packfile)
+            THROW_EXCEPTION("Failed to get packfile {}/{}", VppName, ParentName);
         packfile->ReadMetadata();
+
+        //Get gpu file data
         std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+        defer(delete[] gpuFileBytes.data());
         BinaryReader gpuFileReader(gpuFileBytes);
 
         //Read all texture data from unedited gpu file
@@ -282,10 +290,6 @@ void TextureDocument::Save(GuiState* state)
         state->CurrentProject->AddEdit(FileEdit{ "TextureEdit", pathBaseRelative + Filename });
         state->CurrentProject->Save();
 
-        if (InContainer)
-            delete packfile;
-
-        delete[] gpuFileBytes.data();
         Log->info("Saved \"{}\"", Filename);
     }
     else

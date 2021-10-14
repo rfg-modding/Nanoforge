@@ -215,6 +215,7 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
 
     //Get packfile that contains target file
     Packfile3* parent = hasContainer ? GetContainer(container, packfile) : GetPackfile(packfile);
+    defer(if (hasContainer) delete parent);
     if (!parent)
     {
         Log->error("Failed to extract parent file in PackfileVFS::GetFileBytes().");
@@ -228,10 +229,6 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
         Log->error("Failed to extract target file '{}' in PackfileVFS::GetFileBytes()", file);
         return {};
     }
-
-    //Cleanup parent if it's a container. Dont need to clean up packfiles since they're permanantly held in memory
-    if (hasContainer)
-        delete parent;
 
     return bytes;
 }
