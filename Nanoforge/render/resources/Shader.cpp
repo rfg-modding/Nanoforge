@@ -34,24 +34,24 @@ void Shader::Load(std::string_view shaderName, ComPtr<ID3D11Device> d3d11Device,
     //Compile the vertex shader
     if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "VS", "vs_4_0", pVSBlob.GetAddressOf())))
     {
-        Log->error("Failed to compile vertex shader in {}", Path::GetFileName(shaderPath_));
+        LOG_ERROR("Failed to compile vertex shader in {}", Path::GetFileName(shaderPath_));
         return;
     }
     if (FAILED(d3d11Device_->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, vertexShader.GetAddressOf())))
     {
-        Log->error("Failed to create vertex shader in {}", Path::GetFileName(shaderPath_));
+        LOG_ERROR("Failed to create vertex shader in {}", Path::GetFileName(shaderPath_));
         return;
     }
 
     //Compile the pixel shader
     if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "PS", "ps_4_0", pPSBlob.GetAddressOf())))
     {
-        Log->error("Failed to compile pixel shader in {}", Path::GetFileName(shaderPath_));
+        LOG_ERROR("Failed to compile pixel shader in {}", Path::GetFileName(shaderPath_));
         return;
     }
     if (FAILED(d3d11Device_->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, pixelShader.GetAddressOf())))
     {
-        Log->error("Failed to create pixel shader in {}", Path::GetFileName(shaderPath_));
+        LOG_ERROR("Failed to create pixel shader in {}", Path::GetFileName(shaderPath_));
         return;
     }
 
@@ -62,12 +62,12 @@ void Shader::Load(std::string_view shaderName, ComPtr<ID3D11Device> d3d11Device,
         //Compile geometry shader if one was found. Still continues if it fails to compile since geometry shaders are optional
         if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "GS", "gs_4_0", pGSBlob.GetAddressOf())))
         {
-            Log->error("Failed to compile geometry shader in {}", Path::GetFileName(shaderPath_));
+            LOG_ERROR("Failed to compile geometry shader in {}", Path::GetFileName(shaderPath_));
         }
         else if (FAILED(d3d11Device_->CreateGeometryShader(pGSBlob->GetBufferPointer(), pGSBlob->GetBufferSize(), nullptr, geometryShader.GetAddressOf())))
         {
             geomShaderFound = false;
-            Log->error("Failed to create geometry shader in {}", Path::GetFileName(shaderPath_));
+            LOG_ERROR("Failed to create geometry shader in {}", Path::GetFileName(shaderPath_));
         }
     }
 

@@ -267,7 +267,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         {
             if (!std::filesystem::exists(MeshExportPath))
             {
-                Log->error("Failed to export {} to obj. Output folder \"{}\" does not exist.", StaticMesh.Name, MeshExportPath);
+                LOG_ERROR("Failed to export {} to obj. Output folder \"{}\" does not exist.", StaticMesh.Name, MeshExportPath);
             }
             else
             {
@@ -336,7 +336,11 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
     defer(if (InContainer) delete packfile);
     if (!packfile)
-        THROW_EXCEPTION("Failed to get packfile {}/{}", VppName, ParentName);
+    {
+        LOG_ERROR("Failed to get packfile {}/{} for {}", VppName, ParentName, Filename);
+        Open = false;
+        return;
+    }
     packfile->ReadMetadata();
 
     //Read mesh data
@@ -373,7 +377,11 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     //Read index and vertex buffers from gpu file
     auto maybeMeshData = StaticMesh.ReadMeshData(gpuFileReader);
     if (!maybeMeshData)
-        THROW_EXCEPTION("Failed to read submesh mesh data for static mesh document.");
+    {
+        LOG_ERROR("Failed to read mesh data for static mesh document {}", Filename);
+        Open = false;
+        return;
+    }
 
     //Load mesh and create render object from it
     MeshInstanceData meshData = maybeMeshData.value();

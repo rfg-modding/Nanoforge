@@ -8,12 +8,12 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
     auto* type = node->FirstChildElement("Type");
     if (!name)
     {
-        Log->error("Failed to get <Name> from xtbl description");
+        LOG_ERROR("Failed to get <Name> from xtbl description");
         return false;
     }
     if (!type)
     {
-        Log->error("Failed to get <Type> from xtbl description \"{}\"", name->GetText() ? name->GetText() : "<Name not set>");
+        LOG_ERROR("Failed to get <Type> from xtbl description \"{}\"", name->GetText() ? name->GetText() : "<Name not set>");
         return false;
     }
 
@@ -28,7 +28,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
     }
     catch (std::runtime_error& ex)
     {
-        Log->error("Failed to parse <Type> from xtbl description \"{}\"", name->GetText());
+        LOG_ERROR("Failed to parse <Type> from xtbl description \"{}\"", name->GetText());
         return false;
     }
 
@@ -117,7 +117,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
             auto* refOpenSeparate = reference->FirstChildElement("OpenSeparate");
             if (!refFile || !refType)
             {
-                Log->error("Invalid <Reference> detected. Doesn't have all required data.");
+                LOG_ERROR("Invalid <Reference> detected. Doesn't have all required data.");
                 return false;
             }
 

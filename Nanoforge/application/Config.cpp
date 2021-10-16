@@ -163,7 +163,7 @@ void Config::Load()
         else
         {
             //This shouldn't happen since there are previous type checks, but if we do reach this point then pop the incomplete ConfigVariable instance
-            Log->error("Unsupported type \"{}\" reached when reading config variable \"{}\". Skipping.", typeEnum, var->Name);
+            LOG_ERROR("Unsupported type \"{}\" reached when reading config variable \"{}\". Skipping.", typeEnum, var->Name);
         }
 
         Variables.push_back(var);
@@ -338,12 +338,12 @@ std::optional<i32> Config::GetIntReadonly(std::string_view name)
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::Int)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as an integer. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as an integer. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 
@@ -355,12 +355,12 @@ std::optional<u32> Config::GetUintReadonly(std::string_view name)
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::Uint)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as an unsigned integer. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as an unsigned integer. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 
@@ -372,12 +372,12 @@ std::optional<f32> Config::GetFloatReadonly(std::string_view name)
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::Float)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as a float. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as a float. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 
@@ -389,12 +389,12 @@ std::optional<bool> Config::GetBoolReadonly(std::string_view name)
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::Bool)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as a boolean. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as a boolean. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 
@@ -406,12 +406,12 @@ std::optional<string> Config::GetStringReadonly(std::string_view name)
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::String)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as a string. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as a string. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 
@@ -423,12 +423,12 @@ std::optional<Vec2> Config::GetVec2Readonly(std::string_view name)
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::Vec2)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as a vec2. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as a vec2. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 
@@ -440,12 +440,12 @@ std::optional<Vec3> Config::GetVec3Readonly(std::string_view name)
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::Vec3)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as a vec3. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as a vec3. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 
@@ -457,12 +457,12 @@ std::optional<Vec4> Config::GetVec4Readonly(std::string_view name)
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::Vec4)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as a vec4. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as a vec4. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 
@@ -474,12 +474,12 @@ std::optional<std::vector<string>> Config::GetListReadonly(std::string_view name
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
     {
-        Log->error("Tried to get config var \"{}\", which does not exist", name);
+        LOG_ERROR("Tried to get config var \"{}\", which does not exist", name);
         return {};
     }
     if (var->Type() != ConfigType::List)
     {
-        Log->error("Config var type mismatch! Tried to get \"{}\" as a list. It is a \"{}\".", name, to_string(var->Type()));
+        LOG_ERROR("Config var type mismatch! Tried to get \"{}\" as a list. It is a \"{}\".", name, to_string(var->Type()));
         return {};
     }
 

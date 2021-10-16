@@ -17,7 +17,7 @@ AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string
     //Report error if asm_pc file isn't found
     if (!asmFile_)
     {
-        Log->error("Failed to find {}. Closing asm document.", filename_);
+        LOG_ERROR("Failed to find {}. Closing asm document.", filename_);
         Open = false;
         return;
     }

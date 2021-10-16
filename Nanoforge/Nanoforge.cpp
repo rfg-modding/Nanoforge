@@ -1,6 +1,8 @@
 ﻿#include "application/Application.h"
 #include <ext/WindowsWrapper.h>
+#include "gui/util/WinUtil.h"
 #include "util/Profiler.h"
+#include "CrashHandler.h"
 #include <iostream>
 #include <exception>
 
@@ -22,6 +24,10 @@ void operator delete(void* ptr) noexcept
 
 int WINAPI main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
+    //Catches unhandled SEH exceptions
+    SetupCrashHandler();
+
+    //Catches unhandled c++ exceptions
     try
     {
         Application app(hInstance);
@@ -29,7 +35,9 @@ int WINAPI main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, i
     }
     catch(std::exception ex)
     {
-        std::cout << "Exception caught in WinMain! Message: " << ex.what() << "\n";
+        string errorMessage = fmt::format("A fatal error has occurred! Nanoforge will crash once you press \"OK\". After that send MasterLog.log to moneyl on the RF discord. If you're not on the RF discord you can join it by making a discord account and going to RFChat.com. Error message: \"{}\"", ex.what());
+        LOG_ERROR(errorMessage);
+        ShowMessageBox(errorMessage, "Fatal error encountered!", MB_OK);
     }
 
     return 0;

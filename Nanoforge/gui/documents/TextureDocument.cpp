@@ -19,7 +19,11 @@ TextureDocument::TextureDocument(GuiState* state, std::string_view filename, std
     Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
     defer(if (InContainer) delete packfile);
     if (!packfile)
-        THROW_EXCEPTION("Failed to get packfile {}/{}", VppName, ParentName);
+    {
+        LOG_ERROR("Failed to get packfile {}/{} for {}", VppName, ParentName, Filename);
+        Open = false;
+        return;
+    }
     packfile->ReadMetadata();
 
     //Extract texture bytes
@@ -122,7 +126,7 @@ void TextureDocument::Update(GuiState* state)
                     }
                     else
                     {
-                        Log->error("You need to have a project open to edit files. You can open a project via File > Open project.");
+                        LOG_ERROR("You need to have a project open to edit files. You can open a project via File > Open project.");
                         ShowMessageBox("You need to have a project open to edit files. You can open an existing project or create a new one with `File > Open project` and `File > New project`", "Can't package mod", MB_OK);
                         ImGui::CloseCurrentPopup();
                     }
@@ -200,7 +204,11 @@ void TextureDocument::Update(GuiState* state)
             Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
             defer(if (InContainer) delete packfile);
             if (!packfile)
-                THROW_EXCEPTION("Failed to get packfile {}/{}", VppName, ParentName);
+            {
+                LOG_ERROR("Failed to get packfile {}/{} for {}", VppName, ParentName, Filename);
+                Open = false;
+                return;
+            }
             packfile->ReadMetadata();
 
             //Get gpu file bytes
@@ -214,7 +222,7 @@ void TextureDocument::Update(GuiState* state)
             ImTextureID id = state->Renderer->TextureDataToHandle(entry.RawData, format, entry.Width, entry.Height);
             if (!id)
             {
-                Log->error("Failed to create texture resource for texture entry {} in peg file {}", entry.Name, Title);
+                LOG_ERROR("Failed to create texture resource for texture entry {} in peg file {}", entry.Name, Title);
                 CreateFailed = true;
             }
             else
@@ -251,7 +259,10 @@ void TextureDocument::Save(GuiState* state)
         Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
         defer(if (InContainer) delete packfile);
         if (!packfile)
-            THROW_EXCEPTION("Failed to get packfile {}/{}", VppName, ParentName);
+        {
+            LOG_ERROR("Failed to get packfile {}/{} while saving {}", VppName, ParentName, Filename);
+            return;
+        }
         packfile->ReadMetadata();
 
         //Get gpu file data
@@ -294,7 +305,7 @@ void TextureDocument::Save(GuiState* state)
     }
     else
     {
-        Log->error("You need to have a project open to edit files. You can open a project via File > Open project.");
+        LOG_ERROR("You need to have a project open to edit files. You can open a project via File > Open project.");
         ShowMessageBox("You need to have a project open to edit files. You can open an existing project or create a new one with `File > Open project` and `File > New project`", "Can't package mod", MB_OK);
     }
 }
@@ -341,6 +352,6 @@ void TextureDocument::PickPegImportTexture(GuiState* state)
     }
     else
     {
-        Log->error("Invalid path \"{}\" selected for texture import.", result.value());
+        LOG_ERROR("Invalid path \"{}\" selected for texture import.", result.value());
     }
 }

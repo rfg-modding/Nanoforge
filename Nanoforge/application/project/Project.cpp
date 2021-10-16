@@ -261,7 +261,7 @@ void Project::PackageModThread(Handle<Task> task, std::string_view outputPath, P
                 }
                 if (!currentAsm)
                 {
-                    Log->error("Failed to find asm_pc file for str2_pc file \"{}\" in mod packaging thread!", str2Filename);
+                    LOG_ERROR("Failed to find asm_pc file for str2_pc file \"{}\" in mod packaging thread!", str2Filename);
                     return;
                 }
                 WorkerState = fmt::format("Updating {}...", asmName);
@@ -292,7 +292,7 @@ void Project::PackageModThread(Handle<Task> task, std::string_view outputPath, P
                 AsmContainer* asmContainer = newAsmFile.GetContainer(Path::GetFileNameNoExtension(str2Filename));
                 if (!asmContainer)
                 {
-                    Log->error("Failed to find container for str2_pc file \"{}\" in asmFile \"{}\" in in mod packaging thread!", str2Filename, asmName);
+                    LOG_ERROR("Failed to find container for str2_pc file \"{}\" in asmFile \"{}\" in in mod packaging thread!", str2Filename, asmName);
                     return;
                 }
 
@@ -499,7 +499,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
             //Writes edits based on implementation of IXtblNode::WriteModinfoEdits()
             if (!node->WriteModinfoEdits(entry))
             {
-                Log->error("Xtbl modinfo packing failed for subnode: \"{}\\{}\"", node->GetPath(), name);
+                LOG_ERROR("Xtbl modinfo packing failed for subnode: \"{}\\{}\"", node->GetPath(), name);
                 return false;
             }
         }
@@ -548,7 +548,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
             //Writes edits based on implementation of IXtblNode::WriteModinfoEdits()
             if (!node->WriteXml(entry, false))
             {
-                Log->error("Xtbl modinfo packing failed for subnode: \"{}\\{}\"", node->GetPath(), name);
+                LOG_ERROR("Xtbl modinfo packing failed for subnode: \"{}\\{}\"", node->GetPath(), name);
                 return false;
             }
         }

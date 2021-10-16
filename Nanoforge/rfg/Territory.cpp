@@ -60,7 +60,10 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     Log->info("Loading territory data for {}...", territoryFilename_);
     Packfile3* packfile = packfileVFS_->GetPackfile(territoryFilename_);
     if (!packfile)
-        THROW_EXCEPTION("Could not find territory file {} in data folder. Required for the program to function.", territoryFilename_);
+    {
+        LOG_ERROR("Could not find territory file {} in data folder. Required to load the territory.", territoryFilename_);
+        return;
+    }
 
     //Get mission and activity zones (layer_pc files) if territory has any
     std::vector<FileHandle> missionLayerFiles = {};
@@ -207,7 +210,10 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         auto fileBuffer = packfile->ExtractSingleFile(zoneFilename);
         defer(delete[] fileBuffer.value().data());
         if (!fileBuffer)
-            THROW_EXCEPTION("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
+        {
+            LOG_ERROR("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
+            return;
+        }
 
         BinaryReader reader(fileBuffer.value());
         zoneFile.Name = Path::GetFileName(std::filesystem::path(zoneFilename));
@@ -262,7 +268,10 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         auto* container = terrainMesh.GetContainer();
         defer(delete container);
         if (!container)
-            THROW_EXCEPTION("Failed to get container pointer for a terrain mesh.");
+        {
+            LOG_ERROR("Failed to extract container for a low lod terrain mesh \"{}\"", lowLodTerrainName);
+            return;
+        }
 
         //Get mesh file byte arrays
         auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
@@ -272,9 +281,15 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
         //Ensure the mesh files were extracted
         if (!cpuFileBytes)
-            THROW_EXCEPTION("Failed to extract terrain mesh cpu file.");
+        {
+            LOG_ERROR("Failed to extract low lod terrain mesh cpu file \"{}\"", terrainMesh.Filename());
+            return;
+        }
         if (!gpuFileBytes)
-            THROW_EXCEPTION("Failed to extract terrain mesh gpu file.");
+        {
+            LOG_ERROR("Failed to extract lod lod terrain mesh gpu file \"{}\"", Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc");
+            return;
+        }
 
         BinaryReader cpuFile(cpuFileBytes.value());
         BinaryReader gpuFile(gpuFileBytes.value());
@@ -288,7 +303,10 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             EarlyStopCheck();
             std::optional<MeshInstanceData> meshData = terrain.DataLowLod.ReadMeshData(gpuFile, i);
             if (!meshData.has_value())
-                THROW_EXCEPTION("Failed to read submesh {} from {}.", i, terrainMesh.Filename());
+            {
+                LOG_ERROR("Failed to read submesh {} from {}.", i, terrainMesh.Filename());
+                continue;
+            }
 
             lowLodMeshes.push_back(meshData.value());
         }
@@ -310,7 +328,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         texture1 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_ovl.tga");
 
         //Initialize low lod terrain
-        for (u32 i = 0; i < 9; i++)
+        for (u32 i = 0; i < lowLodMeshes.size(); i++)
         {
             Handle<RenderObject> renderObject = scene->CreateRenderObject("TerrainLowLod", Mesh{ scene->d3d11Device_, lowLodMeshes[i] }, terrain.Position);
             TerrainLock.lock();
@@ -381,7 +399,10 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             Packfile3* container = file.GetContainer();
             defer(delete container);
             if (!container)
-                THROW_EXCEPTION("Failed to get container pointer for a high lod terrain mesh.");
+            {
+                LOG_ERROR("Failed to get container pointer for a high lod terrain mesh {}\{}", file.ContainerName(), file.Filename());
+                continue;
+            }
 
             //Get mesh file data
             auto cpuFileBytes = container->ExtractSingleFile(file.Filename(), true);
@@ -391,10 +412,15 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
             //Ensure the mesh files were extracted
             if (!cpuFileBytes)
-                THROW_EXCEPTION("Failed to extract high lod terrain mesh cpu file.");
-
+            {
+                LOG_ERROR("Failed to extract high lod terrain mesh cpu file from {}/{}", file.ContainerName(), file.Filename());
+                continue;
+            }
             if (!gpuFileBytes)
-                THROW_EXCEPTION("Failed to extract high lod terrain mesh gpu file.");
+            {
+                LOG_ERROR("Failed to extract high lod terrain mesh gpu file from {}/{}", file.ContainerName(), file.Filename());
+                continue;
+            }
 
             BinaryReader cpuFile(cpuFileBytes.value());
             BinaryReader gpuFile(gpuFileBytes.value());
@@ -407,7 +433,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             std::optional<MeshInstanceData> meshData = subzone.ReadTerrainMeshData(gpuFile);
             if (!meshData)
             {
-                Log->error("Failed to read terrain mesh data for {}. Halting loading of subzone.", file.Filename());
+                LOG_ERROR("Failed to read terrain mesh data for {}. Halting loading of subzone.", file.Filename());
                 continue;
             }
             highLodMeshes.push_back(meshData.value());

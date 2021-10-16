@@ -65,7 +65,7 @@ void Scene::Draw(f32 deltaTime)
             Material* material = Render::GetMaterial(kv.first);
             if(!material)
             {
-                Log->error("Failed to get material '{}'", kv.first);
+                LOG_ERROR("Failed to get material '{}'", kv.first);
                 continue;
             }
             material->Use(d3d11Context_);
@@ -196,7 +196,7 @@ void Scene::InitPrimitiveState()
     auto material = Render::GetMaterial("Linelist");
     if (!material)
     {
-        Log->error("Failed to locate material 'Linelist' for Scene primitive rendering. Scene disabled.");
+        LOG_ERROR("Failed to locate material 'Linelist' for Scene primitive rendering. Scene disabled.");
         errorOccurred_ = true;
         return;
     }

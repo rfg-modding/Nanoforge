@@ -44,7 +44,7 @@ bool XtblFile::Parse(const string& path)
     string filename = Path::GetFileName(path);
     if (!std::filesystem::exists(path))
     {
-        Log->error("Failed to parse \"{}\". File not present at that path.", path);
+        LOG_ERROR("Failed to parse \"{}\". File not present at that path.", path);
         return false;
     }
     FilePath = path;
@@ -55,7 +55,7 @@ bool XtblFile::Parse(const string& path)
     auto* root = xmlDocument_.RootElement();
     if (!root)
     {
-        Log->error("Failed to parse \"{}\". Xtbl has no <root> element.", path);
+        LOG_ERROR("Failed to parse \"{}\". Xtbl has no <root> element.", path);
         return false;
     }
 
@@ -66,19 +66,19 @@ bool XtblFile::Parse(const string& path)
     //Parse table description
     if (!description)
     {
-        Log->error("Parsing failed for {}. <TableDescription> block not found.", Path::GetFileName(path));
+        LOG_ERROR("Parsing failed for {}. <TableDescription> block not found.", Path::GetFileName(path));
         return false;
     }
     if (!TableDescription->Parse(description, TableDescription, *this))
     {
-        Log->error("Parsing failed for {} <TableDescription> block.", Path::GetFileName(path));
+        LOG_ERROR("Parsing failed for {} <TableDescription> block.", Path::GetFileName(path));
         return false;
     }
 
     //Parse table
     if (!table)
     {
-        Log->error("Parsing failed for {}. <Table> block not found.", Path::GetFileName(path));
+        LOG_ERROR("Parsing failed for {}. <Table> block not found.", Path::GetFileName(path));
         return false;
     }
     string elementString = TableDescription->Name; //Element name is the first <Name> value of the <TableDescription> section

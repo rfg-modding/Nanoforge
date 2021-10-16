@@ -21,7 +21,10 @@ namespace RfgUtil
         else if (extension == ".cchk_pc")
             return filenameNoExt + ".gchk_pc";
         else
-            THROW_EXCEPTION("Unknown rfg file extension \"{}\"", extension);
+        {
+            LOG_ERROR("Unknown rfg file extension \"{}\"", extension);
+            return string(cpuFilename);
+        }
     }
 
     bool ValidateDataPath(std::string_view dataPath, std::string_view missingFileName, bool logResult)

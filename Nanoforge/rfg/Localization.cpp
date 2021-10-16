@@ -85,7 +85,7 @@ void Localization::LoadLocalizationClass(std::string_view filename, std::string_
     Packfile3* container = packfileVFS_->GetPackfile("misc.vpp_pc");
     if (!container)
     {
-        Log->error("Failed to get misc.vpp_pc in Localization.cpp.", filename);
+        LOG_ERROR("Failed to get misc.vpp_pc in Localization.cpp.", filename);
         return;
     }
 
@@ -93,7 +93,7 @@ void Localization::LoadLocalizationClass(std::string_view filename, std::string_
     std::optional<std::span<u8>> fileBytes = container->ExtractSingleFile(filename, true);
     if (!fileBytes)
     {
-        Log->error("Failed to extract {} in Localization.cpp.", filename);
+        LOG_ERROR("Failed to extract {} in Localization.cpp.", filename);
         return;
     }
     defer(delete[] fileBytes.value().data());

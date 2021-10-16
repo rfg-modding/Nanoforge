@@ -192,9 +192,9 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
         file = split[2];
         break;
     case 0: //Empty path
-        Log->error("Empty path passed to PackfileVFS::GetFileBytes(). Can't parse.");
+        LOG_ERROR("Empty path passed to PackfileVFS::GetFileBytes(). Can't parse.");
     case 1: //Packfile/
-        Log->error("Invalid path passed to PackfileVFS::GetFileBytes(). Filename isn't present, can't parse.");
+        LOG_ERROR("Invalid path passed to PackfileVFS::GetFileBytes(). Filename isn't present, can't parse.");
     default:
         return {};
         break;
@@ -203,12 +203,12 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
     //Validate path components
     if (Path::GetExtension(packfile) != ".vpp_pc")
     {
-        Log->error("Invalid path passed to PackfileVFS::GetFileBytes(). Packfile extension is wrong. Expected '.vpp_pc', found {}", Path::GetExtension(packfile));
+        LOG_ERROR("Invalid path passed to PackfileVFS::GetFileBytes(). Packfile extension is wrong. Expected '.vpp_pc', found {}", Path::GetExtension(packfile));
         return {};
     }
     if (container != "" && Path::GetExtension(container) != ".str2_pc")
     {
-        Log->error("Invalid path passed to PackfileVFS::GetFileBytes(). Container extension is wrong. Expected '.str2_pc', found {}", Path::GetExtension(container));
+        LOG_ERROR("Invalid path passed to PackfileVFS::GetFileBytes(). Container extension is wrong. Expected '.str2_pc', found {}", Path::GetExtension(container));
         return {};
     }
     bool hasContainer = (container != "");
@@ -218,7 +218,7 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
     defer(if (hasContainer) delete parent);
     if (!parent)
     {
-        Log->error("Failed to extract parent file in PackfileVFS::GetFileBytes().");
+        LOG_ERROR("Failed to extract parent file in PackfileVFS::GetFileBytes().");
         return {};
     }
 
@@ -226,7 +226,7 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
     std::optional<std::span<u8>> bytes = parent->ExtractSingleFile(file, true);
     if (!bytes)
     {
-        Log->error("Failed to extract target file '{}' in PackfileVFS::GetFileBytes()", file);
+        LOG_ERROR("Failed to extract target file '{}' in PackfileVFS::GetFileBytes()", file);
         return {};
     }
 

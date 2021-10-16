@@ -67,7 +67,7 @@ public:
             bool result = subnode->WriteModinfoEdits(elementXml);
             if (!result)
             {
-                Log->error("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
+                LOG_ERROR("Failed to write modinfo data for xtbl node \"{}\"", subnode->GetPath());
                 return false;
             }
         }
@@ -85,7 +85,7 @@ public:
             bool result = subnode->WriteXml(elementXml, writeNanoforgeMetadata);
             if (!result)
             {
-                Log->error("Failed to write xml data for xtbl node \"{}\"", subnode->GetPath());
+                LOG_ERROR("Failed to write xml data for xtbl node \"{}\"", subnode->GetPath());
                 return false;
             }
         }

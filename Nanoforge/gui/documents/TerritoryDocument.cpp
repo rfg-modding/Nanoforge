@@ -69,6 +69,7 @@ void TerritoryDocument::Update(GuiState* state)
     if (numTerrainInstances_ != Territory.TerrainInstances.size())
     {
         numTerrainInstances_ = Territory.TerrainInstances.size();
+        Scene->NeedsRedraw = true;
         terrainVisiblityUpdateNeeded_ = true;
     }
 

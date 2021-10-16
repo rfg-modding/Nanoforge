@@ -17,7 +17,7 @@ XtblDocument::XtblDocument(GuiState* state, std::string_view filename, std::stri
     bool result = state->Xtbls->ParseXtbl(vppName_, filename_);
     if (!result)
     {
-        Log->error("Failed to parse {}. Closing xtbl document.", filename_);
+        LOG_ERROR("Failed to parse {}. Closing xtbl document.", filename_);
         Open = false;
         return;
     }
@@ -25,7 +25,7 @@ XtblDocument::XtblDocument(GuiState* state, std::string_view filename, std::stri
     xtbl_ = state->Xtbls->GetXtbl(vppName_, filename_);
     if (!xtbl_)
     {
-        Log->error("Failed to get {} from XtblManager. Closing xtbl document.", filename_);
+        LOG_ERROR("Failed to get {} from XtblManager. Closing xtbl document.", filename_);
         Open = false;
         return;
     }
@@ -138,7 +138,7 @@ void XtblDocument::Save(GuiState* state)
     //Don't save if xtbl_ is null or no subnodes have been edited or no project is open
     if (!state_->CurrentProject->Loaded())
     {
-        Log->error("Failed to save {}. No project is open. Open a project or create a new one to be able to edit xtbls.", filename_);
+        LOG_ERROR("Failed to save {}. No project is open. Open a project or create a new one to be able to edit xtbls.", filename_);
         return;
     }
     if (!xtbl_ || !xtbl_->PropagateEdits())

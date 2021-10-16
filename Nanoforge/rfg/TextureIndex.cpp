@@ -157,7 +157,7 @@ void TextureIndex::Load()
     if (!std::filesystem::exists(path))
     {
         ShowMessageBox("Failed to locate TextureIndex.bin in the Nanoforge folder. Texture searches won't work without it. It should've been included in the zip file you downloaded Nanoforge in. You can download it again at https://www.github.com/Moneyl/Nanoforge/releases", "TextureIndex.bin is missing!", MB_OK);
-        Log->error("Failed to load texture search index. Couldn't locate {}", path);
+        LOG_ERROR("Failed to load texture search index. Couldn't locate {}", path);
         return;
     }
 
@@ -374,7 +374,10 @@ void TextureIndex::TextureIndexGenerationSubtask(Handle<Task> task, Packfile3& p
         {
             std::optional<std::span<u8>> pegBytes = packfile.ExtractSingleFile(entryName, true);
             if (!pegBytes.has_value())
-                THROW_EXCEPTION("Failed to extract {} during texture search database generation", entryName);
+            {
+                LOG_ERROR("Failed to extract {} during texture search database generation", entryName);
+                continue;
+            }
 
             readPegFile(pegBytes.value(), entryName, packfile.Name() + "/", true);
         }
@@ -383,7 +386,10 @@ void TextureIndex::TextureIndexGenerationSubtask(Handle<Task> task, Packfile3& p
             //Read container
             std::optional<std::span<u8>> containerBytes = packfile.ExtractSingleFile(entryName, true);
             if (!containerBytes.has_value())
-                THROW_EXCEPTION("Failed to extract {} during texture search database generation", entryName);
+            {
+                LOG_ERROR("Failed to extract {} during texture search database generation", entryName);
+                continue;
+            }
 
             //Parse container
             Packfile3 container(containerBytes.value());
