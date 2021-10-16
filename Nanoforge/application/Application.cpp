@@ -21,9 +21,9 @@
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-// Forward declare message handler from imgui_impl_win32.cpp
+//Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-//Ptr to application instance for WndProc use
+//Pointer to application instance for WndProc
 Application* appInstance = nullptr;
 
 void Application::Run()
@@ -33,7 +33,7 @@ void Application::Run()
     Init();
     MainLoop();
 
-    //Main loop finished
+    //Main loop finished. Cleanup resources
     TaskScheduler::Shutdown();
 }
 
@@ -57,23 +57,22 @@ void Application::Init()
     config_.EnsureVariableExists("Data path", ConfigType::String);
     auto dataPath = config_.GetVariable("Data path");
 
-    //Init TaskScheduler. Used to manage background threads
+    //Init task scheduler. Run code (tasks) on background threads
     TaskScheduler::Init(&config_);
 
-    //Init renderer and gui
+    //Init core application classes
     fontManager_.Init(&config_);
     renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_, &config_);
     WinUtilInit(renderer_.GetSystemWindowHandle());
     gui::SetThemePreset(ThemePreset::Dark);
-
     packfileVFS_.Init(std::get<string>(dataPath->Value), &project_);
     textureSearchIndex_.Init(&packfileVFS_);
     xtblManager_.Init(&packfileVFS_);
     localization_.Init(&packfileVFS_, &config_);
-
     gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_, &textureSearchIndex_);
 
-    MaximizeWindow();
+    //Maximize window by default
+    ShowWindow(renderer_.GetSystemWindowHandle(), SW_SHOWMAXIMIZED);
 
     //Init frame timing variables
     deltaTime_ = targetFramerateDelta;
@@ -86,13 +85,14 @@ void Application::MainLoop()
     MSG msg; //Create a new message structure
     ZeroMemory(&msg, sizeof(MSG)); //Clear message structure to NULL
 
+    //Loop until exit is requested
     FrameTimer.Start();
-    while (!Exit) //Loop until stage finishes or app exit variable is set to true
+    while (!Exit)
     {
         static const char* MainFrame = "MainFrame";
         PROFILER_FRAME_MARK_START(MainFrame);
 
-        //Dispatch window messages
+        //Handle window messages
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
@@ -108,7 +108,6 @@ void Application::MainLoop()
                 scene->Cam.DoFrame(deltaTime_);
             }
         }
-
         gui_.Update(deltaTime_);
 
         //Render this frame
@@ -123,11 +122,11 @@ void Application::MainLoop()
             timeBeginPeriod(1);
             while (FrameTimer.ElapsedSecondsPrecise() < targetFramerateDelta)
             {
-                //Sleep is used here instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this.
                 lastFramelimiterSleepMs_ = (DWORD)((targetFramerateDelta - FrameTimer.ElapsedSecondsPrecise()) * 1000.0f);
                 if (lastFramelimiterSleepMs_ > (DWORD)(targetFramerateDelta * 1000.0f))
                     break;
 
+                //Sleep is used instead of busy waiting to minimize cpu usage. Exact target FPS isn't needed for this.
                 Sleep(lastFramelimiterSleepMs_);
             }
             timeEndPeriod(1); //Disable custom system timer resolution
@@ -141,18 +140,12 @@ void Application::MainLoop()
 
 void Application::NewFrame()
 {
+    //Reset per frame data
     std::lock_guard<std::mutex> lock(renderer_.ContextMutex);
-
-    //Start new imgui frame
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
     renderer_.NewFrame(deltaTime_);
-}
-
-void Application::MaximizeWindow()
-{
-    ShowWindow(renderer_.GetSystemWindowHandle(), SW_SHOWMAXIMIZED);
 }
 
 void Application::HandleResize()

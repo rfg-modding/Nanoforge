@@ -15,7 +15,7 @@
 #include "util/Profiler.h"
 #include "rfg/TextureIndex.h"
 
-StaticMeshDocument::StaticMeshDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
+StaticMeshDocument::StaticMeshDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
 {
     state_ = state;

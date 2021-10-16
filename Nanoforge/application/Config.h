@@ -29,7 +29,7 @@ using ConfigValue = std::variant<i32, u32, f32, bool, string, Vec2, Vec3, Vec4, 
 class ConfigVariable
 {
 public:
-    ConfigVariable(const string& name, const string& description, ConfigType type) : Name(name), Description(description), type_(type) { }
+    ConfigVariable(std::string_view name, const string& description, ConfigType type) : Name(name), Description(description), type_(type) { }
 
     //Required variables
     string Name;
@@ -60,24 +60,24 @@ public:
     //Saves config variables to config files.
     void Save();
     //Create a new variable if a variable with the same name doesn't already exist.
-    void CreateVariable(const string& name, ConfigType type, ConfigValue value, const char* description = "Not set");
+    void CreateVariable(std::string_view name, ConfigType type, ConfigValue value, const char* description = "Not set");
     //Returns a copy of a single variable. Set must use setter functions to edit it but saves having to use multiple getters.
-    Handle<ConfigVariable> GetVariable(const string& variableName);
+    Handle<ConfigVariable> GetVariable(std::string_view variableName) const;
     //Creates the variable with a default value if it doesn't exist
-    void EnsureVariableExists(const string& variableName, ConfigType type);
+    void EnsureVariableExists(std::string_view variableName, ConfigType type);
     //Returns true if the variable exists
-    bool Exists(const string& name);
+    bool Exists(std::string_view name) const;
 
     //Get readonly copies of config values. For convenience.
-    std::optional<i32> GetIntReadonly(const string& name);
-    std::optional<u32> GetUintReadonly(const string& name);
-    std::optional<f32> GetFloatReadonly(const string& name);
-    std::optional<bool> GetBoolReadonly(const string& name);
-    std::optional<string> GetStringReadonly(const string& name);
-    std::optional<Vec2> GetVec2Readonly(const string& name);
-    std::optional<Vec3> GetVec3Readonly(const string& name);
-    std::optional<Vec4> GetVec4Readonly(const string& name);
-    std::optional<std::vector<string>> GetListReadonly(const string& name);
+    std::optional<i32> GetIntReadonly(std::string_view name);
+    std::optional<u32> GetUintReadonly(std::string_view name);
+    std::optional<f32> GetFloatReadonly(std::string_view name);
+    std::optional<bool> GetBoolReadonly(std::string_view name);
+    std::optional<string> GetStringReadonly(std::string_view name);
+    std::optional<Vec2> GetVec2Readonly(std::string_view name);
+    std::optional<Vec3> GetVec3Readonly(std::string_view name);
+    std::optional<Vec4> GetVec4Readonly(std::string_view name);
+    std::optional<std::vector<string>> GetListReadonly(std::string_view name);
 
     //List of all loaded config variables
     std::vector<Handle<ConfigVariable>> Variables = {};
@@ -120,7 +120,7 @@ static string to_string(ConfigType type)
 }
 
 //Return ConfigType from provided string. Ignores case.
-static ConfigType from_string(const string& str)
+static ConfigType from_string(std::string_view str)
 {
     if (String::EqualIgnoreCase(str, "int"))
         return ConfigType::Int;

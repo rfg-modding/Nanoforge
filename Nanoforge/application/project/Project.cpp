@@ -10,7 +10,7 @@
 #include "RfgTools++/RfgTools++/formats/asm/AsmFile5.h"
 #include "rfg/PackfileVFS.h"
 
-bool Project::Load(const string& projectFilePath)
+bool Project::Load(std::string_view projectFilePath)
 {
     Edits.clear();
     Path = Path::GetParentDirectory(projectFilePath);
@@ -68,7 +68,7 @@ void Project::Close()
     loaded_ = false;
 }
 
-void Project::PackageMod(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
+void Project::PackageMod(std::string_view outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     WorkerRunning = true;
     TaskScheduler::QueueTask(PackageModTask, std::bind(&Project::PackageModThread, this, PackageModTask, outputPath, vfs, xtblManager));
@@ -89,13 +89,13 @@ void Project::AddEdit(FileEdit edit)
     Edits.push_back(edit);
 }
 
-bool Project::LoadProjectFile(const string& projectFilePath)
+bool Project::LoadProjectFile(std::string_view projectFilePath)
 {
     if (!std::filesystem::exists(projectFilePath))
         return false;
 
     tinyxml2::XMLDocument project;
-    project.LoadFile(projectFilePath.c_str());
+    project.LoadFile(string(projectFilePath).c_str()); //Wrapped in string to ensure null termination
 
     //Find <Project> block. Everything is stored in this
     auto* projectBlock = project.FirstChildElement("Project");
@@ -158,7 +158,7 @@ bool Project::LoadProjectFile(const string& projectFilePath)
     return true;
 }
 
-void Project::PackageModThread(Handle<Task> task, const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
+void Project::PackageModThread(Handle<Task> task, std::string_view outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     //Reset public thread state
     WorkerState = "";
@@ -337,8 +337,8 @@ void Project::PackageModThread(Handle<Task> task, const string& outputPath, Pack
                 WorkerPercentage += packagingStepSize;
 
                 //Copy new str2 and asm files to output folder. Also copy asm to project folder
-                std::filesystem::copy_file(packOutputPath, outputPath + str2Filename, copyOptions);
-                std::filesystem::copy_file(asmOutputPath, outputPath + asmName, copyOptions);
+                std::filesystem::copy_file(packOutputPath, fmt::format("{}{}", outputPath, str2Filename), copyOptions);
+                std::filesystem::copy_file(asmOutputPath, fmt::format("{}{}", outputPath, asmName), copyOptions);
 
                 //Delete temp files
                 for (auto& entry : std::filesystem::recursive_directory_iterator(tempPath))
@@ -363,8 +363,10 @@ void Project::PackageModThread(Handle<Task> task, const string& outputPath, Pack
                 WorkerState = fmt::format("Copying edited files to output folder...");
                 string cpuFilename = string(split.back());
                 string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(cpuFilename);
-                std::filesystem::copy_file(GetCachePath() + edit.EditedFilePath, outputPath + cpuFilename, copyOptions);
-                std::filesystem::copy_file(fmt::format("{}{}\\{}", GetCachePath(), split[0], gpuFilename), outputPath + gpuFilename, copyOptions);
+                string cpuFilePath = fmt::format("{}{}", outputPath, cpuFilename);
+                string gpuFilePath = fmt::format("{}{}", outputPath, gpuFilename);
+                std::filesystem::copy_file(GetCachePath() + edit.EditedFilePath, cpuFilePath, copyOptions);
+                std::filesystem::copy_file(fmt::format("{}{}\\{}", GetCachePath(), split[0], gpuFilename), gpuFilePath, copyOptions);
 
                 //Add <Replace> blocks for the cpu file and the gpu file
                 auto* replaceCpuFile = changes->InsertNewChildElement("Replace");
@@ -386,7 +388,7 @@ void Project::PackageModThread(Handle<Task> task, const string& outputPath, Pack
     WorkerPercentage += packagingStepSize;
 
     //Save modinfo.xml
-    string modinfoPath = outputPath + "modinfo.xml";
+    string modinfoPath = fmt::format("{}{}", outputPath, "modinfo.xml");
     modinfo.InsertEndChild(modBlock);
     modinfo.SaveFile(modinfoPath.c_str());
 
@@ -398,7 +400,7 @@ void Project::PackageModThread(Handle<Task> task, const string& outputPath, Pack
     return;
 }
 
-bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager, const string& outputPath)
+bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, XtblManager* xtblManager, std::string_view outputPath)
 {
     //Ensure that all xtbls in the edit list so edits from previous sessions are handled
     for (auto& edit : Edits)
@@ -562,8 +564,8 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
     if (UseTableWorkaround && table && numTableEdits > 0)
     {
         string tableFileCacheFolder = ".\\Cache\\table.vpp_pc\\";
-        string tableFileTempFolder = outputPath + "tableRepackTemp\\";
-        string tableFileOutPath = outputPath + "table.vpp_pc";
+        string tableFileTempFolder = fmt::format("{}{}", outputPath, "tableRepackTemp\\");
+        string tableFileOutPath = fmt::format("{}{}", outputPath, "table.vpp_pc");
         Path::CreatePath(tableFileCacheFolder);
         Path::CreatePath(tableFileTempFolder);
 

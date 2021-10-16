@@ -11,18 +11,18 @@
 namespace PegHelpers
 {
     //Export all entries from peg
-    void ExportAll(PegFile10& peg, const string& gpuFilePath, const string& exportFolderPath);
+    void ExportAll(PegFile10& peg, std::string_view gpuFilePath, std::string_view exportFolderPath);
     //Export all entries from peg
-    void ExportAll(const string& cpuFilePath, const string& gpuFilePath, const string& exportFolderPath);
+    void ExportAll(std::string_view cpuFilePath, std::string_view gpuFilePath, std::string_view exportFolderPath);
     //Export single entry from peg
-    void ExportSingle(PegFile10& peg, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath);
+    void ExportSingle(PegFile10& peg, std::string_view gpuFilePath, u32 entryIndex, std::string_view exportFolderPath);
     //Export single entry from peg
-    void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath);
+    void ExportSingle(std::string_view cpuFilePath, std::string_view gpuFilePath, u32 entryIndex, std::string_view exportFolderPath);
     //Export single entry from peg
-    void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, const string& entryName, const string& exportFolderPath);
+    void ExportSingle(std::string_view cpuFilePath, std::string_view gpuFilePath, std::string_view entryName, std::string_view exportFolderPath);
 
     //Import texture and replace provided entry with it's data
-    void ImportTexture(PegFile10& peg, u32 targetIndex, const string& importFilePath);
+    void ImportTexture(PegFile10& peg, u32 targetIndex, std::string_view importFilePath);
     //Convert peg format to dxgi format
     DXGI_FORMAT PegFormatToDxgiFormat(PegFormat input, u16 flags);
     //Convert dxgi format to peg format

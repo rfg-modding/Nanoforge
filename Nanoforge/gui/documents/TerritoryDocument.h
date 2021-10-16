@@ -12,7 +12,7 @@
 class TerritoryDocument : public IDocument
 {
 public:
-    TerritoryDocument(GuiState* state, string territoryName, string territoryShortname);
+    TerritoryDocument(GuiState* state, std::string_view territoryName, std::string_view territoryShortname);
     ~TerritoryDocument();
 
     void Update(GuiState* state) override;

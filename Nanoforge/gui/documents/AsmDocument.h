@@ -7,7 +7,7 @@
 class AsmDocument final : public IDocument
 {
 public:
-    AsmDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer);
+    AsmDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer);
     ~AsmDocument();
 
     void Update(GuiState* state) override;

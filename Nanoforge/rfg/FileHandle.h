@@ -10,7 +10,7 @@ class Packfile3;
 class FileHandle
 {
 public:
-    FileHandle(Packfile3* packfile, const string& fileName, const string& containerName = "");
+    FileHandle(Packfile3* packfile, std::string_view fileName, std::string_view containerName = "");
 
     //Todo: Consider returning a class that auto-handles freeing the buffer here
     //Get the file as a byte array. The user must delete this buffer themselves or else it'll cause a memory leak
@@ -30,6 +30,6 @@ private:
     string fileName_;
     string containerName_;
     bool fileInContainer_ = false;
-    
+
     PackfileVFS* vfs_ = nullptr;
 };

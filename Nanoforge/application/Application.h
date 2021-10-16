@@ -32,16 +32,11 @@ public:
     MainGui gui_;
 
 private:
-    //General init
     void Init();
-
-    //General purpose main loop with a lambda argument to inject extra behavior.
-    //Done this way since each stage had near identical main loop behavior with slight differences.
     void MainLoop();
     void NewFrame();
-    void MaximizeWindow();
 
-    HINSTANCE hInstance_ = nullptr;
+    //These all have global lifetime
     DX11Renderer renderer_;
     ImGuiFontManager fontManager_;
     PackfileVFS packfileVFS_;
@@ -51,6 +46,8 @@ private:
     Localization localization_;
     Config config_;
 
+    //Window data
+    HINSTANCE hInstance_ = nullptr;
     int windowWidth_ = 1200;
     int windowHeight_ = 720;
 
@@ -60,5 +57,6 @@ private:
     const u32 targetFramerate = 60;
     const f32 targetFramerateDelta = 1.0f / static_cast<f32>(targetFramerate);
 
+    //Logger sinks
     std::vector<spdlog::sink_ptr> logSinks_ = {};
 };

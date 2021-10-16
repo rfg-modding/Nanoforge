@@ -75,7 +75,7 @@ public:
     FileExplorerNode* FileExplorer_SelectedNode = nullptr;
 
     //Set status message and enum
-    void SetStatus(const string& message, GuiStatus status = None)
+    void SetStatus(std::string_view message, GuiStatus status = None)
     {
         //Set status enum too if it's not the default argument value
         if (status != None)

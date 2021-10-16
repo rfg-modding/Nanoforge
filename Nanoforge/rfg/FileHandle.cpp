@@ -3,7 +3,7 @@
 #include "FileHandle.h"
 #include "Log.h"
 
-FileHandle::FileHandle(Packfile3* packfile, const string& fileName, const string& containerName)
+FileHandle::FileHandle(Packfile3* packfile, std::string_view fileName, std::string_view containerName)
 {
     if (!packfile)
         THROW_EXCEPTION("Null packfile pointer passed to FileHandle constructor.");

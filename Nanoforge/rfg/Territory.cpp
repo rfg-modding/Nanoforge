@@ -205,10 +205,9 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     {
         PROFILER_SCOPED("Load zone");
         auto fileBuffer = packfile->ExtractSingleFile(zoneFilename);
+        defer(delete[] fileBuffer.value().data());
         if (!fileBuffer)
             THROW_EXCEPTION("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
-
-        defer(delete[] fileBuffer.value().data());
 
         BinaryReader reader(fileBuffer.value());
         zoneFile.Name = Path::GetFileName(std::filesystem::path(zoneFilename));

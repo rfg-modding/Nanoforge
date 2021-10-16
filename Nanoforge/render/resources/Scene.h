@@ -50,7 +50,7 @@ public:
     //Clear any existing primitives and force the primitive vertex buffers to be updated
     void ResetPrimitives();
 
-    Handle<RenderObject> CreateRenderObject(const string& materialName, const Mesh& mesh, const Vec3& position = { 0.0f, 0.0f, 0.0f });
+    Handle<RenderObject> CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position = { 0.0f, 0.0f, 0.0f });
 
     Camera Cam;
     std::vector<Handle<RenderObject>> Objects = {};

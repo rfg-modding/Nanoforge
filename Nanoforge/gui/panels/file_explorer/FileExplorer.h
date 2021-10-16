@@ -35,7 +35,7 @@ private:
     //Called when a file is double clicked in the file explorer. Attempts to open a tool/viewer for the provided file
     void DoubleClickedFile(GuiState* state, FileExplorerNode& node);
     //Returns true if extension is a format that is supported by Nanoforge. This includes partial support (viewing only)
-    bool FormatSupported(const string& ext);
+    bool FormatSupported(std::string_view ext) const;
     //Updates node search results. Stores result in FileExplorerNode::MatchesSearchTerm and FileExplorerNode::AnyChildNodeMatchesSearchTerm
     void UpdateNodeSearchResultsRecursive(FileExplorerNode& node);
     //Get icon for node based on node type and extension

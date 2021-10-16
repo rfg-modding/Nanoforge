@@ -13,10 +13,10 @@ const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/
 const string shaderFolderPath_ = "./Assets/shaders/";
 #endif
 
-void Shader::Load(const string& shaderName, ComPtr<ID3D11Device> d3d11Device, bool useGeometryShaders)
+void Shader::Load(std::string_view shaderName, ComPtr<ID3D11Device> d3d11Device, bool useGeometryShaders)
 {
     //Store args in member variables for reloads
-    shaderPath_ = shaderFolderPath_ + shaderName;
+    shaderPath_ = fmt::format("{}{}", shaderFolderPath_, shaderName);
     d3d11Device_ = d3d11Device;
     shaderWriteTime_ = std::filesystem::last_write_time(shaderPath_);
     useGeometryShaders_ = useGeometryShaders;

@@ -10,7 +10,7 @@
 #include "rfg/xtbl/Xtbl.h"
 #include "util/Profiler.h"
 
-XtblDocument::XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, IXtblNode* startingNode)
+XtblDocument::XtblDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer, IXtblNode* startingNode)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer), state_(state)
 {
     xtblManager_ = state->Xtbls;

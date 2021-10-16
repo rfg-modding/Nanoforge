@@ -372,17 +372,14 @@ void FileExplorer::DoubleClickedFile(GuiState* state, FileExplorerNode& node)
     }
 }
 
-bool FileExplorer::FormatSupported(const string& ext)
+bool FileExplorer::FormatSupported(std::string_view ext) const
 {
-    static const std::vector<string> supportedFormats = { /*".vpp_pc", ".str2_pc",*/ ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc",
-                                                            ".xtbl", ".asm_pc"};
-    for (auto& format : supportedFormats)
+    static const std::vector<string> supportedFormats =
     {
-        if (ext == format)
-            return true;
-    }
-
-    return false;
+        /*".vpp_pc", ".str2_pc",*/ ".cpeg_pc", ".cvbm_pc", ".gpeg_pc", ".gvbm_pc", ".csmesh_pc", ".gsmesh_pc", ".ccmesh_pc", ".gcmesh_pc",
+        ".xtbl", ".asm_pc"
+    };
+    return std::ranges::find(supportedFormats, ext) != supportedFormats.end();
 }
 
 void FileExplorer::UpdateNodeSearchResultsRecursive(FileExplorerNode& node)

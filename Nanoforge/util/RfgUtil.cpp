@@ -5,7 +5,7 @@
 
 namespace RfgUtil
 {
-    string CpuFilenameToGpuFilename(const string& cpuFilename)
+    string CpuFilenameToGpuFilename(std::string_view cpuFilename)
     {
         //Todo: Support more extensions
         string extension = Path::GetExtension(cpuFilename);
@@ -24,7 +24,7 @@ namespace RfgUtil
             THROW_EXCEPTION("Unknown rfg file extension \"{}\"", extension);
     }
 
-    bool ValidateDataPath(const string& dataPath, string& missingFileName, bool logResult)
+    bool ValidateDataPath(std::string_view dataPath, std::string_view missingFileName, bool logResult)
     {
         //List of expected vpp_pc files
         std::vector<string> expectedFiles =
@@ -139,7 +139,7 @@ namespace RfgUtil
         //Check if all expected files are in the data folder. Return false and set missing file string
         for (auto& filename : expectedFiles)
         {
-            if (!std::filesystem::exists(dataPath + "\\" + filename))
+            if (!std::filesystem::exists(fmt::format("{}\\{}", dataPath, filename)))
             {
                 if(logResult)
                     Log->warn("Current data path is invalid. Data path: \"{}\", first missing vpp: \"{}\"", dataPath, filename);

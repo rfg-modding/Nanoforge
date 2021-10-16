@@ -5,7 +5,7 @@ class Config;
 
 namespace RfgUtil
 {
-    string CpuFilenameToGpuFilename(const string& cpuFilename);
-    bool ValidateDataPath(const string& dataPath, string& missingFileName, bool logResult = true);
+    string CpuFilenameToGpuFilename(std::string_view cpuFilename);
+    bool ValidateDataPath(std::string_view dataPath, std::string_view missingFileName, bool logResult = true);
     bool AutoDetectDataPath(Config* config);
 }

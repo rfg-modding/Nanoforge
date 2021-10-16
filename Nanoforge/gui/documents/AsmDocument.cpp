@@ -3,7 +3,7 @@
 #include "gui/GuiState.h"
 #include "Log.h"
 
-AsmDocument::AsmDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
+AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer)
 {
     //Get packfile. All asm_pc files are in .vpp_pc files

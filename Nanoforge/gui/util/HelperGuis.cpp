@@ -10,9 +10,9 @@
 #include "Log.h"
 
 //Set string to defaultValue string if it's empty or only whitespace
-void EnsureNotWhitespaceOrEmpty(string& target, string defaultValue)
+void EnsureNotWhitespaceOrEmpty(std::string_view target, std::string_view defaultValue)
 {
-    if (target.empty() || target.find_first_not_of(' ') == string::npos)
+    if (target.empty() || target.find_first_not_of(' ') == std::string_view::npos)
         target = defaultValue;
 }
 

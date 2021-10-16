@@ -121,7 +121,7 @@ void ZoneList::Update(GuiState* state, bool* open)
 
             //Controls
             ImGui::TableNextColumn();
-            if (ImGui::Checkbox((string("Draw##") + zone.Name).c_str(), &zone.RenderBoundingBoxes))
+            if (ImGui::Checkbox(fmt::format("Draw##{}", zone.Name).c_str(), &zone.RenderBoundingBoxes))
             {
                 state->CurrentTerritoryUpdateDebugDraw = true;
                 state->CurrentTerritory->UpdateObjectClassInstanceCounts();

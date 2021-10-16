@@ -63,7 +63,7 @@ string Localization::GetLocaleName(Locale locale)
     return "Unknown Locale";
 }
 
-std::optional<string> Localization::StringFromKey(const string& key)
+std::optional<string> Localization::StringFromKey(std::string_view key)
 {
     //Hash key and get current locale
     u32 keyHash = Hash::HashVolitionCRCAlt(key, 0);
@@ -79,7 +79,7 @@ std::optional<string> Localization::StringFromKey(const string& key)
     return {};
 }
 
-void Localization::LoadLocalizationClass(const string& filename, const string& className, Locale locale)
+void Localization::LoadLocalizationClass(std::string_view filename, std::string_view className, Locale locale)
 {
     //Get packfile. All rfglocatext files are in misc.vpp_pc so we don't need to check if it's in str2_pc
     Packfile3* container = packfileVFS_->GetPackfile("misc.vpp_pc");

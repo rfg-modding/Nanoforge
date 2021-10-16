@@ -1,7 +1,7 @@
 #include "Mesh.h"
 #include "Log.h"
 
-Mesh::Mesh(ComPtr<ID3D11Device> d3d11Device, MeshInstanceData data, u32 numLods)
+Mesh::Mesh(ComPtr<ID3D11Device> d3d11Device, const MeshInstanceData& data, u32 numLods)
 {
     //All RFG meshes seen so far use these
     static const DXGI_FORMAT IndexBufferFormat = DXGI_FORMAT_R16_UINT;

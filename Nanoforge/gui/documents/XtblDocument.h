@@ -9,7 +9,7 @@ class XtblManager;
 class XtblDocument final : public IDocument
 {
 public:
-    XtblDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer, IXtblNode* startingNode = nullptr);
+    XtblDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer, IXtblNode* startingNode = nullptr);
     ~XtblDocument();
 
     void Update(GuiState* state) override;

@@ -259,14 +259,14 @@ void Scene::ResetPrimitives()
     lineVertices_.clear();
 }
 
-Handle<RenderObject> Scene::CreateRenderObject(const string& materialName, const Mesh& mesh, const Vec3& position)
+Handle<RenderObject> Scene::CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position)
 {
     std::lock_guard<std::mutex> lock(ObjectCreationMutex);
     Handle<RenderObject> obj = CreateHandle<RenderObject>(mesh, position);
     Objects.push_back(obj);
 
     //Map object to its material
-    auto materialObjectList = objectMaterials_.try_emplace(materialName, std::vector<Handle<RenderObject>>());
+    auto materialObjectList = objectMaterials_.try_emplace(string(materialName), std::vector<Handle<RenderObject>>());
     materialObjectList.first->second.push_back(obj); //Add obj to list of objects that use the same material
 
     return obj;

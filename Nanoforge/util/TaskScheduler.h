@@ -49,18 +49,18 @@ class Task
 	friend TaskScheduler;
 
 	//Private constructor so you can only construct tasks with Task::Create() as a Handle<Task>
-	Task(const string& name) : Name(name)
+	Task(std::string_view name) : Name(name)
 	{
 
 	}
 
 public:
-	static Handle<Task> Create(const string& name)
+	static Handle<Task> Create(std::string_view name)
 	{
 		//Workaround to call the private constructor of Task since C++ doesn't let you do that directly
 		struct TaskCreateHandleEnabler : public Task
 		{
-			TaskCreateHandleEnabler(const string& name) : Task(name) {}
+			TaskCreateHandleEnabler(std::string_view name) : Task(name) {}
 		};
 		return CreateHandle<TaskCreateHandleEnabler>(name);
 	}

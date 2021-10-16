@@ -10,7 +10,7 @@ struct MenuItem
     //Todo: Must update if we resize MainGui::panels_. Currently do not do this
     Handle<IGuiPanel> panel = nullptr;
 
-    MenuItem* GetItem(const string& text)
+    MenuItem* GetItem(std::string_view text)
     {
         for (auto& item : Items)
         {

@@ -13,14 +13,14 @@ class IXtblNode;
 class Project
 {
 public:
-    bool Load(const string& projectFilePath);
+    bool Load(std::string_view projectFilePath);
     bool Save();
     void Close();
-    void PackageMod(const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
+    void PackageMod(std::string_view outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
     string GetCachePath();
     void RescanCache();
     void AddEdit(FileEdit edit);
-    bool Loaded() { return loaded_; }
+    bool Loaded() const { return loaded_; }
 
     //Name of the project
     string Name;
@@ -50,11 +50,11 @@ public:
     Handle<Task> PackageModTask = Task::Create("Packaging mod...");
 
 private:
-    bool LoadProjectFile(const string& projectFilePath);
+    bool LoadProjectFile(std::string_view projectFilePath);
 
     //Mod packaging functions
-    void PackageModThread(Handle<Task> task, const string& outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
-    bool PackageXtblEdits(tinyxml2::XMLElement* modBlock, PackfileVFS* vfs, XtblManager* xtblManager, const string& outputPath);
+    void PackageModThread(Handle<Task> task, std::string_view outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
+    bool PackageXtblEdits(tinyxml2::XMLElement* modBlock, PackfileVFS* vfs, XtblManager* xtblManager, std::string_view outputPath);
 
     bool loaded_ = false;
 };

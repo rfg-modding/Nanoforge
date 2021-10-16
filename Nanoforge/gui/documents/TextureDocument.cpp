@@ -9,7 +9,7 @@
 #include "application/project/Project.h"
 #include "util/Profiler.h"
 
-TextureDocument::TextureDocument(GuiState* state, string filename, string parentName, string vppName, bool inContainer)
+TextureDocument::TextureDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
 {
     //Get gpu filename

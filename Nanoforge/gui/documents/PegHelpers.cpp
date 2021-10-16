@@ -7,7 +7,7 @@
 
 namespace PegHelpers
 {
-    void ExportAll(PegFile10& peg, const string& gpuFilePath, const string& exportFolderPath)
+    void ExportAll(PegFile10& peg, std::string_view gpuFilePath, std::string_view exportFolderPath)
     {
         for (u32 i = 0; i < peg.Entries.size(); i++)
         {
@@ -15,7 +15,7 @@ namespace PegHelpers
         }
     }
 
-    void ExportAll(const string& cpuFilePath, const string& gpuFilePath, const string& exportFolderPath)
+    void ExportAll(std::string_view cpuFilePath, std::string_view gpuFilePath, std::string_view exportFolderPath)
     {
         //Open and parse peg
         PegFile10 peg;
@@ -29,7 +29,7 @@ namespace PegHelpers
         peg.Cleanup();
     }
 
-    void ExportSingle(PegFile10& peg, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath)
+    void ExportSingle(PegFile10& peg, std::string_view gpuFilePath, u32 entryIndex, std::string_view exportFolderPath)
     {
         //Get entry ref and create reader for gpu file
         PegEntry10& entry = peg.Entries[entryIndex];
@@ -49,7 +49,7 @@ namespace PegHelpers
         image.slicePitch = entry.RawData.size_bytes();
         image.pixels = entry.RawData.data();
 
-        string tempPath = exportFolderPath + Path::GetFileNameNoExtension(entry.Name) + ".dds";
+        string tempPath = fmt::format("{}{}{}", exportFolderPath, Path::GetFileNameNoExtension(entry.Name), ".dds");
         std::unique_ptr<wchar_t[]> pathWide = WidenCString(tempPath.c_str());
         //HRESULT result = SaveToWICFile(image, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), pathWide);
         HRESULT result = DirectX::SaveToDDSFile(image, DirectX::DDS_FLAGS::DDS_FLAGS_NONE, pathWide.get());
@@ -57,7 +57,7 @@ namespace PegHelpers
             Log->error("Error when saving \"{}\" to path \"{}\". Error code: {:x}", entry.Name, exportFolderPath, (u32)result);
     }
 
-    void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, u32 entryIndex, const string& exportFolderPath)
+    void ExportSingle(std::string_view cpuFilePath, std::string_view gpuFilePath, u32 entryIndex, std::string_view exportFolderPath)
     {
         //Open and parse peg
         PegFile10 peg;
@@ -71,7 +71,7 @@ namespace PegHelpers
         peg.Cleanup();
     }
 
-    void ExportSingle(const string& cpuFilePath, const string& gpuFilePath, const string& entryName, const string& exportFolderPath)
+    void ExportSingle(std::string_view cpuFilePath, std::string_view gpuFilePath, std::string_view entryName, std::string_view exportFolderPath)
     {
         //Open and parse peg
         PegFile10 peg;
@@ -93,7 +93,7 @@ namespace PegHelpers
         peg.Cleanup();
     }
 
-    void ImportTexture(PegFile10& peg, u32 targetIndex, const string& importFilePath)
+    void ImportTexture(PegFile10& peg, u32 targetIndex, std::string_view importFilePath)
     {
         //Get entry ref
         PegEntry10& entry = peg.Entries[targetIndex];
@@ -103,7 +103,7 @@ namespace PegHelpers
             delete[] entry.RawData.data();
 
         //Load texture from DDS
-        std::unique_ptr<wchar_t[]> pathWide = WidenCString(importFilePath.c_str());
+        std::unique_ptr<wchar_t[]> pathWide = WidenCString(string(importFilePath).c_str());
         DirectX::TexMetadata metadata;
         DirectX::ScratchImage image;
         HRESULT result = DirectX::LoadFromDDSFile(pathWide.get(), DirectX::DDS_FLAGS::DDS_FLAGS_NONE, &metadata, image);

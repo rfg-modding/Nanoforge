@@ -296,7 +296,7 @@ void MainGui::SaveFocusedDocument()
     State.CurrentProject->Save();
 }
 
-void MainGui::AddMenuItem(string menuPos, bool open, Handle<IGuiPanel> panel)
+void MainGui::AddMenuItem(std::string_view menuPos, bool open, Handle<IGuiPanel> panel)
 {
     //Make sure panel with same menu position doesn't already exist
     for (auto& guiPanel : panels_)
@@ -613,7 +613,7 @@ void MainGui::GenerateMenus()
     }
 }
 
-MenuItem* MainGui::GetMenu(const string& text)
+MenuItem* MainGui::GetMenu(std::string_view text)
 {
     for (auto& item : menuItems_)
     {

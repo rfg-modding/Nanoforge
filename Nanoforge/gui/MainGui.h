@@ -27,11 +27,11 @@ public:
     GuiState State; //Global gui state provided to each panel and document
 
 private:
-    void AddMenuItem(string menuPos, bool open, Handle<IGuiPanel> panel);
+    void AddMenuItem(std::string_view menuPos, bool open, Handle<IGuiPanel> panel);
     void DrawMainMenuBar();
     void DrawDockspace();
     void GenerateMenus();
-    MenuItem* GetMenu(const string& text);
+    MenuItem* GetMenu(std::string_view text);
 
     std::vector<Handle<IGuiPanel>> panels_ = {};
     std::vector<MenuItem> menuItems_ = {}; //Main menu bar items

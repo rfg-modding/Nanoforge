@@ -256,7 +256,7 @@ void Config::Save()
     lastWriteTime_ = std::filesystem::last_write_time(mainConfigPath);
 }
 
-void Config::CreateVariable(const string& name, ConfigType type, ConfigValue value, const char* description)
+void Config::CreateVariable(std::string_view name, ConfigType type, ConfigValue value, const char* description)
 {
     //Make sure there's not a variable with this name already
     for (auto& variable : Variables)
@@ -270,7 +270,7 @@ void Config::CreateVariable(const string& name, ConfigType type, ConfigValue val
     Variables.push_back(configVariable);
 }
 
-Handle<ConfigVariable> Config::GetVariable(const string& variableName)
+Handle<ConfigVariable> Config::GetVariable(std::string_view variableName) const
 {
     //Find var and return it
     for (auto& var : Variables)
@@ -281,7 +281,7 @@ Handle<ConfigVariable> Config::GetVariable(const string& variableName)
     return nullptr;
 }
 
-void Config::EnsureVariableExists(const string& variableName, ConfigType type)
+void Config::EnsureVariableExists(std::string_view variableName, ConfigType type)
 {
     //Check if variable exists
     if (Exists(variableName))
@@ -326,14 +326,14 @@ void Config::EnsureVariableExists(const string& variableName, ConfigType type)
     Variables.push_back(var);
 }
 
-bool Config::Exists(const string& name)
+bool Config::Exists(std::string_view name) const
 {
     Handle<ConfigVariable> var = GetVariable(name);
     bool exists = var != nullptr;
     return exists;
 }
 
-std::optional<i32> Config::GetIntReadonly(const string& name)
+std::optional<i32> Config::GetIntReadonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -350,7 +350,7 @@ std::optional<i32> Config::GetIntReadonly(const string& name)
     return std::get<u32>(var->Value);
 }
 
-std::optional<u32> Config::GetUintReadonly(const string& name)
+std::optional<u32> Config::GetUintReadonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -367,7 +367,7 @@ std::optional<u32> Config::GetUintReadonly(const string& name)
     return std::get<u32>(var->Value);
 }
 
-std::optional<f32> Config::GetFloatReadonly(const string& name)
+std::optional<f32> Config::GetFloatReadonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -384,7 +384,7 @@ std::optional<f32> Config::GetFloatReadonly(const string& name)
     return std::get<f32>(var->Value);
 }
 
-std::optional<bool> Config::GetBoolReadonly(const string& name)
+std::optional<bool> Config::GetBoolReadonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -401,7 +401,7 @@ std::optional<bool> Config::GetBoolReadonly(const string& name)
     return std::get<bool>(var->Value);
 }
 
-std::optional<string> Config::GetStringReadonly(const string& name)
+std::optional<string> Config::GetStringReadonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -418,7 +418,7 @@ std::optional<string> Config::GetStringReadonly(const string& name)
     return std::get<string>(var->Value);
 }
 
-std::optional<Vec2> Config::GetVec2Readonly(const string& name)
+std::optional<Vec2> Config::GetVec2Readonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -435,7 +435,7 @@ std::optional<Vec2> Config::GetVec2Readonly(const string& name)
     return std::get<Vec2>(var->Value);
 }
 
-std::optional<Vec3> Config::GetVec3Readonly(const string& name)
+std::optional<Vec3> Config::GetVec3Readonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -452,7 +452,7 @@ std::optional<Vec3> Config::GetVec3Readonly(const string& name)
     return std::get<Vec3>(var->Value);
 }
 
-std::optional<Vec4> Config::GetVec4Readonly(const string& name)
+std::optional<Vec4> Config::GetVec4Readonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -469,7 +469,7 @@ std::optional<Vec4> Config::GetVec4Readonly(const string& name)
     return std::get<Vec4>(var->Value);
 }
 
-std::optional<std::vector<string>> Config::GetListReadonly(const string& name)
+std::optional<std::vector<string>> Config::GetListReadonly(std::string_view name)
 {
     Handle<ConfigVariable> var = GetVariable(name);
     if (!var)
@@ -490,9 +490,7 @@ void Config::EnsureValidConfig()
 {
     //Create config if it doesn't exist
     if (!std::filesystem::exists(mainConfigPath))
-    {
         Save();
-    }
 
     //Upgrade config if it's using the old format
     tinyxml2::XMLDocument doc;

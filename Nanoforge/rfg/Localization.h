@@ -6,14 +6,14 @@
 #include <vector>
 
 //Todo: Support locales using non-latin alphabets
-//Note: 
+//Note:
 //  - Only the locales with an rfglocatext file included with the vanilla game are listed currently.
 //  - Only locales using the Latin alphabet are supported currently. The others are commented out.
 enum class Locale
 {
     //Using Arabic alphabet
     //AR_EG, //Arabic (Egypt)
-    
+
     //Using Latin alphabet
     CS_CZ, //Czech (Czech_Republic)
     DE_DE, //German (Germany)
@@ -35,7 +35,7 @@ enum class Locale
 
     //Using Cyrillic alphabet
     //RU_RU, //Russian (Russia)
-    
+
     //Using Chinese alphabet
     //ZH_CN, //Chinese (China)
 
@@ -65,21 +65,21 @@ public:
     LocalizationClass* GetLocale(Locale locale);
     string GetLocaleName(Locale locale);
     //Attempt to get a localized string using it's key
-    std::optional<string> StringFromKey(const string& key);
+    std::optional<string> StringFromKey(std::string_view key);
     bool Ready() { return ready_; }
 
     Locale CurrentLocale = Locale::None;
     std::vector<LocalizationClass> Classes = {};
 
 private:
-    void LoadLocalizationClass(const string& filename, const string& className, Locale locale);
+    void LoadLocalizationClass(std::string_view filename, std::string_view className, Locale locale);
 
     PackfileVFS* packfileVFS_ = nullptr;
     bool ready_ = false;
 };
 
 //Convert std::string to Locale enum
-static Locale ParseLocaleString(const string& value)
+static Locale ParseLocaleString(std::string_view value)
 {
     //if (value == "AR_EG")
     //    return Locale::AR_EG;
@@ -109,6 +109,6 @@ static Locale ParseLocaleString(const string& value)
     //    return Locale::RU_RU;
     //if (value == "ZH_CN")
     //    return Locale::ZH_CN;
-    
+
     return Locale::None;
 }

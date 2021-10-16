@@ -90,9 +90,9 @@ void Render::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> 
     }};
 }
 
-Material* Render::GetMaterial(const string& name)
+Material* Render::GetMaterial(std::string_view name)
 {
-    auto search = materials_.find(name);
+    auto search = materials_.find(string(name));
     if (search != materials_.end())
         return &search->second;
 

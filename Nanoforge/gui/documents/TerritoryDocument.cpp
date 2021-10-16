@@ -4,7 +4,7 @@
 #include "render/Render.h"
 #include "Log.h"
 
-TerritoryDocument::TerritoryDocument(GuiState* state, string territoryName, string territoryShortname)
+TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territoryName, std::string_view territoryShortname)
     : TerritoryName(territoryName), TerritoryShortname(territoryShortname)
 {
     state_ = state;
