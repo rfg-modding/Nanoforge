@@ -93,7 +93,7 @@ void TextureDocument::Update(GuiState* state)
     }
 
     //Texture entry list
-    if (ImGui::BeginChild("##EntryList", ImVec2(columnZeroWidth, std::min(listHeightTotal, ImGui::GetWindowHeight() / 2.0f))))
+    if (ImGui::BeginChild("##EntryList", ImVec2(columnZeroWidth, std::min(listHeightTotal, 300.0f))))
     {
         for (u32 i = 0; i < Peg.Entries.size(); i++)
         {
@@ -146,21 +146,29 @@ void TextureDocument::Update(GuiState* state)
     if (SelectedIndex < Peg.Entries.size())
     {
         PegEntry10& entry = Peg.Entries[SelectedIndex];
+        bool srgb = (Peg.Flags & 512) != 0;
         gui::LabelAndValue("Name:", entry.Name);
-        gui::LabelAndValue("Data offset:", std::to_string(entry.DataOffset));
         gui::LabelAndValue("Width:", std::to_string(entry.Width));
         gui::LabelAndValue("Height:", std::to_string(entry.Height));
         gui::LabelAndValue("Bitmap format:", PegHelpers::PegFormatToString(entry.BitmapFormat));
-        gui::LabelAndValue("Source width:", std::to_string(entry.SourceWidth));
-        gui::LabelAndValue("Anim tiles width:", std::to_string(entry.AnimTilesWidth));
-        gui::LabelAndValue("Anim tiles height:", std::to_string(entry.AnimTilesHeight));
-        gui::LabelAndValue("Num frames:", std::to_string(entry.NumFrames));
         gui::LabelAndValue("Flags:", std::to_string((int)entry.Flags));
-        gui::LabelAndValue("Filename offset:", std::to_string(entry.FilenameOffset));
-        gui::LabelAndValue("Source height:", std::to_string(entry.SourceHeight));
-        gui::LabelAndValue("Fps:", std::to_string(entry.Fps));
+        gui::LabelAndValue("SRGB:", srgb ? "true" : "false");
         gui::LabelAndValue("Mip levels:", std::to_string(entry.MipLevels));
-        gui::LabelAndValue("Frame size:", std::to_string(entry.FrameSize));
+        if (ImGui::CollapsingHeader("Additional info"))
+        {
+            f32 indent = 30.0f;
+            ImGui::Indent(indent);
+            gui::LabelAndValue("Data offset:", std::to_string(entry.DataOffset));
+            gui::LabelAndValue("Source width:", std::to_string(entry.SourceWidth));
+            gui::LabelAndValue("Anim tiles width:", std::to_string(entry.AnimTilesWidth));
+            gui::LabelAndValue("Anim tiles height:", std::to_string(entry.AnimTilesHeight));
+            gui::LabelAndValue("Num frames:", std::to_string(entry.NumFrames));
+            gui::LabelAndValue("Filename offset:", std::to_string(entry.FilenameOffset));
+            gui::LabelAndValue("Source height:", std::to_string(entry.SourceHeight));
+            gui::LabelAndValue("Fps:", std::to_string(entry.Fps));
+            gui::LabelAndValue("Frame size:", std::to_string(entry.FrameSize));
+            ImGui::Unindent(indent);
+        }
     }
     else
     {

@@ -126,6 +126,8 @@ This release adds support for high lod terrain meshes and high resolution terrai
   * Better use of normal maps in mesh viewer
   * Nanoforge now limits the number of threads it uses for background tasks.  `File > Settings` has a MaxThreads setting. This lets you limit how many threads can be used by background tasks. By default it saves 2 threads for your system to avoid lagging your entire PC during intensive tasks like level loading.
   * Added 'Tasks' button at the bottom left of the screen that shows the status of background tasks when clicked.
+  * SRGB textures are properly displayed in the texture editor. An SRGB label was also added to the sidebar.
+  * Less useful texture info in the viewer is now placed in a "Additional info" section that's collapsed by default.
   * BUG: Fixed mesh rendering and export bugs like erroneous triangles and inside out meshes. Occurred when meshes consisted of multiple submeshes.
   * BUG: Fixed slow & infinite texture searches in the mesh viewer. Searches can still fail, but they'll fail quickly.
   * BUG: Fixed missing triangles in low lod terrain.
