@@ -37,15 +37,31 @@ std::optional<string> TextureIndex::FindTexture(const std::string_view textureNa
     return {};
 }
 
+std::optional<string> TextureIndex::GetTexturePegPath(const std::string_view textureName, bool tryHighResVariant) const
+{
+    //Just use ::FindTexture() and remove the texture name from the end
+    //E.g. "misc.vpp_pc/always_loaded.cpeg_pc/menu_background.tga" -> "misc.vpp_pc/always_loaded.cpeg_pc"
+    std::optional<string> texturePath = FindTexture(textureName, tryHighResVariant);
+    if (texturePath)
+    {
+        size_t lastForwardSlash = texturePath.value().find_last_of('/');
+        return texturePath.value().substr(0, lastForwardSlash);
+    }
+
+    return {};
+}
+
 std::optional<PegFile10> TextureIndex::GetPeg(const std::string_view pegName) const
 {
-    //Get peg path
+    //Find and extract peg
     std::optional<string> search = FindPeg(pegName);
-    if (!search)
-        return {};
+    return search.has_value() ? GetPegFromPath(search.value()) : std::optional<PegFile10>{};
+}
 
+std::optional<PegFile10> TextureIndex::GetPegFromPath(const std::string_view pegPath) const
+{
     //Extract peg files
-    string cpuFilePath = search.value();
+    string cpuFilePath = string(pegPath);
     string gpuFilePath = cpuFilePath.substr(0, cpuFilePath.find_last_of('/') + 1) + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
     std::optional<std::span<u8>> cpuFileBytes = packfileVFS_->GetFileBytes(cpuFilePath);
     std::optional<std::span<u8>> gpuFileBytes = packfileVFS_->GetFileBytes(gpuFilePath);
@@ -134,13 +150,13 @@ std::optional<Texture2D> TextureIndex::GetRenderTexture(const std::string_view t
     std::span<u8> pixels = maybePixels.value();
 
     //One subresource data per mip level
-    DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, peg.Flags);
+    DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, (u32)entry.Flags);
     std::vector<D3D11_SUBRESOURCE_DATA> textureData = PegHelpers::CalcSubresourceData(entry, peg.Flags, pixels);
     D3D11_SUBRESOURCE_DATA* subresourceData = textureData.size() > 0 ? textureData.data() : nullptr;
 
     //Create renderer texture
     Texture2D texture;
-    texture.Name = string(textureName);
+    texture.Name = peg.Entries[search.value().TextureIndex].Name;
     texture.Create(d3d11Device, entry.Width, entry.Height, format, D3D11_BIND_SHADER_RESOURCE, subresourceData, entry.MipLevels);
     texture.CreateShaderResourceView(); //Need shader resource view to use it in shader
     texture.CreateSampler(); //Need sampler too

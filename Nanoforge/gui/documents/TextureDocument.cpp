@@ -146,7 +146,7 @@ void TextureDocument::Update(GuiState* state)
     if (SelectedIndex < Peg.Entries.size())
     {
         PegEntry10& entry = Peg.Entries[SelectedIndex];
-        bool srgb = (Peg.Flags & 512) != 0;
+        bool srgb = ((u32)entry.Flags & 512) != 0;
         gui::LabelAndValue("Name:", entry.Name);
         gui::LabelAndValue("Width:", std::to_string(entry.Width));
         gui::LabelAndValue("Height:", std::to_string(entry.Height));
@@ -225,7 +225,7 @@ void TextureDocument::Update(GuiState* state)
             BinaryReader gpuFileReader(gpuFileBytes);
 
             Peg.ReadTextureData(gpuFileReader, entry);
-            bool srgb = (Peg.Flags & 512) != 0;
+            bool srgb = ((u32)entry.Flags & 512) != 0;
             DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
             ImTextureID id = state->Renderer->TextureDataToHandle(entry.RawData, format, entry.Width, entry.Height);
             if (!id)

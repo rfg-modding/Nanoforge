@@ -271,34 +271,65 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
             }
             else
             {
-                //Extract textures used by mesh and get their names
-                string diffuseMapName = "";
-                string specularMapPath = "";
-                string normalMapPath = "";
-                //if (DiffuseMapPegPath != "")
-                //{
-                //    string cpuFilePath = DiffuseMapPegPath;
-                //    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                //    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, DiffuseTextureName, MeshExportPath + "\\");
-                //    diffuseMapName = String::Replace(DiffuseTextureName, ".tga", ".dds");
-                //}
-                //if (SpecularMapPegPath != "")
-                //{
-                //    string cpuFilePath = SpecularMapPegPath;
-                //    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                //    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, SpecularTextureName, MeshExportPath + "\\");
-                //    specularMapPath = String::Replace(SpecularTextureName, ".tga", ".dds");
-                //}
-                //if (NormalMapPegPath != "")
-                //{
-                //    string cpuFilePath = NormalMapPegPath;
-                //    string gpuFilePath = Path::GetParentDirectory(cpuFilePath) + "\\" + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-                //    PegHelpers::ExportSingle(cpuFilePath, gpuFilePath, NormalTextureName, MeshExportPath + "\\");
-                //    normalMapPath = String::Replace(NormalTextureName, ".tga", ".dds");
-                //}
+                string exportFolderPath = MeshExportPath + "\\";
 
-                //Write mesh to obj
-                //StaticMesh.WriteToObj(GpuFilePath, MeshExportPath, diffuseMapName, specularMapPath, normalMapPath);
+                //Save mesh textures
+                string diffuseFile = "";
+                string specularFile = "";
+                string normalFile = "";
+                if (DiffuseName && DiffusePegPath)
+                {
+                    //Load peg
+                    std::optional<PegFile10> peg = state->TextureSearchIndex->GetPegFromPath(DiffusePegPath.value());
+                    defer(if (peg) peg.value().Cleanup());
+
+                    //Write texture to file
+                    if (peg && PegHelpers::ExportSingle(peg.value(), exportFolderPath, DiffuseName.value()))
+                        diffuseFile = Path::GetFileNameNoExtension(DiffuseName.value()) + ".dds";
+                }
+                if (SpecularName && SpecularPegPath)
+                {
+                    //Load peg
+                    std::optional<PegFile10> peg = state->TextureSearchIndex->GetPegFromPath(SpecularPegPath.value());
+                    defer(if (peg) peg.value().Cleanup());
+
+                    //Write texture to file
+                    if (peg && PegHelpers::ExportSingle(peg.value(), exportFolderPath, SpecularName.value()))
+                        specularFile = Path::GetFileNameNoExtension(SpecularName.value()) + ".dds";
+                }
+                if (NormalName && NormalPegPath)
+                {
+                    //Load peg
+                    std::optional<PegFile10> peg = state->TextureSearchIndex->GetPegFromPath(NormalPegPath.value());
+                    defer(if (peg) peg.value().Cleanup());
+
+                    //Write texture to file
+                    if (peg && PegHelpers::ExportSingle(peg.value(), exportFolderPath, NormalName.value()))
+                        normalFile = Path::GetFileNameNoExtension(NormalName.value()) + ".dds";
+                }
+
+                //Read packfile holding the mesh
+                Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+                defer(if (InContainer) delete packfile);
+                if (packfile)
+                {
+                    //Get mesh gpu file name
+                    string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
+
+                    //Read mesh data
+                    std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+                    defer(delete[] gpuFileBytes.data());
+
+                    //Read mesh header
+                    BinaryReader gpuFileReader(gpuFileBytes);
+
+                    //Export mesh as gltf file
+                    StaticMesh.WriteToGltf(gpuFileReader, fmt::format("{}/{}.gltf", MeshExportPath, Path::GetFileNameNoExtension(Filename)), diffuseFile, specularFile, normalFile);
+                }
+                else
+                {
+                    LOG_ERROR("Failed to get packfile {}/{} for {} export.", VppName, ParentName, Filename);
+                }
             }
         }
         if (!meshExportEnabled_)
@@ -341,7 +372,6 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
         Open = false;
         return;
     }
-    packfile->ReadMetadata();
 
     //Read mesh data
     std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
@@ -358,21 +388,15 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     else if (ext == ".ccmesh_pc")
         StaticMesh.Read(cpuFileReader, Filename, 0xFAC351A9, 4);
 
-    Log->info("Mesh vertex format: {}", to_string(StaticMesh.MeshInfo.VertFormat));
-
-    TaskEarlyExitCheck();
-
     //Get material based on vertex format
-    WorkerStatusString = "Setting up scene...";
     VertexFormat format = StaticMesh.MeshInfo.VertFormat;
+    Log->info("Mesh vertex format: {}", to_string(format));
 
     //Two steps for each submesh: Get index/vertex buffers and find textures
     u32 numSteps = 2;
     f32 stepSize = 1.0f / (f32)numSteps;
-
-    TaskEarlyExitCheck();
-
     WorkerStatusString = "Loading mesh...";
+    TaskEarlyExitCheck();
 
     //Read index and vertex buffers from gpu file
     auto maybeMeshData = StaticMesh.ReadMeshData(gpuFileReader);
@@ -434,11 +458,12 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
             std::optional<Texture2D> texture = state->TextureSearchIndex->GetRenderTexture(textureName, Scene->d3d11Device_, true);
             if (texture)
             {
-                Log->info("Found diffuse texture {} for {}", textureName, Filename);
+                Log->info("Found diffuse texture {} for {}", texture.value().Name, Filename);
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
                 renderObject->Textures[0] = texture.value();
-                DiffuseTextureName = textureName;
+                DiffuseName = texture.value().Name;
+                DiffusePegPath = state->TextureSearchIndex->GetTexturePegPath(texture.value().Name, true);
                 foundDiffuse = true;
             }
             else
@@ -451,12 +476,13 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
             std::optional<Texture2D> texture = state->TextureSearchIndex->GetRenderTexture(textureName, Scene->d3d11Device_, true);
             if (texture)
             {
-                Log->info("Found normal map {} for {}", textureName, Filename);
+                Log->info("Found normal map {} for {}", texture.value().Name, Filename);
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
                 renderObject->Textures[2] = texture.value();
-                NormalTextureName = textureName;
+                NormalName = texture.value().Name;
+                NormalPegPath = state->TextureSearchIndex->GetTexturePegPath(texture.value().Name, true);
                 foundNormal = true;
             }
             else
@@ -469,12 +495,13 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
             std::optional<Texture2D> texture = state->TextureSearchIndex->GetRenderTexture(textureName, Scene->d3d11Device_, true);
             if (texture)
             {
-                Log->info("Found specular map {} for {}", textureName, Filename);
+                Log->info("Found specular map {} for {}", texture.value().Name, Filename);
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
                 renderObject->UseTextures = true;
                 renderObject->Textures[1] = texture.value();
-                SpecularTextureName = textureName;
+                SpecularName = texture.value().Name;
+                SpecularPegPath = state->TextureSearchIndex->GetTexturePegPath(texture.value().Name, true);
                 foundSpecular = true;
             }
             else

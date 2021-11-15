@@ -35,9 +35,13 @@ private:
     string WorkerStatusString;
     f32 WorkerProgressFraction = 0.0f;
 
-    string DiffuseTextureName;
-    string SpecularTextureName;
-    string NormalTextureName;
+    //Names of subtextures and the path of the peg they're stored in. Discovered on load and used during export.
+    std::optional<string> DiffusePegPath;
+    std::optional<string> DiffuseName;
+    std::optional<string> SpecularPegPath;
+    std::optional<string> SpecularName;
+    std::optional<string> NormalPegPath;
+    std::optional<string> NormalName;
 
     GuiState* state_ = nullptr;
     bool meshExportEnabled_ = false;

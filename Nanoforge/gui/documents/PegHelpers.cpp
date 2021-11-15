@@ -1,5 +1,5 @@
 #include "PegHelpers.h"
-#include "PegHelpers.h"
+#include "common/string/String.h"
 #include <DirectXTex.h>
 #include "Log.h"
 #include "util/StringHelpers.h"
@@ -7,39 +7,35 @@
 
 namespace PegHelpers
 {
-    void ExportAll(PegFile10& peg, std::string_view gpuFilePath, std::string_view exportFolderPath)
+    bool ExportAll(PegFile10& peg, std::string_view exportFolderPath)
     {
-        for (u32 i = 0; i < peg.Entries.size(); i++)
+        for (size_t i = 0; i < peg.Entries.size(); i++)
+            if (!ExportSingle(peg, exportFolderPath, i))
+                return false;
+
+        return true;
+    }
+
+    bool ExportSingle(PegFile10& peg, std::string_view exportFolderPath, std::string_view subtextureName)
+    {
+        for (size_t i = 0; i < peg.Entries.size(); i++)
         {
-            ExportSingle(peg, gpuFilePath, i, exportFolderPath);
+            if (String::EqualIgnoreCase(peg.Entries[i].Name, subtextureName))
+            {
+                return ExportSingle(peg, exportFolderPath, i);
+            }
         }
+
+        return false;
     }
 
-    void ExportAll(std::string_view cpuFilePath, std::string_view gpuFilePath, std::string_view exportFolderPath)
-    {
-        //Open and parse peg
-        PegFile10 peg;
-        BinaryReader cpuFile(cpuFilePath);
-        peg.Read(cpuFile);
-
-        //Export all entires
-        ExportAll(peg, gpuFilePath, exportFolderPath);
-
-        //Cleanup peg heap resources
-        peg.Cleanup();
-    }
-
-    void ExportSingle(PegFile10& peg, std::string_view gpuFilePath, u32 entryIndex, std::string_view exportFolderPath)
+    bool ExportSingle(PegFile10& peg, std::string_view exportFolderPath, size_t subtextureIndex)
     {
         //Get entry ref and create reader for gpu file
-        PegEntry10& entry = peg.Entries[entryIndex];
-        BinaryReader gpuFile(gpuFilePath);
+        PegEntry10& entry = peg.Entries[subtextureIndex];
 
-        //First make sure we have the raw data for the target entry
-        peg.ReadTextureData(gpuFile, entry);
-
-        //Now we need to tell DirectXTex how to output this data
-        bool srgb = (peg.Flags & 512) != 0;
+        //Describe image format
+        bool srgb = ((u32)entry.Flags & 512) != 0;
         DXGI_FORMAT format = PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
         DirectX::Image image;
         image.width = entry.Width;
@@ -49,48 +45,19 @@ namespace PegHelpers
         image.slicePitch = entry.RawData.size_bytes();
         image.pixels = entry.RawData.data();
 
+        //Convert output path to wide string, required by DirectXTex
         string tempPath = fmt::format("{}{}{}", exportFolderPath, Path::GetFileNameNoExtension(entry.Name), ".dds");
         std::unique_ptr<wchar_t[]> pathWide = WidenCString(tempPath.c_str());
-        //HRESULT result = SaveToWICFile(image, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), pathWide);
+
+        //Export via DirectXTex
         HRESULT result = DirectX::SaveToDDSFile(image, DirectX::DDS_FLAGS::DDS_FLAGS_NONE, pathWide.get());
         if (FAILED(result))
-            LOG_ERROR("Error when saving \"{}\" to path \"{}\". Error code: {:x}", entry.Name, exportFolderPath, (u32)result);
-    }
-
-    void ExportSingle(std::string_view cpuFilePath, std::string_view gpuFilePath, u32 entryIndex, std::string_view exportFolderPath)
-    {
-        //Open and parse peg
-        PegFile10 peg;
-        BinaryReader cpuFile(cpuFilePath);
-        peg.Read(cpuFile);
-
-        //Export target entry
-        ExportSingle(peg, gpuFilePath, entryIndex, exportFolderPath);
-
-        //Cleanup peg heap resources
-        peg.Cleanup();
-    }
-
-    void ExportSingle(std::string_view cpuFilePath, std::string_view gpuFilePath, std::string_view entryName, std::string_view exportFolderPath)
-    {
-        //Open and parse peg
-        PegFile10 peg;
-        BinaryReader cpuFile(cpuFilePath);
-        peg.Read(cpuFile);
-
-        //Get entry index
-        auto entryIndex = peg.GetEntryIndex(entryName);
-        if (!entryIndex)
         {
-            LOG_ERROR("Failed to get entry \"{}\" from {}. Stopping texture export.", entryName, Path::GetFileName(cpuFilePath));
-            return;
+            LOG_ERROR("Error when saving \"{}\" to path \"{}\". Error code: {:x}", entry.Name, exportFolderPath, (u32)result);
+            return false;
         }
 
-        //Export target entry
-        ExportSingle(peg, gpuFilePath, entryIndex.value(), exportFolderPath);
-
-        //Cleanup peg heap resources
-        peg.Cleanup();
+        return true;
     }
 
     void ImportTexture(PegFile10& peg, u32 targetIndex, std::string_view importFilePath)
@@ -242,7 +209,7 @@ namespace PegHelpers
     std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(PegEntry10& entry, u16 pegFlags, std::span<u8> pixels)
     {
         std::vector<D3D11_SUBRESOURCE_DATA> subresourceDatas = {};
-        DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, pegFlags);
+        DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, (u32)entry.Flags);
 
         //Generate D3D11_SUBRESOURCE_DATA for each mip level
         u64 dataOffset = 0;
