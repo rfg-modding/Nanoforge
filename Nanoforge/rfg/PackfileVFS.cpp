@@ -233,6 +233,20 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
     return bytes;
 }
 
+std::optional<string> PackfileVFS::GetFileString(const string& filePath)
+{
+    //Read file
+    std::optional<std::span<u8>> fileBytes = GetFileBytes(filePath);
+    if (!fileBytes)
+        return {};
+
+    //Copy file into a string
+    string out;
+    out.resize(fileBytes.value().size_bytes());
+    memcpy(out.data(), fileBytes.value().data(), fileBytes.value().size_bytes());
+    return out;
+}
+
 std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool findOne)
 {
     return GetFiles(std::vector<string>(searchFilters), recursive, findOne);

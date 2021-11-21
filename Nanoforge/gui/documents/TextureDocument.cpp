@@ -12,29 +12,26 @@
 TextureDocument::TextureDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
 {
-    //Get gpu filename
-    string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
-
-    //Extract packfile holding the texture
-    Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
-    defer(if (InContainer) delete packfile);
-    if (!packfile)
+    if (inContainer)
     {
-        LOG_ERROR("Failed to get packfile {}/{} for {}", VppName, ParentName, Filename);
+        CpuFilePath += string(vppName) + "/";
+        GpuFilePath += string(vppName) + "/";
+    }
+    CpuFilePath += fmt::format("{}/{}", parentName, filename);
+    GpuFilePath += fmt::format("{}/{}", parentName, RfgUtil::CpuFilenameToGpuFilename(filename));
+
+    //Extract cpu file. Data is loaded from the gpu file on demand to reduce RAM usage.
+    std::optional<std::span<u8>> cpuFile = state->PackfileVFS->GetFileBytes(CpuFilePath);
+    if (!cpuFile)
+    {
+        LOG_ERROR("Failed to extract '{}'", CpuFilePath);
         Open = false;
         return;
     }
-    packfile->ReadMetadata();
+    defer(delete[] cpuFile.value().data());
 
-    //Extract texture bytes
-    std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
-    std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
-    defer(delete[] cpuFileBytes.data());
-    defer(delete[] gpuFileBytes.data());
-
-    //Read texture header
-    BinaryReader cpuFileReader(cpuFileBytes);
-    BinaryReader gpuFileReader(gpuFileBytes);
+    //Parse
+    BinaryReader cpuFileReader(cpuFile.value());
     Peg.Read(cpuFileReader);
 
     //Fill texture list with nullptrs. When a sub-image of the peg is opened it'll be rendered from this list.
@@ -72,7 +69,6 @@ void TextureDocument::Update(GuiState* state)
     ImGui::ColorEdit4("Background color", (float*)&ImageBackground, ImGuiColorEditFlags_NoInputs);
     ImGui::Separator();
     ImGui::SetColumnWidth(0, columnZeroWidth);
-
 
     //Save cursor y at start of list so we can align the image column to it
     f32 baseY = ImGui::GetCursorPosY();
@@ -205,25 +201,17 @@ void TextureDocument::Update(GuiState* state)
         ImTextureID entryTexture = ImageTextures[SelectedIndex];
         if (!entryTexture && !CreateFailed)
         {
-            //Get gpu filename
-            string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
-
-            //Get packfile
-            Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
-            defer(if (InContainer) delete packfile);
-            if (!packfile)
+            //Load gpu file
+            std::optional<std::span<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
+            if (!gpuFile)
             {
-                LOG_ERROR("Failed to get packfile {}/{} for {}", VppName, ParentName, Filename);
-                Open = false;
-                return;
+                LOG_ERROR("Failed to read '{}'", GpuFilePath);
+                CreateFailed = true;
             }
-            packfile->ReadMetadata();
+            defer(delete[] gpuFile.value().data());
+            BinaryReader gpuFileReader(gpuFile.value());
 
-            //Get gpu file bytes
-            std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
-            defer(delete[] gpuFileBytes.data());
-            BinaryReader gpuFileReader(gpuFileBytes);
-
+            //Read texture from gpu file and create a directx texture from it
             Peg.ReadTextureData(gpuFileReader, entry);
             bool srgb = ((u32)entry.Flags & 512) != 0;
             DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
@@ -260,23 +248,15 @@ void TextureDocument::Save(GuiState* state)
 {
     if (state->CurrentProject->Loaded())
     {
-        //Get gpu filename
-        string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
-
-        //Get packfile
-        Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
-        defer(if (InContainer) delete packfile);
-        if (!packfile)
+        //Load gpu file
+        std::optional<std::span<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
+        if (!gpuFile)
         {
-            LOG_ERROR("Failed to get packfile {}/{} while saving {}", VppName, ParentName, Filename);
+            LOG_ERROR("Failed to read '{}' while saving texture.", GpuFilePath);
             return;
         }
-        packfile->ReadMetadata();
-
-        //Get gpu file data
-        std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
-        defer(delete[] gpuFileBytes.data());
-        BinaryReader gpuFileReader(gpuFileBytes);
+        defer(delete[] gpuFile.value().data());
+        BinaryReader gpuFileReader(gpuFile.value());
 
         //Read all texture data from unedited gpu file
         Peg.ReadAllTextureData(gpuFileReader, false); //Read all texture data and don't overwrite edited files
@@ -320,25 +300,40 @@ void TextureDocument::Save(GuiState* state)
 
 void TextureDocument::PickPegExportFolder(GuiState* state)
 {
-    //Open folder browser and return result
-    auto result = OpenFolder();
-    if (!result)
+    //Open folder browser and return exportFolder
+    auto exportFolder = OpenFolder();
+    if (!exportFolder)
         return;
 
-    //Note: Disabled due to removal of FileCache, which was a pain to maintain and overcomplicated.
-    //      This is a temporary break. It will be fixed before the next release.
+    //If exportFolder is valid export the texture(s)
+    Log->info("Extract all window selection: \"{}\"", exportFolder.value());
 
-    //If result is valid export the texture(s)
-    //Log->info("Extract all window selection: \"{}\"", result.value());
-    //if (ExtractType == PegExtractType::All)
-    //    PegHelpers::ExportAll(Peg, GpuFilePath, result.value() + "\\");
-    //else if (ExtractType == PegExtractType::SingleFile)
-    //    PegHelpers::ExportSingle(Peg, GpuFilePath, SelectedIndex, result.value() + "\\");
+    //Load gpu file since they contain texture data
+    std::optional<std::span<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
+    if (!gpuFile)
+    {
+        LOG_ERROR("Failed to read '{}'", GpuFilePath);
+        CreateFailed = true;
+    }
+    defer(delete[] gpuFile.value().data());
+    BinaryReader gpuFileReader(gpuFile.value());
+
+    //Load and export textures
+    if (ExtractType == PegExtractType::All)
+    {
+        Peg.ReadAllTextureData(gpuFileReader);
+        PegHelpers::ExportAll(Peg, exportFolder.value() + "/");
+    }
+    else if (ExtractType == PegExtractType::SingleFile)
+    {
+        Peg.ReadTextureData(gpuFileReader, Peg.Entries[SelectedIndex]);
+        PegHelpers::ExportSingle(Peg, exportFolder.value() + "/", SelectedIndex);
+    }
 }
 
 void TextureDocument::PickPegImportTexture(GuiState* state)
 {
-    //Open file browser and return result
+    //Open file browser and return exportFolder
     auto result = OpenFile("dds");
     if (!result)
         return;

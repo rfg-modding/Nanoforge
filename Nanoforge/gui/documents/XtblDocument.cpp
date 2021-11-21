@@ -40,7 +40,7 @@ XtblDocument::~XtblDocument()
     //Can't just delete the xtbl since other xtbls could reference this one
     if (ResetOnClose)
     {
-        xtbl_->Reload();
+        xtbl_->Reload(state_->PackfileVFS);
     }
 }
 

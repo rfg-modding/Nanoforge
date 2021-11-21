@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <vector>
 
+struct PackfileVFS;
+
 //Categories specified by <_Editor><Category>...</Category></_Editor> blocks
 class XtblCategory
 {
@@ -24,9 +26,9 @@ public:
     ~XtblFile();
 
     //Reparse xtbl file
-    bool Reload();
+    bool Reload(PackfileVFS* packfileVFS);
     //Generate XtblNode tree by parsing an xtbl file
-    bool Parse(const string& path);
+    bool Parse(const string& path, PackfileVFS* packfileVFS);
     //Parse xtbl node. Returns an IXtblNode instance if successful. Returns nullptr if it fails.
     IXtblNode* ParseNode(tinyxml2::XMLElement* node, IXtblNode* parent, string& path);
     //Get description of xtbl value

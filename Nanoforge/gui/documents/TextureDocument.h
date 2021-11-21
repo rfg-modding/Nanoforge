@@ -23,6 +23,8 @@ private:
     string ParentName;
     string VppName;
     string ExtractionPath;
+    string CpuFilePath;
+    string GpuFilePath;
     PegFile10 Peg;
     std::vector<ImTextureID> ImageTextures;
     bool InContainer;

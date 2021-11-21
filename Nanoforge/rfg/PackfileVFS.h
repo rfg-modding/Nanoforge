@@ -35,6 +35,7 @@ public:
     std::vector<FileHandle> GetFiles(const string& packfileName, const string& filter, bool recursive, bool oneResultPerFilter = false);
     //Extract a file using it's path. E.g. "humans.vpp_pc/rfg_PC.str2_pc/mason_head.cpeg_pc". Caller must free span memory if successful
     std::optional<std::span<u8>> GetFileBytes(const string& filePath);
+    std::optional<string> GetFileString(const string& filePath);
 
     //Todo: Ensure these stay valid if we start changing packfiles_ after init. May want some handle class that can return packfiles
     //Attempt to get a packfile. Returns nullptr if it fails to find the packfile

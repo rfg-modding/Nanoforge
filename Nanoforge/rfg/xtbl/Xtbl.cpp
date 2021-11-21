@@ -5,6 +5,7 @@
 #include "Common/string/String.h"
 #include "IXtblNode.h"
 #include "nodes/UnsupportedXtblNode.h"
+#include "rfg/PackfileVFS.h"
 #include <tinyxml2/tinyxml2.h>
 #include <filesystem>
 #include <algorithm>
@@ -22,7 +23,7 @@ XtblFile::~XtblFile()
     Entries.clear();
 }
 
-bool XtblFile::Reload()
+bool XtblFile::Reload(PackfileVFS* packfileVFS)
 {
     for (auto entry : Entries)
         delete entry;
@@ -35,22 +36,22 @@ bool XtblFile::Reload()
     TableDescription = CreateHandle<XtblDescription>();
     RootCategory = CreateHandle<XtblCategory>("Entries");
 
-    return Parse(FilePath);
+    return Parse(FilePath, packfileVFS);
 }
 
-bool XtblFile::Parse(const string& path)
+bool XtblFile::Parse(const string& path, PackfileVFS* packfileVFS)
 {
-    //Ensure the file exists at the provided path
-    string filename = Path::GetFileName(path);
-    if (!std::filesystem::exists(path))
+    //Read file into a string
+    FilePath = path;
+    std::optional<string> fileString = packfileVFS->GetFileString(path);
+    if (!fileString)
     {
-        LOG_ERROR("Failed to parse \"{}\". File not present at that path.", path);
+        LOG_ERROR("Failed to read \"{}\" from packfile.", path);
         return false;
     }
-    FilePath = path;
 
     //Parse the xtbl using tinyxml2
-    xmlDocument_.LoadFile(path.c_str());
+    xmlDocument_.Parse(fileString.value().data(), fileString.value().size());
 
     auto* root = xmlDocument_.RootElement();
     if (!root)
