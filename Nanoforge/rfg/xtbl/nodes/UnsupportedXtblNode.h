@@ -19,6 +19,7 @@ public:
         element_ = element;
     }
 
+#pragma warning(disable:4100) //Disable warning about unused argument. Can't remove the arg since some implementations of the virtual functions use it.
     virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         return false;
@@ -38,9 +39,10 @@ public:
     virtual bool WriteXml(tinyxml2::XMLElement* xml, bool writeNanoforgeMetadata)
     {
         //Make a copy of element_ as a child of the document being written
-        auto* copyXml = xml->InsertEndChild(element_->DeepClone(xml->GetDocument()));
+        xml->InsertEndChild(element_->DeepClone(xml->GetDocument()));
         return true;
     }
+#pragma warning(default:4100)
 private:
     tinyxml2::XMLElement* element_ = nullptr;
 };

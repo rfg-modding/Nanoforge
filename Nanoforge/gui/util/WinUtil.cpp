@@ -1,9 +1,13 @@
 #include "WinUtil.h"
-#include <nfd.h>
 #include <sstream>
 #include <commdlg.h>
 #include <ShlObj.h>
 #include <filesystem>
+#pragma warning(disable:4996)
+#pragma warning(disable:26812) //Disable library warnings
+#include <nfd.h>
+#pragma warning(default:26812)
+#pragma warning(default:4996)
 
 //Main window handle. Used by the functions below.
 HWND hwnd = NULL;
@@ -12,7 +16,7 @@ HWND hwnd = NULL;
 
 void WinUtilInit(HWND mainWindowHandle)
 {
-	hwnd = hwnd;
+	hwnd = mainWindowHandle;
 }
 
 std::optional<string> OpenFile(const char* filter)

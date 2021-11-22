@@ -87,14 +87,14 @@ void Scene::Draw(f32 deltaTime)
     u32 vertexOffset = 0;
     if (primitiveBufferNeedsUpdate_)
     {
-        lineVertexBuffer_.ResizeIfNeeded(d3d11Device_, lineVertices_.size() * linelistVertexStride);
+        lineVertexBuffer_.ResizeIfNeeded(d3d11Device_, (u32)lineVertices_.size() * linelistVertexStride);
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
         d3d11Context_->Map(lineVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
         memcpy(mappedResource.pData, lineVertices_.data(), lineVertices_.size() * linelistVertexStride);
         d3d11Context_->Unmap(lineVertexBuffer_.Get(), 0);
 
-        numLineVertices_ = lineVertices_.size();
+        numLineVertices_ = (u32)lineVertices_.size();
         lineVertices_.clear();
         primitiveBufferNeedsUpdate_ = false;
     }

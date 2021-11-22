@@ -27,7 +27,7 @@ class XtblDescription
 {
 public:
     string Name;
-    XtblType Type;
+    XtblType Type = XtblType::None;
     string DisplayName;
     std::optional<string> Description;
     std::optional<bool> Required = true;

@@ -79,6 +79,7 @@ private:
 };
 
 //Convert std::string to Locale enum
+#pragma warning(disable:4505)
 static Locale ParseLocaleString(std::string_view value)
 {
     //if (value == "AR_EG")
@@ -112,3 +113,4 @@ static Locale ParseLocaleString(std::string_view value)
 
     return Locale::None;
 }
+#pragma warning(default:4505)

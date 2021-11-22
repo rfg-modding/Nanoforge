@@ -61,7 +61,7 @@ void StaticMeshDocument::Update(GuiState* state)
     contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
     contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
     if(contentAreaSize.x > 0.0f && contentAreaSize.y > 0.0f)
-        Scene->HandleResize(contentAreaSize.x, contentAreaSize.y);
+        Scene->HandleResize((u32)contentAreaSize.x, (u32)contentAreaSize.y);
 
     //Store initial position so we can draw buttons over the scene texture after drawing it
     ImVec2 initialPos = ImGui::GetCursorPos();
@@ -80,10 +80,12 @@ void StaticMeshDocument::Update(GuiState* state)
     DrawOverlayButtons(state);
 }
 
+#pragma warning(disable:4100)
 void StaticMeshDocument::Save(GuiState* state)
 {
 
 }
+#pragma warning(default:4100)
 
 void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
 {
@@ -169,7 +171,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
             Scene->Objects[0]->Scale.y = tempScale;
             Scene->Objects[0]->Scale.z = tempScale;
         }
-        ImGui::DragFloat3("Scale", (float*)&Scene->Objects[0]->Scale, 0.01, 1.0f, 100.0f);
+        ImGui::DragFloat3("Scale", (float*)&Scene->Objects[0]->Scale, 0.01f, 1.0f, 100.0f);
 
         ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&Scene->perFrameStagingBuffer_.DiffuseColor));
         ImGui::SliderFloat("Diffuse intensity", &Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 3.0f);
@@ -317,7 +319,9 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
                     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
 
                     //Read mesh data
+#pragma warning(disable:26815) //Dangling pointer warning disabled since it's incorrect. Compiler gets confused by the defer statement. ::HIGH_RISK::
                     std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+#pragma warning(default:26815)
                     defer(delete[] gpuFileBytes.data());
 
                     //Read mesh header
@@ -365,17 +369,19 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
     //Read packfile holding the mesh
     Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
-    defer(if (InContainer) delete packfile);
     if (!packfile)
     {
         LOG_ERROR("Failed to get packfile {}/{} for {}", VppName, ParentName, Filename);
         Open = false;
         return;
     }
+    defer(if (InContainer) delete packfile);
 
     //Read mesh data
+#pragma warning(disable:26815) //Dangling pointer warning disabled since it's incorrect. Compiler gets confused by the defer statement. ::HIGH_RISK::
     std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
     std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
+#pragma warning(default:26815)
     defer(delete[] cpuFileBytes.data());
     defer(delete[] gpuFileBytes.data());
 

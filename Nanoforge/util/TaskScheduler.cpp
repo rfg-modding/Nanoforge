@@ -44,7 +44,7 @@ void TaskScheduler::Init(Config* config)
 		}
 
 		//Override thread limit if UseThreadLimit is true
-		if (useThreadLimit && threadLimit <= std::thread::hardware_concurrency())
+		if (useThreadLimit && (u32)threadLimit <= std::thread::hardware_concurrency())
 			maxThreads_ = std::min((u32)threadLimit, std::thread::hardware_concurrency() - 1);
 	}
 

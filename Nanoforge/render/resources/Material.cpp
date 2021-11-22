@@ -23,7 +23,7 @@ void Material::Init(ComPtr<ID3D11Device> d3d11Device, Config* config, const stri
     auto vsBytes = shader_.GetVertexShaderBytes();
 
     //Setup vertex input layout
-    if (FAILED(d3d11Device->CreateInputLayout(layout.data(), layout.size(), vsBytes->GetBufferPointer(), vsBytes->GetBufferSize(), vertexLayout_.GetAddressOf())))
+    if (FAILED(d3d11Device->CreateInputLayout(layout.data(), (u32)layout.size(), vsBytes->GetBufferPointer(), (u32)vsBytes->GetBufferSize(), vertexLayout_.GetAddressOf())))
         THROW_EXCEPTION("Failed to create Material vertex input layout.");
 
     initialized_ = true;

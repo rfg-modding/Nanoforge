@@ -90,6 +90,7 @@ private:
     std::filesystem::file_time_type lastWriteTime_;
 };
 
+#pragma warning(disable:4505)
 static string to_string(ConfigType type)
 {
     switch (type)
@@ -143,3 +144,4 @@ static ConfigType from_string(std::string_view str)
     else
         return ConfigType::Invalid;
 }
+#pragma warning(default:4505)

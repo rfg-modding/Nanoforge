@@ -22,6 +22,7 @@ void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFovDegrees, co
     LookAt({ 0.0f, 0.0f, 0.0f });
 }
 
+#pragma warning(disable:4100)
 void Camera::DoFrame(f32 deltaTime)
 {
     if (wDown) //w
@@ -39,6 +40,7 @@ void Camera::DoFrame(f32 deltaTime)
     else if (eDown) //e
         Translate(down, shiftDown);
 }
+#pragma warning(default:4100)
 
 void Camera::HandleResize(const DirectX::XMFLOAT2& screenDimensions)
 {
@@ -47,6 +49,7 @@ void Camera::HandleResize(const DirectX::XMFLOAT2& screenDimensions)
     UpdateProjectionMatrix();
 }
 
+#pragma warning(disable:4100)
 void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (!InputActive)
@@ -117,6 +120,7 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         break;
     }
 }
+#pragma warning(default:4100)
 
 void Camera::UpdateProjectionMatrix()
 {

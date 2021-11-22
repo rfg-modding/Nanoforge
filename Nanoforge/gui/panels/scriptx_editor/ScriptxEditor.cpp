@@ -1,14 +1,20 @@
 #include "ScriptxEditor.h"
 #include "render/imgui/imgui_ext.h"
 #include <types/Vec2.h>
-#include "Node.h"
-#include "Link.h"
 #include "render/imgui/ImGuiConfig.h"
-#include "imnodes.h"
 #include <functional>
 #include <spdlog/fmt/fmt.h>
 #include "Log.h"
 #include "util/Profiler.h"
+#pragma warning(push) //Disable imnodes library warnings
+#pragma warning(disable:26495)
+#pragma warning(disable:26812)
+#pragma warning(disable:6031)
+#pragma warning(disable:4996)
+#include "Node.h"
+#include "Link.h"
+#include <imnodes.h>
+#pragma warning(pop)
 
 ScriptxEditor::ScriptxEditor(GuiState* state)
 {
@@ -17,7 +23,7 @@ ScriptxEditor::ScriptxEditor(GuiState* state)
 
 ScriptxEditor::~ScriptxEditor()
 {
-    ScriptxEditor_Cleanup(state_);
+    Cleanup();
 }
 
 void ScriptxEditor::Update(GuiState* state, bool* open)
@@ -38,7 +44,7 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
     static bool firstCall = true;
     static bool needAutoLayout = false;
     static string targetScriptxList = ""; //All scriptx names separated by null terminators. Dumb way of doing this but ImGui likes it
-    static int targetScriptxCurrentItem = 0;
+    static i32 targetScriptxCurrentItem = 0;
     //Lambda to extract target script name from the list of scriptx files
     auto getTargetScriptxName = [&]() -> string
     {
@@ -53,23 +59,23 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
             u32 startPos = 0;
             u32 endPos = 0;
             u32 currentPos = 0;
-            for (u32 i = 0; i <= targetScriptxCurrentItem; i++)
+            for (u32 i = 0; i <= (u32)targetScriptxCurrentItem; i++)
             {
                 while (targetScriptxList[currentPos] != '\0')
                     currentPos++;
                 if (targetScriptxList[currentPos] == '\0')
                     currentPos++;
 
-                if (i == targetScriptxCurrentItem - 1)
+                if (i == (u32)targetScriptxCurrentItem - 1)
                 {
                     startPos = currentPos;
                 }
-                else if (i == targetScriptxCurrentItem)
+                else if (i == (u32)targetScriptxCurrentItem)
                 {
                     endPos = currentPos - 1;
                 }
             }
-            targetScriptxName = targetScriptxList.substr(startPos, endPos - startPos);
+            targetScriptxName = targetScriptxList.substr(startPos, size_t(endPos) - size_t(startPos));
         }
         return targetScriptxName;
     };
@@ -83,7 +89,7 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
     if (ImGui::Combo("Scriptx file", &targetScriptxCurrentItem, (const char*)targetScriptxList.data()))
     {
         SetTargetScript(0);
-        ScriptxEditor_Cleanup(state);
+        Cleanup();
 
         scriptList_ = "";
         string targetScriptx = getTargetScriptxName();
@@ -109,7 +115,7 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
     if (ImGui::Combo("Script", &currentItem, (const char*)scriptList_.data()))
     {
         SetTargetScript(currentItem);
-        ScriptxEditor_Cleanup(state);
+        Cleanup();
         string targetScriptx = getTargetScriptxName();
         LoadScriptxFile(targetScriptx, state);
         needAutoLayout = true;
@@ -130,14 +136,14 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
             {
                 f32 widestNodeFound = 0.0f;
                 u32 depthCount = 0;
-                for (auto* node : nodes_)
+                for (auto* subnode : nodes_)
                 {
-                    if (node->Depth != depth)
+                    if (subnode->Depth != depth)
                         continue;
 
                     depthCount++;
-                    node->SetPosition(curPos);
-                    ImVec2 nodeDimensions = imnodes::GetNodeDimensions(node->Id);
+                    subnode->SetPosition(curPos);
+                    ImVec2 nodeDimensions = imnodes::GetNodeDimensions(subnode->Id);
                     curPos.y += nodeDimensions.y * 1.2f;
                     if (nodeDimensions.x > widestNodeFound)
                         widestNodeFound = nodeDimensions.x;
@@ -158,7 +164,7 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
 
     //Add created links to Links
     {
-        Link link;
+        Link link = {};
         if (imnodes::IsLinkCreated(&link.Start, &link.End))
         {
             Node* startNode = FindAttributeOwner(link.Start);
@@ -189,7 +195,7 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
     ImGui::End();
 }
 
-void ScriptxEditor::ScriptxEditor_Cleanup(GuiState* state)
+void ScriptxEditor::Cleanup()
 {
     //Free nodes and attributes. They're allocated on the heap so they're pointers are stable
     for (Node* node : nodes_)
@@ -209,7 +215,7 @@ void ScriptxEditor::ScriptxEditor_Cleanup(GuiState* state)
 void ScriptxEditor::LoadScriptxFile(const string& name, GuiState* state)
 {
     //Clear existing data
-    ScriptxEditor_Cleanup(state);
+    Cleanup();
 
     //Wait for packfileVFS to be ready for use
     //Todo: Either move packfileVFS init out of worker thread or move this onto a thread so this doesn't lock the entire program while packfileVFS init is pending
@@ -387,7 +393,7 @@ void ScriptxEditor::ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphP
     if (nodeTypeName == "flag")
     {
         bool value = nodeText == "true" ? true : false;
-        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Bool(value, "Flag"), currentId_++);
+        graphParent->AddAttribute(new InputAttribute_Bool(value, "Flag"), currentId_++);
         //Todo: Add option to prefer separate nodes for flags or to prefer inline. For now just do inline by default for bools
         /*Node* childNode = AddNode("Flag", { new OutputAttribute_Bool });
         AddLink(childNode->GetAttribute(0), newAttribute);*/
@@ -438,27 +444,27 @@ void ScriptxEditor::ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphP
     else if (nodeTypeName == "anim_action")
     {
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
-        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "anim_action"), currentId_++);
+        graphParent->AddAttribute(new StaticAttribute_String(nodeText, "anim_action"), currentId_++);
     }
     else if (nodeTypeName == "string")
     {
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
-        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "String"), currentId_++);
+        graphParent->AddAttribute(new StaticAttribute_String(nodeText, "String"), currentId_++);
     }
     else if (nodeTypeName == "mission_handle")
     {
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
-        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "Mission handle"), currentId_++);
+        graphParent->AddAttribute(new StaticAttribute_String(nodeText, "Mission handle"), currentId_++);
     }
     else if (nodeTypeName == "music_threshold")
     {
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
-        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "music_threshold"), currentId_++);
+        graphParent->AddAttribute(new StaticAttribute_String(nodeText, "music_threshold"), currentId_++);
     }
     else if (nodeTypeName == "voice_line")
     {
         //Todo: Change this to a radio dialog that has all the anim actions listed. May be able to get list from xtbls
-        auto* newAttribute = graphParent->AddAttribute(new StaticAttribute_String(nodeText, "voice_line"), currentId_++);
+        graphParent->AddAttribute(new StaticAttribute_String(nodeText, "voice_line"), currentId_++);
     }
     else if (nodeTypeName == "object_list")
     {
@@ -467,7 +473,7 @@ void ScriptxEditor::ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphP
     else if (nodeTypeName == "number" || nodeTypeName == "min" || nodeTypeName == "max")
     {
         //Todo: Use action/function definitions list to attempt to set name of argument here
-        auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Number(std::stof(nodeText), nodeTypeName), currentId_++);
+        graphParent->AddAttribute(new InputAttribute_Number(std::stof(nodeText), nodeTypeName), currentId_++);
     }
     else if (nodeTypeName == "object")
     {
@@ -483,7 +489,7 @@ void ScriptxEditor::ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphP
 
         if (objectNumberNodeTypeName == "object_number")
         {
-            auto* newAttribute = graphParent->AddAttribute(new InputAttribute_Handle(HexStringToUint(nodeText), std::stoul(objectNumberNodeText)), currentId_++);
+            graphParent->AddAttribute(new InputAttribute_Handle(HexStringToUint(nodeText), std::stoul(objectNumberNodeText)), currentId_++);
         }
     }
     else

@@ -104,7 +104,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     //Get weight of each texture from alpha00 texture
     float4 blendWeights = Texture0.Sample(Sampler0, input.UvBase);
 
-    //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps.rsqrt
+    //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps
     //Nanoforge uses it as a temporary way to get colors closer to the games colors
     float4 combColor = Texture1.Sample(Sampler1, input.UvBase);
     float combGamma = 0.45f;
@@ -139,10 +139,10 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     finalNormal = normalize(finalNormal);
 
     //Sun direction for diffuse lighting
-    float3 sunDir = float3(1.0f, -1.0f, -0.2f);
+    float3 sunDir = float3(0.0f, -1.0f, -1.0f);
 
     //Ambient
-    float ambientIntensity = 0.15f;
+    float ambientIntensity = 0.1f;
     float3 ambient = ambientIntensity * finalColor;
 
     //Diffuse

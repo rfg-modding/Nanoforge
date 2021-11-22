@@ -22,6 +22,7 @@ void operator delete(void* ptr) noexcept
 }
 #endif
 
+#pragma warning(disable:4100) //Ignore unused arguments warning
 int WINAPI main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
     //Catches unhandled SEH exceptions
@@ -42,3 +43,4 @@ int WINAPI main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, i
 
     return 0;
 }
+#pragma warning(default:4100)

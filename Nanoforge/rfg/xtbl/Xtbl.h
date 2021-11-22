@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-struct PackfileVFS;
+class PackfileVFS;
 
 //Categories specified by <_Editor><Category>...</Category></_Editor> blocks
 class XtblCategory

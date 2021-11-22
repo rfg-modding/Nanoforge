@@ -117,7 +117,7 @@ void TextureDocument::Update(GuiState* state)
                     {
                         Log->info("Replacing {} in {}", entry.Name, Filename);
                         ImportIndex = i;
-                        PickPegImportTexture(state);
+                        PickPegImportTexture();
                         ImGui::CloseCurrentPopup();
                     }
                     else
@@ -331,7 +331,7 @@ void TextureDocument::PickPegExportFolder(GuiState* state)
     }
 }
 
-void TextureDocument::PickPegImportTexture(GuiState* state)
+void TextureDocument::PickPegImportTexture()
 {
     //Open file browser and return exportFolder
     auto result = OpenFile("dds");

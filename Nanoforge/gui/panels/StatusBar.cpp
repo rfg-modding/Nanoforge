@@ -84,7 +84,7 @@ void StatusBar::Update(GuiState* state, bool* open)
     //Get task list
     ImVec2 taskListSize = { 300.0f, 300.0f };
     std::vector<Handle<Task>>& threadTasks = TaskScheduler::threadTasks_;
-    u32 numTasksRunning = std::ranges::count_if(threadTasks, [](Handle<Task> task) { return task != nullptr; });
+    u32 numTasksRunning = (u32)std::ranges::count_if(threadTasks, [](Handle<Task> task) { return task != nullptr; });
 
     //Draw task list toggle button
     ImGui::SetNextWindowSizeConstraints({ taskListSize.x, 0.0f }, taskListSize);
@@ -96,7 +96,7 @@ void StatusBar::Update(GuiState* state, bool* open)
         }
         else
         {
-            u32 numQueuedTasks = TaskScheduler::taskQueue_.size();
+            u32 numQueuedTasks = (u32)TaskScheduler::taskQueue_.size();
             if (numQueuedTasks > 0)
             {
                 ImGui::Text(fmt::format("{} {} tasks queued.", ICON_FA_STOPWATCH, numQueuedTasks).c_str());
@@ -110,12 +110,12 @@ void StatusBar::Update(GuiState* state, bool* open)
                     continue;
 
                 //Draw simple spinner
-                ImVec2 pos = ImGui::GetCursorPos();
+                ImVec2 cursorPos = ImGui::GetCursorPos();
                 ImGui::Text("%c", "|/-\\"[(int)(ImGui::GetTime() / 0.1f) & 3]);
                 ImGui::SameLine();
 
                 //Draw task name. X pos is adjusted manually so it doesn't constantly move as the spinner size changes
-                ImGui::SetCursorPosX(pos.x + 10.0f);
+                ImGui::SetCursorPosX(cursorPos.x + 10.0f);
                 ImGui::Text(task->Name.c_str());
             }
         }

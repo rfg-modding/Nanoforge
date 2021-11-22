@@ -27,5 +27,5 @@ namespace PegHelpers
     //Calculate size of a row in bytes for an image based on it's dxgi format and dimensions
     u32 CalcRowPitch(DXGI_FORMAT format, u32 numPixels);
     //Calculate D3D11_SUBRESOURCE_DATA for each mip level of a peg subtexture
-    std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(PegEntry10& entry, u16 pegFlags, std::span<u8> pixels);
+    std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(PegEntry10& entry, std::span<u8> pixels);
 }

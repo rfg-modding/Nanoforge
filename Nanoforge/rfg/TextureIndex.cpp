@@ -151,7 +151,7 @@ std::optional<Texture2D> TextureIndex::GetRenderTexture(const std::string_view t
 
     //One subresource data per mip level
     DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, (u32)entry.Flags);
-    std::vector<D3D11_SUBRESOURCE_DATA> textureData = PegHelpers::CalcSubresourceData(entry, peg.Flags, pixels);
+    std::vector<D3D11_SUBRESOURCE_DATA> textureData = PegHelpers::CalcSubresourceData(entry, pixels);
     D3D11_SUBRESOURCE_DATA* subresourceData = textureData.size() > 0 ? textureData.data() : nullptr;
 
     //Create renderer texture
@@ -224,7 +224,7 @@ void TextureIndex::Load()
         char cur = pegPaths_[i++];
         if (cur == '\0')
         {
-            u32 size = &pegPaths_[i - 1] - str;
+            u32 size = (u32)(&pegPaths_[i - 1] - str);
             std::string_view view = { str, size };
             pegPathsView_.push_back(view);
             if (i < pegPaths_.size())
@@ -278,7 +278,6 @@ void TextureIndex::TextureIndexGenerationTask(Handle<Task> task)
         for (auto& peg : packfileData)
         {
             string& pegPath = std::get<0>(peg);
-            u64 pegNameHash = std::get<1>(peg);
             std::vector<u64> tgaNameHashes = std::get<2>(peg);
 
             totalPegPathsSize += pegPath.size();
@@ -310,8 +309,8 @@ void TextureIndex::TextureIndexGenerationTask(Handle<Task> task)
             std::vector<u64> tgaNameHashes = std::get<2>(peg);
 
             //Get indices
-            u32 pathIndex = pegPaths.size();
-            u32 pegIndex = pegs.size();
+            u32 pathIndex = (u32)pegPaths.size();
+            u32 pegIndex = (u32)pegs.size();
 
             //Push back data
             pegPaths.push_back(pegPath);
@@ -325,9 +324,9 @@ void TextureIndex::TextureIndexGenerationTask(Handle<Task> task)
     BinaryWriter writer("./TextureIndex.bin");
 
     //Calculate data block sizes
-    u32 tgaBlockSize = tgas.size() * sizeof(TgaData);
-    u32 pegBlockSize = pegs.size() * sizeof(PegData);
-    u32 pathBlockSize = std::accumulate(pegPaths.begin(), pegPaths.end(), 0, [](u32 size, string& path) { return size + path.size() + 1; });
+    u32 tgaBlockSize = (u32)tgas.size() * sizeof(TgaData);
+    u32 pegBlockSize = (u32)pegs.size() * sizeof(PegData);
+    u32 pathBlockSize = std::accumulate(pegPaths.begin(), pegPaths.end(), 0, [](u32 size, string& path) { return size + (u32)path.size() + 1; });
 
     //Write header
     writer.WriteUint32(tgaBlockSize);

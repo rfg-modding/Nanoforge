@@ -14,7 +14,7 @@
 #include "RfgTools++/formats/zones/properties/special/NavpointDataProperty.h"
 #include "util/Profiler.h"
 
-void DrawPackfileData(GuiState* state, Packfile3* packfile)
+void DrawPackfileData(Packfile3* packfile)
 {
     PROFILER_FUNCTION();
     gui::LabelAndValue("Name:", packfile->Name());
@@ -45,7 +45,7 @@ void PropertyPanel_VppContent(GuiState* state)
 
     //Draw packfile data if we've got it
     if (packfile)
-        DrawPackfileData(state, packfile);
+        DrawPackfileData(packfile);
     else //Else draw an error message
         ImGui::Text("%s Failed to get packfile info.", ICON_FA_EXCLAMATION_CIRCLE);
 }
@@ -74,7 +74,7 @@ void PropertyPanel_Str2Content(GuiState* state)
 
     //Draw container data if we've got it
     if (container)
-        DrawPackfileData(state, container);
+        DrawPackfileData(container);
     else //Else draw an error message
         ImGui::Text("%s Failed to get container info.", ICON_FA_EXCLAMATION_CIRCLE);
 }

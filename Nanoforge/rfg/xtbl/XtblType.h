@@ -23,6 +23,7 @@ enum class XtblType : u32
     Unsupported
 };
 
+#pragma warning(disable:4505)
 static XtblType XtblTypeFromString(const string& value)
 {
     if (value == "Element")
@@ -99,3 +100,4 @@ static string to_string(XtblType value)
         THROW_EXCEPTION("Invalid or unsupported value for XtblType \"{}\".", value);
     }
 }
+#pragma warning(default:4505)

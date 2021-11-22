@@ -108,7 +108,7 @@ void Application::MainLoop()
                 scene->Cam.DoFrame(deltaTime_);
             }
         }
-        gui_.Update(deltaTime_);
+        gui_.Update();
 
         //Render this frame
         renderer_.DoFrame(deltaTime_);
@@ -145,7 +145,6 @@ void Application::NewFrame()
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-    renderer_.NewFrame(deltaTime_);
 }
 
 void Application::HandleResize()

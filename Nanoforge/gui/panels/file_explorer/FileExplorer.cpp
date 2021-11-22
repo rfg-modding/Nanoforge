@@ -110,7 +110,7 @@ void FileExplorer::UpdateSearchBar(GuiState* state)
     }
 
     //If the search term changed then update cached search checks. They're cached to avoid checking the search term every frame
-    std::scoped_lock(searchThreadMutex_);
+    std::scoped_lock searchLock(searchThreadMutex_);
 
     //Update search term
     if (SearchTerm != "" && SearchChanged)

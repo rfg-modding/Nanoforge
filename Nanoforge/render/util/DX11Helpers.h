@@ -15,5 +15,5 @@ struct ID3D11DeviceChild;
 
 
 struct ID3D10Blob;
-HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut, const char* defines = nullptr);
+HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut);
 void SetDebugName(ID3D11DeviceChild* child, const std::string& name);

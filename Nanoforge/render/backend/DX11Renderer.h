@@ -25,7 +25,6 @@ public:
     void Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager, Config* config);
     ~DX11Renderer();
 
-    void NewFrame(f32 deltaTime) const;
     void DoFrame(f32 deltaTime);
     void HandleResize();
     HWND GetSystemWindowHandle() { return hwnd_; }

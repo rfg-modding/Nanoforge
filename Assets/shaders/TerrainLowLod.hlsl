@@ -86,19 +86,19 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 {    
     //Get terrain color from _comb texture and adjust it's brightness
     float4 blendValues = Texture0.Sample(Sampler0, input.Uv);
-    float gamma = 0.4f;
+    float gamma = 0.5f;
     float3 terrainColor = pow(blendValues.xyz, 1.0 / gamma);
 
     //Get pre-calculated lighting from _ovl texture
     float3 lighting = Texture1.Sample(Sampler1, input.Uv).xyz;;
 
     //Ambient
-    float ambientIntensity = 0.10f;
+    float ambientIntensity = 0.15f;
     float3 ambient = ambientIntensity * terrainColor;
 
     //Diffuse
     float3 diffuse = lighting * DiffuseColor * DiffuseIntensity * terrainColor;
-    diffuse *= 1.7f; //Arbitrary scaling to look similar to high lod terrain. Temporary fix until high lod terrain is fully working
+    diffuse *= 1.5f; //Arbitrary scaling to look similar to high lod terrain. Temporary fix until high lod terrain is fully working
 
     //Normalized elevation for ShadeMode 0. [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0]
     float elevationNormalized = (input.ZonePos.y + 255.5f) / 511.0f;

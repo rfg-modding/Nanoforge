@@ -1,6 +1,6 @@
 #pragma once
 
-//Todo: Need to pack win10 sdk DLLs with app for win7 users
+#pragma warning(disable:4005) //Disable repeat definitions for windows defines
 //Target windows 7 with win10 sdk
 #include <winsdkver.h>
 #define _WIN32_WINNT 0x0601
@@ -8,3 +8,4 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#pragma warning(default:4005)

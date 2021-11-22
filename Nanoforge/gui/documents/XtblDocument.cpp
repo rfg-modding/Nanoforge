@@ -133,6 +133,7 @@ void XtblDocument::Update(GuiState* state)
     DrawRenameEntryWindow();
 }
 
+#pragma warning(disable:4100)
 void XtblDocument::Save(GuiState* state)
 {
     //Don't save if xtbl_ is null or no subnodes have been edited or no project is open
@@ -155,6 +156,7 @@ void XtblDocument::Save(GuiState* state)
     xtbl_->WriteXtbl(outputFilePath);
     state_->CurrentProject->RescanCache();
 }
+#pragma warning(default:4100)
 
 bool XtblDocument::AnyChildMatchesSearchTerm(Handle<XtblCategory> category)
 {

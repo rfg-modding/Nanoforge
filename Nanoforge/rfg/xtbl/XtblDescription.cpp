@@ -28,7 +28,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
     }
     catch (std::runtime_error& ex)
     {
-        LOG_ERROR("Failed to parse <Type> from xtbl description \"{}\"", name->GetText());
+        LOG_ERROR("Failed to parse <Type> from xtbl description \"{}\". Exception message: \"{}\"", name->GetText(), ex.what());
         return false;
     }
 
@@ -56,8 +56,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
     }
     else //Otherwise this is a subnode. Read normal values
     {
-        //Possible values in a description. Not all will be present 
-        auto* displayName = node->FirstChildElement("Display_Name");
+        //Possible values in a description. Not all will be present
         auto* description = node->FirstChildElement("Description");
         auto* required = node->FirstChildElement("Required");
         auto* unique = node->FirstChildElement("Unique");
@@ -182,7 +181,7 @@ bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> 
             const char* nextFlagText = nextFlag->GetText();
             if(nextFlagText)
                 Flags.push_back(nextFlagText);
-        
+
             nextFlag = nextFlag->NextSiblingElement("Flag");
         }
     }
@@ -280,11 +279,11 @@ bool XtblDescription::WriteXml(tinyxml2::XMLElement* xml)
     {
         auto* referenceXml = xml->InsertNewChildElement("Reference");
         auto* fileXml = referenceXml->InsertNewChildElement("File");
-        auto* typeXml = referenceXml->InsertNewChildElement("Type");
+        auto* referenceTypeXml = referenceXml->InsertNewChildElement("Type");
         auto* openSeparateXml = referenceXml->InsertNewChildElement("OpenSeparate");
 
         fileXml->SetText(Reference->File.c_str());
-        typeXml->SetText(Reference->Path.c_str());
+        referenceTypeXml->SetText(Reference->Path.c_str());
         openSeparateXml->SetText(Reference->OpenSeparate ? "true" : "false");
     }
 

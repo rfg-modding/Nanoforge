@@ -26,7 +26,7 @@ public:
 
 private:
     //Clear resources created by scriptx editor & node graph
-    void ScriptxEditor_Cleanup(GuiState* state);
+    void Cleanup();
     //Load a scriptx file and generate a node graph from it. Clears any existing data/graphs before loading new one
     void LoadScriptxFile(const string& name, GuiState* state);
     void ParseScriptxNode(tinyxml2::XMLElement* xmlNode, Node* graphParent);

@@ -75,7 +75,7 @@ private:
     void CreateDepthBuffer();
 
     //Scene state
-    D3D11_VIEWPORT sceneViewport_;
+    D3D11_VIEWPORT sceneViewport_ = {};
     Texture2D sceneViewTexture_;
     Texture2D depthBufferTexture_;
     u32 sceneViewWidth_ = 200;

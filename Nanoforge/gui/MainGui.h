@@ -21,7 +21,7 @@ class MainGui
 {
 public:
     void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization, TextureIndex* textureSearchIndex);
-    void Update(f32 deltaTime);
+    void Update();
     void SaveFocusedDocument();
 
     GuiState State; //Global gui state provided to each panel and document

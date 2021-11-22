@@ -17,7 +17,7 @@ public:
 
 private:
     void PickPegExportFolder(GuiState* state);
-    void PickPegImportTexture(GuiState* state);
+    void PickPegImportTexture();
 
     string Filename;
     string ParentName;
@@ -39,7 +39,7 @@ private:
 
     //Extract state
     enum PegExtractType { All, SingleFile };
-    PegExtractType ExtractType;
-    u32 ExtractIndex;
-    u32 ImportIndex;
+    PegExtractType ExtractType = PegExtractType::All;
+    u32 ExtractIndex = 0;
+    u32 ImportIndex = 0;
 };

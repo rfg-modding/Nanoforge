@@ -156,16 +156,16 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     //Wait for all workers to finish
     {
         PROFILER_SCOPED("Wait for territory load worker threads");
-        for (auto& task : zoneLoadTasks)
-            task->Wait();
+        for (auto& loadTask : zoneLoadTasks)
+            loadTask->Wait();
     }
 
     EarlyStopCheck();
     //Sort vector by object count for convenience
     std::sort(ZoneFiles.begin(), ZoneFiles.end(),
-    [](const ZoneData& a, const ZoneData& b)
+    [](const ZoneData& zoneA, const ZoneData& zoneB)
     {
-        return a.Zone.Header.NumObjects > b.Zone.Header.NumObjects;
+        return zoneA.Zone.Header.NumObjects > zoneB.Zone.Header.NumObjects;
     });
 
     //Get zone name with most characters for UI purposes
@@ -388,9 +388,9 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         );
 
         //Search for high lod terrain mesh files. Should be 9 of them per zone.
+        u32 curSubzoneIndex = 0;
         std::vector<FileHandle> highLodSearchResult = state->PackfileVFS->GetFiles(terrainName + "_*", true);
-        u32 subzoneIndex = 0;
-        for (auto& file : highLodSearchResult)
+        for (FileHandle& file : highLodSearchResult)
         {
             if (Path::GetExtension(file.Filename()) != ".ctmesh_pc")
                 continue;
@@ -400,7 +400,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             defer(delete container);
             if (!container)
             {
-                LOG_ERROR("Failed to get container pointer for a high lod terrain mesh {}\{}", file.ContainerName(), file.Filename());
+                LOG_ERROR("Failed to get container pointer for a high lod terrain mesh {}\\{}", file.ContainerName(), file.Filename());
                 continue;
             }
 
@@ -441,20 +441,19 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             //Load stitch meshes
             std::optional<MeshInstanceData> stitchMeshData = subzone.ReadStitchMeshData(gpuFile);
             if (stitchMeshData)
-                stitchMeshes.push_back({ subzoneIndex, stitchMeshData.value() });
+                stitchMeshes.push_back({ curSubzoneIndex, stitchMeshData.value() });
 
             //Load road meshes
             std::optional<std::vector<MeshInstanceData>> roadMeshData = subzone.ReadRoadMeshData(gpuFile);
             if (roadMeshData)
             {
-                for (u32 i = 0; i < roadMeshData.value().size(); i++)
+                for (u32 j = 0; j < roadMeshData.value().size(); j++)
                 {
-                    auto& roadMesh = roadMeshData.value()[i];
-                    roadMeshes.push_back({ subzoneIndex, i, roadMesh });
+                    auto& roadMesh = roadMeshData.value()[j];
+                    roadMeshes.push_back({ curSubzoneIndex, j, roadMesh });
                 }
             }
-
-            subzoneIndex++;
+            curSubzoneIndex++;
         }
         EarlyStopCheck();
 
@@ -520,8 +519,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             renderObject->UseTextures = anyTextures || blendTexture.has_value() || combTexture.has_value();
             renderObject->Textures[0] = blendTexture;
             renderObject->Textures[1] = combTexture;
-            for (u32 i = 0; i < materialTextures.size(); i++)
-                renderObject->Textures[i + 2] = materialTextures[i];
+            for (u32 j = 0; j < materialTextures.size(); j++)
+                renderObject->Textures[j + 2] = materialTextures[j];
 
             scene->NeedsRedraw = true; //Redraw scene when new terrain meshes are added
         }
@@ -692,9 +691,9 @@ void Territory::UpdateObjectClassInstanceCounts()
 
     //Sort vector by instance count for convenience
     std::sort(ZoneObjectClasses.begin(), ZoneObjectClasses.end(),
-    [](const ZoneObjectClass& a, const ZoneObjectClass& b)
+    [](const ZoneObjectClass& classA, const ZoneObjectClass& classB)
     {
-        return a.NumInstances > b.NumInstances;
+        return classA.NumInstances > classB.NumInstances;
     });
 }
 

@@ -12,10 +12,12 @@
 class TableDescriptionXtblNode : public IXtblNode
 {
 public:
+#pragma warning(disable:4100) //Disable warning about unused argument. Can't remove the arg since some implementations of this function use it.
     virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         return false;
     }
+#pragma warning(default:4100)
 
     virtual void InitDefault()
     {

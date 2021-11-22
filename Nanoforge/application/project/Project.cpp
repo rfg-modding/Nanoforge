@@ -559,7 +559,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
     //Changes to other files are still generated the normal way as a modinfo so you could apply the other changes via the MM and then paste table.vpp_pc
     //(July 25th, 2021) In the near future I want to finish a new mod manager that has MP support built in. That should remove the need for this hack.
     Packfile3* table = vfs->GetPackfile("table.vpp_pc");
-    const u32 numTableEdits = std::ranges::count_if(editedXtbls, [](Handle<XtblFile> xtbl) { return xtbl->VppName == "table.vpp_pc"; });
+    const u32 numTableEdits = (u32)std::ranges::count_if(editedXtbls, [](Handle<XtblFile> xtbl) { return xtbl->VppName == "table.vpp_pc"; });
     Log->info("{} files changed in table.vpp_pc", numTableEdits);
     if (UseTableWorkaround && table && numTableEdits > 0)
     {

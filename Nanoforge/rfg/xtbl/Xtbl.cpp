@@ -86,8 +86,8 @@ bool XtblFile::Parse(const string& path, PackfileVFS* packfileVFS)
     auto* tableElement = table->FirstChildElement(elementString.c_str());
     while (tableElement)
     {
-        string path = tableElement->Value();
-        auto node = ParseNode(tableElement, nullptr, path);
+        string nodePath = tableElement->Value();
+        auto node = ParseNode(tableElement, nullptr, nodePath);
         if (node)
             Entries.push_back(node);
 
@@ -280,12 +280,12 @@ IXtblNode* XtblFile::ParseNode(tinyxml2::XMLElement* node, IXtblNode* parent, st
         {
             //Check if flag is present
             IXtblNode* flagNode = nullptr;
-            for (auto& flag : xtblNode->Subnodes)
+            for (auto& subnode : xtblNode->Subnodes)
             {
-                auto value = std::get<XtblFlag>(flag->Value);
+                XtblFlag& value = std::get<XtblFlag>(subnode->Value);
                 if (value.Name == flagDesc)
                 {
-                    flagNode = flag;
+                    flagNode = subnode;
                     break;
                 }
             }
@@ -492,7 +492,7 @@ void XtblFile::EnsureEntryExists(Handle<XtblDescription> desc, IXtblNode* node, 
             IXtblNode* flagNode = nullptr;
             for (auto& flag : subnode->Subnodes)
             {
-                auto value = std::get<XtblFlag>(flag->Value);
+                XtblFlag& value = std::get<XtblFlag>(flag->Value);
                 if (value.Name == flagDesc)
                 {
                     flagNode = flag;

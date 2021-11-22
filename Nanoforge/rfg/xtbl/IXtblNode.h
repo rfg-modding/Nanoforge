@@ -71,5 +71,3 @@ protected:
     std::optional<string> nameNoId_; //Node name without the dear imgui label
     std::optional<string> name_; //Node name with dear imgui label. Used to unique identify it. Necessary when there are multiple UI elements with the same name
 };
-
-static IXtblNode* a;

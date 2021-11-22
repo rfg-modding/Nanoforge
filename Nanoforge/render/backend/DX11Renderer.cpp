@@ -18,8 +18,10 @@
 #include <imgui/imconfig.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx11.h>
+#pragma warning(disable:26812) //Disable warnings in this library. MSVC /external: flags aren't reliably working.
 #include <DirectXTex.h>
 #include <Dependencies\DirectXTex\DirectXTex\DirectXTexD3D11.cpp>
+#pragma warning(default:26812)
 #include "render/util/DX11Helpers.h"
 #include "Log.h"
 #include "gui/documents/PegHelpers.h"
@@ -82,11 +84,6 @@ DX11Renderer::~DX11Renderer()
     ReleaseCOM(dxgiFactory_);
 }
 
-void DX11Renderer::NewFrame(f32 deltaTime) const
-{
-    //im3dRenderer_->NewFrame(deltaTime);
-}
-
 void DX11Renderer::DoFrame(f32 deltaTime)
 {
     PROFILER_FUNCTION();
@@ -140,7 +137,7 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
 {
     ID3D11Texture2D* texture = nullptr;
     D3D11_TEXTURE2D_DESC textureDesc;
-    D3D11_SUBRESOURCE_DATA textureData;
+    D3D11_SUBRESOURCE_DATA textureData = {};
     D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
     ID3D11ShaderResourceView* shaderResourceView = nullptr;
 
@@ -226,7 +223,7 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
     //Todo: Move into config file or have Application class set this
     const char* windowClassName = "Nanoforge";
 
-    WNDCLASSEX wc; //Create a new extended windows class
+    WNDCLASSEX wc = {}; //Create a new extended windows class
     wc.cbSize = sizeof(WNDCLASSEX); //Size of our windows class
     wc.style = CS_HREDRAW | CS_VREDRAW; //class styles
     wc.lpfnWndProc = wndProc; //Default windows procedure function
@@ -274,8 +271,8 @@ bool DX11Renderer::InitDx11()
 bool DX11Renderer::InitSwapchainAndResources()
 {
     TRACE();
-    const bool result = CreateSwapchain() && CreateRenderTargetView();
-    if (!result)
+    const bool swapchainCreateResult = CreateSwapchain() && CreateRenderTargetView();
+    if (!swapchainCreateResult)
         return false;
 
     viewport.TopLeftX = 0.0f;
@@ -368,7 +365,7 @@ bool DX11Renderer::CreateSwapchain()
 {
     TRACE();
     //Fill out swapchain config before creation
-    DXGI_SWAP_CHAIN_DESC swapchainDesc;
+    DXGI_SWAP_CHAIN_DESC swapchainDesc = {};
     swapchainDesc.BufferDesc.Width = windowWidth_;
     swapchainDesc.BufferDesc.Height = windowHeight_;
     swapchainDesc.BufferDesc.RefreshRate.Numerator = 60; //Todo: Make configurable
@@ -397,7 +394,7 @@ bool DX11Renderer::CreateRenderTargetView()
 {
     TRACE();
     //Get ptr to swapchains backbuffer
-    ID3D11Texture2D* backBuffer;
+    ID3D11Texture2D* backBuffer = nullptr;
     swapChain_->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
     if (!backBuffer)
         THROW_EXCEPTION("Failed to get backbuffer from the swapchain. Needed for render target view creation.");

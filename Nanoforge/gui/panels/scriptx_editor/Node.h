@@ -8,7 +8,7 @@
 
 struct Node
 {
-    i32 Id;
+    i32 Id = -1;
     string Title;
     Vec4 TitlebarColor;
     std::vector<IAttribute*> Attributes = {};

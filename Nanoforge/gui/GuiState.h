@@ -83,17 +83,20 @@ public:
 
         CustomStatusMessage = message;
     }
+
     //Clear status message and set status enum to 'Ready'
     void ClearStatus()
     {
         Status = Ready;
         CustomStatusMessage = "";
     }
+
     void SetSelectedZoneObject(ZoneObjectNode36* object)
     {
         SelectedObject = object;
     }
-    void SetTerritory(const string& newTerritory, bool firstLoad = false)
+
+    void SetTerritory(const string& newTerritory)
     {
         string terr = newTerritory;
         if (terr == "terr01")
@@ -106,6 +109,7 @@ public:
         CurrentTerritoryName = terr;
         CurrentTerritoryShortname = newTerritory;
     }
+
     //Create and init a document
     void CreateDocument(string title, Handle<IDocument> document)
     {
@@ -121,6 +125,7 @@ public:
         document->Title = title;
         NewDocuments.emplace_back(document);
     }
+
     //Get document by title. Returns nullptr if document doesn't exist
     Handle<IDocument> GetDocument(string& title)
     {

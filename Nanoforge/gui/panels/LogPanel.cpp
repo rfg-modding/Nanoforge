@@ -12,6 +12,7 @@ LogPanel::~LogPanel()
 
 }
 
+#pragma warning(disable:4100)
 void LogPanel::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
@@ -63,3 +64,4 @@ void LogPanel::Update(GuiState* state, bool* open)
     ImGui::EndChild();
     ImGui::End();
 }
+#pragma warning(default:4100)

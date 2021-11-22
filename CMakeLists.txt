@@ -38,8 +38,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     if(ENABLE_ASAN)
         set(EXTRA_OPTIONS "/fsanitize=address")
     endif()
-
-    set(CMAKE_CXX_FLAGS "/experimental:external /external:anglebrackets /external:W0 /EHsc ${EXTRA_OPTIONS}")
 endif()
 
 # Set config specific defines
@@ -47,7 +45,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInf
     add_compile_definitions(DEBUG_BUILD)
 endif()
 
-# Include sub-projects.
+# Dependencies
+add_subdirectory("Dependencies")
+
+# Main projects
+# Note: RfgTools++ is separate from the dependencies submodule since it's developed in tandem with Nanoforge. This allows it to have similar compile settings
+#       E.g. Warnings are enabled for Nanoforge and RfgTools++, but disabled for third party libs.
 add_subdirectory("Dependencies/RfgToolsPlusPlus")
-add_subdirectory("Dependencies/spdlog")
 add_subdirectory("Nanoforge")

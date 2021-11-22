@@ -108,7 +108,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     gui::SetThemePreset(Dark);
 }
 
-void MainGui::Update(f32 deltaTime)
+void MainGui::Update()
 {
     PROFILER_FUNCTION();
 
@@ -164,7 +164,7 @@ void MainGui::Update(f32 deltaTime)
     }
 
     //Draw close confirmation for documents with unsaved changes
-    u32 numUnsavedDocs = std::ranges::count_if(State.Documents, [](Handle<IDocument> doc) { return !doc->Open && doc->UnsavedChanges; });
+    u32 numUnsavedDocs = (u32)std::ranges::count_if(State.Documents, [](Handle<IDocument> doc) { return !doc->Open && doc->UnsavedChanges; });
     if(numUnsavedDocs != 0)
     {
         auto& docs = State.Documents;
@@ -231,7 +231,7 @@ void MainGui::Update(f32 deltaTime)
         DrawSettingsGui(&showSettingsWindow_, State.Config, State.FontManager);
 
     //Show new/open/close project dialogs once unsaved changes are handled
-    numUnsavedDocs = std::ranges::count_if(State.Documents, [](Handle<IDocument> doc) { return doc->UnsavedChanges; });
+    numUnsavedDocs = (u32)std::ranges::count_if(State.Documents, [](Handle<IDocument> doc) { return doc->UnsavedChanges; });
     if (showNewProjectWindow_ && numUnsavedDocs == 0)
     {
         bool loadedNewProject = DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
@@ -465,7 +465,6 @@ void MainGui::DrawMainMenuBar()
         }
 
         bool showFPS = State.Config->GetBoolReadonly("Show FPS").value();
-        f32 uiScale = State.Config->GetFloatReadonly("UI Scale").value();
         ImVec2 cursorPos = { ImGui::GetCursorPosX(), 3.0f };
         auto* drawList = ImGui::GetWindowDrawList();
 

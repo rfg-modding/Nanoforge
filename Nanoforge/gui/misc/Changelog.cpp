@@ -3,7 +3,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <Shellapi.h>
+#pragma warning(disable:26495)
 #include <imgui_markdown.h>
+#pragma warning(default:26495)
 #include <imgui.h>
 
 //Fonts used by markdown headings

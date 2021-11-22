@@ -92,7 +92,9 @@ void AsmDocument::Update(GuiState* state)
     ImGui::Unindent(indent);
 }
 
+#pragma warning(disable:4100)
 void AsmDocument::Save(GuiState* state)
 {
 
 }
+#pragma warning(default:4100)

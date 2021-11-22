@@ -108,6 +108,7 @@ void Localization::LoadLocalizationClass(std::string_view filename, std::string_
     localeClass.Type = locale;
     localeClass.Name = className;
 
+#pragma warning(disable:4996) //Disable warning about <codecvt> being deprecated. Fine for now since MSVC still lets us use it in c++20 and there's no standard replacement.
     //Convert strings from std::wstring to std::string and cache them in the locale class
     using convert_type = std::codecvt_utf8<wchar_t>;
     std::wstring_convert<convert_type, wchar_t> converter;
@@ -117,4 +118,5 @@ void Localization::LoadLocalizationClass(std::string_view filename, std::string_
         localizedString.KeyHash = localizationFile.Entries[i].KeyHash;
         localizedString.String = converter.to_bytes(localizationFile.EntryData[i]);
     }
+#pragma warning(default:4996)
 }

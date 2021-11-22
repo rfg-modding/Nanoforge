@@ -12,6 +12,7 @@
 class GridXtblNode : public IXtblNode
 {
 public:
+#pragma warning(disable:4100) //Disable warning about unused argument. Can't remove the arg since some implementations of this function use it.
     virtual bool DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride = nullptr)
     {
         CalculateEditorValues(xtbl, nameOverride);
@@ -25,7 +26,7 @@ public:
         auto& columnDescs = hasSingleColumn ? desc_->Subnodes : desc_->Subnodes[0]->Subnodes;
 
         ImGui::Text("%s:", nameNoId_.value().c_str());
-        if (ImGui::BeginTable(name_.value().c_str(), columnDescs.size(), flags))
+        if (ImGui::BeginTable(name_.value().c_str(), (int)columnDescs.size(), flags))
         {
             //Setup columns
             ImGui::TableSetupScrollFreeze(0, 1);
@@ -57,6 +58,7 @@ public:
 
         return editedThisFrame;
     }
+#pragma warning(default: 4100)
 
     virtual void InitDefault()
     {

@@ -85,7 +85,9 @@ void LocalizationDocument::Update(GuiState* state)
     }
 }
 
+#pragma warning(disable:4100)
 void LocalizationDocument::Save(GuiState* state)
 {
 
 }
+#pragma warning(default:4100)

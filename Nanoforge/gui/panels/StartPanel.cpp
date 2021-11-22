@@ -60,7 +60,7 @@ void StartPanel::Update(GuiState* state, bool* open)
     }
 
     //Show new/open project dialogs once unsaved changes are handled
-    u32 numUnsavedDocs = std::ranges::count_if(state->Documents, [](Handle<IDocument> doc) { return doc->UnsavedChanges; });
+    u32 numUnsavedDocs = (u32)std::ranges::count_if(state->Documents, [](Handle<IDocument> doc) { return doc->UnsavedChanges; });
     if (showNewProjectWindow_ && numUnsavedDocs == 0)
     {
         bool loadedNewProject = DrawNewProjectWindow(&showNewProjectWindow_, state->CurrentProject, state->Config);
@@ -87,7 +87,7 @@ void StartPanel::Update(GuiState* state, bool* open)
 
     ImGui::Separator();
     ImGui::Columns(2);
-    u32 columnStartY = ImGui::GetCursorPosY();
+    u32 columnStartY = (u32)ImGui::GetCursorPosY();
 
     //Column 0: Recent projects list + new/open project buttons
     state->FontManager->FontL.Push();
@@ -98,7 +98,7 @@ void StartPanel::Update(GuiState* state, bool* open)
 
     //Column 1: Changelog
     ImGui::NextColumn();
-    ImGui::SetCursorPosY(columnStartY);
+    ImGui::SetCursorPosY((f32)columnStartY);
     state->FontManager->FontL.Push();
     ImGui::Text("Changelog");
     state->FontManager->FontL.Pop();

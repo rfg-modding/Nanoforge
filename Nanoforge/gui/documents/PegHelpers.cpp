@@ -1,9 +1,11 @@
 #include "PegHelpers.h"
 #include "common/string/String.h"
-#include <DirectXTex.h>
 #include "Log.h"
 #include "util/StringHelpers.h"
 #include "common/filesystem/Path.h"
+#pragma warning(disable:26812) //Disable warnings in this library. MSVC /external: flags aren't reliably working.
+#include <DirectXTex.h>
+#pragma warning(default:26812)
 
 namespace PegHelpers
 {
@@ -37,7 +39,7 @@ namespace PegHelpers
         //Describe image format
         bool srgb = ((u32)entry.Flags & 512) != 0;
         DXGI_FORMAT format = PegFormatToDxgiFormat(entry.BitmapFormat, srgb);
-        DirectX::Image image;
+        DirectX::Image image = {};
         image.width = entry.Width;
         image.height = entry.Height;
         image.format = format;
@@ -91,19 +93,19 @@ namespace PegHelpers
         }
 
         //Copy image data to buffer so ScratchImage destructor doesn't delete it
-        u32 dataSize = image.GetPixelsSize();
+        u32 dataSize = (u32)image.GetPixelsSize();
         u8* dataBuffer = new u8[dataSize];
         memcpy(dataBuffer, image.GetPixels(), dataSize);
 
         //Set entry data with loaded image data
         if (entry.SourceWidth == entry.Width)
-            entry.SourceWidth = metadata.width;
+            entry.SourceWidth = (u16)metadata.width;
         if (entry.SourceHeight == entry.Height)
-            entry.SourceHeight = metadata.height;
+            entry.SourceHeight = (u16)metadata.height;
 
-        entry.Width = metadata.width;
-        entry.Height = metadata.height;
-        entry.MipLevels = metadata.mipLevels;
+        entry.Width = (u16)metadata.width;
+        entry.Height = (u16)metadata.height;
+        entry.MipLevels = (u8)metadata.mipLevels;
         entry.BitmapFormat = DxgiFormatToPegFormat(metadata.format);
         entry.RawData = std::span<u8>(dataBuffer, dataSize);
         entry.FrameSize = dataSize;
@@ -204,9 +206,11 @@ namespace PegHelpers
             return 16 * (numPixels / 4);
         else if (format == DXGI_FORMAT_R8G8B8A8_UNORM || format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB) //RGBA, 8 bits per pixel
             return 4 * numPixels;
+        else
+            return 0;
     }
 
-    std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(PegEntry10& entry, u16 pegFlags, std::span<u8> pixels)
+    std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(PegEntry10& entry, std::span<u8> pixels)
     {
         std::vector<D3D11_SUBRESOURCE_DATA> subresourceDatas = {};
         DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, (u32)entry.Flags);

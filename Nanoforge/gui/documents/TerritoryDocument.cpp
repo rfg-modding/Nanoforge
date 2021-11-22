@@ -68,7 +68,7 @@ void TerritoryDocument::Update(GuiState* state)
     //Force visibility update if new terrain instances are loaded
     if (numTerrainInstances_ != Territory.TerrainInstances.size())
     {
-        numTerrainInstances_ = Territory.TerrainInstances.size();
+        numTerrainInstances_ = (u32)Territory.TerrainInstances.size();
         Scene->NeedsRedraw = true;
         terrainVisiblityUpdateNeeded_ = true;
     }
@@ -80,7 +80,7 @@ void TerritoryDocument::Update(GuiState* state)
         f32 highLodTerrainDistance = highLodTerrainEnabled_ ? highLodTerrainDistance_ : -1.0f;
         for (auto& terrain : Territory.TerrainInstances)
         {
-            u32 numMeshes = std::min({ terrain.LowLodMeshes.size(), terrain.HighLodMeshes.size(), terrain.Subzones.size()});
+            u32 numMeshes = (u32)std::min({ terrain.LowLodMeshes.size(), terrain.HighLodMeshes.size(), terrain.Subzones.size()});
             for (u32 i = 0; i < numMeshes; i++)
             {
                 //Calc distance from camera ignoring Y so elevation doesn't matter
@@ -129,7 +129,7 @@ void TerritoryDocument::Update(GuiState* state)
     contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
     contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
     if (contentAreaSize.x > 0.0f && contentAreaSize.y > 0.0f)
-        Scene->HandleResize(contentAreaSize.x, contentAreaSize.y);
+        Scene->HandleResize((u32)contentAreaSize.x, (u32)contentAreaSize.y);
 
     //Store initial position so we can draw buttons over the scene texture after drawing it
     ImVec2 initialPos = ImGui::GetCursorPos();
@@ -148,10 +148,12 @@ void TerritoryDocument::Update(GuiState* state)
     DrawOverlayButtons(state);
 }
 
+#pragma warning(disable:4100)
 void TerritoryDocument::Save(GuiState* state)
 {
 
 }
+#pragma warning(default:4100)
 
 void TerritoryDocument::DrawOverlayButtons(GuiState* state)
 {
@@ -239,7 +241,7 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
             if (ImGui::Button("Default"))
             {
                 Scene->perFrameStagingBuffer_.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-                Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2;
+                Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2f;
                 Scene->perFrameStagingBuffer_.ElevationFactorBias = 0.8f;
             }
 
