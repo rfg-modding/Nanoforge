@@ -62,16 +62,19 @@ SamplerState Sampler9 : register(s9);
 VS_OUTPUT VS(int2 inPos : POSITION0, float4 inNormal : NORMAL0)
 {
     VS_OUTPUT output;
+    //Note: inPos.xy is 2 16 bit integers. Initial range: [-32768, 32767]
+    //      inPos.x contains the final y value, and inPos.y contains the final x and z values
 
-    //Initial range of inPos.xy is [-32768, 32767]
-    float4 posFinal; //Decompressed vertex position
-    float a = inPos.y + 32768.0f; //Adjust range to [0, 65535]
-    float b = a / 256.0f; //Adjust range to [0, 256]
+    //Adjust inPos value range and extract upper byte
+    int xz = inPos.y + 32768; //Adjust range to [0, 65535]
+    int xzUpper = xz & 0xFF00; //Zero the lower byte. Range stays at [0, 65535]
+    int xzUpperScaled = xzUpper >> 8; //Left shift 8 bits to adjust range to [0, 256]
 
-    //Decompress the vertex position
-    posFinal.x = a - (trunc(b) * 256.0f);
-    posFinal.y = inPos.x / 64.0f; //Range: [-512, 512]
-    posFinal.z = trunc(b);
+    //Final position
+    float4 posFinal;
+    posFinal.x = xz - xzUpper; //Difference between xz and the upper byte of xz
+    posFinal.y = (float)inPos.x / 64.0f; //inPos.x with arbitrary scaling (also done by the game)
+    posFinal.z = xzUpperScaled;
     posFinal.w = 1.0f;
 
     output.ZonePos = posFinal;
@@ -161,7 +164,6 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     else if(ShadeMode == 1)
     {
         //Color terrain with basic lighting
-        //return float4(blendWeights.xyz, 1.0f);
         return float4(ambient + diffuse, 1.0f);
     }
     else

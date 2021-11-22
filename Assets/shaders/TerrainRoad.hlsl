@@ -122,7 +122,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     finalNormal = normalize(finalNormal);
 
     //Sun direction for diffuse lighting
-    float3 sunDir = float3(1.0f, -1.0f, -0.2f);
+    float3 sunDir = float3(0.0f, -1.0f, -1.0f);
 
     //Ambient
     float ambientIntensity = 0.15f;
@@ -144,7 +144,6 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     else if(ShadeMode == 1)
     {
         //Color terrain with basic lighting
-        //return float4(blendWeights.xyz, 1.0f);
         return float4(ambient + diffuse, 1.0f);
     }
     else
