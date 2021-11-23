@@ -73,7 +73,7 @@ VS_OUTPUT VS(int2 inPos : POSITION0, float4 inNormal : NORMAL0)
     //Final position
     float4 posFinal;
     posFinal.x = xz - xzUpper; //Difference between xz and the upper byte of xz
-    posFinal.y = (float)inPos.x / 64.0f; //inPos.x with arbitrary scaling (also done by the game)
+    posFinal.y = (float)inPos.x / 64.0f; //Divide by 64 to scale y to [-512.0, 512.0]
     posFinal.z = xzUpperScaled;
     posFinal.w = 1.0f;
 
