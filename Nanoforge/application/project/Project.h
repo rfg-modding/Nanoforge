@@ -16,7 +16,7 @@ public:
     bool Load(std::string_view projectFilePath);
     bool Save();
     void Close();
-    void PackageMod(std::string_view outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
+    void PackageMod(std::string outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
     string GetCachePath();
     void RescanCache();
     void AddEdit(FileEdit edit);
@@ -53,7 +53,7 @@ private:
     bool LoadProjectFile(std::string_view projectFilePath);
 
     //Mod packaging functions
-    void PackageModThread(Handle<Task> task, std::string_view outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
+    void PackageModThread(Handle<Task> task, std::string outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
     bool PackageXtblEdits(tinyxml2::XMLElement* modBlock, PackfileVFS* vfs, XtblManager* xtblManager, std::string_view outputPath);
 
     bool loaded_ = false;

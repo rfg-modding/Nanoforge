@@ -9,6 +9,7 @@
 #include "RfgTools++/RfgTools++/formats/packfiles/Packfile3.h"
 #include "RfgTools++/RfgTools++/formats/asm/AsmFile5.h"
 #include "rfg/PackfileVFS.h"
+#include <ranges>
 
 bool Project::Load(std::string_view projectFilePath)
 {
@@ -68,7 +69,7 @@ void Project::Close()
     loaded_ = false;
 }
 
-void Project::PackageMod(std::string_view outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
+void Project::PackageMod(std::string outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     WorkerRunning = true;
     TaskScheduler::QueueTask(PackageModTask, std::bind(&Project::PackageModThread, this, PackageModTask, outputPath, vfs, xtblManager));
@@ -158,12 +159,15 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     return true;
 }
 
-void Project::PackageModThread(Handle<Task> task, std::string_view outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
+void Project::PackageModThread(Handle<Task> task, std::string outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
 {
     //Reset public thread state
     WorkerState = "";
     WorkerPercentage = 0.0f;
     PackagingCancelled = false;
+
+    //Stop early if the cancel button was pressed
+#define ThreadEarlyStopCheck() if (PackagingCancelled) { WorkerRunning = false; return; }
 
     //Create output path
     std::filesystem::create_directories(outputPath);
@@ -186,21 +190,16 @@ void Project::PackageModThread(Handle<Task> task, std::string_view outputPath, P
     //Each texture edit has 1-3 stages (in general):
     // - Repack str2_pc files (if texture is in str2_pc)
     // - Update asm_pc files (if texture is in str2_pc)
-    // - Copy edited files to output folder
-    f32 numPackagingSteps = (f32)(Edits.size() * 3) + 1; //This will need to be done a better way once more edit types are supported
+    f32 numPackagingSteps = (f32)(Edits.size() * 2) + 1;
     f32 packagingStepSize = 1.0f / numPackagingSteps;
 
     //Loop through edits
     for (auto& edit : Edits)
     {
         //Check if cancel button was pressed
-        if (PackagingCancelled)
-        {
-            WorkerRunning = false;
-            return;
-        }
+        ThreadEarlyStopCheck();
 
-        //Split edited file cache path
+        //Split path into components
         std::vector<s_view> split = String::SplitString(edit.EditedFilePath, "\\");
         bool inContainer = split.size() == 3;
 
@@ -211,162 +210,142 @@ void Project::PackageModThread(Handle<Task> task, std::string_view outputPath, P
             //Todo: Put outputted files into subfolder based on vpp they're in to avoid name conflicts
             if (inContainer)
             {
-                //Copy edited str2_pc contents to temp folder
-                string parentPath = edit.EditedFilePath.substr(0, edit.EditedFilePath.find_last_of("\\"));
-                string tempPath = Path + "\\Temp\\" + parentPath + "\\";
-                string str2Filename = string(split[1]);
+                //Get paths / data used in packing process
+                std::string str2Filename = string(split[1]);
+                std::string vppName = string(split[0]);
+                const string str2NoExt = Path::GetFileNameNoExtension(str2Filename); //str2_pc file without the .str2_pc extension
+                Packfile3* vpp = vfs->GetPackfile(vppName); //vpp_pc that contains the edited file
+                string parentPath = edit.EditedFilePath.substr(0, edit.EditedFilePath.find_last_of("\\")); //Extract vpp & str2 path. E.g. humans.vpp_p/mason.str2_pc/
+                string tempPath = Path + "\\Temp\\" + parentPath + "\\"; //Temp folder path
+                string packOutputPath = tempPath + "\\repack\\" + str2Filename; //Path of the new str2_pc
                 WorkerState = fmt::format("Repacking {}...", str2Filename);
-                string packOutputPath = tempPath + "\\repack\\" + str2Filename;
-                std::filesystem::create_directories(tempPath);
-                std::filesystem::copy(GetCachePath() + parentPath + "\\", tempPath, copyOptions);
 
-                //Copy unedited str2_pc contents to temp folder. We need all the files to repack the str2
-                for (auto& entry : std::filesystem::directory_iterator(".\\Cache\\" + parentPath + "\\")) //Todo: De-hardcode global cache path
+                //Pack edited files into new str2_pc
                 {
-                    //Skip file if it's already in the temp folder
-                    if (entry.is_directory() || std::filesystem::exists(tempPath + entry.path().filename().string()))
-                        continue;
+                    //Create temp folder & copy edited files to it
+                    std::filesystem::create_directories(tempPath);
+                    std::filesystem::copy(GetCachePath() + parentPath + "\\", tempPath, copyOptions);
 
-                    //Otherwise copy into temp folder
-                    std::filesystem::copy_file(entry.path(), tempPath + entry.path().filename().string(), copyOptions);
+                    //Extract vanilla str2_pc and write unedited files to temp folder
+                    Packfile3* container = vfs->GetContainer(str2Filename, vppName);
+                    std::vector<MemoryFile> files = container->ExtractSubfiles(true);
+                    defer(delete container);
+                    defer(delete[] files[0].Bytes.data()); //All data returned by ::ExtractSubfiles() is in one buffer separated by spans. So we only need to delete the first.
+                    for (MemoryFile& file : files)
+                        if (!std::filesystem::exists(tempPath + "\\" + file.Filename)) //Write unedited files to folder. Edited ones are already present.
+                            File::WriteToFile(tempPath + "\\" + file.Filename, file.Bytes);
+
+                    //Repack str2_pc from temp files
+                    std::filesystem::create_directory(tempPath + "\\repack\\");
+                    Packfile3::Pack(tempPath, packOutputPath, true, true);
+
+                    //Copy str2_pc to output folder
+                    std::filesystem::copy_file(packOutputPath, fmt::format("{}{}", outputPath, str2Filename), copyOptions);
+
+                    //Add <Replace> block to modinfo for the str2_pc
+                    auto* replaceStr2 = changes->InsertNewChildElement("Replace");
+                    replaceStr2->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), str2Filename).c_str());
+                    replaceStr2->SetAttribute("NewFile", str2Filename.c_str());
                 }
+                ThreadEarlyStopCheck();
 
-                //Repack str2_pc from temp files
-                std::filesystem::create_directory(tempPath + "\\repack\\");
-                Packfile3::Pack(tempPath, packOutputPath, true, true);
-
-                //Check if cancel button was pressed. Added to middle of edit step since they can sometimes take quite a while
-                if (PackagingCancelled)
+                //Update asm_pc file using new str2_pc
                 {
-                    WorkerRunning = false;
-                    return;
-                }
+                    //Parse freshly packed str2
+                    Packfile3 newStr2(packOutputPath);
+                    newStr2.ReadMetadata();
+                    newStr2.SetName(str2Filename);
 
-                //Parse freshly packed str2
-                Packfile3 newStr2(packOutputPath);
-                newStr2.ReadMetadata();
-                newStr2.SetName(str2Filename);
-
-                //Get current asm_pc file
-                string asmName;
-                AsmFile5* currentAsm = nullptr;
-                Packfile3* parentVpp = vfs->GetPackfile(Path::GetFileName(split[0]));
-                for (auto& asmFile : parentVpp->AsmFiles)
-                {
-                    if (asmFile.HasContainer(Path::GetFileNameNoExtension(str2Filename)))
+                    //Load vanilla asm_pc file
+                    auto currentAsm = std::ranges::find_if(vpp->AsmFiles, [&](AsmFile5& asmFile) { return asmFile.HasContainer(str2NoExt); });
+                    if (currentAsm == vpp->AsmFiles.end())
                     {
-                        asmName = asmFile.Name;
-                        currentAsm = &asmFile;
+                        LOG_ERROR("Failed to find asm_pc file for \"{}\" in mod packaging thread!", str2Filename);
+                        WorkerRunning = false;
+                        return;
                     }
-                }
-                if (!currentAsm)
-                {
-                    LOG_ERROR("Failed to find asm_pc file for str2_pc file \"{}\" in mod packaging thread!", str2Filename);
-                    return;
-                }
-                WorkerState = fmt::format("Updating {}...", asmName);
-                WorkerPercentage += packagingStepSize;
 
-                //Check if cancel button was pressed. Added to middle of edit step since they can sometimes take quite a while
-                if (PackagingCancelled)
-                {
-                    WorkerRunning = false;
-                    return;
-                }
+                    string asmOutputPath = GetCachePath() + string(split[0]) + "\\" + currentAsm->Name;
+                    WorkerState = fmt::format("Updating {}...", currentAsm->Name);
+                    WorkerPercentage += packagingStepSize;
+                    ThreadEarlyStopCheck();
 
-                //Update asm_pc from freshly packed str2
-                string asmOutputPath = GetCachePath() + string(split[0]) + "\\" + asmName;
-                AsmFile5 newAsmFile;
-                //If asm is already in the project cache use that
-                if (std::filesystem::exists(asmOutputPath))
-                {
-                    BinaryReader reader(asmOutputPath);
-                    newAsmFile.Read(reader, currentAsm->Name);
-                }
-                else //Otherwise use version from packfiles
-                {
-                    newAsmFile = *currentAsm;
-                }
-
-                //Get container
-                AsmContainer* asmContainer = newAsmFile.GetContainer(Path::GetFileNameNoExtension(str2Filename));
-                if (!asmContainer)
-                {
-                    LOG_ERROR("Failed to find container for str2_pc file \"{}\" in asmFile \"{}\" in in mod packaging thread!", str2Filename, asmName);
-                    return;
-                }
-
-                //Todo: Support adding/remove files from str2s. This assumes its the same files but edited
-                //Update container values
-                asmContainer->CompressedSize = newStr2.Header.CompressedDataSize;
-
-                //Update primitive sizes
-                for (u32 i = 0; i < asmContainer->PrimitiveSizes.size(); i++)
-                {
-                    asmContainer->PrimitiveSizes[i] = newStr2.Entries[i].DataSize; //Uncompressed size
-                }
-
-                //Update primitive values
-                u32 primIndex = 0;
-                u32 primSizeIndex = 0;
-                while (primIndex < asmContainer->Primitives.size())
-                {
-                    AsmPrimitive& curPrim = asmContainer->Primitives[primIndex];
-
-                    //Todo: This assumption blocks support of adding/remove files from str2s or reordering them
-                    //If DataSize = 0 assume this primitive has no gpu file
-                    if (curPrim.DataSize == 0)
+                    //If project already has modified asm use that
+                    AsmFile5 updatedAsm;
+                    if (std::filesystem::exists(asmOutputPath))
                     {
-                        curPrim.HeaderSize = newStr2.Entries[primSizeIndex].DataSize; //Uncompressed size
-                        primIndex++;
-                        primSizeIndex++;
+                        BinaryReader reader(asmOutputPath);
+                        updatedAsm.Read(reader, currentAsm->Name);
                     }
-                    else //Otherwise assume primitive has cpu and gpu file
+                    else //Otherwise use vanilla version
                     {
-                        curPrim.HeaderSize = newStr2.Entries[primSizeIndex].DataSize; //Cpu file uncompressed size
-                        curPrim.DataSize = newStr2.Entries[primSizeIndex + 1].DataSize; //Gpu file uncompressed size
-                        primIndex++;
-                        primSizeIndex += 2;
+                        updatedAsm = *currentAsm;
                     }
+
+                    //Get container
+                    AsmContainer* asmContainer = updatedAsm.GetContainer(str2NoExt);
+                    if (!asmContainer)
+                    {
+                        LOG_ERROR("Failed to find container for \"{}\" in asmFile \"{}\" in mod packaging thread!", str2Filename, currentAsm->Name);
+                        return;
+                    }
+
+                    //Update container + primitive sizes
+                    asmContainer->CompressedSize = newStr2.Header.CompressedDataSize;
+                    for (u32 i = 0; i < asmContainer->PrimitiveSizes.size(); i++)
+                        asmContainer->PrimitiveSizes[i] = newStr2.Entries[i].DataSize; //Uncompressed size
+
+                    //Update primitive values
+                    u32 primIndex = 0;
+                    u32 primSizeIndex = 0;
+                    while (primIndex < asmContainer->Primitives.size())
+                    {
+                        AsmPrimitive& curPrim = asmContainer->Primitives[primIndex];
+
+                        //Todo: This assumption blocks support of adding/remove files from str2s or reordering them
+                        //If DataSize = 0 assume this primitive has no gpu file
+                        if (curPrim.DataSize == 0)
+                        {
+                            curPrim.HeaderSize = newStr2.Entries[primSizeIndex].DataSize; //Uncompressed size
+                            primIndex++;
+                            primSizeIndex++;
+                        }
+                        else //Otherwise assume primitive has cpu and gpu file
+                        {
+                            curPrim.HeaderSize = newStr2.Entries[primSizeIndex].DataSize; //Cpu file uncompressed size
+                            curPrim.DataSize = newStr2.Entries[primSizeIndex + 1].DataSize; //Gpu file uncompressed size
+                            primIndex++;
+                            primSizeIndex += 2;
+                        }
+                    }
+
+                    //Resave asm_pc to project cache
+                    updatedAsm.Write(asmOutputPath);
+
+                    //Copy asm_pc to output folder
+                    std::filesystem::copy_file(asmOutputPath, fmt::format("{}{}", outputPath, currentAsm->Name), copyOptions);
+
+                    //Add <Replace> block for asm_pc to modinfo
+                    auto* replaceAsm = changes->InsertNewChildElement("Replace");
+                    replaceAsm->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), currentAsm->Name).c_str());
+                    replaceAsm->SetAttribute("NewFile", currentAsm->Name.c_str());
                 }
-
-                //Resave asm_pc to project cache
-                newAsmFile.Write(asmOutputPath);
-
-                WorkerState = fmt::format("Copying edited files to output folder...");
-                WorkerPercentage += packagingStepSize;
-
-                //Copy new str2 and asm files to output folder. Also copy asm to project folder
-                std::filesystem::copy_file(packOutputPath, fmt::format("{}{}", outputPath, str2Filename), copyOptions);
-                std::filesystem::copy_file(asmOutputPath, fmt::format("{}{}", outputPath, asmName), copyOptions);
 
                 //Delete temp files
                 for (auto& entry : std::filesystem::recursive_directory_iterator(tempPath))
                     if (!entry.is_directory())
                         std::filesystem::remove(entry);
 
-                //Add <Replace> blocks for str2 and asm file
-                auto* replaceStr2 = changes->InsertNewChildElement("Replace");
-                replaceStr2->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), str2Filename).c_str());
-                replaceStr2->SetAttribute("NewFile", str2Filename.c_str());
-
-                auto* replaceAsm = changes->InsertNewChildElement("Replace");
-                replaceAsm->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(split[0]), asmName).c_str());
-                replaceAsm->SetAttribute("NewFile", asmName.c_str());
-
                 WorkerPercentage += packagingStepSize;
             }
             else
             {
-                //Todo: Put outputted files into subfolder based on vpp they're in to avoid name conflicts
                 //Copy edited files from project cache to output folder
                 WorkerState = fmt::format("Copying edited files to output folder...");
                 string cpuFilename = string(split.back());
                 string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(cpuFilename);
-                string cpuFilePath = fmt::format("{}{}", outputPath, cpuFilename);
-                string gpuFilePath = fmt::format("{}{}", outputPath, gpuFilename);
-                std::filesystem::copy_file(GetCachePath() + edit.EditedFilePath, cpuFilePath, copyOptions);
-                std::filesystem::copy_file(fmt::format("{}{}\\{}", GetCachePath(), split[0], gpuFilename), gpuFilePath, copyOptions);
+                std::filesystem::copy_file(GetCachePath() + edit.EditedFilePath, outputPath + cpuFilename, copyOptions);
+                std::filesystem::copy_file(fmt::format("{}{}\\{}", GetCachePath(), split[0], gpuFilename), outputPath + gpuFilename, copyOptions);
 
                 //Add <Replace> blocks for the cpu file and the gpu file
                 auto* replaceCpuFile = changes->InsertNewChildElement("Replace");
