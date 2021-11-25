@@ -173,7 +173,7 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const string& packfileName, const 
 std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
 {
     //Split path by '/' into components
-    std::string_view packfile, container, file;
+    std::string_view packfile = "", container = "", file = "";
     std::vector<std::string_view> split = String::SplitString(filePath, "/");
     switch (split.size())
     {
@@ -213,24 +213,37 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
     }
     bool hasContainer = (container != "");
 
-    //Get packfile that contains target file
-    Packfile3* parent = hasContainer ? GetContainer(container, packfile) : GetPackfile(packfile);
-    defer(if (hasContainer) delete parent);
-    if (!parent)
-    {
-        LOG_ERROR("Failed to extract parent file in PackfileVFS::GetFileBytes().");
-        return {};
-    }
+    //Path of the file if its in the project cache
+    string editedFilePath = project_->GetCachePath() + string(packfile) + "\\";
+    if (container != "") editedFilePath += string(container) + "\\";
+    editedFilePath += string(file);
 
-    //Extract file
-    std::optional<std::span<u8>> bytes = parent->ExtractSingleFile(file, true);
-    if (!bytes)
+    //Find and load file
+    if (project_ && std::filesystem::exists(editedFilePath)) //Check project cache first
     {
-        LOG_ERROR("Failed to extract target file '{}' in PackfileVFS::GetFileBytes()", file);
-        return {};
+        return File::ReadAllBytesToSpan(editedFilePath);
     }
+    else //Otherwise load the file from packfiles
+    {
+        //Get packfile that contains target file
+        Packfile3* parent = hasContainer ? GetContainer(container, packfile) : GetPackfile(packfile);
+        defer(if (hasContainer) delete parent);
+        if (!parent)
+        {
+            LOG_ERROR("Failed to extract parent file in PackfileVFS::GetFileBytes().");
+            return {};
+        }
 
-    return bytes;
+        //Extract file
+        std::optional<std::span<u8>> bytes = parent->ExtractSingleFile(file, true);
+        if (!bytes)
+        {
+            LOG_ERROR("Failed to extract target file '{}' in PackfileVFS::GetFileBytes()", file);
+            return {};
+        }
+
+        return bytes;
+    }
 }
 
 std::optional<string> PackfileVFS::GetFileString(const string& filePath)
