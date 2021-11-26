@@ -311,23 +311,15 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
                 }
 
                 //Read packfile holding the mesh
-                Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
-                defer(if (InContainer) delete packfile);
+                Handle<Packfile3> packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
                 if (packfile)
                 {
-                    //Get mesh gpu file name
+                    //Read mesh
                     string gpuFileName = RfgUtil::CpuFilenameToGpuFilename(Filename);
-
-                    //Read mesh data
-#pragma warning(disable:26815) //Dangling pointer warning disabled since it's incorrect. Compiler gets confused by the defer statement. ::HIGH_RISK::
-                    std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
-#pragma warning(default:26815)
-                    defer(delete[] gpuFileBytes.data());
-
-                    //Read mesh header
-                    BinaryReader gpuFileReader(gpuFileBytes);
+                    std::vector<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
 
                     //Export mesh as gltf file
+                    BinaryReader gpuFileReader(gpuFileBytes);
                     StaticMesh.WriteToGltf(gpuFileReader, fmt::format("{}/{}.gltf", MeshExportPath, Path::GetFileNameNoExtension(Filename)), diffuseFile, specularFile, normalFile);
                 }
                 else
@@ -368,22 +360,17 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
     TaskEarlyExitCheck();
 
     //Read packfile holding the mesh
-    Packfile3* packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
+    Handle<Packfile3> packfile = InContainer ? state->PackfileVFS->GetContainer(ParentName, VppName) : state->PackfileVFS->GetPackfile(VppName);
     if (!packfile)
     {
         LOG_ERROR("Failed to get packfile {}/{} for {}", VppName, ParentName, Filename);
         Open = false;
         return;
     }
-    defer(if (InContainer) delete packfile);
 
     //Read mesh data
-#pragma warning(disable:26815) //Dangling pointer warning disabled since it's incorrect. Compiler gets confused by the defer statement. ::HIGH_RISK::
-    std::span<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
-    std::span<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
-#pragma warning(default:26815)
-    defer(delete[] cpuFileBytes.data());
-    defer(delete[] gpuFileBytes.data());
+    std::vector<u8> cpuFileBytes = packfile->ExtractSingleFile(Filename, true).value();
+    std::vector<u8> gpuFileBytes = packfile->ExtractSingleFile(gpuFileName, true).value();
 
     //Read mesh header
     BinaryReader cpuFileReader(cpuFileBytes);
@@ -415,8 +402,6 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
     //Load mesh and create render object from it
     MeshInstanceData meshData = maybeMeshData.value();
-    defer(delete[] meshData.IndexBuffer.data());
-    defer(delete[] meshData.VertexBuffer.data());
     Handle<RenderObject> renderObject = Scene->CreateRenderObject(to_string(format), Mesh{ Scene->d3d11Device_, meshData, StaticMesh.NumLods });
 
     //Set camera position to get a better view of the mesh

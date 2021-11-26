@@ -63,10 +63,8 @@ std::optional<PegFile10> TextureIndex::GetPegFromPath(const std::string_view peg
     //Extract peg files
     string cpuFilePath = string(pegPath);
     string gpuFilePath = cpuFilePath.substr(0, cpuFilePath.find_last_of('/') + 1) + RfgUtil::CpuFilenameToGpuFilename(cpuFilePath);
-    std::optional<std::span<u8>> cpuFileBytes = packfileVFS_->GetFileBytes(cpuFilePath);
-    std::optional<std::span<u8>> gpuFileBytes = packfileVFS_->GetFileBytes(gpuFilePath);
-    defer(delete[] cpuFileBytes.value().data());
-    defer(delete[] gpuFileBytes.value().data());
+    std::optional<std::vector<u8>> cpuFileBytes = packfileVFS_->GetFileBytes(cpuFilePath);
+    std::optional<std::vector<u8>> gpuFileBytes = packfileVFS_->GetFileBytes(gpuFilePath);
     if (!cpuFileBytes || !gpuFileBytes)
         return {};
 
@@ -252,9 +250,9 @@ void TextureIndex::TextureIndexGenerationTask(Handle<Task> task)
     subTasks.reserve(packfileVFS_->packfiles_.size());
 
     //Start a separate task for each packfile
-    for (Packfile3& packfile : packfileVFS_->packfiles_)
+    for (Handle<Packfile3> packfile : packfileVFS_->packfiles_)
     {
-        Handle<Task> subtask = Task::Create(fmt::format("Indexing textures in {}...", packfile.Name()));
+        Handle<Task> subtask = Task::Create(fmt::format("Indexing textures in {}...", packfile->Name()));
         subTasks.push_back(subtask);
 
         PackfileTextureData& textureData = packfileTextureData.emplace_back();
@@ -350,7 +348,7 @@ void TextureIndex::TextureIndexGenerationTask(Handle<Task> task)
     TextureIndexGenTaskProgressFraction = 1.0f;
 }
 
-void TextureIndex::TextureIndexGenerationSubtask(Handle<Task> task, Packfile3& packfile, PackfileTextureData* textureData)
+void TextureIndex::TextureIndexGenerationSubtask(Handle<Task> task, Handle<Packfile3> packfile, PackfileTextureData* textureData)
 {
     //Note: PackfileTextureData = std::vector<std::tuple<string, u64, std::vector<u64>>>
 
@@ -379,27 +377,27 @@ void TextureIndex::TextureIndexGenerationSubtask(Handle<Task> task, Packfile3& p
     };
 
     //Loop through subfiles
-    for (u32 i = 0; i < packfile.Entries.size(); i++)
+    for (u32 i = 0; i < packfile->Entries.size(); i++)
     {
-        const char* entryName = packfile.EntryNames[i];
+        const char* entryName = packfile->EntryNames[i];
         string ext = Path::GetExtension(entryName);
 
         //If entry is a cpeg, search it
         if (ext == ".cpeg_pc" || ext == ".cvbm_pc")
         {
-            std::optional<std::span<u8>> pegBytes = packfile.ExtractSingleFile(entryName, true);
+            std::optional<std::vector<u8>> pegBytes = packfile->ExtractSingleFile(entryName, true);
             if (!pegBytes.has_value())
             {
                 LOG_ERROR("Failed to extract {} during texture search database generation", entryName);
                 continue;
             }
 
-            readPegFile(pegBytes.value(), entryName, packfile.Name() + "/", true);
+            readPegFile(pegBytes.value(), entryName, packfile->Name() + "/", true);
         }
         else if (ext == ".str2_pc") //Search for pegs
         {
             //Read container
-            std::optional<std::span<u8>> containerBytes = packfile.ExtractSingleFile(entryName, true);
+            std::optional<std::vector<u8>> containerBytes = packfile->ExtractSingleFile(entryName, true);
             if (!containerBytes.has_value())
             {
                 LOG_ERROR("Failed to extract {} during texture search database generation", entryName);
@@ -413,26 +411,20 @@ void TextureIndex::TextureIndexGenerationSubtask(Handle<Task> task, Packfile3& p
 
             //Read all subfiles at once since most str2 files are C&C and can't do single file extracts anyway.
             //Significantly faster in some packfiles like terr01_l0 which has many str2 files filled with textures
-            std::vector<MemoryFile> subfiles = container.ExtractSubfiles();
-            if (subfiles.size() > 0)
+            MemoryFileList subfiles = container.ExtractSubfiles();
+            //Iterate container files, look for peg
+            for (MemoryFile& subfile : subfiles.Files)
             {
-                //Iterate container files, look for peg
-                for (MemoryFile& subfile : subfiles)
+                string containerEntryExt = Path::GetExtension(subfile.Filename);
+                if (containerEntryExt == ".cpeg_pc" || containerEntryExt == ".cvbm_pc")
                 {
-                    string containerEntryExt = Path::GetExtension(subfile.Filename);
-                    if (containerEntryExt == ".cpeg_pc" || containerEntryExt == ".cvbm_pc")
-                    {
-                        //Found peg, search it
-                        readPegFile(subfile.Bytes, subfile.Filename, packfile.Name() + "/" + container.Name() + "/", false);
-                    }
+                    //Found peg, search it
+                    readPegFile(subfile.GetSpan(subfiles.Data()), subfile.Filename, packfile->Name() + "/" + container.Name() + "/", false);
                 }
-
-                //Cleanup subfiles. Only first subfile is deleted since they're in one buffer (I hate this design. Easy to mess up)
-                delete[] subfiles[0].Bytes.data();
             }
         }
     }
 
-    Log->info("Done indexing textures in {}", packfile.Name());
+    Log->info("Done indexing textures in {}", packfile->Name());
     TextureIndexGenTaskProgressFraction += 0.9f / packfileVFS_->packfiles_.size();
 }

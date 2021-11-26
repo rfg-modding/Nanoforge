@@ -82,21 +82,20 @@ std::optional<string> Localization::StringFromKey(std::string_view key)
 void Localization::LoadLocalizationClass(std::string_view filename, std::string_view className, Locale locale)
 {
     //Get packfile. All rfglocatext files are in misc.vpp_pc so we don't need to check if it's in str2_pc
-    Packfile3* container = packfileVFS_->GetPackfile("misc.vpp_pc");
-    if (!container)
+    Handle<Packfile3> vpp = packfileVFS_->GetPackfile("misc.vpp_pc");
+    if (!vpp)
     {
         LOG_ERROR("Failed to get misc.vpp_pc in Localization.cpp.", filename);
         return;
     }
 
     //Extract rfglocatext bytes
-    std::optional<std::span<u8>> fileBytes = container->ExtractSingleFile(filename, true);
+    std::optional<std::vector<u8>> fileBytes = vpp->ExtractSingleFile(filename, true);
     if (!fileBytes)
     {
         LOG_ERROR("Failed to extract {} in Localization.cpp.", filename);
         return;
     }
-    defer(delete[] fileBytes.value().data());
 
     //Parse rfglocatext file
     LocalizationFile3 localizationFile;

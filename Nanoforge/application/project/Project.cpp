@@ -214,7 +214,7 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
                 std::string str2Filename = string(split[1]);
                 std::string vppName = string(split[0]);
                 const string str2NoExt = Path::GetFileNameNoExtension(str2Filename); //str2_pc file without the .str2_pc extension
-                Packfile3* vpp = vfs->GetPackfile(vppName); //vpp_pc that contains the edited file
+                Handle<Packfile3> vpp = vfs->GetPackfile(vppName); //vpp_pc that contains the edited file
                 string parentPath = edit.EditedFilePath.substr(0, edit.EditedFilePath.find_last_of("\\")); //Extract vpp & str2 path. E.g. humans.vpp_p/mason.str2_pc/
                 string tempPath = Path + "\\Temp\\" + parentPath + "\\"; //Temp folder path
                 string packOutputPath = tempPath + "\\repack\\" + str2Filename; //Path of the new str2_pc
@@ -227,13 +227,11 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
                     std::filesystem::copy(GetCachePath() + parentPath + "\\", tempPath, copyOptions);
 
                     //Extract vanilla str2_pc and write unedited files to temp folder
-                    Packfile3* container = vfs->GetContainer(str2Filename, vppName);
-                    std::vector<MemoryFile> files = container->ExtractSubfiles(true);
-                    defer(delete container);
-                    defer(delete[] files[0].Bytes.data()); //All data returned by ::ExtractSubfiles() is in one buffer separated by spans. So we only need to delete the first.
-                    for (MemoryFile& file : files)
+                    Handle<Packfile3> container = vfs->GetContainer(str2Filename, vppName);
+                    MemoryFileList files = container->ExtractSubfiles(true);
+                    for (MemoryFile& file : files.Files)
                         if (!std::filesystem::exists(tempPath + "\\" + file.Filename)) //Write unedited files to folder. Edited ones are already present.
-                            File::WriteToFile(tempPath + "\\" + file.Filename, file.Bytes);
+                            File::WriteToFile(tempPath + "\\" + file.Filename, file.GetSpan(files.Data()));
 
                     //Repack str2_pc from temp files
                     std::filesystem::create_directory(tempPath + "\\repack\\");
@@ -537,7 +535,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
     //Done this way since table.vpp_pc is required to use MP.
     //Changes to other files are still generated the normal way as a modinfo so you could apply the other changes via the MM and then paste table.vpp_pc
     //(July 25th, 2021) In the near future I want to finish a new mod manager that has MP support built in. That should remove the need for this hack.
-    Packfile3* table = vfs->GetPackfile("table.vpp_pc");
+    Handle<Packfile3> table = vfs->GetPackfile("table.vpp_pc");
     const u32 numTableEdits = (u32)std::ranges::count_if(editedXtbls, [](Handle<XtblFile> xtbl) { return xtbl->VppName == "table.vpp_pc"; });
     Log->info("{} files changed in table.vpp_pc", numTableEdits);
     if (UseTableWorkaround && table && numTableEdits > 0)

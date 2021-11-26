@@ -22,8 +22,8 @@ Mesh::Mesh(ComPtr<ID3D11Device> d3d11Device, const MeshInstanceData& data, u32 n
     info_ = data.Info;
 
     //Create and set data for index and vertex buffers
-    indexBuffer_.Create(d3d11Device, static_cast<u32>(data.IndexBuffer.size_bytes()), D3D11_BIND_INDEX_BUFFER, data.IndexBuffer.data());
-    vertexBuffer_.Create(d3d11Device, static_cast<u32>(data.VertexBuffer.size_bytes()), D3D11_BIND_VERTEX_BUFFER, data.VertexBuffer.data());
+    indexBuffer_.Create(d3d11Device, static_cast<u32>(data.IndexBuffer.size()), D3D11_BIND_INDEX_BUFFER, (void*)data.IndexBuffer.data());
+    vertexBuffer_.Create(d3d11Device, static_cast<u32>(data.VertexBuffer.size()), D3D11_BIND_VERTEX_BUFFER, (void*)data.VertexBuffer.data());
 }
 
 void Mesh::Draw(ComPtr<ID3D11DeviceContext> d3d11Context)

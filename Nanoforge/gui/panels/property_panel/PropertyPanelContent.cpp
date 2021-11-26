@@ -14,7 +14,7 @@
 #include "RfgTools++/formats/zones/properties/special/NavpointDataProperty.h"
 #include "util/Profiler.h"
 
-void DrawPackfileData(Packfile3* packfile)
+void DrawPackfileData(Handle<Packfile3> packfile)
 {
     PROFILER_FUNCTION();
     gui::LabelAndValue("Name:", packfile->Name());
@@ -36,7 +36,7 @@ void PropertyPanel_VppContent(GuiState* state)
 
     //Cache packfile, only find again if selected node changes
     static FileExplorerNode* lastSelectedNode = nullptr;
-    static Packfile3* packfile = nullptr;
+    static Handle<Packfile3> packfile = nullptr;
     if (state->FileExplorer_SelectedNode != lastSelectedNode)
     {
         lastSelectedNode = state->FileExplorer_SelectedNode;
@@ -58,15 +58,10 @@ void PropertyPanel_Str2Content(GuiState* state)
 
     //Cache container, only find again if selected node changes
     static FileExplorerNode* lastSelectedNode = nullptr;
-    static Packfile3* container = nullptr;
+    static Handle<Packfile3> container = nullptr;
     if (state->FileExplorer_SelectedNode != lastSelectedNode)
     {
         lastSelectedNode = state->FileExplorer_SelectedNode;
-
-        //Containers aren't stored long term by the packfileVFS so we must delete it ourselves once done with it
-        if (container)
-            delete container;
-
         container = state->PackfileVFS->GetContainer(state->FileExplorer_SelectedNode->Filename, state->FileExplorer_SelectedNode->ParentName);
         if (!container)
             return;

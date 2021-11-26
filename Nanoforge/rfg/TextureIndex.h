@@ -53,7 +53,7 @@ private:
 
     //Tasks for generating texture database
     void TextureIndexGenerationTask(Handle<Task> task);
-    void TextureIndexGenerationSubtask(Handle<Task> task, Packfile3& packfile, PackfileTextureData* textureData);
+    void TextureIndexGenerationSubtask(Handle<Task> task, Handle<Packfile3> packfile, PackfileTextureData* textureData);
 
     PackfileVFS* packfileVFS_ = nullptr;
 

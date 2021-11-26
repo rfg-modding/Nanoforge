@@ -71,7 +71,7 @@ public:
 
 private:
     void LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state); //Top level loading thread
-    void LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Packfile3* packfile, const char* zoneFilename); //Loads a single zone and its assets
+    void LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Handle<Packfile3> packfile, const char* zoneFilename); //Loads a single zone and its assets
     //Load texture (xxx.tga) and create a render texture from it. Textures are cached to prevent repeat loads
     std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, const string& textureName);
 

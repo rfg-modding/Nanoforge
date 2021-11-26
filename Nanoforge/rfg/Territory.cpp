@@ -58,7 +58,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
 
     //Get packfile with zone files
     Log->info("Loading territory data for {}...", territoryFilename_);
-    Packfile3* packfile = packfileVFS_->GetPackfile(territoryFilename_);
+    Handle<Packfile3> packfile = packfileVFS_->GetPackfile(territoryFilename_);
     if (!packfile)
     {
         LOG_ERROR("Could not find territory file {} in data folder. Required to load the territory.", territoryFilename_);
@@ -107,10 +107,9 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     EarlyStopCheck();
     {
         PROFILER_SCOPED("Load mission layers");
-        for (auto& layerFile : missionLayerFiles)
+        for (FileHandle& layerFile : missionLayerFiles)
         {
-            auto fileBuffer = layerFile.Get();
-            defer(delete[] fileBuffer.data());
+            std::vector<u8> fileBuffer = layerFile.Get();
             BinaryReader reader(fileBuffer);
 
             ZoneFilesLock.lock();
@@ -132,10 +131,9 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     EarlyStopCheck();
     {
         PROFILER_SCOPED("Load activity layers");
-        for (auto& layerFile : activityLayerFiles)
+        for (FileHandle& layerFile : activityLayerFiles)
         {
-            auto fileBuffer = layerFile.Get();
-            defer(delete[] fileBuffer.data());
+            std::vector<u8> fileBuffer = layerFile.Get();
             BinaryReader reader(fileBuffer);
 
             ZoneFilesLock.lock();
@@ -196,7 +194,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     ready_ = true;
 }
 
-void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Packfile3* packfile, const char* zoneFilename)
+void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Handle<Packfile3> packfile, const char* zoneFilename)
 {
     EarlyStopCheck();
     PROFILER_FUNCTION();
@@ -207,8 +205,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     ZoneFilesLock.unlock();
     {
         PROFILER_SCOPED("Load zone");
-        auto fileBuffer = packfile->ExtractSingleFile(zoneFilename);
-        defer(delete[] fileBuffer.value().data());
+        std::optional<std::vector<u8>> fileBuffer = packfile->ExtractSingleFile(zoneFilename);
         if (!fileBuffer)
         {
             LOG_ERROR("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
@@ -245,6 +242,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     TerrainInstance& terrain = TerrainInstances.emplace_back();
     TerrainLock.unlock();
     terrain.Name = terrainName;
+    terrain.Position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
 
     {
         PROFILER_SCOPED("Load low lod terrain")
@@ -260,26 +258,19 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zoneFile.Name);
             return;
         }
-
         FileHandle terrainMesh = lowLodTerrainCpuFileHandles[0];
-        Vec3 position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
 
         //Get packfile that holds terrain meshes
-        auto* container = terrainMesh.GetContainer();
-        defer(delete container);
+        Handle<Packfile3> container = terrainMesh.GetContainer();
         if (!container)
         {
             LOG_ERROR("Failed to extract container for a low lod terrain mesh \"{}\"", lowLodTerrainName);
             return;
         }
 
-        //Get mesh file byte arrays
-        auto cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
-        auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
-        defer(delete[] cpuFileBytes.value().data());
-        defer(delete[] gpuFileBytes.value().data());
-
-        //Ensure the mesh files were extracted
+        //Extract mesh file
+        std::optional<std::vector<u8>> cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
+        std::optional<std::vector<u8>> gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
         if (!cpuFileBytes)
         {
             LOG_ERROR("Failed to extract low lod terrain mesh cpu file \"{}\"", terrainMesh.Filename());
@@ -291,10 +282,9 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             return;
         }
 
+        //Parse mesh
         BinaryReader cpuFile(cpuFileBytes.value());
         BinaryReader gpuFile(gpuFileBytes.value());
-
-        terrain.Position = position;
         terrain.DataLowLod.Read(cpuFile, terrainMesh.Filename());
 
         //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
@@ -310,17 +300,6 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
             lowLodMeshes.push_back(meshData.value());
         }
-        //Cleanup loaded meshes at scope end
-        defer
-        (
-            for (auto& mesh : lowLodMeshes)
-            {
-                if (mesh.IndexBuffer.data())
-                    delete[] mesh.IndexBuffer.data();
-                if (mesh.VertexBuffer.data())
-                    delete[] mesh.VertexBuffer.data();
-            }
-        );
 
         //Load comb and ovl textures, used to color and light low lod terrain, respectively.
         EarlyStopCheck();
@@ -353,40 +332,6 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         std::optional<Texture2D> combTexture = {}; //Used to adjust terrain colors
         std::array<std::optional<Texture2D>, 8> materialTextures; //Up to 4 materials, each with one diffuse and normal map
 
-        //Cleanup mesh data at end of scope
-        defer
-        (
-            //Cleanup high lod mesh data
-            for (u32 i = 0; i < terrain.Subzones.size(); i++)
-            {
-                MeshInstanceData& instanceData = highLodMeshes[i];
-                if (instanceData.IndexBuffer.data())
-                    delete[] instanceData.IndexBuffer.data();
-                if (instanceData.VertexBuffer.data())
-                    delete[] instanceData.VertexBuffer.data();
-            }
-
-            //Cleanup stitch mesh data
-            for (auto& stitch : stitchMeshes)
-            {
-                MeshInstanceData& instanceData = std::get<1>(stitch);
-                if (instanceData.IndexBuffer.data())
-                    delete[] instanceData.IndexBuffer.data();
-                if (instanceData.VertexBuffer.data())
-                    delete[] instanceData.VertexBuffer.data();
-            }
-
-            //Cleanup road mesh data
-            for (auto& road : roadMeshes)
-            {
-                MeshInstanceData& instanceData = std::get<2>(road);
-                if (instanceData.IndexBuffer.data())
-                    delete[] instanceData.IndexBuffer.data();
-                if (instanceData.VertexBuffer.data())
-                    delete[] instanceData.VertexBuffer.data();
-            }
-        );
-
         //Search for high lod terrain mesh files. Should be 9 of them per zone.
         u32 curSubzoneIndex = 0;
         std::vector<FileHandle> highLodSearchResult = state->PackfileVFS->GetFiles(terrainName + "_*", true);
@@ -396,21 +341,16 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
                 continue;
 
             //Valid high lod terrain file found. Load and parse it
-            Packfile3* container = file.GetContainer();
-            defer(delete container);
+            Handle<Packfile3> container = file.GetContainer();
             if (!container)
             {
                 LOG_ERROR("Failed to get container pointer for a high lod terrain mesh {}\\{}", file.ContainerName(), file.Filename());
                 continue;
             }
 
-            //Get mesh file data
-            auto cpuFileBytes = container->ExtractSingleFile(file.Filename(), true);
-            auto gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(file.Filename()) + ".gtmesh_pc", true);
-            defer(delete[] cpuFileBytes.value().data());
-            defer(delete[] gpuFileBytes.value().data());
-
-            //Ensure the mesh files were extracted
+            //Extract high lod mesh
+            std::optional<std::vector<u8>> cpuFileBytes = container->ExtractSingleFile(file.Filename(), true);
+            std::optional<std::vector<u8>> gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(file.Filename()) + ".gtmesh_pc", true);
             if (!cpuFileBytes)
             {
                 LOG_ERROR("Failed to extract high lod terrain mesh cpu file from {}/{}", file.ContainerName(), file.Filename());
@@ -422,10 +362,9 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
                 continue;
             }
 
+            //Parse high lod mesh
             BinaryReader cpuFile(cpuFileBytes.value());
             BinaryReader gpuFile(gpuFileBytes.value());
-
-            //Parse high lod terrain mesh
             Terrain& subzone = terrain.Subzones.emplace_back();
             subzone.Read(cpuFile, file.Filename());
 

@@ -234,13 +234,13 @@ void ScriptxEditor::LoadScriptxFile(const string& name, GuiState* state)
 
     //Get scriptx bytes and pass to xml parser
     auto& handle = handles[0];
-    std::span<u8> scriptxBytes = handle.Get();
+    std::vector<u8> scriptxBytes = handle.Get();
     //Todo: Free this memory once done with it
-    tinyxml2::XMLDocument* doc = new tinyxml2::XMLDocument;
-    doc->Parse((const char*)scriptxBytes.data(), scriptxBytes.size_bytes());
+    tinyxml2::XMLDocument doc;
+    doc.Parse((const char*)scriptxBytes.data(), scriptxBytes.size());
 
     //Parse scriptx. First get the root element
-    auto* root = doc->RootElement();
+    auto* root = doc.RootElement();
     if (!root)
         THROW_EXCEPTION("Failed to get root node in scriptx file \"{}\"", name);
 
@@ -310,8 +310,6 @@ void ScriptxEditor::LoadScriptxFile(const string& name, GuiState* state)
         //Go to next group/managed block
         curGroup = curGroup->NextSiblingElement();
     }
-
-    delete[] scriptxBytes.data();
 
     //Todo: Add ui selector for different group/managed blocks or draw labels around them and draw all nodes at once
     //Todo: Sort all nodes so their run attributes are first and their continue attributes are last

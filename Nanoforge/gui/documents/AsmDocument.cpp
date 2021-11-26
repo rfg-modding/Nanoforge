@@ -7,10 +7,10 @@ AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer)
 {
     //Get packfile. All asm_pc files are in .vpp_pc files
-    Packfile3* container = state->PackfileVFS->GetPackfile(vppName);
+    Handle<Packfile3> vpp = state->PackfileVFS->GetPackfile(vppName);
 
     //Find asm_pc file in parent packfile
-    for (auto& asmFile : container->AsmFiles)
+    for (auto& asmFile : vpp->AsmFiles)
         if (String::EqualIgnoreCase(asmFile.Name, filename))
             asmFile_ = &asmFile;
 

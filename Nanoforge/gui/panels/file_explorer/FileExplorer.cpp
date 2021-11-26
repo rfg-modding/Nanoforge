@@ -186,18 +186,18 @@ void FileExplorer::GenerateFileTree(GuiState* state)
     //Loop through each top level packfile (.vpp_pc file)
     for (auto& packfile : state->PackfileVFS->packfiles_)
     {
-        string packfileNodeText = nodeIconSpacing + packfile.Name();
-        FileExplorerNode& packfileNode = FileTree.emplace_back(packfileNodeText, Packfile, false, packfile.Name(), "");
+        string packfileNodeText = nodeIconSpacing + packfile->Name();
+        FileExplorerNode& packfileNode = FileTree.emplace_back(packfileNodeText, Packfile, false, packfile->Name(), "");
 
         //Loop through each asm_pc file in the packfile
         //These are done separate from other files so str2_pc files and their asm_pc files are readily accessible. Important since game streams str2_pc files based on asm_pc contents
-        for (auto& asmFile : packfile.AsmFiles)
+        for (auto& asmFile : packfile->AsmFiles)
         {
             //Loop through each container (.str2_pc file) represented by the asm_pc file
             for (auto& container : asmFile.Containers)
             {
                 string containerNodeText = nodeIconSpacing + container.Name + ".str2_pc" + "##" + std::to_string(index);
-                FileExplorerNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, false, container.Name + ".str2_pc", packfile.Name());
+                FileExplorerNode& containerNode = packfileNode.Children.emplace_back(containerNodeText, Container, false, container.Name + ".str2_pc", packfile->Name());
                 for (auto& primitive : container.Primitives)
                 {
                     string primitiveNodeText = nodeIconSpacing + primitive.Name + "##" + std::to_string(index);
@@ -209,16 +209,16 @@ void FileExplorer::GenerateFileTree(GuiState* state)
         }
 
         //Loop through other contents of the vpp_pc that aren't in str2_pc files
-        for (u32 i = 0; i < packfile.Entries.size(); i++)
+        for (u32 i = 0; i < packfile->Entries.size(); i++)
         {
-            const char* entryName = packfile.EntryNames[i];
+            const char* entryName = packfile->EntryNames[i];
 
             //Skip str2_pc files as we've already covered those
             if (Path::GetExtension(entryName) == ".str2_pc")
                 continue;
 
             string looseFileNodeText = nodeIconSpacing + string(entryName) + "##" + std::to_string(index);
-            packfileNode.Children.emplace_back(looseFileNodeText, Primitive, false, string(entryName), packfile.Name());
+            packfileNode.Children.emplace_back(looseFileNodeText, Primitive, false, string(entryName), packfile->Name());
             index++;
         }
         index++;

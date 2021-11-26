@@ -5,9 +5,6 @@
 #include "application/project/Project.h"
 #include "Log.h"
 #include <filesystem>
-#include <iostream>
-#include <tuple>
-#include <ext/WindowsWrapper.h>
 
 void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
 {
@@ -30,9 +27,10 @@ void PackfileVFS::ScanPackfilesAndLoadCache()
             continue;
 
         //Load and parse the vpp, then push it to packfiles vector
-        Packfile3& packfile = packfiles_.emplace_back(filePath.path().string());
-        packfile.ReadMetadata();
-        packfile.ReadAsmFiles();
+        Handle<Packfile3> packfile = CreateHandle<Packfile3>(filePath.path().string());
+        packfile->ReadMetadata();
+        packfile->ReadAsmFiles();
+        packfiles_.push_back(packfile);
     }
     ready_ = true;
 }
@@ -65,12 +63,12 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchF
         for (auto& packfile : packfiles_)
         {
             //Loop through all files in the packfile
-            for (u32 i = 0; i < packfile.Entries.size(); i++)
+            for (u32 i = 0; i < packfile->Entries.size(); i++)
             {
-                if (!CheckSearchMatch(packfile.EntryNames[i], filter, searchType))
+                if (!CheckSearchMatch(packfile->EntryNames[i], filter, searchType))
                     continue;
 
-                handles.emplace_back(&packfile, packfile.EntryNames[i]);
+                handles.emplace_back(packfile, packfile->EntryNames[i]);
                 //Break out to the top loop since we only want one result per filter
                 if (oneResultPerFilter)
                     goto continueRoot;
@@ -81,7 +79,7 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchF
                 continue;
 
             //Do recursive search. Use asmFile data instead of opening each str2 to avoid unnecessary parsing
-            for (auto& asmFile : packfile.AsmFiles)
+            for (auto& asmFile : packfile->AsmFiles)
             {
                 for (auto& container : asmFile.Containers)
                 {
@@ -90,7 +88,7 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchF
                         if (!CheckSearchMatch(primitive.Name, filter, searchType))
                             continue;
 
-                        handles.emplace_back(&packfile, primitive.Name, container.Name + ".str2_pc");
+                        handles.emplace_back(packfile, primitive.Name, container.Name + ".str2_pc");
                         //Break out to the top loop since we only want one result per filter
                         if (oneResultPerFilter)
                             goto continueRoot;
@@ -127,7 +125,7 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const string& packfileName, const 
     }
 
     //Get packfile
-    Packfile3* packfile = GetPackfile(packfileName);
+    Handle<Packfile3> packfile = GetPackfile(packfileName);
     if (!packfile || (packfile->Compressed && packfile->Condensed))
         return handles;
 
@@ -170,7 +168,7 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const string& packfileName, const 
     return handles;
 }
 
-std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
+std::optional<std::vector<u8>> PackfileVFS::GetFileBytes(const string& filePath)
 {
     //Split path by '/' into components
     std::string_view packfile = "", container = "", file = "";
@@ -221,13 +219,12 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
     //Find and load file
     if (project_ && std::filesystem::exists(editedFilePath)) //Check project cache first
     {
-        return File::ReadAllBytesToSpan(editedFilePath);
+        return File::ReadAllBytes(editedFilePath);
     }
     else //Otherwise load the file from packfiles
     {
         //Get packfile that contains target file
-        Packfile3* parent = hasContainer ? GetContainer(container, packfile) : GetPackfile(packfile);
-        defer(if (hasContainer) delete parent);
+        Handle<Packfile3> parent = hasContainer ? GetContainer(container, packfile) : GetPackfile(packfile);
         if (!parent)
         {
             LOG_ERROR("Failed to extract parent file in PackfileVFS::GetFileBytes().");
@@ -235,7 +232,7 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
         }
 
         //Extract file
-        std::optional<std::span<u8>> bytes = parent->ExtractSingleFile(file, true);
+        std::optional<std::vector<u8>> bytes = parent->ExtractSingleFile(file, true);
         if (!bytes)
         {
             LOG_ERROR("Failed to extract target file '{}' in PackfileVFS::GetFileBytes()", file);
@@ -249,14 +246,14 @@ std::optional<std::span<u8>> PackfileVFS::GetFileBytes(const string& filePath)
 std::optional<string> PackfileVFS::GetFileString(const string& filePath)
 {
     //Read file
-    std::optional<std::span<u8>> fileBytes = GetFileBytes(filePath);
+    std::optional<std::vector<u8>> fileBytes = GetFileBytes(filePath);
     if (!fileBytes)
         return {};
 
     //Copy file into a string
     string out;
-    out.resize(fileBytes.value().size_bytes());
-    memcpy(out.data(), fileBytes.value().data(), fileBytes.value().size_bytes());
+    out.resize(fileBytes.value().size());
+    memcpy(out.data(), fileBytes.value().data(), fileBytes.value().size());
     return out;
 }
 
@@ -271,29 +268,28 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const string& filter, bool recursi
     return GetFiles(std::vector<string>{filter}, recursive, findOne);
 }
 
-Packfile3* PackfileVFS::GetPackfile(const std::string_view name)
+Handle<Packfile3> PackfileVFS::GetPackfile(const std::string_view name)
 {
     for (auto& packfile : packfiles_)
-    {
-        if (packfile.Name() == name)
-            return &packfile;
-    }
+        if (packfile->Name() == name)
+            return packfile;
+
     return nullptr;
 }
 
-Packfile3* PackfileVFS::GetContainer(const std::string_view name, const std::string_view parentName)
+Handle<Packfile3> PackfileVFS::GetContainer(const std::string_view name, const std::string_view parentName)
 {
-    Packfile3* packfile = GetPackfile(parentName);
+    Handle<Packfile3> packfile = GetPackfile(parentName);
     if (!packfile)
         THROW_EXCEPTION("Failed to get packfile '{}'", parentName);
 
-    //Find container
-    auto containerBytes = packfile->ExtractSingleFile(name, false);
-    //Parse container and get file byte buffer
-    Packfile3* container = new Packfile3(containerBytes.value());
-    if (!container)
+    //Load container
+    std::optional<std::vector<u8>> containerBytes = packfile->ExtractSingleFile(name, false);
+    if (!containerBytes)
         THROW_EXCEPTION("Failed to get packfile '{}' from '{}'", name, parentName);
 
+    //Parse container
+    Handle<Packfile3> container = CreateHandle<Packfile3>(containerBytes.value());
     container->ReadMetadata();
     container->SetName(string(name));
     return container;

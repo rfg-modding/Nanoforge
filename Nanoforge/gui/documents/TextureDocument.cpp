@@ -21,14 +21,13 @@ TextureDocument::TextureDocument(GuiState* state, std::string_view filename, std
     GpuFilePath += fmt::format("{}/{}", parentName, RfgUtil::CpuFilenameToGpuFilename(filename));
 
     //Extract cpu file. Data is loaded from the gpu file on demand to reduce RAM usage.
-    std::optional<std::span<u8>> cpuFile = state->PackfileVFS->GetFileBytes(CpuFilePath);
+    std::optional<std::vector<u8>> cpuFile = state->PackfileVFS->GetFileBytes(CpuFilePath);
     if (!cpuFile)
     {
         LOG_ERROR("Failed to extract '{}'", CpuFilePath);
         Open = false;
         return;
     }
-    defer(delete[] cpuFile.value().data());
 
     //Parse
     BinaryReader cpuFileReader(cpuFile.value());
@@ -202,13 +201,12 @@ void TextureDocument::Update(GuiState* state)
         if (!entryTexture && !CreateFailed)
         {
             //Load gpu file
-            std::optional<std::span<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
+            std::optional<std::vector<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
             if (!gpuFile)
             {
                 LOG_ERROR("Failed to read '{}'", GpuFilePath);
                 CreateFailed = true;
             }
-            defer(delete[] gpuFile.value().data());
             BinaryReader gpuFileReader(gpuFile.value());
 
             //Read texture from gpu file and create a directx texture from it
@@ -249,13 +247,12 @@ void TextureDocument::Save(GuiState* state)
     if (state->CurrentProject->Loaded())
     {
         //Load gpu file
-        std::optional<std::span<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
+        std::optional<std::vector<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
         if (!gpuFile)
         {
             LOG_ERROR("Failed to read '{}' while saving texture.", GpuFilePath);
             return;
         }
-        defer(delete[] gpuFile.value().data());
         BinaryReader gpuFileReader(gpuFile.value());
 
         //Read all texture data from unedited gpu file
@@ -309,13 +306,12 @@ void TextureDocument::PickPegExportFolder(GuiState* state)
     Log->info("Extract all window selection: \"{}\"", exportFolder.value());
 
     //Load gpu file since they contain texture data
-    std::optional<std::span<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
+    std::optional<std::vector<u8>> gpuFile = state->PackfileVFS->GetFileBytes(GpuFilePath);
     if (!gpuFile)
     {
         LOG_ERROR("Failed to read '{}'", GpuFilePath);
         CreateFailed = true;
     }
-    defer(delete[] gpuFile.value().data());
     BinaryReader gpuFileReader(gpuFile.value());
 
     //Load and export textures
