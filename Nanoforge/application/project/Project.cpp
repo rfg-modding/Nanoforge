@@ -280,44 +280,8 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
                         updatedAsm = *currentAsm;
                     }
 
-                    //Get container
-                    AsmContainer* asmContainer = updatedAsm.GetContainer(str2NoExt);
-                    if (!asmContainer)
-                    {
-                        LOG_ERROR("Failed to find container for \"{}\" in asmFile \"{}\" in mod packaging thread!", str2Filename, currentAsm->Name);
-                        return;
-                    }
-
-                    //Update container + primitive sizes
-                    asmContainer->CompressedSize = newStr2.Header.CompressedDataSize;
-                    for (u32 i = 0; i < asmContainer->PrimitiveSizes.size(); i++)
-                        asmContainer->PrimitiveSizes[i] = newStr2.Entries[i].DataSize; //Uncompressed size
-
-                    //Update primitive values
-                    u32 primIndex = 0;
-                    u32 primSizeIndex = 0;
-                    while (primIndex < asmContainer->Primitives.size())
-                    {
-                        AsmPrimitive& curPrim = asmContainer->Primitives[primIndex];
-
-                        //Todo: This assumption blocks support of adding/remove files from str2s or reordering them
-                        //If DataSize = 0 assume this primitive has no gpu file
-                        if (curPrim.DataSize == 0)
-                        {
-                            curPrim.HeaderSize = newStr2.Entries[primSizeIndex].DataSize; //Uncompressed size
-                            primIndex++;
-                            primSizeIndex++;
-                        }
-                        else //Otherwise assume primitive has cpu and gpu file
-                        {
-                            curPrim.HeaderSize = newStr2.Entries[primSizeIndex].DataSize; //Cpu file uncompressed size
-                            curPrim.DataSize = newStr2.Entries[primSizeIndex + 1].DataSize; //Gpu file uncompressed size
-                            primIndex++;
-                            primSizeIndex += 2;
-                        }
-                    }
-
-                    //Resave asm_pc to project cache
+                    //Update asm_pc and save it to the project cache
+                    updatedAsm.UpdateContainer(newStr2);
                     updatedAsm.Write(asmOutputPath);
 
                     //Copy asm_pc to output folder
