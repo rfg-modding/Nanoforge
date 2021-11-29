@@ -11,6 +11,8 @@ public:
 
     void Update(GuiState* state) override;
     void Save(GuiState* state) override;
+    bool CanClose() override { return true; }
+    void OnClose(GuiState* state) override {}
 
 private:
     Locale selectedLocale_;

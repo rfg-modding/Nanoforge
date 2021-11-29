@@ -13,6 +13,8 @@ public:
 
     void Update(GuiState* state) override;
     void Save(GuiState* state) override;
+    bool CanClose() override { return true; /*Has no threads that it must wait to close*/ }
+    void OnClose(GuiState* state) override {}
 
 private:
     void PickPegExportFolder(GuiState* state);

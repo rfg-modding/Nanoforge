@@ -39,7 +39,7 @@ Handle<Task> Territory::LoadAsync(Handle<Scene> scene, GuiState* state)
     return task;
 }
 
-//Used by loading threads to stop early if loadThreadShouldStop_ == true
+//Used by the primary loading thread to stop early if loadThreadShouldStop_ == true
 #define EarlyStopCheck() if(loadThreadShouldStop_) \
 { \
     state->ClearStatus(); \
@@ -47,6 +47,11 @@ Handle<Task> Territory::LoadAsync(Handle<Scene> scene, GuiState* state)
     return; \
 } \
 
+//Same as above but for subthreads. Different macro is used since only the primary thread should change loadThreadRunning_
+#define SubThreadEarlyStopCheck() if(loadThreadShouldStop_) \
+{ \
+    return; \
+} \
 
 void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state)
 {
@@ -85,6 +90,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
             activityLayerFiles = packfileVFS_->GetFiles("dlcp01_activities.vpp_pc", "*.layer_pc", true, false);
         }
     }
+    EarlyStopCheck();
 
     //Reserve enough space for all possible zones
     size_t maxZoneCount = packfile->Entries.size() + missionLayerFiles.size() + activityLayerFiles.size();
@@ -200,7 +206,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
 
 void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Handle<Packfile3> packfile, const char* zoneFilename)
 {
-    EarlyStopCheck();
+    SubThreadEarlyStopCheck();
     PROFILER_FUNCTION();
 
     //Load zone data
@@ -227,7 +233,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     }
 
     //Check if the zone has terrain by looking for an obj_zone object with terrain_file_name property
-    EarlyStopCheck();
+    SubThreadEarlyStopCheck();
     auto* objZoneObject = zoneFile.Zone.GetSingleObject("obj_zone");
     if (!objZoneObject)
         return; //No terrain
@@ -247,6 +253,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     TerrainLock.unlock();
     terrain.Name = terrainName;
     terrain.Position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
+    SubThreadEarlyStopCheck();
 
     {
         PROFILER_SCOPED("Load low lod terrain")
@@ -294,7 +301,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
         for (u32 i = 0; i < 9; i++)
         {
-            EarlyStopCheck();
+            SubThreadEarlyStopCheck();
             std::optional<MeshInstanceData> meshData = terrain.DataLowLod.ReadMeshData(gpuFile, i);
             if (!meshData.has_value())
             {
@@ -306,7 +313,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         }
 
         //Load comb and ovl textures, used to color and light low lod terrain, respectively.
-        EarlyStopCheck();
+        SubThreadEarlyStopCheck();
         texture0 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "comb.tga");
         texture1 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_ovl.tga");
 
@@ -324,7 +331,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         }
     }
 
-    EarlyStopCheck();
+    SubThreadEarlyStopCheck();
     if(useHighLodTerrain_)
     {
         PROFILER_SCOPED("Load high lod terrain");
@@ -341,10 +348,12 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         std::vector<FileHandle> highLodSearchResult = state->PackfileVFS->GetFiles(terrainName + "_*", true);
         for (FileHandle& file : highLodSearchResult)
         {
+            SubThreadEarlyStopCheck();
             if (Path::GetExtension(file.Filename()) != ".ctmesh_pc")
                 continue;
 
             //Valid high lod terrain file found. Load and parse it
+            PROFILER_SCOPED("Load .ctmesh_pc file");
             Handle<Packfile3> container = file.GetContainer();
             if (!container)
             {
@@ -398,7 +407,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             }
             curSubzoneIndex++;
         }
-        EarlyStopCheck();
+        SubThreadEarlyStopCheck();
 
         //Load blend texture
         blendTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_alpha00.tga");
@@ -410,6 +419,8 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         std::vector<string>& terrainTextureNames = terrain.DataLowLod.TerrainMaterialNames;
         while (terrainTextureIndex < terrainTextureNames.size() - 1 && numTerrainTextures < 4)
         {
+            PROFILER_SCOPED("Find high lod texture");
+            SubThreadEarlyStopCheck();
             string current = terrainTextureNames[terrainTextureIndex];
             string next = terrainTextureNames[terrainTextureIndex + 1];
 
@@ -446,11 +457,12 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             numTerrainTextures++;
             terrainTextureIndex += 2;
         }
-        EarlyStopCheck();
 
         //Initialize high lod terrain
         for (u32 i = 0; i < 9; i++)
         {
+            PROFILER_SCOPED("Construct high lod mesh")
+            SubThreadEarlyStopCheck();
             auto& subzone = terrain.Subzones[i];
             Handle<RenderObject> renderObject = scene->CreateRenderObject("Terrain", Mesh{scene->d3d11Device_, highLodMeshes[i]}, subzone.Subzone.Position);
             TerrainLock.lock();
@@ -467,11 +479,12 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
             scene->NeedsRedraw = true; //Redraw scene when new terrain meshes are added
         }
-        EarlyStopCheck();
 
         //Initialize stitch meshes
         for (auto& stitch : stitchMeshes)
         {
+            PROFILER_SCOPED("Create stitch mesh");
+            SubThreadEarlyStopCheck();
             u32 subzoneIndex = std::get<0>(stitch);
             MeshInstanceData instanceData = std::get<1>(stitch);
             Terrain& subzone = terrain.Subzones[subzoneIndex];
@@ -490,11 +503,12 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             for (u32 i = 0; i < materialTextures.size(); i++)
                 stitchObject->Textures[i + 2] = materialTextures[i];
         }
-        EarlyStopCheck();
 
         //Initialize road meshes
         for (auto& road : roadMeshes)
         {
+            PROFILER_SCOPED("Create road mesh");
+            SubThreadEarlyStopCheck();
             u32 subzoneIndex = std::get<0>(road);
             u32 roadIndex = std::get<1>(road);
             MeshInstanceData instanceData = std::get<2>(road);
@@ -513,6 +527,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             std::vector<string>& roadTextureNames = subzone.RoadTextures[roadIndex];
             while (roadTextureIndex < roadTextureNames.size() - 1 && numRoadTextures < 4)
             {
+                PROFILER_SCOPED("Find road texture");
                 string current = roadTextureNames[roadTextureIndex];
                 string next = roadTextureNames[roadTextureIndex + 1];
 
@@ -559,8 +574,6 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
                 roadObject->Textures[i + 2] = roadTextures[i];
         }
     }
-
-    EarlyStopCheck();
 }
 
 std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, const string& textureName)

@@ -153,10 +153,16 @@ void MainGui::Update()
 
             document->Update(&State);
             ImGui::End();
+
+            //Call OnClose when the user clicks the close button
+            if (!document->Open)
+                document->OnClose(&State);
+
             iter++;
         }
-        else if (!document->Open && !document->UnsavedChanges)
+        else if (!document->Open && !document->UnsavedChanges && document->CanClose())
         {
+            //Document was closed by user, has no unsaved changes, and is ready to close (not waiting for threads to finish)
             if (currentDocument_ == *iter)
                 currentDocument_ = nullptr;
 

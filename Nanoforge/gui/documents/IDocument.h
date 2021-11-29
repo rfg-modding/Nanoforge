@@ -9,6 +9,10 @@ public:
     virtual ~IDocument() {}
     virtual void Update(GuiState* state) = 0;
     virtual void Save(GuiState* state) = 0;
+    //Called when the user clicks the close button.
+    virtual void OnClose(GuiState* state) = 0;
+    //Returns true if the document can be closed immediately. Used to ensure worker threads are stopped before deleting the document.
+    virtual bool CanClose() = 0;
 
     string Title;
     bool FirstDraw = true;

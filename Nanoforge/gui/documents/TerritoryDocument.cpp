@@ -38,11 +38,6 @@ TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territory
 
 TerritoryDocument::~TerritoryDocument()
 {
-    //Wait for worker thread to exit
-    Open = false;
-    Territory.StopLoadThread();
-    TerritoryLoadTask->CancelAndWait();
-
     if (state_->CurrentTerritory == &Territory)
     {
         state_->CurrentTerritory = nullptr;
@@ -51,6 +46,17 @@ TerritoryDocument::~TerritoryDocument()
 
     //Delete scene and free its resources
     state_->Renderer->DeleteScene(Scene);
+}
+
+bool TerritoryDocument::CanClose()
+{
+    //Can't close until the worker threads are finished. The doc will still disappear if the user closes it. It just won't get deleted until all the threads finish.
+    return !TerritoryLoadTask->Running();
+}
+
+void TerritoryDocument::OnClose(GuiState* state)
+{
+    Territory.StopLoadThread();
 }
 
 void TerritoryDocument::Update(GuiState* state)

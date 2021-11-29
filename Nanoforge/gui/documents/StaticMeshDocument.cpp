@@ -46,13 +46,20 @@ StaticMeshDocument::StaticMeshDocument(GuiState* state, std::string_view filenam
 
 StaticMeshDocument::~StaticMeshDocument()
 {
-    //Wait for worker thread to so we don't destroy resources it's using
-    Open = false;
-    meshLoadTask_->CancelAndWait();
-
-    //Delete scene and free its resources
+    //Delete scene and free its resources. CanClose() ensures worker thread is finished by the time we destroy the resources.
     state_->Renderer->DeleteScene(Scene);
     Scene = nullptr;
+}
+
+bool StaticMeshDocument::CanClose()
+{
+    //Can't close until the worker threads are finished. The doc will still disappear if the user closes it. It just won't get deleted until all the threads finish.
+    return !meshLoadTask_->Running();
+}
+
+void StaticMeshDocument::OnClose(GuiState* state)
+{
+    meshLoadTask_->Cancel();
 }
 
 void StaticMeshDocument::Update(GuiState* state)

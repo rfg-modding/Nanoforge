@@ -17,6 +17,8 @@ public:
 
     void Update(GuiState* state) override;
     void Save(GuiState* state) override;
+    bool CanClose() override;
+    void OnClose(GuiState* state) override;
 
 private:
     //Worker thread that loads a mesh and locates its textures in the background
