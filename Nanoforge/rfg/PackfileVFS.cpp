@@ -57,7 +57,7 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchF
         else if (filter.back() == '*') //Ex: always_loaded.* (Finds filenames with any extension that is named always_loaded)
         {
             searchType = SearchType::AnyEnd;
-            filter = filter.substr(0, filter.size() - 2);
+            filter = filter.substr(0, filter.size() - 1);
         }
 
         //Loop through packfiles
@@ -119,7 +119,7 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const string& packfileName, const 
         searchType = SearchType::AnyStart;
         filter0 = filter0.substr(1);
     }
-    else if (filter0.back() == '*') //Ex: always_loaded.* (Finds filenames with any extension that is named always_loaded)
+    else if (filter0.back() == '*') //Ex: always_loaded.* (Finds filenames that start with always_loaded)
     {
         searchType = SearchType::AnyEnd;
         filter0 = filter0.substr(0, filter0.size() - 2);
