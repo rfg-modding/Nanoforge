@@ -1,8 +1,8 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "IDocument.h"
-#include "RfgTools++/formats/asm/AsmFile5.h"
-#include <vector>
+
+class AsmFile5;
 
 class AsmDocument final : public IDocument
 {

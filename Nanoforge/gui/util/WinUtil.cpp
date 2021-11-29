@@ -1,8 +1,6 @@
 #include "WinUtil.h"
-#include <sstream>
-#include <commdlg.h>
-#include <ShlObj.h>
 #include <filesystem>
+#include <ext/WindowsWrapper.h>
 #pragma warning(disable:4996)
 #pragma warning(disable:26812) //Disable library warnings
 #include <nfd.h>
@@ -11,8 +9,6 @@
 
 //Main window handle. Used by the functions below.
 HWND hwnd = NULL;
-
-//OpenFile and SaveFile are based on https://github.com/TheCherno/Hazel/blob/master/Hazel/src/Platform/Windows/WindowsPlatformUtils.cpp
 
 void WinUtilInit(HWND mainWindowHandle)
 {

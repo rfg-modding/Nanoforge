@@ -6,6 +6,10 @@
 #include <spdlog/fmt/fmt.h>
 #include "Log.h"
 #include "util/Profiler.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "rfg/PackfileVFS.h"
+#include "gui/GuiState.h"
+#include <tinyxml2/tinyxml2.h>
 #pragma warning(push) //Disable imnodes library warnings
 #pragma warning(disable:26495)
 #pragma warning(disable:26812)

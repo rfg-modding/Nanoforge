@@ -1,12 +1,15 @@
 #pragma once
-#include "gui/GuiState.h"
 #include "gui/IGuiPanel.h"
 #include <types/Vec4.h>
-#include <tinyxml2/tinyxml2.h>
 
 struct Node;
 struct Link;
 struct IAttribute;
+class GuiState;
+namespace tinyxml2
+{
+    class XMLElement;
+}
 
 class ScriptxEditor : public IGuiPanel
 {

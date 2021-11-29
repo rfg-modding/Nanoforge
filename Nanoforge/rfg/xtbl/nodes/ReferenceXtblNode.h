@@ -8,6 +8,9 @@
 #include "imgui.h"
 #include "render/imgui/imgui_ext.h"
 #include "render/imgui/ImGuiConfig.h"
+#include "gui/GuiState.h"
+#include "rfg/xtbl/XtblManager.h"
+#include "rfg/xtbl/Xtbl.h"
 
 //Node which references the value of nodes in another xtbl
 class ReferenceXtblNode : public IXtblNode

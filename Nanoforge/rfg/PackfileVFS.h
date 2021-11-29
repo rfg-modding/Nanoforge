@@ -1,12 +1,10 @@
 #pragma once
 #include "FileHandle.h"
-#include "util/TaskScheduler.h"
-#include <RfgTools++\formats\packfiles\Packfile3.h>
-#include <RfgTools++\formats\zones\ZonePc36.h>
-#include <RfgTools++\formats\asm\AsmFile5.h>
+#include <optional>
 #include <vector>
-#include <future>
-#include <mutex>
+
+class Project;
+class Packfile3;
 
 //Enum used internally by PackfileVFS during file searches
 enum class SearchType
@@ -15,8 +13,6 @@ enum class SearchType
     AnyStart, //Find targets that end with the search string
     AnyEnd //Find starts that start with the search string
 };
-
-class Project;
 
 //Interface for interacting with RFG packfiles and their contents
 class PackfileVFS

@@ -7,6 +7,9 @@
 #include "PegHelpers.h"
 #include "util/RfgUtil.h"
 #include "application/project/Project.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "render/imgui/ImGuiConfig.h"
+#include "rfg/PackfileVFS.h"
 #include "util/Profiler.h"
 
 TextureDocument::TextureDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)

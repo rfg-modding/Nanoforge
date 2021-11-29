@@ -4,6 +4,9 @@
 #include "RfgTools++/formats/zones/properties/primitive/StringProperty.h"
 #include "render/imgui/imgui_ext.h"
 #include "util/Profiler.h"
+#include "gui/GuiState.h"
+#include "rfg/Territory.h"
+#include "render/imgui/ImGuiFontManager.h"
 
 ZoneObjectsList::ZoneObjectsList()
 {

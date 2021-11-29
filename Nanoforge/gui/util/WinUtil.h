@@ -1,7 +1,9 @@
 #pragma once
 #include "common/Typedefs.h"
 #include <optional>
-#include <ext/WindowsWrapper.h>
+
+struct HWND__;
+using HWND = HWND__*;
 
 void WinUtilInit(HWND mainWindowHandle); //Called once by Application class so the other functions can be called without passing hwnd to them
 std::optional<string> OpenFile(const char* filter = nullptr);

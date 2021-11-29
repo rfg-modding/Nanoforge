@@ -12,7 +12,13 @@
 #include "RfgTools++/formats/zones/properties/special/DistrictFlagsProperty.h"
 #include "RfgTools++/formats/zones/properties/compound/ListProperty.h"
 #include "RfgTools++/formats/zones/properties/special/NavpointDataProperty.h"
+#include "RfgTools++/formats/zones/ZonePc36.h"
 #include "util/Profiler.h"
+#include "gui/GuiState.h"
+#include "render/imgui/ImGuiConfig.h"
+#include "rfg/PackfileVFS.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "RfgTools++/formats/packfiles/Packfile3.h"
 
 void DrawPackfileData(Handle<Packfile3> packfile)
 {

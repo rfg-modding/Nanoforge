@@ -1,5 +1,6 @@
 #pragma once
-#include "gui/GuiState.h"
+
+class GuiState;
 
 void PropertyPanel_VppContent(GuiState* state);
 void PropertyPanel_Str2Content(GuiState* state);

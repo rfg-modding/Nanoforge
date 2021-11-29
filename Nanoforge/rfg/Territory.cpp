@@ -9,9 +9,13 @@
 #include "util/RfgUtil.h"
 #include "util/MeshUtil.h"
 #include "gui/documents/PegHelpers.h"
+#include "rfg/TextureIndex.h"
 #include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
 #include <synchapi.h> //For Sleep()
 #include <ranges>
+#include <RfgTools++/formats/packfiles/Packfile3.h>
+#include "rfg/PackfileVFS.h"
+#include "render/resources/Scene.h"
 
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
@@ -567,6 +571,13 @@ std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device
     auto cacheSearch = textureCache_.find(String::ToLower(textureName));
     if (cacheSearch != textureCache_.end())
         return cacheSearch->second;
+
+    //Todo: Pass optional container* to func
+        //Todo: Check if container contains target texture
+        //Todo: Can loop through peg/vbm files in container and use TextureIndex to check if they contain the target texture
+        //Todo: If true, load peg and create DX11 texture for it.
+            //Todo: Check perf difference. Look for other areas to improve perf in tracy
+            //Todo: Consider making function to generate Texture2D from Peg and other ptrs. Use here and in TextureIndex
 
     //Load texture
     std::optional<Texture2D> texture = textureSearchIndex->GetRenderTexture(textureName, d3d11Device);

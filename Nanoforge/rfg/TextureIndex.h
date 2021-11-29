@@ -1,11 +1,12 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "rfg/PackfileVFS.h"
-#include "util/TaskScheduler.h"
 #include <RfgTools++/formats/textures/PegFile10.h>
 #include "render/resources/Texture2D.h"
-#include <BinaryTools/BinaryReader.h>
 #include <optional>
+
+class Task;
+class PackfileVFS;
+class Packfile3;
 
 //Used by some search functions in TextureIndex
 struct TextureSearchResult

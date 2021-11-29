@@ -1,6 +1,5 @@
 #pragma once
 #include "common/Typedefs.h"
-#include <memory>
 
 class GuiState;
 

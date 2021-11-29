@@ -3,7 +3,11 @@
 #include "common/string/String.h"
 #include "common/filesystem/Path.h"
 #include "render/imgui/imgui_ext.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "rfg/Territory.h"
 #include "util/Profiler.h"
+#include "gui/GuiState.h"
+#include "Log.h"
 
 ZoneList::ZoneList()
 {

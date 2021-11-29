@@ -3,6 +3,13 @@
 #include "util/Profiler.h"
 #include "render/Render.h"
 #include "Log.h"
+#include "gui/GuiState.h"
+#include "rfg/TerrainHelpers.h"
+#include "util/TaskScheduler.h"
+#include "render/resources/Scene.h"
+#include "application/Config.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include <imgui.h>
 
 TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territoryName, std::string_view territoryShortname)
     : TerritoryName(territoryName), TerritoryShortname(territoryShortname)

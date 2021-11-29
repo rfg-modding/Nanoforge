@@ -1,8 +1,7 @@
 #pragma once
-#include "gui/GuiState.h"
-#include "Log.h"
-#include <spdlog/sinks/ringbuffer_sink.h>
 #include "gui/IGuiPanel.h"
+
+class GuiState;
 
 class LogPanel : public IGuiPanel
 {

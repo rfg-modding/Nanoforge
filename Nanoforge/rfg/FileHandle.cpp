@@ -1,6 +1,6 @@
-#include <BinaryTools/BinaryReader.h>
-#include "PackfileVFS.h"
 #include "FileHandle.h"
+#include <RfgTools++/formats/packfiles/Packfile3.h>
+#include "PackfileVFS.h"
 #include "Log.h"
 
 FileHandle::FileHandle(Handle<Packfile3> packfile, std::string_view fileName, std::string_view containerName)

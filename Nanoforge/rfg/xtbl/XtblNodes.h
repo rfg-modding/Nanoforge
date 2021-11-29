@@ -1,11 +1,11 @@
 #pragma once
 #include "Common/Typedefs.h"
 #include "XtblType.h"
-#include "gui/GuiState.h"
 
 class IXtblNode;
 class XtblDescription;
 class XtblFile;
+class GuiState;
 
 //IXtblNode gui widget width
 static f32 NodeGuiWidth = 240.0f;

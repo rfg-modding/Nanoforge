@@ -1,6 +1,10 @@
 #include "Localization.h"
 #include "Log.h"
 #include "RfgTools++/hashes/Hash.h"
+#include "rfg/PackfileVFS.h"
+#include "application/Config.h"
+#include <RfgTools++/formats/localization/LocalizationFile3.h>
+#include <RfgTools++/formats/packfiles/Packfile3.h>
 #include <locale>
 #include <codecvt>
 

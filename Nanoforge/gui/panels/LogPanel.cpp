@@ -1,6 +1,9 @@
 #include "LogPanel.h"
 #include "render/imgui/imgui_ext.h"
 #include "util/Profiler.h"
+#include "gui/GuiState.h"
+#include "Log.h"
+#include <spdlog/sinks/ringbuffer_sink.h>
 
 LogPanel::LogPanel()
 {

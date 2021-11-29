@@ -1,5 +1,8 @@
 #include "StatusBar.h"
+#include "gui/GuiState.h"
 #include "util/TaskScheduler.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include <stdexcept>
 
 StatusBar::StatusBar()
 {

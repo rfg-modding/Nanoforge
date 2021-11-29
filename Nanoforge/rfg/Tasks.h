@@ -5,6 +5,7 @@
 #include "util/TaskScheduler.h"
 #include "util/Profiler.h"
 #include "rfg/TextureIndex.h"
+#include "rfg/PackfileVFS.h"
 #include "Log.h"
 #include <future>
 

@@ -1,10 +1,9 @@
 #pragma once
 #include "common/Typedefs.h"
-#include <imgui.h>
-#include "application/Config.h"
 #include "ImGuiConfig.h"
+#include "application/Config.h"
 #include <IconsFontAwesome5_c.h>
-#include "Log.h"
+#include <imgui.h>
 
 class ImGuiFont
 {
@@ -40,7 +39,7 @@ private:
 class ImGuiFontManager
 {
 public:
-    void Init(Config* config) { TRACE(); config_ = config; }
+    void Init(Config* config);
     void RegisterFonts();
 
     //Default font size

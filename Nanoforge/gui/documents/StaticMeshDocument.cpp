@@ -14,6 +14,13 @@
 #include <optional>
 #include "util/Profiler.h"
 #include "rfg/TextureIndex.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "render/resources/Scene.h"
+#include "render/backend/DX11Renderer.h"
+#include "util/TaskScheduler.h"
+#include "gui/GuiState.h"
+#include "rfg/PackfileVFS.h"
+#include "RfgTools++/formats/packfiles/Packfile3.h"
 
 StaticMeshDocument::StaticMeshDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)

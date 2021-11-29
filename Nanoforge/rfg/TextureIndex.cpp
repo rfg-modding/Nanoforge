@@ -6,6 +6,9 @@
 #include "gui/documents/PegHelpers.h"
 #include "util/RfgUtil.h"
 #include "gui/util/WinUtil.h"
+#include "rfg/PackfileVFS.h"
+#include "util/TaskScheduler.h"
+#include "RfgTools++/formats/packfiles/Packfile3.h"
 
 std::optional<string> TextureIndex::FindPeg(const std::string_view pegName) const
 {

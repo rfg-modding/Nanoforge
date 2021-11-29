@@ -1,18 +1,22 @@
 #pragma once
 #include "Common/Typedefs.h"
-#include "util/TaskScheduler.h"
 #include "FileEdit.h"
-#include <tinyxml2/tinyxml2.h>
 #include <vector>
 #include <future>
 
 class PackfileVFS;
 class XtblManager;
 class IXtblNode;
+namespace tinyxml2
+{
+    class XMLElement;
+}
+class Task;
 
 class Project
 {
 public:
+    Project();
     bool Load(std::string_view projectFilePath);
     bool Save();
     void Close();
@@ -47,7 +51,7 @@ public:
     bool PackagingCancelled = false;
     string WorkerState;
     f32 WorkerPercentage = 0.0f;
-    Handle<Task> PackageModTask = Task::Create("Packaging mod...");
+    Handle<Task> PackageModTask;
 
 private:
     bool LoadProjectFile(std::string_view projectFilePath);

@@ -1,9 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "GuiState.h"
-#include "IGuiPanel.h"
 #include "MenuItem.h"
-#include <ext/WindowsWrapper.h>
 #include <vector>
 #include <mutex>
 
@@ -15,6 +13,8 @@ class Project;
 class Config;
 class Localization;
 class TextureIndex;
+class IGuiPanel;
+using ImGuiID = unsigned int;
 
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui

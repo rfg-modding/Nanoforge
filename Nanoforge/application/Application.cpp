@@ -8,9 +8,10 @@
 #include "gui/util/WinUtil.h"
 #include "util/Profiler.h"
 #include "common/string/String.h"
+#include "render/resources/Scene.h"
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/ringbuffer_sink.h>
-#include <imgui/imgui.h>
+#include <imgui.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx11.h>
 #include <filesystem>

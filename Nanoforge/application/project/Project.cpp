@@ -9,7 +9,15 @@
 #include "RfgTools++/RfgTools++/formats/packfiles/Packfile3.h"
 #include "RfgTools++/RfgTools++/formats/asm/AsmFile5.h"
 #include "rfg/PackfileVFS.h"
+#include "tinyxml2/tinyxml2.h"
+#include "util/TaskScheduler.h"
+#include "rfg/xtbl/Xtbl.h"
 #include <ranges>
+
+Project::Project()
+{
+    PackageModTask = Task::Create("Packaging mod...");
+}
 
 bool Project::Load(std::string_view projectFilePath)
 {

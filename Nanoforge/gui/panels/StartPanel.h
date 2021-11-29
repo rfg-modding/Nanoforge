@@ -1,7 +1,8 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "gui/IGuiPanel.h"
-#include "util/TaskScheduler.h"
+
+class Task;
 
 class StartPanel : public IGuiPanel
 {
@@ -24,5 +25,5 @@ private:
     bool dataPathValid_ = false;
     bool needDataPathParse_ = false;
     string missingVppName_; //Used in data folder path validation
-    Handle<Task> dataFolderParseTask_ = Task::Create("Parse data folder");
+    Handle<Task> dataFolderParseTask_;
 };

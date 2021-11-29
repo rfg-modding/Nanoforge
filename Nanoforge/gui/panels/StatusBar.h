@@ -1,6 +1,7 @@
 #pragma once
-#include "gui/GuiState.h"
 #include "gui/IGuiPanel.h"
+
+class GuiState;
 
 class StatusBar : public IGuiPanel
 {

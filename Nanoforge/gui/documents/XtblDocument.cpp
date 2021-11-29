@@ -9,6 +9,8 @@
 #include "rfg/xtbl/XtblManager.h"
 #include "rfg/xtbl/Xtbl.h"
 #include "util/Profiler.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include <filesystem>
 
 XtblDocument::XtblDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer, IXtblNode* startingNode)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer), state_(state)

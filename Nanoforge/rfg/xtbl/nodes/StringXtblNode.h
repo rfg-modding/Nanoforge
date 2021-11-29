@@ -5,6 +5,8 @@
 #include "IXtblNode.h"
 #include "XtblType.h"
 #include "rfg/Localization.h"
+#include "gui/GuiState.h"
+#include "rfg/xtbl/Xtbl.h"
 #include "imgui.h"
 #include "render/imgui/imgui_ext.h"
 #include "render/imgui/ImGuiConfig.h"

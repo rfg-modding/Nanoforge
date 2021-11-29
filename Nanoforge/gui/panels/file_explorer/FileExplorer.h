@@ -1,15 +1,15 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "gui/GuiState.h"
 #include "gui/IGuiPanel.h"
-#include "common/filesystem/Path.h"
-#include "Log.h"
 #include "common/timing/Timer.h"
-#include "util/TaskScheduler.h"
 #include "FileExplorerNode.h"
+#include <imgui.h>
+#include <mutex>
 #include <vector>
 #include <regex>
-#include <future>
+
+class Task;
+class GuiState;
 
 //File explorer gui that lets users navigate packfiles and their subfiles without needing manually unpack them
 class FileExplorer : public IGuiPanel
@@ -77,5 +77,5 @@ private:
     //Search thread data. Searches are run on another thread to avoid lagging the main thread.
     Timer searchChangeTimer_ { true };
     std::mutex searchThreadMutex_;
-    Handle<Task> searchTask_ = Task::Create("Regenerating file tree...");
+    Handle<Task> searchTask_;
 };

@@ -1,7 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
-#include <imgui.h>
 #include <IconsFontAwesome5_c.h>
+#include <imgui.h>
 
 namespace gui
 {

@@ -1,5 +1,13 @@
 #include "XtblManager.h"
+#include "Xtbl.h"
 #include "Log.h"
+
+void XtblManager::Init(PackfileVFS* packfileVFS)
+{
+    TRACE();
+    packfileVFS_ = packfileVFS;
+    initialized_ = true;
+}
 
 void XtblManager::ReloadXtbls()
 {

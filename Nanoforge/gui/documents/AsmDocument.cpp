@@ -2,6 +2,10 @@
 #include "render/imgui/imgui_ext.h"
 #include "gui/GuiState.h"
 #include "Log.h"
+#include "RfgTools++/formats/asm/AsmFile5.h"
+#include "RfgTools++/formats/packfiles/Packfile3.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "rfg/PackfileVFS.h"
 
 AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer)

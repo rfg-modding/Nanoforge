@@ -3,6 +3,7 @@
 #include "common/filesystem/File.h"
 #include "common/string/String.h"
 #include "application/project/Project.h"
+#include <RfgTools++\formats\packfiles\Packfile3.h>
 #include "Log.h"
 #include <filesystem>
 

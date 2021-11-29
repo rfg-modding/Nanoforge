@@ -1,15 +1,17 @@
 #pragma once
 #include "Common/Typedefs.h"
-#include "Xtbl.h"
-#include "rfg/PackfileVFS.h"
 #include <vector>
 #include <optional>
+
+class PackfileVFS;
+class XtblFile;
+class XtblGroup;
 
 class XtblManager
 {
 public:
     //Initialize XtblManager with any data it needs
-    void Init(PackfileVFS* packfileVFS) { TRACE(); packfileVFS_ = packfileVFS; initialized_ = true; }
+    void Init(PackfileVFS* packfileVFS);
     void ReloadXtbls();
     //Parse an xtbl if it hasn't already been parsed
     bool ParseXtbl(const string& vppName, const string& xtblName);

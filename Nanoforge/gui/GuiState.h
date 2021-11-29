@@ -1,14 +1,23 @@
 #pragma once
-#include "render/imgui/ImGuiFontManager.h"
-#include "rfg/PackfileVFS.h"
-#include "rfg/Territory.h"
-#include "render/camera/Camera.h"
-#include "documents/IDocument.h"
 #include "common/string/String.h"
-#include "rfg/xtbl/XtblManager.h"
-#include <memory>
+#include "documents/IDocument.h"
+#include "RfgTools++/types/Vec3.h"
 
 class DX11Renderer;
+class PackfileVFS;
+class Territory;
+class GuiState;
+class Project;
+class Config;
+class Localization;
+class TextureIndex;
+class ZoneObjectNode36;
+class ZoneObject36;
+class XtblManager;
+class ImGuiFontManager;
+struct FileExplorerNode;
+//Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
+using PropertyPanelContentFunc = void(GuiState* state);
 
 //Used to color status bar
 enum GuiStatus
@@ -19,21 +28,11 @@ enum GuiStatus
     None //Used for default function arguments
 };
 
-class GuiState;
-class Project;
-class Config;
-class Localization;
-class TextureIndex;
-struct FileExplorerNode;
-//Function signature for property panel content functions. Swapping these out lets you easily change what it's displaying info for
-using PropertyPanelContentFunc = void(GuiState* state);
-
 class GuiState
 {
 public:
     ImGuiFontManager* FontManager = nullptr;
     PackfileVFS* PackfileVFS = nullptr;
-    //Todo: Hide this behind a RendererFrontend class so the UI isn't directly interacting with the renderer
     DX11Renderer* Renderer = nullptr;
     Project* CurrentProject = nullptr;
     XtblManager* Xtbls = nullptr;

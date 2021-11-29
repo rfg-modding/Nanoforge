@@ -1,5 +1,8 @@
 #include "PropertyPanel.h"
 #include "util/Profiler.h"
+#include "gui/GuiState.h"
+#include "imgui.h"
+#include "render/imgui/ImGuiFontManager.h"
 
 PropertyPanel::PropertyPanel()
 {

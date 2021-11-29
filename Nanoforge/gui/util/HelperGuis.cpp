@@ -2,6 +2,8 @@
 #include "gui/util/WinUtil.h"
 #include "render/imgui/ImGuiConfig.h"
 #include "render/imgui/imgui_ext.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "rfg/PackfileVFS.h"
 #include "application/project/Project.h"
 #include "application/Config.h"
 #include "gui/GuiState.h"

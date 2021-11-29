@@ -1,6 +1,9 @@
 #pragma once
-#include "gui/GuiState.h"
 #include "gui/IGuiPanel.h"
+
+class GuiState;
+class ZoneData;
+class ZoneObjectNode36;
 
 class ZoneObjectsList : public IGuiPanel
 {

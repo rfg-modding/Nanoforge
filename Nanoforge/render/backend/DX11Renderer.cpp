@@ -2,6 +2,8 @@
 #include "render/imgui/ImGuiFontManager.h"
 #include "render/camera/Camera.h"
 #include <ext/WindowsWrapper.h>
+#include "util/Profiler.h"
+#include "render/resources/Scene.h"
 #include <exception>
 
 #pragma comment(lib, "dxgi.lib")
@@ -14,7 +16,7 @@
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <directxcolors.h>
-#include <imgui/imgui.h>
+#include <imgui.h>
 #include <imgui/imconfig.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx11.h>
@@ -27,6 +29,11 @@
 #include "gui/documents/PegHelpers.h"
 #include "application/Config.h"
 #include "render/Render.h"
+
+//Tracy profiler context
+#ifdef TRACY_ENABLE
+    static TracyD3D11Ctx tracyContext_ = nullptr;
+#endif
 
 void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager, Config* config)
 {

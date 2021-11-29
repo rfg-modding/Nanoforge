@@ -1,10 +1,12 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "IDocument.h"
-#include "rfg/xtbl/Xtbl.h"
 #include <vector>
 
 class XtblManager;
+class XtblFile;
+class XtblCategory;
+class IXtblNode;
 
 class XtblDocument final : public IDocument
 {

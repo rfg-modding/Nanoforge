@@ -5,7 +5,6 @@
 #include "imgui.h"
 #include <vector>
 
-
 class TextureDocument final : public IDocument
 {
 public:

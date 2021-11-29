@@ -20,12 +20,15 @@
 #include "util/RfgUtil.h"
 #include "render/backend/DX11Renderer.h"
 #include "gui/util/HelperGuis.h"
-#include <imgui/imgui.h>
+#include <imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/fmt/fmt.h>
 #include "rfg/TextureIndex.h"
 #include "gui/documents/LocalizationDocument.h"
 #include "util/Profiler.h"
+#include "rfg/xtbl/XtblManager.h"
+#include "util/TaskScheduler.h"
+#include "common/filesystem/Path.h"
 
 //Used in MainGui::DrawMainMenuBar()
 std::vector<const char*> TerritoryList =

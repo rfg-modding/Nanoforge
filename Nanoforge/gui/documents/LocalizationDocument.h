@@ -1,6 +1,5 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "RfgTools++/formats/localization/LocalizationFile3.h"
 #include "IDocument.h"
 #include "rfg/Localization.h"
 

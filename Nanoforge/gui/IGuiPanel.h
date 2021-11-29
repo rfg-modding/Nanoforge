@@ -1,7 +1,6 @@
 #pragma once
 #include "GuiState.h"
 
-
 //Interface sub-guis must implement to be used by MainGui
 class IGuiPanel
 {

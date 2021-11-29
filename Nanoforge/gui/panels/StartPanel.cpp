@@ -13,15 +13,16 @@
 #include "rfg/Tasks.h"
 #include "util/Profiler.h"
 #include <future>
-#include <imgui_markdown.h>
+#include <imgui.h>
 #include "Log.h"
 #include <spdlog/fmt/fmt.h>
-#include <imgui/imgui.h>
 #include <ranges>
+#include "util/TaskScheduler.h"
+#include "rfg/xtbl/XtblManager.h"
 
 StartPanel::StartPanel()
 {
-
+    dataFolderParseTask_ = Task::Create("Parse data folder");
 }
 
 StartPanel::~StartPanel()

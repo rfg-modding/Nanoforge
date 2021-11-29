@@ -1,4 +1,11 @@
 #include "ImGuiFontManager.h"
+#include "Log.h"
+
+void ImGuiFontManager::Init(Config* config)
+{
+    TRACE();
+    config_ = config;
+}
 
 void ImGuiFontManager::RegisterFonts()
 {

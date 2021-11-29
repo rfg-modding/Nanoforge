@@ -1,13 +1,11 @@
 #pragma once
 #include "common/Typedefs.h"
-#include <RfgTools++\formats\meshes\MeshDataBlock.h>
-#include <RfgTools++\formats\textures\PegFile10.h>
 #include <RfgTools++/formats/meshes/TerrainLowLod.h>
 #include <RfgTools++/formats/meshes/Terrain.h>
-#include "render/resources/RenderObject.h"
 #include <vector>
 #include <mutex>
-#include <span>
+
+class RenderObject;
 
 struct LowLodTerrainVertex
 {

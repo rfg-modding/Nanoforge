@@ -2,11 +2,12 @@
 #include "gui/GuiState.h"
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <Shellapi.h>
+#include <Shellapi.h> //For opening markdown links in the web browser
+#include <imgui.h>
+#include "render/imgui/ImGuiFontManager.h"
 #pragma warning(disable:26495)
 #include <imgui_markdown.h>
 #pragma warning(default:26495)
-#include <imgui.h>
 
 //Fonts used by markdown headings
 ImFont* H1 = NULL;

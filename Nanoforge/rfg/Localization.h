@@ -1,9 +1,10 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "rfg/PackfileVFS.h"
-#include "application/Config.h"
-#include "RfgTools++/formats/localization/LocalizationFile3.h"
+#include <optional>
 #include <vector>
+
+class PackfileVFS;
+class Config;
 
 //Todo: Support locales using non-latin alphabets
 //Note:

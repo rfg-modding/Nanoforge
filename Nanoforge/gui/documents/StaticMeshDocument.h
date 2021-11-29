@@ -1,12 +1,13 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "IDocument.h"
-#include "gui/GuiState.h"
-#include "render/resources/Scene.h"
-#include "util/TaskScheduler.h"
 #include "RfgTools++/formats/meshes/StaticMesh.h"
 #include <future>
 #include <vector>
+
+class Scene;
+class Task;
+class GuiState;
 
 class StaticMeshDocument : public IDocument
 {

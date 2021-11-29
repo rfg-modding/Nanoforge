@@ -4,11 +4,9 @@
 #include "RfgTools++/types/Vec2.h"
 #include "RfgTools++/types/Vec3.h"
 #include "RfgTools++/types/Vec4.h"
-#include <filesystem>
 #include <optional>
 #include <variant>
 #include <vector>
-#include <span>
 
 enum class ConfigType : u32
 {
@@ -85,9 +83,6 @@ public:
 private:
     //Create Settings.xml if it doesn't exist. Upgrade it if it's using the old settings format.
     void EnsureValidConfig();
-
-    //Last write time of config file. Used to determine if it should be reloaded due to edits.
-    std::filesystem::file_time_type lastWriteTime_;
 };
 
 #pragma warning(disable:4505)

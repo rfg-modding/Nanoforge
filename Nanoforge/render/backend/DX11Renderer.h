@@ -1,22 +1,20 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "rfg/TerrainHelpers.h"
-#include "render/resources/Scene.h"
-#include "util/Profiler.h"
 #include <ext/WindowsWrapper.h>
 #include <DirectXMath.h>
-#include <d3d11.h>
 #include <d3dcompiler.h>
-#include <array>
 #include <filesystem>
-#include <span>
-#include <wrl.h>
+#include <d3d11.h>
 #include <memory>
+#include <mutex>
+#include <wrl.h>
+#include <span>
 
 using Microsoft::WRL::ComPtr;
 class ImGuiFontManager;
 class Camera;
 class Config;
+class Scene;
 using ImTextureID = void*;
 
 class DX11Renderer
@@ -58,7 +56,6 @@ private:
     [[nodiscard]] bool AcquireDxgiFactoryInstance();
     void UpdateWindowDimensions();
 
-
     ImGuiFontManager* fontManager_ = nullptr;
     HINSTANCE hInstance_ = nullptr;
     HWND hwnd_ = nullptr;
@@ -80,8 +77,4 @@ private:
 
     bool initialized_ = false;
     u32 drawCount_ = 0;
-
-#ifdef TRACY_ENABLE
-    TracyD3D11Ctx tracyContext_ = nullptr;
-#endif
 };

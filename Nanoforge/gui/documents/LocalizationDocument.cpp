@@ -4,6 +4,8 @@
 #include "gui/GuiState.h"
 #include "RfgTools++/hashes/Hash.h"
 #include "Log.h"
+#include "RfgTools++/formats/localization/LocalizationFile3.h"
+#include "render/imgui/ImGuiFontManager.h"
 #include "util/Profiler.h"
 
 LocalizationDocument::LocalizationDocument(GuiState* state)

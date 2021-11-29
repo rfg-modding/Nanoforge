@@ -17,6 +17,7 @@
 #include "nodes/TableDescriptionXtblNode.h"
 #include "nodes/FlagXtblNode.h"
 #include "nodes/UnsupportedXtblNode.h"
+#include "rfg/xtbl/Xtbl.h"
 
 //Use descriptions to draw nodes so non-existant optional nodes are drawn
 //Also handles drawing description tooltips and checkboxes for optional nodes

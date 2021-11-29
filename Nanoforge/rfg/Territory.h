@@ -1,17 +1,18 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "PackfileVFS.h"
-#include "rfg/TextureIndex.h"
 #include "common/timing/Timer.h"
 #include "rfg/TerrainHelpers.h"
-#include "render/resources/Scene.h"
 #include <RfgTools++\formats\zones\ZonePc36.h>
-#include <RfgTools++\types\Vec4.h>
+#include <RfgTools++\types\Vec3.h>
+#include "render/resources/Texture2D.h"
 #include <unordered_map>
-#include <future>
 #include <mutex>
 
 class Task;
+class Scene;
+class TextureIndex;
+class PackfileVFS;
+class Packfile3;
 
 //Wrapper around ZonePc36 used by Territory
 struct ZoneData

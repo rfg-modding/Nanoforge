@@ -1,13 +1,13 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "IDocument.h"
-#include "gui/GuiState.h"
 #include "rfg/Territory.h"
-#include "rfg/TerrainHelpers.h"
-#include "util/TaskScheduler.h"
-#include "render/resources/Scene.h"
 #include "common/timing/Timer.h"
 #include <future>
+
+class Scene;
+class Task;
+class GuiState;
 
 class TerritoryDocument : public IDocument
 {

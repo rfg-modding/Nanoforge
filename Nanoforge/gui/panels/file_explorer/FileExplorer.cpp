@@ -6,6 +6,13 @@
 #include "gui/documents/AsmDocument.h"
 #include "gui/documents/LocalizationDocument.h"
 #include "render/imgui/imgui_ext.h"
+#include "gui/GuiState.h"
+#include "common/filesystem/Path.h"
+#include "Log.h"
+#include "render/imgui/ImGuiFontManager.h"
+#include "rfg/PackfileVFS.h"
+#include "RfgTools++/formats/packfiles/Packfile3.h"
+#include "util/TaskScheduler.h"
 #include "common/string/String.h"
 #include "util/Profiler.h"
 #include <regex>
@@ -13,7 +20,7 @@
 
 FileExplorer::FileExplorer()
 {
-
+    searchTask_ = Task::Create("Regenerating file tree...");
 }
 
 FileExplorer::~FileExplorer()

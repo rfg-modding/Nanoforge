@@ -3,6 +3,8 @@
 #include "Log.h"
 #include "util/StringHelpers.h"
 #include "common/filesystem/Path.h"
+#include "RfgTools++/formats/textures/PegFile10.h"
+#include "RfgTools++/formats/textures/PegFormat.h"
 #pragma warning(disable:26812) //Disable warnings in this library. MSVC /external: flags aren't reliably working.
 #include <DirectXTex.h>
 #pragma warning(default:26812)

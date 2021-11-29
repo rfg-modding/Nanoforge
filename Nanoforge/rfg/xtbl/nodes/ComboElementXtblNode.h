@@ -5,6 +5,7 @@
 #include "IXtblNode.h"
 #include "XtblType.h"
 #include "imgui.h"
+#include "rfg/xtbl/Xtbl.h"
 #include "render/imgui/imgui_ext.h"
 #include "render/imgui/ImGuiConfig.h"
 

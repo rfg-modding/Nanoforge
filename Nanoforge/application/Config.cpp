@@ -12,7 +12,6 @@ void Config::Load()
     EnsureValidConfig();
     Variables.clear();
 
-    lastWriteTime_ = std::filesystem::last_write_time(mainConfigPath);
     tinyxml2::XMLDocument doc;
     doc.LoadFile(mainConfigPath.c_str());
     tinyxml2::XMLElement* settings = doc.FirstChildElement("Settings");
@@ -253,7 +252,6 @@ void Config::Save()
     }
 
     doc.SaveFile(mainConfigPath.c_str());
-    lastWriteTime_ = std::filesystem::last_write_time(mainConfigPath);
 }
 
 void Config::CreateVariable(std::string_view name, ConfigType type, ConfigValue value, const char* description)
