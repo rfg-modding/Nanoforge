@@ -4,6 +4,14 @@ project (Nanoforge VERSION 1.0.0
                   DESCRIPTION "Nanoforge"
                   LANGUAGES CXX)
 
+# Set asset folder path depending on build type.
+# Repo folder is used in debug builds and the exe local folder in release builds.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    add_definitions(-DASSET_FOLDER_PATH=\"${CMAKE_SOURCE_DIR}/assets/\")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_definitions(-DASSET_FOLDER_PATH=\"./assets/\")
+endif()
+
 # Get list of source files in project src folders recursively
 # Places in SOURCES variable
 file(GLOB_RECURSE SOURCES

@@ -1,4 +1,5 @@
 #include "Shader.h"
+#include "BuildConfig.h"
 #include "Log.h"
 #include "util/StringHelpers.h"
 #include "render/util/DX11Helpers.h"
@@ -6,17 +7,10 @@
 #include "common/filesystem/File.h"
 #include "common/string/String.h"
 
-//Todo: Add build path variable that's set by cmake to the project root path for debug
-#ifdef DEVELOPMENT_BUILD
-const string shaderFolderPath_ = "C:/Users/moneyl/source/repos/Nanoforge/Assets/shaders/";
-#else
-const string shaderFolderPath_ = "./Assets/shaders/";
-#endif
-
 void Shader::Load(std::string_view shaderName, ComPtr<ID3D11Device> d3d11Device, bool useGeometryShaders)
 {
     //Store args in member variables for reloads
-    shaderPath_ = fmt::format("{}{}", shaderFolderPath_, shaderName);
+    shaderPath_ = fmt::format("{}{}", BuildConfig::ShaderPath, shaderName);
     d3d11Device_ = d3d11Device;
     shaderWriteTime_ = std::filesystem::last_write_time(shaderPath_);
     useGeometryShaders_ = useGeometryShaders;

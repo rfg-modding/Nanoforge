@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "BuildConfig.h"
 #include "ImGuiConfig.h"
 #include "application/Config.h"
 #include <IconsFontAwesome5_c.h>
@@ -26,9 +27,9 @@ public:
 
         size_ *= config->GetFloatReadonly("UI Scale").value();
         //Load normal font
-        io.Fonts->AddFontFromFileTTF(gui::FontPath, size_);
+        io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_);
         //Load FontAwesome image font and merge with normal font
-        ptr_ = io.Fonts->AddFontFromFileTTF(gui::FontAwesomeFontPath, size_, font_cfg_template, glyph_ranges);
+        ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::FontAwesomePath.c_str(), size_, font_cfg_template, glyph_ranges);
     }
 
 private:

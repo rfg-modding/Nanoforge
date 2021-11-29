@@ -3,12 +3,6 @@
 #include <IconsFontAwesome5_c.h>
 #include <imgui.h>
 
-namespace gui
-{
-    static const char* FontPath = "assets/fonts/Ruda-Bold.ttf";
-    static const char* FontAwesomeFontPath = "assets/fonts/fa-solid-900.ttf";
-}
-
 //Used by gui::SetThemePreset()
 enum ThemePreset
 {
