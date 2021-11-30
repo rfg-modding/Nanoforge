@@ -18,7 +18,7 @@ void EnsureNotWhitespaceOrEmpty(std::string_view target, std::string_view defaul
         target = defaultValue;
 }
 
-bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
+bool DrawNewProjectWindow(bool* open, Project* project)
 {
     if (ImGui::Begin("New project", open))
     {
@@ -82,13 +82,12 @@ bool DrawNewProjectWindow(bool* open, Project* project, Config* config)
                 string newPath = endPath + projectName + ".nanoproj";
 
                 //Add project to recent projects list if unique
-                config->EnsureVariableExists("Recent projects", ConfigType::List);
-                auto& recentProjects = std::get<std::vector<string>>(config->GetVariable("Recent projects")->Value);
-                if (std::find(recentProjects.begin(), recentProjects.end(), newPath) == recentProjects.end())
+                std::vector<string>& recentProjects = CVar_RecentProjects.Get<std::vector<string>>();
+                if (std::ranges::find(recentProjects, newPath) == recentProjects.end())
                     recentProjects.push_back(newPath);
 
                 //Save project and return true to signal that it was created
-                config->Save();
+                Config::Get()->Save();
                 *open = false;
                 ImGui::End();
                 return true;
@@ -183,15 +182,14 @@ void DrawModPackagingPopup(bool* open, GuiState* state)
     }
 }
 
-bool TryOpenProject(Project* project, Config* config)
+bool TryOpenProject(Project* project)
 {
     auto result = OpenFile("nanoproj");
     if (!result)
         return false;
 
     //Get recent projects config var
-    auto recentProjectsVar = config->GetVariable("Recent projects");
-    auto& recentProjects = std::get<std::vector<string>>(recentProjectsVar->Value);
+    std::vector<string>& recentProjects = CVar_RecentProjects.Get<std::vector<string>>();
     string newPath = result.value();
 
     //Add project to recent projects list if unique
@@ -200,9 +198,9 @@ bool TryOpenProject(Project* project, Config* config)
         if (path == newPath)
             foundPath = true;
     if (!foundPath)
-        recentProjects.push_back(newPath);
+        recentProjects.insert(recentProjects.begin(), newPath);
 
-    config->Save();
+    Config::Get()->Save();
     project->Load(newPath);
     return true;
 }

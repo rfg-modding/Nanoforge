@@ -17,8 +17,7 @@ void DataFolderParseTask(Handle<Task> task, GuiState* state)
 
     //Scan contents of packfiles
     state->SetStatus(ICON_FA_SYNC " Scanning packfiles", Working);
-    auto dataPath = state->Config->GetVariable("Data path");
-    state->PackfileVFS->Init(std::get<string>(dataPath->Value), state->CurrentProject);
+    state->PackfileVFS->Init(CVar_DataPath.Get<string>(), state->CurrentProject);
     state->PackfileVFS->ScanPackfilesAndLoadCache();
     Log->info("Loaded {} packfiles", state->PackfileVFS->packfiles_.size());
 

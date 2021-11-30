@@ -36,7 +36,7 @@ const Vec3 ColorWhite(1.0f, 1.0f, 1.0f);
 class Scene
 {
 public:
-    void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, Config* config);
+    void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context);
     void Draw(f32 deltaTime);
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
     void HandleResize(u32 windowWidth, u32 windowHeight);
@@ -108,6 +108,5 @@ private:
     u32 numLineVertices_ = 0;
     bool primitiveBufferNeedsUpdate_ = true;
 
-    Config* config_ = nullptr;
     bool errorOccurred_ = false;
 };

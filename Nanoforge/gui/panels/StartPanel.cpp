@@ -64,13 +64,13 @@ void StartPanel::Update(GuiState* state, bool* open)
     u32 numUnsavedDocs = (u32)std::ranges::count_if(state->Documents, [](Handle<IDocument> doc) { return doc->UnsavedChanges; });
     if (showNewProjectWindow_ && numUnsavedDocs == 0)
     {
-        bool loadedNewProject = DrawNewProjectWindow(&showNewProjectWindow_, state->CurrentProject, state->Config);
+        bool loadedNewProject = DrawNewProjectWindow(&showNewProjectWindow_, state->CurrentProject);
         if (loadedNewProject)
             state->Xtbls->ReloadXtbls();
     }
     if (openProjectRequested_ && numUnsavedDocs == 0)
     {
-        bool loadedNewProject = TryOpenProject(state->CurrentProject, state->Config);
+        bool loadedNewProject = TryOpenProject(state->CurrentProject);
         openProjectRequested_ = false;
         if (loadedNewProject)
             state->Xtbls->ReloadXtbls();
@@ -111,22 +111,14 @@ void StartPanel::Update(GuiState* state, bool* open)
 
 void StartPanel::DrawDataPathSelector(GuiState* state)
 {
-    //Check if data path is valid
-    auto checkDataPath = [&]()
-    {
-        auto dataPathVar = state->Config->GetVariable("Data path");
-        string dataPath = dataPathVar ? std::get<string>(dataPathVar->Value) : "";
-        dataPathValid_ = RfgUtil::ValidateDataPath(dataPath, missingVppName_, false);
-    };
-
     //Startup behavior
     static bool FirstRun = true;
     if (FirstRun)
     {
         //If data path is invalid on startup attempt to auto detect RFG
-        checkDataPath();
-        if (!state->Config->Exists("Data path") || !dataPathValid_)
-            dataPathValid_ = RfgUtil::AutoDetectDataPath(state->Config);
+        dataPathValid_ = RfgUtil::ValidateDataPath(CVar_DataPath.Get<string>(), missingVppName_, false);
+        if (!dataPathValid_)
+            dataPathValid_ = RfgUtil::AutoDetectDataPath();
 
         //Start data folder parse thread
         TaskScheduler::QueueTask(dataFolderParseTask_, std::bind(DataFolderParseTask, dataFolderParseTask_, state));
@@ -149,7 +141,7 @@ void StartPanel::DrawDataPathSelector(GuiState* state)
     }
 
     //Data path selector
-    string dataPath = state->Config->GetStringReadonly("Data path").value();
+    string& dataPath = CVar_DataPath.Get<string>();
     gui::LabelAndValue("Data folder:", dataPath);
     ImGui::SameLine();
     if (ImGui::SmallButton("Browse..."))
@@ -161,9 +153,8 @@ void StartPanel::DrawDataPathSelector(GuiState* state)
             dataPathValid_ = RfgUtil::ValidateDataPath(output.value(), missingVppName_);
 
             //Set data path regardless of validity for now
-            auto dataPathVar = state->Config->GetVariable("Data path");
-            dataPathVar->Value = output.value();
-            state->Config->Save();
+            dataPath = output.value();
+            Config::Get()->Save();
 
             needDataPathParse_ = true;
         }
@@ -181,12 +172,13 @@ void StartPanel::DrawRecentProjectsList(GuiState* state)
 {
     ImGui::Separator();
 
+    //Get recent projects
+    std::vector<string>& recentProjects = CVar_RecentProjects.Get<std::vector<string>>();
+
     //Draw list of recent projects
-    auto configVar = state->Config->GetVariable("Recent projects");
     ImVec2 windowSize = ImGui::GetWindowSize();
-    if (configVar && ImGui::BeginChild("##RecentProjectsList"))
+    if (ImGui::BeginChild("##RecentProjectsList"))
     {
-        auto& recentProjects = std::get<std::vector<string>>(configVar->Value);
         for (auto& path : recentProjects)
         {
             //Draw selectable with no text. Text is manually positioned below this because there doesn't seem to be an easier way to do multi-line selectables

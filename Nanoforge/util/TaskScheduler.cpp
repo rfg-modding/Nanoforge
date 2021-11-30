@@ -7,6 +7,17 @@
 #include <processthreadsapi.h>
 #include <math.h>
 
+CVar CVar_ThreadLimit("Thread limit", ConfigType::Int,
+	"Thread limit for background tasks. Must also check UseThreadLimit for this to be used. If not checked Nanoforge will use a default setting that leaves some CPU usage for your system.",
+	ConfigValue(0),
+	true  //ShowInSettings
+);
+CVar CVar_UseThreadLimit("Use thread limit", ConfigType::Bool,
+	"If checked, uses Thread Limit. Mouse over thread limit to get more info on what it does.",
+	ConfigValue(true), //Default value
+	true  //ShowInSettings
+);
+
 u32 TaskScheduler::maxThreads_ = 0;
 std::vector<std::thread> TaskScheduler::threads_ = { };
 std::vector<Handle<Task>> TaskScheduler::threadTasks_ = { };
@@ -15,7 +26,7 @@ std::condition_variable TaskScheduler::taskQueuePushCondition_;
 std::mutex TaskScheduler::taskQueueMutex_;
 bool TaskScheduler::stopAllThreads_ = false;
 
-void TaskScheduler::Init(Config* config)
+void TaskScheduler::Init()
 {
 	//Determine maximum amount of threads that can be used for tasks
 	maxThreads_ = std::thread::hardware_concurrency();
@@ -24,23 +35,16 @@ void TaskScheduler::Init(Config* config)
 	else
 		maxThreads_ -= 2; //Otherwise save 2 threads for the system
 
-	//Load threading config variables
+	//Get config vars
 	{
-		//Create threading variables if they don't exist
-		config->EnsureVariableExists("ThreadLimit", ConfigType::Int);
-		config->EnsureVariableExists("UseThreadLimit", ConfigType::Bool);
+		i32& threadLimit = CVar_ThreadLimit.Get<i32>();
+		bool& useThreadLimit = CVar_UseThreadLimit.Get<bool>();
 
-		//Get variables
-		auto threadLimitVar = config->GetVariable("ThreadLimit");
-		auto useThreadLimitVar = config->GetVariable("UseThreadLimit");
-		i32& threadLimit = std::get<int>(threadLimitVar->Value);
-		bool& useThreadLimit = std::get<bool>(useThreadLimitVar->Value);
-
-		//If threadLimit var == 0, fix it. Needs to be at least 1
+		//If threadLimit var == 0, fix it. Needs to be at least 1.
 		if (threadLimit == 0)
 		{
 			threadLimit = maxThreads_;
-			config->Save();
+			Config::Get()->Save();
 		}
 
 		//Override thread limit if UseThreadLimit is true

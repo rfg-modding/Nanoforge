@@ -7,7 +7,7 @@
 HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3D10Blob** ppBlobOut)
 {
     DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#ifdef DEBUG_BUILD
+#ifdef ENABLE_D3D11_DEBUG_FEATURES
     //Embed debug info into shaders and don't optimize them for best debugging experience
     dwShaderFlags |= D3DCOMPILE_DEBUG;
     dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;

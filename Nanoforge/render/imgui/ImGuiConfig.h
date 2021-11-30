@@ -72,7 +72,7 @@ namespace gui
      * created. The font argument is optional. If you leave it blank it'll use the current
      * font on the top of the stack.
      */
-    static void TooltipOnPrevious(std::string& Description, ImFont* Font)
+    static void TooltipOnPrevious(const std::string& Description, ImFont* Font)
     {
         TooltipOnPrevious(Description.c_str(), Font);
     }

@@ -8,23 +8,22 @@
 #include <locale>
 #include <codecvt>
 
-void Localization::Init(PackfileVFS* packfileVFS, Config* config)
+CVar CVar_DefaultLocale("Default locale", ConfigType::String, "Default locale to use when viewing localized RFG strings. Nanoforge itself doesn't support localization yet.",
+    ConfigValue("EN_US"),
+    false  //ShowInSettings
+);
+
+void Localization::Init(PackfileVFS* packfileVFS)
 {
     TRACE();
     packfileVFS_ = packfileVFS;
 
-    //Get default locale from config
-    if (!config->Exists("DefaultLocale"))
-        config->CreateVariable("DefaultLocale", ConfigType::String, "EN_US", "Default locale to use when viewing localized RFG strings. Nanoforge itself doesn't support localization yet.");
-
     //Parse default locale
-    auto var = config->GetVariable("DefaultLocale");
-    var->ShownInSettings = false;
-    CurrentLocale = ParseLocaleString(std::get<string>(var->Value));
+    CurrentLocale = ParseLocaleString(CVar_DefaultLocale.Get<string>());
     if (CurrentLocale == Locale::None)
         CurrentLocale = Locale::EN_US;
 
-    config->Save();
+    Config::Get()->Save();
 }
 
 void Localization::LoadLocalizationData()

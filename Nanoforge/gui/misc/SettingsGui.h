@@ -1,7 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
 
-class Config;
 class ImGuiFontManager;
 
-void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts);
+void DrawSettingsGui(bool* open, ImGuiFontManager* fonts);

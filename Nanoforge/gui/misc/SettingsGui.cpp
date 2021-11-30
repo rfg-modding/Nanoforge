@@ -8,7 +8,7 @@
 #include "gui/util/WinUtil.h"
 #include <spdlog/fmt/fmt.h>
 
-void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
+void DrawSettingsGui(bool* open, ImGuiFontManager* fonts)
 {
     ImGui::SetNextWindowFocus();
     if (!ImGui::Begin("Settings", open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking))
@@ -22,12 +22,12 @@ void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
     fonts->FontL.Pop();
     ImGui::Separator();
 
-    //Todo: Organize settings into categories with <SettingsPath> value
     //Draw settings
-    for (auto& var : config->Variables)
+    Config* config = Config::Get();
+    for (CVar* var : CVar::Instances)
     {
         //Only draw settings with <ShowInSettings>True</ShowInSettings>
-        if (!var->ShownInSettings)
+        if (!var->ShowInSettings)
             continue;
 
         auto drawTooltip = [&]()
@@ -35,7 +35,7 @@ void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
             gui::TooltipOnPrevious(var->Description, fonts->FontDefault.GetFont());
         };
 
-        switch (var->Type())
+        switch (var->Type)
         {
         case ConfigType::Int:
             if (var->Min && var->Max) //User slider if min-max is provided
@@ -126,38 +126,6 @@ void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
                 drawTooltip();
             }
             break;
-        case ConfigType::Vec2:
-            if (ImGui::InputFloat2(var->Name.c_str(), (f32*)&std::get<Vec2>(var->Value)))
-                config->Save();
-
-            drawTooltip();
-            break;
-        case ConfigType::Vec3:
-            if (var->IsColor)
-            {
-                if (ImGui::ColorEdit3(var->Name.c_str(), (f32*)&std::get<Vec3>(var->Value)))
-                    config->Save();
-            }
-            else
-            {
-                if (ImGui::InputFloat3(var->Name.c_str(), (f32*)&std::get<Vec3>(var->Value)))
-                    config->Save();
-            }
-            drawTooltip();
-            break;
-        case ConfigType::Vec4:
-            if (var->IsColor) //Use color editor for colors
-            {
-                if (ImGui::ColorEdit4(var->Name.c_str(), (f32*)&std::get<Vec4>(var->Value)))
-                    config->Save();
-            }
-            else
-            {
-                if (ImGui::InputFloat4(var->Name.c_str(), (f32*)&std::get<Vec4>(var->Value)))
-                    config->Save();
-            }
-            drawTooltip();
-            break;
         case ConfigType::List:
             if (ImGui::BeginListBox(var->Name.c_str()))
             {
@@ -166,7 +134,7 @@ void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
                 auto& values = std::get<std::vector<string>>(var->Value);
                 for (auto& value : values)
                 {
-                    if (ImGui::InputText(fmt::format("##ListBoxItem{}-{}", (u64)var.get(), i).c_str(), value))
+                    if (ImGui::InputText(fmt::format("##ListBoxItem{}-{}", (u64)var, i).c_str(), value))
                         config->Save();
 
                     i++;
@@ -175,7 +143,6 @@ void DrawSettingsGui(bool* open, Config* config, ImGuiFontManager* fonts)
                 ImGui::EndListBox();
             }
             break;
-        case ConfigType::None:
         case ConfigType::Invalid:
         default:
             break;

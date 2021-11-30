@@ -30,6 +30,12 @@
 #include "util/TaskScheduler.h"
 #include "common/filesystem/Path.h"
 
+CVar CVar_ShowFPS("Show FPS", ConfigType::Bool,
+    "If enabled an FPS meter is shown on the main menu bar.",
+    ConfigValue(false), //Default value
+    true  //ShowInSettings
+);
+
 //Used in MainGui::DrawMainMenuBar()
 std::vector<const char*> TerritoryList =
 {
@@ -87,15 +93,10 @@ std::vector<const char*> TerritoryList =
     "wcdlc9"
 };
 
-void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization, TextureIndex* textureSearchIndex)
+void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Localization* localization, TextureIndex* textureSearchIndex)
 {
     TRACE();
-    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager, config, localization, textureSearchIndex };
-
-    //Ensure that values used by the UI exist
-    State.Config->EnsureVariableExists("Show FPS", ConfigType::Bool);
-    State.Config->EnsureVariableExists("UI Scale", ConfigType::Float);
-    State.Config->EnsureVariableExists("Recent projects", ConfigType::List);
+    State = GuiState{ fontManager, packfileVFS, renderer, project, xtblManager, localization, textureSearchIndex };
 
     //Create all gui panels
     AddMenuItem("", true, CreateHandle<StatusBar>());
@@ -237,19 +238,19 @@ void MainGui::Update()
     if (showModPackagingPopup_)
         DrawModPackagingPopup(&showModPackagingPopup_, &State);
     if (showSettingsWindow_)
-        DrawSettingsGui(&showSettingsWindow_, State.Config, State.FontManager);
+        DrawSettingsGui(&showSettingsWindow_, State.FontManager);
 
     //Show new/open/close project dialogs once unsaved changes are handled
     numUnsavedDocs = (u32)std::ranges::count_if(State.Documents, [](Handle<IDocument> doc) { return doc->UnsavedChanges; });
     if (showNewProjectWindow_ && numUnsavedDocs == 0)
     {
-        bool loadedNewProject = DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject, State.Config);
+        bool loadedNewProject = DrawNewProjectWindow(&showNewProjectWindow_, State.CurrentProject);
         if (loadedNewProject)
             State.Xtbls->ReloadXtbls();
     }
     if (openProjectRequested_ && numUnsavedDocs == 0)
     {
-        bool loadedNewProject = TryOpenProject(State.CurrentProject, State.Config);
+        bool loadedNewProject = TryOpenProject(State.CurrentProject);
         openProjectRequested_ = false;
         if (loadedNewProject)
             State.Xtbls->ReloadXtbls();
@@ -360,8 +361,8 @@ void MainGui::DrawMainMenuBar()
             }
             if (ImGui::BeginMenu("Recent projects"))
             {
-                auto recentProjects = State.Config->GetListReadonly("Recent projects").value();
-                for (auto& path : recentProjects)
+                std::vector<string>& recentProjects = CVar_RecentProjects.Get<std::vector<string>>();
+                for (string& path : recentProjects)
                 {
                     if (ImGui::MenuItem(Path::GetFileName(path).c_str()))
                     {
@@ -473,7 +474,7 @@ void MainGui::DrawMainMenuBar()
             ImGui::EndMenu();
         }
 
-        bool showFPS = State.Config->GetBoolReadonly("Show FPS").value();
+        bool showFPS = CVar_ShowFPS.Get<bool>();
         ImVec2 cursorPos = { ImGui::GetCursorPosX(), 3.0f };
         auto* drawList = ImGui::GetWindowDrawList();
 

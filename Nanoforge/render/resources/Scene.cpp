@@ -7,13 +7,10 @@
 #include "render/Render.h"
 #include "util/Profiler.h"
 
-void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context, Config* config)
+void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context)
 {
     d3d11Device_ = d3d11Device;
     d3d11Context_ = d3d11Context;
-    config_ = config;
-
-    config_->EnsureVariableExists("Use geometry shaders", ConfigType::Bool);
 
     InitInternal();
     InitPrimitiveState();

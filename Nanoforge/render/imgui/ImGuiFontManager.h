@@ -6,6 +6,8 @@
 #include <IconsFontAwesome5_c.h>
 #include <imgui.h>
 
+extern CVar CVar_UIScale;
+
 class ImGuiFont
 {
 public:
@@ -16,16 +18,11 @@ public:
     [[nodiscard]] f32 Size() const { return size_; }
     void Push() const { ImGui::PushFont(ptr_); }
     void Pop() const { ImGui::PopFont(); }
-    void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges, Config* config)
+    void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges)
     {
-        if (!config->Exists("UI Scale"))
-        {
-            config->EnsureVariableExists("UI Scale", ConfigType::Float);
-            std::get<f32>(config->GetVariable("UI Scale")->Value) = 1.0f;
-            config->Save();
-        }
+        Config* config = Config::Get();
 
-        size_ *= config->GetFloatReadonly("UI Scale").value();
+        size_ *= CVar_UIScale.Get<f32>();
         //Load normal font
         io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_);
         //Load FontAwesome image font and merge with normal font
@@ -40,23 +37,12 @@ private:
 class ImGuiFontManager
 {
 public:
-    void Init(Config* config);
+    void Init();
     void RegisterFonts();
 
-    //Default font size
     ImGuiFont FontSmall{ 11.0f };
     ImGuiFont FontDefault{ 13.0f };
     ImGuiFont FontMedium{ 16.0f };
-
-    //Fonts larger than the default font //Note: Most disabled for now since not needed yet and increases load time + mem usage
     ImGuiFont FontL{ 24.0f };
     ImGuiFont FontXL{ 31.5f };
-    //ImGuiFont FontXXL(42.0f);
-    //ImGuiFont FontXXXL(49.5f);
-    //ImGuiFont FontXXXXL(57.0f);
-    //ImGuiFont FontXXXXXL(64.5f);
-    //ImGuiFont FontXXXXXXL(72.0f);
-
-private:
-    Config* config_ = nullptr;
 };

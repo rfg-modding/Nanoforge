@@ -234,15 +234,11 @@ namespace RfgUtil
     };
 
     //Attempt to auto locate the data path from a list of common install locations. Will set the "Data path" config var if it's found.
-    bool AutoDetectDataPath(Config* config)
+    bool AutoDetectDataPath()
     {
         //Get data path config var
-        config->EnsureVariableExists("Data path", ConfigType::String);
-        auto dataPathVar = config->GetVariable("Data path");
-        dataPathVar->IsFolderPath = true;
-        dataPathVar->IsFilePath = false;
-
-        Log->info("Data path \"{}\" is invalid. Attempting to auto detect RFG install location.", std::get<string>(dataPathVar->Value));
+        string& dataPath = CVar_DataPath.Get<string>();
+        Log->info("Data path \"{}\" is invalid. Attempting to auto detect RFG install location.", dataPath);
 
         //Loop through all common install locations
         for (auto& path : CommonInstallLocations)
@@ -252,8 +248,8 @@ namespace RfgUtil
             if (RfgUtil::ValidateDataPath(path, missingFileName, false))
             {
                 Log->info("Auto detected RFG install location at \"{}\"", path);
-                dataPathVar->Value = path;
-                config->Save();
+                dataPath = path;
+                Config::Get()->Save();
                 return true;
             }
         }

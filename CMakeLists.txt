@@ -12,6 +12,8 @@ set(ENABLE_EDIT_AND_CONTINUE FALSE)
 set(DEVELOPMENT_BUILD FALSE)
 # Disable features that aren't compatible with windows 7
 set(WIN7_COMPATIBILITY_MODE TRUE)
+# Toggle D3D11 shader debug features. Disabled by default since it makes some things like high lod terrain rendering very slow
+set(ENABLE_D3D11_DEBUG_FEATURES FALSE)
 
 set(CMAKE_CXX_STANDARD           20)
 set(CMAKE_CXX_STANDARD_REQUIRED  ON)
@@ -31,6 +33,9 @@ if(DEVELOPMENT_BUILD)
 endif()
 if(WIN7_COMPATIBILITY_MODE)
     add_compile_definitions(WIN7_COMPATIBILITY_MODE)
+endif()
+if(ENABLE_D3D11_DEBUG_FEATURES)
+    add_compile_definitions(ENABLE_D3D11_DEBUG_FEATURES)
 endif()
 
 # Set options for MSVC compiler (currently the only one Nanoforge is developed with)

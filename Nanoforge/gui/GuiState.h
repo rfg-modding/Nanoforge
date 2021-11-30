@@ -36,7 +36,6 @@ public:
     DX11Renderer* Renderer = nullptr;
     Project* CurrentProject = nullptr;
     XtblManager* Xtbls = nullptr;
-    Config* Config = nullptr;
     Localization* Localization = nullptr;
     TextureIndex* TextureSearchIndex = nullptr;
 

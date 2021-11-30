@@ -20,7 +20,7 @@ using ImGuiID = unsigned int;
 class MainGui
 {
 public:
-    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Config* config, Localization* localization, TextureIndex* textureSearchIndex);
+    void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Localization* localization, TextureIndex* textureSearchIndex);
     void Update();
     void SaveFocusedDocument();
 

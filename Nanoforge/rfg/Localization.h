@@ -60,7 +60,7 @@ struct LocalizationClass
 class Localization
 {
 public:
-    void Init(PackfileVFS* packfileVFS, Config* config);
+    void Init(PackfileVFS* packfileVFS);
     void LoadLocalizationData();
 
     LocalizationClass* GetLocale(Locale locale);

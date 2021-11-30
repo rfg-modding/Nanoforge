@@ -10,7 +10,6 @@
 #include "rfg/Localization.h"
 #include "gui/MainGui.h"
 #include "project/Project.h"
-#include "application/Config.h"
 #include "util/TaskScheduler.h"
 #include <ext/WindowsWrapper.h>
 #include <chrono>
@@ -44,7 +43,6 @@ private:
     XtblManager xtblManager_;
     Project project_;
     Localization localization_;
-    Config config_;
 
     //Window data
     HINSTANCE hInstance_ = nullptr;

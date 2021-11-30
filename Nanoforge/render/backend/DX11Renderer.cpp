@@ -35,14 +35,13 @@
     static TracyD3D11Ctx tracyContext_ = nullptr;
 #endif
 
-void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager, Config* config)
+void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager)
 {
     TRACE();
     hInstance_ = hInstance;
     windowWidth_ = WindowWidth;
     windowHeight_ = WindowHeight;
     fontManager_ = fontManager;
-    config_ = config;
 
     if (!InitWindow(wndProc))
         THROW_EXCEPTION("Failed to initialize window.");
@@ -66,7 +65,7 @@ void DX11Renderer::Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u
 #endif
 
     //Init global render state
-    Render::Init(d3d11Device_, d3d11Context_, config);
+    Render::Init(d3d11Device_, d3d11Context_);
 
     initialized_ = true;
 }
@@ -188,7 +187,7 @@ ImTextureID DX11Renderer::TextureDataToHandle(std::span<u8> data, DXGI_FORMAT fo
 Handle<Scene> DX11Renderer::CreateScene()
 {
     auto& scene = Scenes.emplace_back(new Scene);
-    scene->Init(d3d11Device_, d3d11Context_, config_);
+    scene->Init(d3d11Device_, d3d11Context_);
     return scene;
 }
 
@@ -344,7 +343,7 @@ bool DX11Renderer::CreateDevice()
 {
     TRACE();
     UINT createDeviceFlags = 0;
-#ifdef DEBUG_BUILD
+#ifdef ENABLE_D3D11_DEBUG_FEATURES
     createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 

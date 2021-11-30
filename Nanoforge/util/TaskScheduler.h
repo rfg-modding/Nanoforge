@@ -24,7 +24,7 @@ class TaskScheduler
 	friend StatusBar;
 public:
 	//Start task threads
-	static void Init(Config* config);
+	static void Init();
 	//Stop all threads and wait for them to exit
 	static void Shutdown();
 	//Queue a task to be run when a thread is available

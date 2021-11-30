@@ -11,17 +11,21 @@
 #include "render/imgui/ImGuiFontManager.h"
 #include <imgui.h>
 
+CVar CVar_DisableHighQualityTerrain("Disable high quality terrain", ConfigType::Bool,
+    "If true high lod terrain won't be used in the territory viewer. You must close and re-open any viewers after changing this for it to go into effect.",
+    ConfigValue(false),
+    true,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
+
 TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territoryName, std::string_view territoryShortname)
     : TerritoryName(territoryName), TerritoryShortname(territoryShortname)
 {
     state_ = state;
 
     //Determine if high lod terrain should be used
-    if (!state->Config->Exists("Disable high quality terrain"))
-    {
-        state->Config->CreateVariable("Disable high quality terrain", ConfigType::Bool, false);
-    }
-    useHighLodTerrain_ = !state->Config->GetBoolReadonly("Disable high quality terrain").value();
+    useHighLodTerrain_ = !CVar_DisableHighQualityTerrain.Get<bool>();
 
     //Create scene
     Scene = state->Renderer->CreateScene();

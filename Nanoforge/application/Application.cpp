@@ -9,6 +9,7 @@
 #include "util/Profiler.h"
 #include "common/string/String.h"
 #include "render/resources/Scene.h"
+#include "application/Config.h"
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <imgui.h>
@@ -54,23 +55,23 @@ void Application::Init()
     TRACE();
 
     //Load settings.xml
-    config_.Load();
-    config_.EnsureVariableExists("Data path", ConfigType::String);
-    auto dataPath = config_.GetVariable("Data path");
+    Config* config = Config::Get();
+    config->Load();
+    CVar& dataPath = config->GetCvar("Data path");
 
     //Init task scheduler. Run code (tasks) on background threads
-    TaskScheduler::Init(&config_);
+    TaskScheduler::Init();
 
     //Init core application classes
-    fontManager_.Init(&config_);
-    renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_, &config_);
+    fontManager_.Init();
+    renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_);
     WinUtilInit(renderer_.GetSystemWindowHandle());
     gui::SetThemePreset(ThemePreset::Dark);
-    packfileVFS_.Init(std::get<string>(dataPath->Value), &project_);
+    packfileVFS_.Init(dataPath.Get<string>(), &project_);
     textureSearchIndex_.Init(&packfileVFS_);
     xtblManager_.Init(&packfileVFS_);
-    localization_.Init(&packfileVFS_, &config_);
-    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &config_, &localization_, &textureSearchIndex_);
+    localization_.Init(&packfileVFS_);
+    gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &localization_, &textureSearchIndex_);
 
     //Maximize window by default
     ShowWindow(renderer_.GetSystemWindowHandle(), SW_SHOWMAXIMIZED);

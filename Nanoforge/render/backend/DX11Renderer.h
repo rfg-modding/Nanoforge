@@ -20,7 +20,7 @@ using ImTextureID = void*;
 class DX11Renderer
 {
 public:
-    void Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager, Config* config);
+    void Init(HINSTANCE hInstance, WNDPROC wndProc, u32 WindowWidth, u32 WindowHeight, ImGuiFontManager* fontManager);
     ~DX11Renderer();
 
     void DoFrame(f32 deltaTime);
@@ -61,7 +61,6 @@ private:
     HWND hwnd_ = nullptr;
     u32 windowWidth_ = 800;
     u32 windowHeight_ = 800;
-    Config* config_ = nullptr;
 
     IDXGIFactory* dxgiFactory_ = nullptr;
     ComPtr<ID3D11Device> d3d11Device_ = nullptr;

@@ -2,7 +2,7 @@
 #include "gui/IGuiPanel.h"
 
 class GuiState;
-class ZoneData;
+struct ZoneData;
 class ZoneObjectNode36;
 
 class ZoneObjectsList : public IGuiPanel

@@ -11,8 +11,8 @@ class Material
 {
 public:
 	Material() { }
-	Material(ComPtr<ID3D11Device> d3d11Device, Config* config, const string& shaderName, const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
-	void Init(ComPtr<ID3D11Device> d3d11Device, Config* config, const string& shaderName, const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
+	Material(ComPtr<ID3D11Device> d3d11Device, const string& shaderName, const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
+	void Init(ComPtr<ID3D11Device> d3d11Device, const string& shaderName, const std::vector<D3D11_INPUT_ELEMENT_DESC>& layout);
 	void Use(ComPtr<ID3D11DeviceContext> d3d11Context);
 	void TryShaderReload();
 	bool Ready() { return initialized_; }
