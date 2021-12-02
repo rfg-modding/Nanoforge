@@ -111,7 +111,7 @@ void FormatCallback(const ImGui::MarkdownFormatInfo& markdownFormatInfo, bool st
 }
 
 const string changelog =
-R"(# Links
+R"(# Getting started
   * [See the latest releases on Github](https://github.com/Moneyl/Nanoforge/releases)
   * See [Nanoforge basics](https://www.redfactionwiki.com/wiki/Nanoforge_basics) for a guide on how to use Nanoforge and it's features.
   * See [Nanoforge xtbl editing](https://www.redfactionwiki.com/wiki/Nanoforge_xtbl_editing) for a guide on using Nanoforge to edit xtbls.
@@ -124,13 +124,14 @@ This release adds support for high lod terrain meshes and high resolution terrai
 ### Changes
   * High resolution terrain meshes and textures in the map viewer. Can be disabled via `File > Settings`. Doesn't exactly match in game appearance yet. Loading the main map with high res terrain may use a lot of RAM until loading is complete. This can be lowered by decreasing the thread limit in `File > Settings`.
   * The file cache used by previous versions was removed since it had minimal benefits. You can delete your 'Cache' folder if you're installing over an old version.
-  * Added LOD level selector for meshes that have multiple lod levels.
+  * Added LOD level slider for meshes that have multiple lod levels.
   * The mesh exporter now exports gltf files instead of obj files. Different lod levels are organized into their own subnodes and labelled within the gltf.
   * Mesh viewer lighting improvements.
   * Nanoforge now limits the number of threads it uses for background tasks.  `File > Settings` has a MaxThreads setting. This lets you limit how many threads can be used by background tasks. By default it saves 2 threads for your system to avoid lagging your entire PC during intensive tasks like level loading.
   * Added 'Tasks' button at the bottom left of the screen that shows the status of background tasks when clicked.
   * SRGB textures are properly displayed in the texture editor. An SRGB label was also added to the sidebar.
   * Less useful texture info in the viewer is now placed in a "Additional info" section that's collapsed by default.
+  * Improved settings.xml regeneration / upgrading
   * BUG: Fixed mesh rendering and export bugs like erroneous triangles and inside out meshes. Occurred when meshes consisted of multiple submeshes.
   * BUG: Fixed slow & infinite texture searches in the mesh viewer. Searches can still fail, but they'll fail quickly.
   * BUG: Fixed missing triangles in low lod terrain.

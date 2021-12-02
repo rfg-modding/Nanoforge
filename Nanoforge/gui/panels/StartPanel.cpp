@@ -101,7 +101,7 @@ void StartPanel::Update(GuiState* state, bool* open)
     ImGui::NextColumn();
     ImGui::SetCursorPosY((f32)columnStartY);
     state->FontManager->FontL.Push();
-    ImGui::Text("Changelog");
+    ImGui::Text("About");
     state->FontManager->FontL.Pop();
 
     DrawChangelog(state);

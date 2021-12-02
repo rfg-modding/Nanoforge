@@ -450,7 +450,7 @@ void MainGui::DrawMainMenuBar()
 
                 ImGui::EndMenu();
             }
-#ifdef DEBUG
+#ifdef DEBUG_BUILD
             if (ImGui::MenuItem("Generate texture search index") && !showTextureSearchGenPopup_)
             {
                 State.TextureSearchIndex->StartTextureIndexGeneration();
