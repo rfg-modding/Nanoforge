@@ -8,12 +8,12 @@
 #include <math.h>
 
 CVar CVar_ThreadLimit("Thread limit", ConfigType::Int,
-	"Thread limit for background tasks. Must also check UseThreadLimit for this to be used. If not checked Nanoforge will use a default setting that leaves some CPU usage for your system.",
+	"Thread limit for background tasks. Must also check 'Use thread limit' for this to be used. If not checked Nanoforge will use a default setting that leaves some cores for other apps.",
 	ConfigValue(0),
 	true  //ShowInSettings
 );
 CVar CVar_UseThreadLimit("Use thread limit", ConfigType::Bool,
-	"If checked, uses Thread Limit. Mouse over thread limit to get more info on what it does.",
+	"If checked, uses 'Thread limit'. Mouse over thread limit to get more info on what it does.",
 	ConfigValue(true), //Default value
 	true  //ShowInSettings
 );
@@ -29,27 +29,30 @@ bool TaskScheduler::stopAllThreads_ = false;
 void TaskScheduler::Init()
 {
 	//Determine maximum amount of threads that can be used for tasks
+	//Some threads are saved for other apps by default. Prefer to be safe to avoid lagging other apps/audio. User can always override.
 	maxThreads_ = std::thread::hardware_concurrency();
 	if (maxThreads_ <= 2)
 		maxThreads_ = 1; //Require at least one thread for tasks
+	else if (maxThreads_ <= 4)
+		maxThreads_ -= 2;
 	else
-		maxThreads_ -= 2; //Otherwise save 2 threads for the system
+		maxThreads_ -= 3;
 
 	//Get config vars
 	{
 		i32& threadLimit = CVar_ThreadLimit.Get<i32>();
 		bool& useThreadLimit = CVar_UseThreadLimit.Get<bool>();
 
-		//If threadLimit var == 0, fix it. Needs to be at least 1.
+		//If threadLimit == 0 fix it. Needs to be at least 1.
 		if (threadLimit == 0)
 		{
 			threadLimit = maxThreads_;
 			Config::Get()->Save();
 		}
 
-		//Override thread limit if UseThreadLimit is true
-		if (useThreadLimit && (u32)threadLimit <= std::thread::hardware_concurrency())
-			maxThreads_ = std::min((u32)threadLimit, std::thread::hardware_concurrency() - 1);
+		//Override thread limit if useThreadLimit is true
+		if (useThreadLimit)
+			maxThreads_ = std::min((u32)threadLimit, std::thread::hardware_concurrency());
 	}
 
 	//Start thread pool threads
