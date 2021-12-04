@@ -37,7 +37,6 @@ private:
 class ImGuiFontManager
 {
 public:
-    void Init();
     void RegisterFonts();
 
     ImGuiFont FontSmall{ 11.0f };

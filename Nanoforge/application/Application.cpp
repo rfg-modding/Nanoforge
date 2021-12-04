@@ -63,7 +63,6 @@ void Application::Init()
     TaskScheduler::Init();
 
     //Init core application classes
-    fontManager_.Init();
     renderer_.Init(hInstance_, WndProc, windowWidth_, windowHeight_, &fontManager_);
     WinUtilInit(renderer_.GetSystemWindowHandle());
     gui::SetThemePreset(ThemePreset::Dark);

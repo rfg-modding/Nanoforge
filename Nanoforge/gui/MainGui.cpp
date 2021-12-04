@@ -116,6 +116,14 @@ void MainGui::Update()
 {
     PROFILER_FUNCTION();
 
+    //Update UI scale if it changed since last frame
+    static f32 lastFrameScale = 1.0f;
+    if (lastFrameScale != CVar_UIScale.Get<f32>())
+    {
+        lastFrameScale = CVar_UIScale.Get<f32>();
+        ImGui::GetIO().FontGlobalScale = lastFrameScale;
+    }
+
     //Draw always visible UI elements
     DrawMainMenuBar();
     DrawDockspace();

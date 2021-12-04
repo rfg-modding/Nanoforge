@@ -10,11 +10,6 @@ CVar CVar_UIScale("UI Scale", ConfigType::Float,
     0.5f, 2.0f //Min/max
 );
 
-void ImGuiFontManager::Init()
-{
-    TRACE();
-}
-
 void ImGuiFontManager::RegisterFonts()
 {
     static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
