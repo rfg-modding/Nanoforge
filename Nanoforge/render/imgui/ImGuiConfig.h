@@ -7,12 +7,13 @@
 enum ThemePreset
 {
     Dark,
+    Orange,
     Blue
 };
 
 namespace gui
 {
-    const ImVec4 SecondaryTextColor(0.32f, 0.67f, 1.0f, 1.00f); //Light blue;
+    extern ImVec4 SecondaryTextColor;
     //const ImVec4 TertiaryTextColor(0.573f, 0.596f, 0.62f, 1.00f); //Light grey
     const ImVec4 TertiaryTextColor(0.64f, 0.67f, 0.69f, 1.00f); //Light grey
     const ImVec4 Red(0.784f, 0.094f, 0.035f, 1.0f);
@@ -87,26 +88,27 @@ namespace gui
         {
         case Dark:
             //Start with imgui dark theme
+            SecondaryTextColor = { 0.32f, 0.67f, 1.0f, 1.00f }; //Light blue
             ImGui::StyleColorsDark();
-
             style->WindowPadding = ImVec2(8, 8);
-            style->WindowRounding = 0.0f;
             style->FramePadding = ImVec2(5, 5);
-            style->FrameRounding = 0.0f;
             style->ItemSpacing = ImVec2(8, 8);
             style->ItemInnerSpacing = ImVec2(8, 6);
             style->IndentSpacing = 25.0f;
             style->ScrollbarSize = 18.0f;
-            style->ScrollbarRounding = 0.0f;
             style->GrabMinSize = 12.0f;
-            style->GrabRounding = 0.0f;
-            style->TabRounding = 0.0f;
-            style->ChildRounding = 0.0f;
-            style->PopupRounding = 0.0f;
-
             style->WindowBorderSize = 1.0f;
-            style->FrameBorderSize = 1.0f;
+            style->ChildBorderSize = 1.0f;
             style->PopupBorderSize = 1.0f;
+            style->FrameBorderSize = 1.0f;
+            style->TabBorderSize = 0.0f;
+            style->WindowRounding = 4.0f;
+            style->ChildRounding = 0.0f;
+            style->FrameRounding = 4.0f;
+            style->PopupRounding = 4.0f;
+            style->ScrollbarRounding = 4.0f;
+            style->GrabRounding = 4.0f;
+            style->TabRounding = 4.0f;
 
             colors[ImGuiCol_Text] = ImVec4(0.96f, 0.96f, 0.99f, 1.00f);
             colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
@@ -160,12 +162,105 @@ namespace gui
             colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
             break;
 
+        case Orange:
+            //Start with imgui dark theme
+            SecondaryTextColor = { 0.82f, 0.49f, 0.02f, 1.00f };
+            ImGui::StyleColorsDark();
+            style->WindowPadding = ImVec2(8, 8);
+            style->FramePadding = ImVec2(5, 5);
+            style->ItemSpacing = ImVec2(8, 8);
+            style->ItemInnerSpacing = ImVec2(8, 6);
+            style->IndentSpacing = 25.0f;
+            style->ScrollbarSize = 18.0f;
+            style->GrabMinSize = 12.0f;
+            style->WindowBorderSize = 1.0f;
+            style->ChildBorderSize = 1.0f;
+            style->PopupBorderSize = 1.0f;
+            style->FrameBorderSize = 1.0f;
+            style->TabBorderSize = 0.0f;
+            style->WindowRounding = 4.0f;
+            style->ChildRounding = 0.0f;
+            style->FrameRounding = 4.0f;
+            style->PopupRounding = 4.0f;
+            style->ScrollbarRounding = 4.0f;
+            style->GrabRounding = 4.0f;
+            style->TabRounding = 4.0f;
+
+            colors[ImGuiCol_Text] = ImVec4(0.96f, 0.96f, 0.99f, 1.00f);
+            colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+            colors[ImGuiCol_WindowBg] = ImVec4(0.114f, 0.114f, 0.125f, 1.0f);
+            colors[ImGuiCol_ChildBg] = ImVec4(0.106f, 0.106f, 0.118f, 1.0f);
+            colors[ImGuiCol_PopupBg] = ImVec4(0.06f, 0.06f, 0.07f, 1.00f);
+            colors[ImGuiCol_Border] = ImVec4(0.216f, 0.216f, 0.216f, 1.0f);
+            colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+            colors[ImGuiCol_FrameBg] = ImVec4(0.161f, 0.161f, 0.176f, 1.00f);
+            colors[ImGuiCol_FrameBgHovered] = ImVec4(0.216f, 0.216f, 0.235f, 1.00f);
+            colors[ImGuiCol_FrameBgActive] = ImVec4(0.255f, 0.255f, 0.275f, 1.00f);
+            colors[ImGuiCol_TitleBg] = ImVec4(0.157f, 0.157f, 0.157f, 1.0f);
+            colors[ImGuiCol_TitleBgActive] = ImVec4(0.216f, 0.216f, 0.216f, 1.0f);
+            colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.157f, 0.157f, 0.157f, 1.0f);
+            colors[ImGuiCol_MenuBarBg] = ImVec4(0.157f, 0.157f, 0.157f, 1.0f);
+            colors[ImGuiCol_ScrollbarBg] = ImVec4(0.074f, 0.074f, 0.074f, 1.0f);
+            colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.31f, 0.31f, 0.32f, 1.00f);
+            colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.41f, 0.41f, 0.42f, 1.00f);
+            colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.51f, 0.51f, 0.53f, 1.00f);
+            colors[ImGuiCol_CheckMark] = ImVec4(0.44f, 0.44f, 0.47f, 1.00f);
+            colors[ImGuiCol_SliderGrab] = ImVec4(0.44f, 0.44f, 0.47f, 1.00f);
+            colors[ImGuiCol_SliderGrabActive] = ImVec4(0.59f, 0.59f, 0.61f, 1.00f);
+            colors[ImGuiCol_Button] = ImVec4(0.20f, 0.20f, 0.22f, 1.00f);
+            colors[ImGuiCol_ButtonHovered] = ImVec4(0.44f, 0.44f, 0.47f, 1.00f);
+            colors[ImGuiCol_ButtonActive] = ImVec4(0.59f, 0.59f, 0.61f, 1.00f);
+            colors[ImGuiCol_Header] = ImVec4(0.20f, 0.20f, 0.22f, 1.00f);
+            colors[ImGuiCol_HeaderHovered] = ImVec4(0.44f, 0.44f, 0.47f, 1.00f);
+            colors[ImGuiCol_HeaderActive] = ImVec4(0.59f, 0.59f, 0.61f, 1.00f);
+            colors[ImGuiCol_Separator] = ImVec4(1.00f, 1.00f, 1.00f, 0.20f);
+            colors[ImGuiCol_SeparatorHovered] = ImVec4(0.44f, 0.44f, 0.47f, 0.39f);
+            colors[ImGuiCol_SeparatorActive] = ImVec4(0.44f, 0.44f, 0.47f, 0.59f);
+            colors[ImGuiCol_ResizeGrip] = ImVec4(0.75f, 0.45f, 0.02f, 1.00f);
+            colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.85f, 0.51f, 0.02f, 1.00f);
+            colors[ImGuiCol_ResizeGripActive] = ImVec4(0.75f, 0.45f, 0.02f, 1.00f);
+            colors[ImGuiCol_Tab] = ImVec4(0.21f, 0.21f, 0.24f, 1.00f);
+            colors[ImGuiCol_TabHovered] = ImVec4(0.85f, 0.51f, 0.02f, 1.00f);
+            colors[ImGuiCol_TabActive] = ImVec4(0.75f, 0.45f, 0.02f, 1.00f);
+            colors[ImGuiCol_TabUnfocused] = ImVec4(0.21f, 0.21f, 0.24f, 1.00f);
+            colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.75f, 0.45f, 0.02f, 1.00f);
+            colors[ImGuiCol_DockingPreview] = ImVec4(0.75f, 0.45f, 0.02f, 1.00f);
+            colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.114f, 0.114f, 0.125f, 1.0f);
+            colors[ImGuiCol_PlotLines] = ImVec4(0.96f, 0.96f, 0.99f, 1.00f);
+            colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.12f, 1.00f, 0.12f, 1.00f);
+            colors[ImGuiCol_PlotHistogram] = ImVec4(0.75f, 0.45f, 0.02f, 1.00f);
+            colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.12f, 1.00f, 0.12f, 1.00f);
+            colors[ImGuiCol_TextSelectedBg] = ImVec4(0.75f, 0.45f, 0.02f, 1.00f);
+            colors[ImGuiCol_DragDropTarget] = ImVec4(0.85f, 0.51f, 0.02f, 1.00f);
+            colors[ImGuiCol_NavHighlight] = ImVec4(0.75f, 0.45f, 0.02f, 1.00f);
+            colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+            colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+            colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+            break;
+
         case Blue:
             //Start with imgui dark theme
             ImGui::StyleColorsDark();
-
-            ImGui::GetStyle().FrameRounding = 4.0f;
-            ImGui::GetStyle().GrabRounding = 4.0f;
+            SecondaryTextColor = { 0.32f, 0.67f, 1.0f, 1.00f }; //Light blue
+            style->WindowPadding = ImVec2(8, 8);
+            style->FramePadding = ImVec2(5, 5);
+            style->ItemSpacing = ImVec2(8, 8);
+            style->ItemInnerSpacing = ImVec2(8, 6);
+            style->IndentSpacing = 25.0f;
+            style->ScrollbarSize = 18.0f;
+            style->GrabMinSize = 12.0f;
+            style->WindowBorderSize = 1.0f;
+            style->ChildBorderSize = 1.0f;
+            style->PopupBorderSize = 1.0f;
+            style->FrameBorderSize = 1.0f;
+            style->TabBorderSize = 0.0f;
+            style->WindowRounding = 4.0f;
+            style->ChildRounding = 0.0f;
+            style->FrameRounding = 4.0f;
+            style->PopupRounding = 4.0f;
+            style->ScrollbarRounding = 4.0f;
+            style->GrabRounding = 4.0f;
+            style->TabRounding = 4.0f;
 
             colors[ImGuiCol_Text] = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
             colors[ImGuiCol_TextDisabled] = ImVec4(0.36f, 0.42f, 0.47f, 1.00f);

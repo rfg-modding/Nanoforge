@@ -36,6 +36,12 @@ CVar CVar_ShowFPS("Show FPS", ConfigType::Bool,
     true  //ShowInSettings
 );
 
+CVar CVar_UI_Theme("UI Theme", ConfigType::String,
+                   "Color scheme & styling used by the user interface.",
+                   ConfigValue("dark"), //Default value
+                   false //Show in settings
+);
+
 //Used in MainGui::DrawMainMenuBar()
 std::vector<const char*> TerritoryList =
 {
@@ -109,7 +115,21 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     AddMenuItem("View/Scriptx viewer (WIP)", false, CreateHandle<ScriptxEditor>(&State));
 
     GenerateMenus();
-    gui::SetThemePreset(Dark);
+
+    //Set UI theme
+    string& themePreset = CVar_UI_Theme.Get<string>();
+    if (String::EqualIgnoreCase(themePreset, "dark"))
+        gui::SetThemePreset(Dark);
+    else if (String::EqualIgnoreCase(themePreset, "orange"))
+        gui::SetThemePreset(Orange);
+    else if (String::EqualIgnoreCase(themePreset, "blue"))
+        gui::SetThemePreset(Blue);
+    else
+    {
+        gui::SetThemePreset(Dark);
+        themePreset = "dark";
+        Config::Get()->Save();
+    }
 }
 
 void MainGui::Update()
@@ -474,10 +494,20 @@ void MainGui::DrawMainMenuBar()
             if (ImGui::MenuItem("Dark"))
             {
                 gui::SetThemePreset(Dark);
+                CVar_UI_Theme.Get<string>() = "dark";
+                Config::Get()->Save();
+            }
+            if (ImGui::MenuItem("Orange"))
+            {
+                gui::SetThemePreset(Orange);
+                CVar_UI_Theme.Get<string>() = "orange";
+                Config::Get()->Save();
             }
             if (ImGui::MenuItem("Blue"))
             {
                 gui::SetThemePreset(Blue);
+                CVar_UI_Theme.Get<string>() = "blue";
+                Config::Get()->Save();
             }
             ImGui::EndMenu();
         }

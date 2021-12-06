@@ -2,7 +2,7 @@
 #include "Log.h"
 
 CVar CVar_UIScale("UI Scale", ConfigType::Float,
-    "Scale of the user interface. Must restart Nanoforge to for this change to apply.",
+    "Scale of the user interface.",
     ConfigValue(1.0f), //Default value
     true,  //ShowInSettings
     false, //IsFolderPath
