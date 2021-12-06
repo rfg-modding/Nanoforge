@@ -107,10 +107,10 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     //Create all gui panels
     AddMenuItem("", true, CreateHandle<StatusBar>());
     AddMenuItem("View/Start page", true, CreateHandle<StartPanel>());
-    AddMenuItem("View/Properties", true, CreateHandle<PropertyPanel>());
-    AddMenuItem("View/Log", true, CreateHandle<LogPanel> ());
-    AddMenuItem("View/Zone objects", true, CreateHandle<ZoneObjectsList>());
-    AddMenuItem("View/Zone list", true, CreateHandle<ZoneList>());
+    AddMenuItem("View/Properties", false, CreateHandle<PropertyPanel>());
+    AddMenuItem("View/Log", false, CreateHandle<LogPanel> ());
+    AddMenuItem("View/Zone objects", false, CreateHandle<ZoneObjectsList>());
+    AddMenuItem("View/Zone list", false, CreateHandle<ZoneList>());
     AddMenuItem("View/File explorer", true, CreateHandle<FileExplorer>());
     AddMenuItem("View/Scriptx viewer (WIP)", false, CreateHandle<ScriptxEditor>(&State));
 
@@ -175,6 +175,10 @@ void MainGui::Update()
         Handle<IDocument> document = *iter;
         if (document->Open)
         {
+            //Optionally disable window padding for documents that need to flush with the window (map/mesh viewer viewports)
+            if (document->NoWindowPadding)
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
+
             ImGui::SetNextWindowDockID(dockspaceCentralNodeId, ImGuiCond_Appearing);
             ImGui::Begin(document->Title.c_str(), &document->Open, document->UnsavedChanges ? ImGuiWindowFlags_UnsavedDocument : 0);
             if (ImGui::IsWindowFocused())
@@ -182,6 +186,9 @@ void MainGui::Update()
 
             document->Update(&State);
             ImGui::End();
+
+            if (document->NoWindowPadding)
+                ImGui::PopStyleVar();
 
             //Call OnClose when the user clicks the close button
             if (!document->Open)

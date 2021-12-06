@@ -26,6 +26,7 @@ StaticMeshDocument::StaticMeshDocument(GuiState* state, std::string_view filenam
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
 {
     state_ = state;
+    NoWindowPadding = true;
 
     //Create scene instance and store index
     Scene = state->Renderer->CreateScene();
@@ -107,6 +108,9 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
     if (ImGui::Button(ICON_FA_CAMERA))
         ImGui::OpenPopup("##CameraSettingsPopup");
     state->FontManager->FontL.Pop();
+
+    //Must manually set padding here since the parent window has padding disabled to get the viewport flush with the window border.
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.0f, 8.0f });
     if (ImGui::BeginPopup("##CameraSettingsPopup"))
     {
         state->FontManager->FontL.Push();
@@ -360,6 +364,8 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
     ImGui::Text(WorkerStatusString.c_str());
     ImGui::SetCursorPos(ImVec2(tempPos.x, tempPos.y + ImGui::GetFontSize() + 6.0f));
     ImGui::ProgressBar(WorkerProgressFraction, ImVec2(230.0f, ImGui::GetFontSize() * 1.1f));
+
+    ImGui::PopStyleVar();
 }
 
 //Used to end mesh load task early if it was cancelled

@@ -21,4 +21,5 @@ public:
     //Set to true if document is closed with unsaved changes and "Don't save changes" is selected.
     //Used for documents that need to do extra cleanup in their destructor
     bool ResetOnClose = false;
+    bool NoWindowPadding = false; //Window padding is disabled if true. Useful for documents with viewports so they can be flush with the window border.
 };

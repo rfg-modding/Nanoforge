@@ -23,6 +23,7 @@ TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territory
     : TerritoryName(territoryName), TerritoryShortname(territoryShortname)
 {
     state_ = state;
+    NoWindowPadding = true;
 
     //Determine if high lod terrain should be used
     useHighLodTerrain_ = !CVar_DisableHighQualityTerrain.Get<bool>();
@@ -178,6 +179,9 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
     if (ImGui::Button(ICON_FA_CAMERA))
         ImGui::OpenPopup("##CameraSettingsPopup");
     state->FontManager->FontL.Pop();
+
+    //Must manually set padding here since the parent window has padding disabled to get the viewport flush with the window border.
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.0f, 8.0f });
     if (ImGui::BeginPopup("##CameraSettingsPopup"))
     {
         state->FontManager->FontL.Push();
@@ -283,6 +287,7 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
 
         ImGui::EndPopup();
     }
+    ImGui::PopStyleVar();
 }
 
 void TerritoryDocument::UpdateDebugDraw(GuiState* state)
