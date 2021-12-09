@@ -90,10 +90,10 @@ namespace gui
             //Start with imgui dark theme
             SecondaryTextColor = { 0.32f, 0.67f, 1.0f, 1.00f }; //Light blue
             ImGui::StyleColorsDark();
-            style->WindowPadding = ImVec2(8, 8);
-            style->FramePadding = ImVec2(5, 5);
-            style->ItemSpacing = ImVec2(8, 8);
-            style->ItemInnerSpacing = ImVec2(8, 6);
+            style->WindowPadding = { 8, 8 };
+            style->FramePadding = { 5, 5 };
+            style->ItemSpacing = { 8, 8 };
+            style->ItemInnerSpacing = { 8, 6 };
             style->IndentSpacing = 25.0f;
             style->ScrollbarSize = 18.0f;
             style->GrabMinSize = 12.0f;
@@ -114,7 +114,7 @@ namespace gui
             colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
             colors[ImGuiCol_WindowBg] = ImVec4(0.114f, 0.114f, 0.125f, 1.0f);
             colors[ImGuiCol_ChildBg] = ImVec4(0.106f, 0.106f, 0.118f, 1.0f);
-            colors[ImGuiCol_PopupBg] = ImVec4(0.06f, 0.06f, 0.07f, 1.00f);
+            colors[ImGuiCol_PopupBg] = ImVec4(0.09f, 0.09f, 0.10f, 1.00f);
             colors[ImGuiCol_Border] = ImVec4(0.216f, 0.216f, 0.216f, 1.0f);
             colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
             colors[ImGuiCol_FrameBg] = ImVec4(0.161f, 0.161f, 0.176f, 1.00f);
@@ -155,7 +155,7 @@ namespace gui
             colors[ImGuiCol_PlotHistogram] = ImVec4(0.23f, 0.51f, 0.86f, 1.00f);
             colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.12f, 1.00f, 0.12f, 1.00f);
             colors[ImGuiCol_TextSelectedBg] = ImVec4(0.26f, 0.59f, 0.98f, 0.35f);
-            colors[ImGuiCol_DragDropTarget] = ImVec4(0.91f, 0.62f, 0.00f, 1.00f);
+            colors[ImGuiCol_DragDropTarget] = ImVec4(0.26f, 0.59f, 0.98f, 0.00f);
             colors[ImGuiCol_NavHighlight] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
             colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
             colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
