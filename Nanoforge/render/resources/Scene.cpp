@@ -69,8 +69,7 @@ void Scene::Draw(f32 deltaTime)
 
             //Render all objects using the material
             for (Handle<RenderObject> renderObject : kv.second)
-                if (renderObject->Initialized())
-                    renderObject->Draw(d3d11Context_, perObjectBuffer_, Cam);
+                renderObject->Draw(d3d11Context_, perObjectBuffer_, Cam);
         }
     }
 

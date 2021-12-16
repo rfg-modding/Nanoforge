@@ -17,7 +17,7 @@ struct PerObjectConstants
 class RenderObject
 {
 public:
-    RenderObject(const Mesh& mesh, const Vec3& position) : ObjectMesh(mesh), Position(position), initialized_(true) { }
+    RenderObject(const Mesh& mesh, const Vec3& position) : ObjectMesh(mesh), Position(position) { }
     //Draw the objects mesh
     void Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObjectBuffer, Camera& cam);
     //Set uniform scale
@@ -27,7 +27,6 @@ public:
         Scale.y = scale;
         Scale.z = scale;
     }
-    bool Initialized() { return initialized_; }
 
     Mesh ObjectMesh;
     Vec3 Scale = { 1.0f, 1.0f, 1.0f };
@@ -36,7 +35,4 @@ public:
 
     bool UseTextures = false;
     std::array<std::optional<Texture2D>, 10> Textures;
-
-private:
-    bool initialized_ = false;
 };
