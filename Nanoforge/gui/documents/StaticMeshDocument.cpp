@@ -21,6 +21,7 @@
 #include "gui/GuiState.h"
 #include "rfg/PackfileVFS.h"
 #include "RfgTools++/formats/packfiles/Packfile3.h"
+#include "RfgTools++/hashes/HashGuesser.h"
 
 StaticMeshDocument::StaticMeshDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : Filename(filename), ParentName(parentName), VppName(vppName), InContainer(inContainer)
@@ -222,10 +223,68 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         gui::LabelAndValue("Vertex size:", std::to_string(StaticMesh.MeshInfo.VertexStride0));
         gui::LabelAndValue("Index size:", std::to_string(StaticMesh.MeshInfo.IndexSize));
 
+        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 1.40f); //Increase spacing to differentiate leaves from expanded contents.
+        if (ImGui::TreeNode("Materials"))
+        {
+            MaterialBlock& materialBlock = StaticMesh.MaterialBlock;
+            for (RfgMaterial& material : materialBlock.Materials)
+            {
+                std::optional<string> nameGuess = HashGuesser::GuessHashOriginString(material.NameChecksum);
+                if (ImGui::TreeNode(nameGuess.has_value() ? nameGuess.value().c_str() : std::to_string(material.NameChecksum).c_str()))
+                {
+                    gui::LabelAndValue("Shader handle:", std::to_string(material.ShaderHandle));
+                    gui::LabelAndValue("Name checksum:", std::to_string(material.NameChecksum));
+                    gui::LabelAndValue("Material flags:", std::to_string(material.MaterialFlags));
+                    gui::LabelAndValue("Num textures:", std::to_string(material.NumTextures));
+                    gui::LabelAndValue("Num constants:", std::to_string(material.NumConstants));
+                    gui::LabelAndValue("Max constants:", std::to_string(material.MaxConstants));
+                    gui::LabelAndValue("Texture offset:", std::to_string(material.TextureOffset));
+                    gui::LabelAndValue("Constant name checksums offset:", std::to_string(material.ConstantNameChecksumsOffset));
+                    gui::LabelAndValue("Constant block offset:", std::to_string(material.ConstantBlockOffset));
+
+                    if (ImGui::TreeNode("Constants"))
+                    {
+                        for (u32 i = 0; i < material.NumConstants; i++)
+                        {
+                            MaterialConstant& constant = material.Constants[i];
+                            const u32 constantNameChecksum = material.ConstantNameChecksums[i];
+                            std::optional<string> constantNameGuess = HashGuesser::GuessHashOriginString(constantNameChecksum);
+                            string constantName = constantNameGuess.value_or(std::to_string(constantNameChecksum));
+                            ImGui::InputFloat4(constantName.c_str(), constant.Constants);
+                        }
+                        ImGui::TreePop();
+                    }
+
+                    //Material texture descriptions
+                    std::vector<TextureDesc> TextureDescs = {};
+
+                    //Constant name checksums
+                    std::vector<u32> ConstantNameChecksums = {};
+
+                    //Constant values
+                    std::vector<MaterialConstant> Constants = {};
+
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::TreePop();
+        }
+        ImGui::PopStyleVar();
+
+        ImGui::Separator();
+        state->FontManager->FontL.Push();
+        ImGui::Text(ICON_FA_IMAGE " Textures");
+        state->FontManager->FontL.Pop();
+        ImGui::Separator();
+
+        gui::LabelAndValue("Diffuse:", DiffusePegPath.value_or("Not found"));
+        gui::LabelAndValue("Specular:", SpecularPegPath.value_or("Not found"));
+        gui::LabelAndValue("Normal:", NormalPegPath.value_or("Not found"));
+
         //Submesh data
         ImGui::Separator();
         state->FontManager->FontL.Push();
-        ImGui::Text(ICON_FA_CUBES "Submeshes");
+        ImGui::Text(ICON_FA_CUBES " Submeshes");
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 

@@ -287,6 +287,176 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
 
         ImGui::EndPopup();
     }
+
+    ImGui::SameLine();
+    state->FontManager->FontL.Push();
+    if (ImGui::Button(ICON_FA_INFO_CIRCLE))
+        ImGui::OpenPopup("##InfoPopup");
+    state->FontManager->FontL.Pop();
+    if (ImGui::BeginPopup("##InfoPopup"))
+    {
+        //Header / general data
+        state->FontManager->FontL.Push();
+        ImGui::Text("Mesh info");
+        state->FontManager->FontL.Pop();
+        ImGui::Separator();
+
+        if (ImGui::TreeNode("Instances"))
+        {
+            for (TerrainInstance& instance : Territory.TerrainInstances)
+            {
+                if (ImGui::TreeNode(fmt::format("{}##{}", instance.Name, (u64)&instance).c_str()))
+                {
+                    if (ImGui::TreeNode("Low lod meshes"))
+                    {
+                        TerrainLowLod& lowLod = instance.DataLowLod;
+                        if (ImGui::TreeNode("Materials"))
+                        {
+                            for (RfgMaterial& material : lowLod.Materials)
+                            {
+                                std::optional<string> nameGuess = HashGuesser::GuessHashOriginString(material.NameChecksum);
+                                string name = nameGuess.value_or(std::to_string(material.NameChecksum)) + "##" + std::to_string((u64)&material);
+                                if (ImGui::TreeNode(name.c_str()))
+                                {
+                                    gui::LabelAndValue("Shader handle:", std::to_string(material.ShaderHandle));
+                                    gui::LabelAndValue("Name checksum:", std::to_string(material.NameChecksum));
+                                    gui::LabelAndValue("Material flags:", std::to_string(material.MaterialFlags));
+                                    gui::LabelAndValue("Num textures:", std::to_string(material.NumTextures));
+                                    gui::LabelAndValue("Num constants:", std::to_string(material.NumConstants));
+                                    gui::LabelAndValue("Max constants:", std::to_string(material.MaxConstants));
+                                    gui::LabelAndValue("Texture offset:", std::to_string(material.TextureOffset));
+                                    gui::LabelAndValue("Constant name checksums offset:", std::to_string(material.ConstantNameChecksumsOffset));
+                                    gui::LabelAndValue("Constant block offset:", std::to_string(material.ConstantBlockOffset));
+
+                                    if (ImGui::TreeNode("Constants"))
+                                    {
+                                        for (u32 i = 0; i < material.NumConstants; i++)
+                                        {
+                                            MaterialConstant& constant = material.Constants[i];
+                                            const u32 constantNameChecksum = material.ConstantNameChecksums[i];
+                                            std::optional<string> constantNameGuess = HashGuesser::GuessHashOriginString(constantNameChecksum);
+                                            string constantName = constantNameGuess.value_or(std::to_string(constantNameChecksum));
+                                            ImGui::InputFloat4(constantName.c_str(), constant.Constants);
+                                        }
+                                        ImGui::TreePop();
+                                    }
+
+                                    //Material texture descriptions
+                                    std::vector<TextureDesc> TextureDescs = {};
+
+                                    //Constant name checksums
+                                    std::vector<u32> ConstantNameChecksums = {};
+
+                                    //Constant values
+                                    std::vector<MaterialConstant> Constants = {};
+
+                                    ImGui::TreePop();
+                                }
+                            }
+                            ImGui::TreePop();
+                        }
+                        if (ImGui::TreeNode("Minimap material"))
+                        {
+                            RfgMaterial& material = lowLod.MinimapMaterials;
+                            std::optional<string> nameGuess = HashGuesser::GuessHashOriginString(material.NameChecksum);
+                            string name = nameGuess.value_or(std::to_string(material.NameChecksum)) + "##" + std::to_string((u64)&material);
+                            if (ImGui::TreeNode(name.c_str()))
+                            {
+                                gui::LabelAndValue("Shader handle:", std::to_string(material.ShaderHandle));
+                                gui::LabelAndValue("Name checksum:", std::to_string(material.NameChecksum));
+                                gui::LabelAndValue("Material flags:", std::to_string(material.MaterialFlags));
+                                gui::LabelAndValue("Num textures:", std::to_string(material.NumTextures));
+                                gui::LabelAndValue("Num constants:", std::to_string(material.NumConstants));
+                                gui::LabelAndValue("Max constants:", std::to_string(material.MaxConstants));
+                                gui::LabelAndValue("Texture offset:", std::to_string(material.TextureOffset));
+                                gui::LabelAndValue("Constant name checksums offset:", std::to_string(material.ConstantNameChecksumsOffset));
+                                gui::LabelAndValue("Constant block offset:", std::to_string(material.ConstantBlockOffset));
+
+                                if (ImGui::TreeNode("Constants"))
+                                {
+                                    for (u32 i = 0; i < material.NumConstants; i++)
+                                    {
+                                        MaterialConstant& constant = material.Constants[i];
+                                        const u32 constantNameChecksum = material.ConstantNameChecksums[i];
+                                        std::optional<string> constantNameGuess = HashGuesser::GuessHashOriginString(constantNameChecksum);
+                                        string constantName = constantNameGuess.value_or(std::to_string(constantNameChecksum));
+                                        ImGui::InputFloat4(constantName.c_str(), constant.Constants);
+                                    }
+                                    ImGui::TreePop();
+                                }
+
+                                //Material texture descriptions
+                                std::vector<TextureDesc> TextureDescs = {};
+
+                                //Constant name checksums
+                                std::vector<u32> ConstantNameChecksums = {};
+
+                                //Constant values
+                                std::vector<MaterialConstant> Constants = {};
+
+                                ImGui::TreePop();
+                            }
+                            ImGui::TreePop();
+                        }
+                        ImGui::TreePop();
+                    }
+
+                    if (ImGui::TreeNode("High lod meshes"))
+                    {
+                        for (Terrain& highLod : instance.Subzones)
+                        {
+                            if (ImGui::TreeNode(fmt::format("{}##{}", highLod.Name, (u64)&highLod).c_str()))
+                            {
+                                if (ImGui::TreeNode("Road materials"))
+                                {
+                                    for (RfgMaterial& material : highLod.RoadMaterials)
+                                    {
+                                        std::optional<string> nameGuess = HashGuesser::GuessHashOriginString(material.NameChecksum);
+                                        string name = nameGuess.value_or(std::to_string(material.NameChecksum)) + "##" + std::to_string((u64)&material);
+                                        if (ImGui::TreeNode(name.c_str()))
+                                        {
+                                            gui::LabelAndValue("Shader handle:", std::to_string(material.ShaderHandle));
+                                            gui::LabelAndValue("Name checksum:", std::to_string(material.NameChecksum));
+                                            gui::LabelAndValue("Material flags:", std::to_string(material.MaterialFlags));
+                                            gui::LabelAndValue("Num textures:", std::to_string(material.NumTextures));
+                                            gui::LabelAndValue("Num constants:", std::to_string(material.NumConstants));
+                                            gui::LabelAndValue("Max constants:", std::to_string(material.MaxConstants));
+                                            gui::LabelAndValue("Texture offset:", std::to_string(material.TextureOffset));
+                                            gui::LabelAndValue("Constant name checksums offset:", std::to_string(material.ConstantNameChecksumsOffset));
+                                            gui::LabelAndValue("Constant block offset:", std::to_string(material.ConstantBlockOffset));
+
+                                            if (ImGui::TreeNode("Constants"))
+                                            {
+                                                for (u32 i = 0; i < material.NumConstants; i++)
+                                                {
+                                                    MaterialConstant& constant = material.Constants[i];
+                                                    const u32 constantNameChecksum = material.ConstantNameChecksums[i];
+                                                    std::optional<string> constantNameGuess = HashGuesser::GuessHashOriginString(constantNameChecksum);
+                                                    string constantName = constantNameGuess.value_or(std::to_string(constantNameChecksum));
+                                                    ImGui::InputFloat4(constantName.c_str(), constant.Constants);
+                                                }
+                                                ImGui::TreePop();
+                                            }
+
+                                            ImGui::TreePop();
+                                        }
+                                    }
+                                    ImGui::TreePop();
+                                }
+                                ImGui::TreePop();
+                            }
+                        }
+                        ImGui::TreePop();
+                    }
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::TreePop();
+        }
+
+        ImGui::EndPopup();
+    }
+
     ImGui::PopStyleVar();
 }
 

@@ -66,7 +66,7 @@ void AsmDocument::Update(GuiState* state)
         if (ImGui::TreeNodeEx(container.Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
         {
             gui::LabelAndValue("Type: ", to_string(container.Type));
-            gui::LabelAndValue("Flags: ", std::to_string(container.Flags));
+            gui::LabelAndValue("Flags: ", std::to_string((u32)container.Flags));
             gui::LabelAndValue("# Primitives: ", std::to_string(container.PrimitiveCount));
             gui::LabelAndValue("Data offset: ", std::to_string(container.DataOffset));
             gui::LabelAndValue("Compressed size: ", std::to_string(container.CompressedSize));
@@ -80,7 +80,7 @@ void AsmDocument::Update(GuiState* state)
                     {
                         gui::LabelAndValue("Type: ", to_string(primitive.Type));
                         gui::LabelAndValue("Allocator: ", to_string(primitive.Allocator));
-                        gui::LabelAndValue("Flags: ", std::to_string(primitive.Flags));
+                        gui::LabelAndValue("Flags: ", std::to_string((u32)primitive.Flags));
                         gui::LabelAndValue("Split ext index: ", std::to_string(primitive.SplitExtIndex));
                         gui::LabelAndValue("Header size: ", std::to_string(primitive.HeaderSize));
                         gui::LabelAndValue("Data size: ", std::to_string(primitive.DataSize));
