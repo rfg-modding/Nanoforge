@@ -1,23 +1,10 @@
 #include "XtblNodes.h"
-#include "IXtblNode.h"
-#include "XtblDescription.h"
-#include "nodes/ElementXtblNode.h"
-#include "nodes/StringXtblNode.h"
-#include "nodes/IntXtblNode.h"
-#include "nodes/FloatXtblNode.h"
-#include "nodes/VectorXtblNode.h"
-#include "nodes/ColorXtblNode.h"
-#include "nodes/SelectionXtblNode.h"
-#include "nodes/FlagsXtblNode.h"
-#include "nodes/ListXtblNode.h"
-#include "nodes/FilenameXtblNode.h"
-#include "nodes/ComboElementXtblNode.h"
-#include "nodes/ReferenceXtblNode.h"
-#include "nodes/GridXtblNode.h"
-#include "nodes/TableDescriptionXtblNode.h"
-#include "nodes/FlagXtblNode.h"
-#include "nodes/UnsupportedXtblNode.h"
+#include "rfg/xtbl/IXtblNode.h"
+#include "rfg/xtbl/XtblDescription.h"
+#include "render/imgui/ImGuiConfig.h"
+#include "render/imgui/imgui_ext.h"
 #include "rfg/xtbl/Xtbl.h"
+#include <imgui.h>
 
 //Use descriptions to draw nodes so non-existant optional nodes are drawn
 //Also handles drawing description tooltips and checkboxes for optional nodes

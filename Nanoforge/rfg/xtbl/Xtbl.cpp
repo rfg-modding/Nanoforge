@@ -1,10 +1,9 @@
 #include "Xtbl.h"
 #include "Log.h"
-#include "XtblNodes.h"
+#include "nodes/XtblNodes.h"
 #include "common/filesystem/Path.h"
 #include "Common/string/String.h"
 #include "IXtblNode.h"
-#include "nodes/UnsupportedXtblNode.h"
 #include "rfg/PackfileVFS.h"
 #include <tinyxml2/tinyxml2.h>
 #include <filesystem>

@@ -4,7 +4,7 @@
 #include "application/project/Project.h"
 #include "render/imgui/imgui_ext.h"
 #include "gui/GuiState.h"
-#include "rfg/xtbl/XtblNodes.h"
+#include "rfg/xtbl/nodes/XtblNodes.h"
 #include "gui/util/WinUtil.h"
 #include "rfg/xtbl/XtblManager.h"
 #include "rfg/xtbl/Xtbl.h"
