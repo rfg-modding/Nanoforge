@@ -42,6 +42,12 @@ bool Project::Save()
     description->SetText(Description.c_str());
     author->SetText(Author.c_str());
 
+    if (UseCustomOutputPath)
+    {
+        auto* customOutputPath = projectBlock->InsertNewChildElement("CustomOutputPath");
+        customOutputPath->SetText(CustomOutputPath.c_str());
+    }
+
     //Set edits
     for (auto& edit : Edits)
     {
@@ -119,6 +125,7 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     auto* description = projectBlock->FirstChildElement("Description");
     auto* author = projectBlock->FirstChildElement("Author");
     auto* edits = projectBlock->FirstChildElement("Edits");
+    auto* customOutputPath = projectBlock->FirstChildElement("CustomOutputPath");
     if(!name)
     {
         Log->info("<Name> block not found in project file \"{}\"", projectFilePath);
@@ -142,6 +149,11 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     Name = name->GetText();
     Description = description->GetText();
     Author = author->GetText();
+    if (customOutputPath)
+    {
+        UseCustomOutputPath = true;
+        CustomOutputPath = customOutputPath->GetText();
+    }
 
     //Get edits list
     auto* edit = edits->FirstChildElement("Edit");
@@ -340,6 +352,12 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
     string modinfoPath = fmt::format("{}{}", outputPath, "modinfo.xml");
     modinfo.InsertEndChild(modBlock);
     modinfo.SaveFile(modinfoPath.c_str());
+
+    //Copy mod to custom output folder if that option is enabled
+    if (UseCustomOutputPath)
+    {
+        std::filesystem::copy(outputPath, CustomOutputPath);
+    }
 
     WorkerPercentage = 1.0f;
     WorkerState = "Done!";

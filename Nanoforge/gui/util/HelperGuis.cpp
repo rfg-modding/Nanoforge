@@ -146,6 +146,20 @@ void DrawModPackagingPopup(bool* open, GuiState* state)
                             "edit the duplicates in misc.vpp_pc instead. It's really only intended for testing the purpose of table.vpp_pc.",
                             state->FontManager->FontMedium.GetFont());
 
+            ImGui::Checkbox("Use custom output folder", &project->UseCustomOutputPath);
+            if (project->UseCustomOutputPath)
+            {
+                ImGui::Text("Custom output path:");
+                ImGui::InputText("##CustomOutputPath", &project->CustomOutputPath);
+                ImGui::SameLine();
+                if (ImGui::Button(ICON_FA_ELLIPSIS_H))
+                {
+                    std::optional<string> outPath = OpenFolder();
+                    if (outPath)
+                        project->CustomOutputPath = outPath.value();
+                }
+            }
+
             if (ImGui::Button("Start packaging"))
             {
                 state->SetStatus("Packing mod...", GuiStatus::Working);

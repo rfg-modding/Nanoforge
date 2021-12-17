@@ -41,6 +41,9 @@ public:
     //If true Nanoforge will repack table.vpp_pc with any edited files in it.
     //Temporary way of generating mods that edit table.vpp_pc.
     bool UseTableWorkaround = false;
+    //If true mods will be written to CustomOutputPath instead of "your_mod/output/". Useful to save a bit of time having to copy it the the mod manager folder each time
+    bool UseCustomOutputPath = false;
+    string CustomOutputPath;
 
     //Edits made in this project
     std::vector<FileEdit> Edits = {};
