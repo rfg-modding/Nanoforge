@@ -51,7 +51,9 @@ static XtblType XtblTypeFromString(const string& value)
     else if (value == "Reference")
         return XtblType::Reference;
     else if (value == "Grid")
-        return XtblType::Grid;
+        //NOTE: Temporary fix for grid rendering issues. In many cases they are difficult to read an edit so for now they're drawn as lists
+        //      The data for lists and grids is stored the same in the xtbl so it works just as well.
+        return XtblType::List;
     else if (value == "TableDescription")
         return XtblType::TableDescription;
     else if (value == "Flag")
