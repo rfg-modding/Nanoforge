@@ -22,4 +22,5 @@ private:
     bool inContainer_;
 
     AsmFile5* asmFile_ = nullptr;
+    string search_;
 };

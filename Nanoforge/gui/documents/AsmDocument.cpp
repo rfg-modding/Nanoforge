@@ -58,11 +58,27 @@ void AsmDocument::Update(GuiState* state)
     state->FontManager->FontMedium.Pop();
     ImGui::Separator();
 
+    //Search box
+    static bool caseSensitive = false;
+    if (ImGui::CollapsingHeader("Options"))
+    {
+        ImGui::Checkbox("Case sensitive", &caseSensitive);
+    }
+    ImGui::InputText("Search", &search_);
+    ImGui::SameLine();
+    gui::HelpMarker("This only searches for container names. It doesn't check the names of primitives within them.", ImGui::GetIO().FontDefault);
+    ImGui::Separator();
+
     //Container data
     ImGui::Indent(indent);
     ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 1.25f); //Increase spacing to differentiate leaves from expanded contents.
     for (auto& container : asmFile_->Containers)
     {
+        string containerName = caseSensitive ? container.Name : String::ToLower(container.Name);
+        string search = caseSensitive ? search_ : String::ToLower(search_);
+        if (!String::Contains(containerName, search))
+            continue;
+
         if (ImGui::TreeNodeEx(container.Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
         {
             gui::LabelAndValue("Type: ", to_string(container.Type));
