@@ -1,6 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "IDocument.h"
+#include "application/Registry.h"
 
 class AsmFile5;
 
@@ -22,5 +23,6 @@ private:
     bool inContainer_;
 
     AsmFile5* asmFile_ = nullptr;
+    ObjectHandle _asmFileObject = { nullptr };
     string search_;
 };

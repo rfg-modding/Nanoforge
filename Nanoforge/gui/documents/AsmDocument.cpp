@@ -6,6 +6,55 @@
 #include "RfgTools++/formats/packfiles/Packfile3.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
+#include "application/Registry.h"
+
+//Todo: Move conversion to/from RFG formats and the editor format into Importer/Exporter classes or namespaces
+ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
+{
+    Registry& registry = Registry::Get();
+
+    //Create editor object for asm_pc file
+    ObjectHandle object = registry.CreateObject(asmFile.Name, "AsmFile");
+    object.GetOrCreateProperty("Name").Set(asmFile.Name);
+    object.GetOrCreateProperty("Signature").Set(asmFile.Signature);
+    object.GetOrCreateProperty("Version").Set(asmFile.Version);
+    //object.GetOrCreateProperty("Containers").Set({});
+    //Todo: Somehow add a container list to the asmFile object. Ideas:
+    //          - Add a list and sub-object list property type. Could probably just be std::vector<u64> or something
+    //          - Add a list subobject, then add each container to that, like xml (seems a bit messy)
+    //          - Add each one as a subobject (bad if you wanted multiple lists in an object)
+
+    //Set containers
+    for (AsmContainer& asmContainer : asmFile.Containers)
+    {
+        ObjectHandle container = registry.CreateObject(asmContainer.Name, "AsmContainer");
+        container.GetOrCreateProperty("Name").Set(asmContainer.Name);
+        container.GetOrCreateProperty("Type").Set((u8)asmContainer.Type);
+        container.GetOrCreateProperty("Flags").Set((u16)asmContainer.Flags);
+        container.GetOrCreateProperty("DataOffset").Set(asmContainer.DataOffset);
+        container.GetOrCreateProperty("CompressedSize").Set(asmContainer.CompressedSize);
+        //container.GetOrCreateProperty("Primitives").Set({});
+
+        //Set container primitives
+        size_t i = 0;
+        for (AsmPrimitive& asmPrimitive : asmContainer.Primitives)
+        {
+            //TODO: Add to container primitives list, however lists are determined to work
+            ObjectHandle primitive = registry.CreateObject(asmPrimitive.Name, "AsmPrimitive");
+            primitive.GetOrCreateProperty("Name").Set(asmPrimitive.Name);
+            primitive.GetOrCreateProperty("Type").Set((u8)asmPrimitive.Type);
+            primitive.GetOrCreateProperty("Allocator").Set((u8)asmPrimitive.Allocator);
+            primitive.GetOrCreateProperty("Flags").Set((u8)asmPrimitive.Flags);
+            primitive.GetOrCreateProperty("SplitExtIndex").Set(asmPrimitive.SplitExtIndex);
+            primitive.GetOrCreateProperty("TotalSize").Set(asmContainer.PrimitiveSizes[i]);
+            primitive.GetOrCreateProperty("HeaderSize").Set(asmPrimitive.HeaderSize);
+            primitive.GetOrCreateProperty("DataSize").Set(asmPrimitive.DataSize);
+            i++;
+        }
+    }
+
+    return object;
+}
 
 AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer)
@@ -16,7 +65,11 @@ AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string
     //Find asm_pc file in parent packfile
     for (auto& asmFile : vpp->AsmFiles)
         if (String::EqualIgnoreCase(asmFile.Name, filename))
+        {
             asmFile_ = &asmFile;
+            _asmFileObject = AsmFile5ToObject(asmFile);
+            break;
+        }
 
     //Report error if asm_pc file isn't found
     if (!asmFile_)
