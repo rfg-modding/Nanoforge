@@ -1,6 +1,7 @@
 #include "Xtbl.h"
 #include "Log.h"
 #include "nodes/XtblNodes.h"
+#include "XtblDescription.h"
 #include "common/filesystem/Path.h"
 #include "Common/string/String.h"
 #include "IXtblNode.h"
@@ -9,6 +10,12 @@
 #include <filesystem>
 #include <algorithm>
 #include <iterator>
+
+XtblFile::XtblFile()
+{
+    TableDescription = CreateHandle<XtblDescription>();
+    RootCategory = CreateHandle<XtblCategory>("Entries");
+}
 
 XtblFile::~XtblFile()
 {
@@ -50,9 +57,10 @@ bool XtblFile::Parse(const string& path, PackfileVFS* packfileVFS)
     }
 
     //Parse the xtbl using tinyxml2
-    xmlDocument_.Parse(fileString.value().data(), fileString.value().size());
+    xmlDocument_ = CreateHandle<tinyxml2::XMLDocument>();
+    xmlDocument_->Parse(fileString.value().data(), fileString.value().size());
 
-    auto* root = xmlDocument_.RootElement();
+    auto* root = xmlDocument_->RootElement();
     if (!root)
     {
         LOG_ERROR("Failed to parse \"{}\". Xtbl has no <root> element.", path);

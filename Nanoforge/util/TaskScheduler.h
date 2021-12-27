@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/Handle.h"
 #include "Log.h"
 #include <condition_variable>
 #include <functional>

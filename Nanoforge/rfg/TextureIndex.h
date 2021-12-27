@@ -1,5 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/String.h"
+#include "common/Handle.h"
 #include <RfgTools++/formats/textures/PegFile10.h>
 #include "render/resources/Texture2D.h"
 #include <optional>

@@ -1,7 +1,11 @@
 #include "XtblNodes.h"
 #include "render/imgui/ImGuiConfig.h"
+#include "rfg/xtbl/XtblDescription.h"
+#include "common/string/String.h"
+#include <tinyxml2/tinyxml2.h>
 #include "rfg/xtbl/Xtbl.h"
 #include <imgui.h>
+#include "Log.h"
 
 #pragma warning(disable:4100) //Disable warning about unused argument. Can't remove the arg since some implementations of this function use it.
 bool ListXtblNode::DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride)

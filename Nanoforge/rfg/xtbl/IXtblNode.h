@@ -1,13 +1,12 @@
 #pragma once
 #include "Common/Typedefs.h"
+#include "common/Handle.h"
+#include "common/String.h"
+#include "types/Vec3.h"
 #include "XtblType.h"
-#include "XtblDescription.h"
-#include "RfgTools++/types/Vec3.h"
-#include "RfgTools++/types/Vec4.h"
-#include <tinyxml2/tinyxml2.h>
-#include <vector>
 #include <optional>
 #include <variant>
+#include <vector>
 
 class GuiState;
 class XtblFile;
@@ -16,6 +15,13 @@ struct XtblFlag
     string Name;
     bool Value;
 };
+namespace tinyxml2
+{
+    class XMLElement;
+}
+class XtblDescription;
+
+//Type of IXtblNode::Value
 using XtblValue = std::variant<string, i32, f32, Vec3, u32, XtblFlag>;
 
 //Interface used by all xtbl nodes. Includes data that all nodes have. Separate implementations must be written for each node data type (e.g. float, int, reference, etc)

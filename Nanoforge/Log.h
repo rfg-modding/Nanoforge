@@ -1,13 +1,14 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/String.h"
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/details/null_mutex.h>
-#include <spdlog/sinks/base_sink.h>
 #include <exception>
 #include <mutex>
 
-extern Handle<spdlog::logger> Log;
+extern spdlog::logger* Log;
+//extern void THROW_EXCEPTION(const string& formatString, ...);
+//extern void LOG_ERROR(const string& formatString, ...);
+//extern void TRACE
 
 //Throw an exception and log it's error message + info about the error location
 #define THROW_EXCEPTION(formatString, ...) \

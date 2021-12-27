@@ -5,6 +5,7 @@
 #include "render/imgui/imgui_ext.h"
 #include "rfg/xtbl/Xtbl.h"
 #include <imgui.h>
+#include "Log.h"
 
 //Use descriptions to draw nodes so non-existant optional nodes are drawn
 //Also handles drawing description tooltips and checkboxes for optional nodes

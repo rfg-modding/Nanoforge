@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/String.h"
 #include "IDocument.h"
 
 class AsmFile5;

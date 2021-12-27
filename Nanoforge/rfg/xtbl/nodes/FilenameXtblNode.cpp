@@ -1,4 +1,5 @@
 #include "XtblNodes.h"
+#include <tinyxml2.h>
 #include "render/imgui/imgui_ext.h"
 #include <imgui.h>
 

@@ -1,4 +1,6 @@
 #include "XtblNodes.h"
+#include <tinyxml2.h>
+#include "Log.h"
 
 #pragma warning(disable:4100) //Disable warning about unused argument. Can't remove the arg since some implementations of this function use it.
 bool TableDescriptionXtblNode::DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride)

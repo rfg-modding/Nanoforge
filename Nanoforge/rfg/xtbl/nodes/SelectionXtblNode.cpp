@@ -1,5 +1,8 @@
 #include "XtblNodes.h"
+#include "rfg/xtbl/XtblDescription.h"
 #include "render/imgui/imgui_ext.h"
+#include "common/string/String.h"
+#include <tinyxml2/tinyxml2.h>
 #include <imgui.h>
 
 #pragma warning(disable:4100) //Disable warning about unused argument. Can't remove the arg since some implementations of this function use it.

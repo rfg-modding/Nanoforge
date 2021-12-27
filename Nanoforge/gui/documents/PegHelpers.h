@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/String.h"
 #include <dxgiformat.h>
 #include <d3d11.h>
 #include <vector>

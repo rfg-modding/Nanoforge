@@ -1,9 +1,9 @@
 #pragma once
 #include "common/Typedefs.h"
-#include <d3d11.h>
 #include <filesystem>
-#include <span>
+#include <d3d11.h>
 #include <wrl.h>
+#include <span>
 using Microsoft::WRL::ComPtr;
 
 //Wraps ID3D11Buffer

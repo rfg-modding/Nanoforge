@@ -1,4 +1,6 @@
 #pragma once
+#include "common/String.h"
+#include "common/Handle.h"
 #include "FileHandle.h"
 #include <optional>
 #include <vector>

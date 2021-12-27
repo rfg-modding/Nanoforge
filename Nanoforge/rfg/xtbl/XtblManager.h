@@ -1,7 +1,9 @@
 #pragma once
 #include "Common/Typedefs.h"
-#include <vector>
+#include "common/String.h"
+#include "common/Handle.h"
 #include <optional>
+#include <vector>
 
 class PackfileVFS;
 class XtblFile;

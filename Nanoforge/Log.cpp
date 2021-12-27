@@ -1,3 +1,3 @@
 #include "Log.h"
 
-Handle<spdlog::logger> Log = nullptr;
+spdlog::logger* Log = nullptr;

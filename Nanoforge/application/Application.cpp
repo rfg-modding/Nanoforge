@@ -20,6 +20,9 @@
 #include <variant>
 #include <ext/WindowsWrapper.h>
 #include <timeapi.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/details/null_mutex.h>
+#include <spdlog/sinks/base_sink.h>
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -34,6 +37,7 @@ void Application::Run()
     appInstance = this;
     Init();
     MainLoop();
+    delete Log;
 
     //Main loop finished. Cleanup resources
     TaskScheduler::Shutdown();
@@ -49,7 +53,7 @@ void Application::Init()
     logSinks_.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
     logSinks_.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("MasterLog.log"));
     logSinks_.push_back(std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(120));
-    Log = std::make_shared<spdlog::logger>("MainLogger", begin(logSinks_), end(logSinks_));
+    Log = new spdlog::logger("MainLogger", begin(logSinks_), end(logSinks_));
     Log->flush_on(spdlog::level::level_enum::info); //Always flush
     Log->set_pattern("[%Y-%m-%d, %H:%M:%S][%^%l%$]: %v");
     TRACE();

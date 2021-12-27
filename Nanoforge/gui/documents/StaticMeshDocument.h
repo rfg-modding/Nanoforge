@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/Handle.h"
 #include "IDocument.h"
 #include "RfgTools++/formats/meshes/StaticMesh.h"
 #include <future>
