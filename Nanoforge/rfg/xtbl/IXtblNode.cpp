@@ -1,7 +1,8 @@
 #include "IXtblNode.h"
 #include "XtblDescription.h"
-#include "Xtbl.h"
 #include "nodes/XtblNodes.h"
+#include "spdlog/fmt/fmt.h"
+#include "Xtbl.h"
 
 void IXtblNode::DeleteSubnodes()
 {

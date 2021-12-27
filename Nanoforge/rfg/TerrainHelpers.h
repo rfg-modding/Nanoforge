@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/Handle.h"
 #include <RfgTools++/formats/meshes/TerrainLowLod.h>
 #include <RfgTools++/formats/meshes/Terrain.h>
 #include <vector>

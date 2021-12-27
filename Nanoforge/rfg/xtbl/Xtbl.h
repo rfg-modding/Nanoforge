@@ -1,12 +1,19 @@
 #pragma once
 #include "Common/Typedefs.h"
-#include "XtblType.h"
-#include "IXtblNode.h"
-#include "XtblDescription.h"
+#include "common/Handle.h"
+#include "common/String.h"
 #include <unordered_map>
 #include <vector>
 
 class PackfileVFS;
+class IXtblNode;
+class XtblDescription;
+class XtblReference;
+namespace tinyxml2
+{
+    class XMLElement;
+    class XMLDocument;
+}
 
 //Categories specified by <_Editor><Category>...</Category></_Editor> blocks
 class XtblCategory
@@ -23,6 +30,7 @@ public:
 class XtblFile
 {
 public:
+    XtblFile();
     ~XtblFile();
 
     //Reparse xtbl file
@@ -66,9 +74,9 @@ public:
     //Xml nodes inside the <TableTemplates></TableTemplates> block
     std::vector<IXtblNode*> Templates;
     //Xml nodes inside the <TableDescription></TableDescription> block. Describes data in <Table>
-    Handle<XtblDescription> TableDescription = CreateHandle<XtblDescription>();
+    Handle<XtblDescription> TableDescription = nullptr;
     //Root category
-    Handle<XtblCategory> RootCategory = CreateHandle<XtblCategory>("Entries");
+    Handle<XtblCategory> RootCategory = nullptr;
     //References to other xtbl files
     std::vector<Handle<XtblReference>> References;
     string FilePath;
@@ -81,5 +89,5 @@ private:
     std::unordered_map<IXtblNode*, string> categoryMap_;
 
     //Xml document the xtbl was loaded from. Kept alive with the xtbl to preserve description-less nodes
-    tinyxml2::XMLDocument xmlDocument_;
+    Handle<tinyxml2::XMLDocument> xmlDocument_;
 };

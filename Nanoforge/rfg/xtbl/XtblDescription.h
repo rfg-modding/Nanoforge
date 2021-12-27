@@ -1,10 +1,9 @@
 #pragma once
 #include "Common/Typedefs.h"
+#include "common/Handle.h"
 #include "XtblType.h"
-#include "Common/string/String.h"
-#include <tinyxml2/tinyxml2.h>
-#include <vector>
 #include <optional>
+#include <vector>
 
 namespace tinyxml2
 {

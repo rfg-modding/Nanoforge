@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/String.h"
 #include <IconsFontAwesome5_c.h>
 #include <imgui.h>
 

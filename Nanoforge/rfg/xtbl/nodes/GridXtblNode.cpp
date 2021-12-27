@@ -1,5 +1,8 @@
 #include "XtblNodes.h"
+#include "rfg/xtbl/XtblDescription.h"
+#include <tinyxml2/tinyxml2.h>
 #include <imgui.h>
+#include "Log.h"
 
 #pragma warning(disable:4100) //Disable warning about unused argument. Can't remove the arg since some implementations of this function use it.
 bool GridXtblNode::DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride)

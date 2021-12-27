@@ -1,4 +1,5 @@
 #include "StaticMeshDocument.h"
+#include "common/Defer.h"
 #include "render/backend/DX11Renderer.h"
 #include "util/RfgUtil.h"
 #include "common/filesystem/Path.h"

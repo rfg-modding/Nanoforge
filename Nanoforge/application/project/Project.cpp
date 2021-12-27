@@ -11,6 +11,7 @@
 #include "rfg/PackfileVFS.h"
 #include "tinyxml2/tinyxml2.h"
 #include "util/TaskScheduler.h"
+#include "rfg/xtbl/IXtblNode.h"
 #include "rfg/xtbl/Xtbl.h"
 #include <ranges>
 

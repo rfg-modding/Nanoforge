@@ -1,5 +1,8 @@
 #include "XtblNodes.h"
 #include "render/imgui/ImGuiConfig.h"
+#include "rfg/xtbl/XtblDescription.h"
+#include "common/string/String.h"
+#include <tinyxml2/tinyxml2.h>
 #include "rfg/xtbl/Xtbl.h"
 #include <imgui.h>
 

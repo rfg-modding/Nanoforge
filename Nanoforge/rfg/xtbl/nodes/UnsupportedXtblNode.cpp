@@ -1,4 +1,5 @@
 #include "XtblNodes.h"
+#include <tinyxml2.h>
 
 UnsupportedXtblNode::UnsupportedXtblNode(tinyxml2::XMLElement* element)
 {

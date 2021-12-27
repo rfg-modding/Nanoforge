@@ -1,5 +1,7 @@
 #pragma once
 #include "Common/Typedefs.h"
+#include "common/String.h"
+#include "common/Handle.h"
 #include "FileEdit.h"
 #include <vector>
 #include <future>

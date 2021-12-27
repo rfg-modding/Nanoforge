@@ -1,5 +1,6 @@
 #pragma once
 #include "common/string/String.h"
+#include "common/Handle.h"
 #include "documents/IDocument.h"
 #include "RfgTools++/types/Vec3.h"
 

@@ -1,4 +1,5 @@
 #include "Territory.h"
+#include "common/Defer.h"
 #include "gui/GuiState.h"
 #include "common/filesystem/Path.h"
 #include "common/filesystem/File.h"

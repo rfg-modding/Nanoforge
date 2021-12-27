@@ -2,10 +2,13 @@
 #include "rfg/xtbl/Xtbl.h"
 #include "render/imgui/imgui_ext.h"
 #include "render/imgui/ImGuiConfig.h"
+#include "rfg/xtbl/XtblDescription.h"
+#include <tinyxml2/tinyxml2.h>
 #include "gui/GuiState.h"
 #include <imgui.h>
 #include "rfg/xtbl/XtblManager.h"
 #include "gui/documents/XtblDocument.h"
+#include <spdlog/fmt/fmt.h>
 
 void ReferenceXtblNode::CollectReferencedNodes(GuiState* guiState, Handle<XtblFile> xtbl)
 {

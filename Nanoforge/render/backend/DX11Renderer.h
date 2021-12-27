@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/Handle.h"
 #include <ext/WindowsWrapper.h>
 #include <DirectXMath.h>
 #include <d3dcompiler.h>

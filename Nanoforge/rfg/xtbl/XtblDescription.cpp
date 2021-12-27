@@ -1,5 +1,8 @@
 #include "XtblDescription.h"
+#include "Common/string/String.h"
+#include <tinyxml2/tinyxml2.h>
 #include "Xtbl.h"
+#include "Log.h"
 
 bool XtblDescription::Parse(tinyxml2::XMLElement* node, Handle<XtblDescription> self, XtblFile& file)
 {

@@ -1,7 +1,8 @@
 #pragma once
 #include "common/Typedefs.h"
-#include <d3d11.h>
+#include "common/String.h"
 #include <filesystem>
+#include <d3d11.h>
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
 

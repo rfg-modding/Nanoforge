@@ -4,6 +4,8 @@
 #include <imgui.h>
 #include "render/imgui/imgui_ext.h"
 #include "render/imgui/ImGuiConfig.h"
+#include <tinyxml2/tinyxml2.h>
+#include "spdlog/fmt/fmt.h"
 #include "gui/GuiState.h"
 
 #pragma warning(disable:4100) //Disable warning about unused argument. Can't remove the arg since some implementations of this function use it.

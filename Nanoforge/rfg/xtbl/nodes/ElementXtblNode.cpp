@@ -1,6 +1,9 @@
 #include "XtblNodes.h"
+#include "rfg/xtbl/XtblDescription.h"
 #include "render/imgui/ImGuiConfig.h"
+#include <tinyxml2/tinyxml2.h>
 #include <imgui.h>
+#include "Log.h"
 
 bool ElementXtblNode::DrawEditor(GuiState* guiState, Handle<XtblFile> xtbl, IXtblNode* parent, const char* nameOverride)
 {
