@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/String.h"
 
 //Constexpr capable FNV-1A string hash
 //On the current version of MSVC this only runs at compile time if you explicitly declare a constexpr variable.
