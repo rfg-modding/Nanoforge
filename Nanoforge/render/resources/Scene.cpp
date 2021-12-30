@@ -22,7 +22,7 @@ void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d
 
 void Scene::Draw(f32 deltaTime)
 {
-    if (errorOccurred_ || !linelistMaterial_ || !linelistMaterial_->Ready())
+    if (errorOccurred_ || !linelistMaterial_ || !linelistMaterial_->Ready() || !trianglelistMaterial_ || !trianglelistMaterial_->Ready())
         return;
 
     PROFILER_FUNCTION();
@@ -75,46 +75,87 @@ void Scene::Draw(f32 deltaTime)
 
     //Prepare state to render primitives
     d3d11Context_->RSSetState(primitiveRasterizerState_.Get());
-    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    linelistMaterial_->Use(d3d11Context_);
 
     //Update primitive vertex buffers if necessary
-    u32 linelistVertexStride = sizeof(ColoredVertex);
-    u32 vertexOffset = 0;
     if (primitiveBufferNeedsUpdate_)
     {
-        lineVertexBuffer_.ResizeIfNeeded(d3d11Device_, (u32)lineVertices_.size() * linelistVertexStride);
-        D3D11_MAPPED_SUBRESOURCE mappedResource;
-        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-        d3d11Context_->Map(lineVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-        memcpy(mappedResource.pData, lineVertices_.data(), lineVertices_.size() * linelistVertexStride);
-        d3d11Context_->Unmap(lineVertexBuffer_.Get(), 0);
+        //Update line list vertex buffer
+        {
+            lineVertexBuffer_.ResizeIfNeeded(d3d11Device_, (u32)lineVertices_.size() * sizeof(ColoredVertex));
+            D3D11_MAPPED_SUBRESOURCE mappedResource;
+            ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+            d3d11Context_->Map(lineVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+            memcpy(mappedResource.pData, lineVertices_.data(), lineVertices_.size() * sizeof(ColoredVertex));
+            d3d11Context_->Unmap(lineVertexBuffer_.Get(), 0);
+            numLineVertices_ = (u32)lineVertices_.size();
+            lineVertices_.clear();
+        }
 
-        numLineVertices_ = (u32)lineVertices_.size();
-        lineVertices_.clear();
+        //Update triangle list vertex buffer
+        {
+            triangleListVertexBuffer_.ResizeIfNeeded(d3d11Device_, (u32)triangleListVertices_.size() * sizeof(ColoredVertex));
+            D3D11_MAPPED_SUBRESOURCE mappedResource;
+            ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+            d3d11Context_->Map(triangleListVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+            memcpy(mappedResource.pData, triangleListVertices_.data(), triangleListVertices_.size() * sizeof(ColoredVertex));
+            d3d11Context_->Unmap(triangleListVertexBuffer_.Get(), 0);
+            numTriangleListVertices_ = (u32)triangleListVertices_.size();
+            triangleListVertices_.clear();
+        }
+
+        //Update lit triangle list vertex buffer
+        {
+            litTriangleListVertexBuffer_.ResizeIfNeeded(d3d11Device_, (u32)litTriangleListVertices_.size() * sizeof(ColoredVertexLit));
+            D3D11_MAPPED_SUBRESOURCE mappedResource;
+            ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+            d3d11Context_->Map(litTriangleListVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+            memcpy(mappedResource.pData, litTriangleListVertices_.data(), litTriangleListVertices_.size() * sizeof(ColoredVertexLit));
+            d3d11Context_->Unmap(litTriangleListVertexBuffer_.Get(), 0);
+            numLitTriangleListVertices_ = (u32)litTriangleListVertices_.size();
+            litTriangleListVertices_.clear();
+        }
+
         primitiveBufferNeedsUpdate_ = false;
     }
-    d3d11Context_->IASetVertexBuffers(0, 1, lineVertexBuffer_.GetAddressOf(), &linelistVertexStride, &vertexOffset);
 
-    //Shader constants for all primitives
-    PerObjectConstants constants;
+    //Update primitive shader constants buffer
+    {
+        PerObjectConstants constants;
 
-    //Calculate MVP matrix for all primitives
-    DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-    DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
-    DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f);
-    DirectX::XMMATRIX scale = DirectX::XMMatrixScaling(1.0f, 1.0f, 1.0f);
-    constants.MVP = DirectX::XMMatrixIdentity();
-    constants.MVP = translation * rotation * scale; //First calculate the model matrix
-    //Then calculate model matrix with Model * View * Projection
-    constants.MVP = DirectX::XMMatrixTranspose(constants.MVP * Cam.camView * Cam.camProjection);
+        //Calculate MVP matrix for all primitives
+        DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+        DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
+        DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+        DirectX::XMMATRIX scale = DirectX::XMMatrixScaling(1.0f, 1.0f, 1.0f);
+        constants.MVP = DirectX::XMMatrixIdentity();
+        constants.MVP = translation * rotation * scale; //First calculate the model matrix
+        constants.MVP = DirectX::XMMatrixTranspose(constants.MVP * Cam.camView * Cam.camProjection); //Then calculate MVP matrix with Model * View * Projection
 
-    //Set MVP matrix in shader
-    d3d11Context_->GSSetConstantBuffers(0, 1, perFrameBuffer_.GetAddressOf());
-    perObjectBuffer_.SetData(d3d11Context_, &constants);
+        d3d11Context_->GSSetConstantBuffers(0, 1, perFrameBuffer_.GetAddressOf());
+        perObjectBuffer_.SetData(d3d11Context_, &constants);
+    }
+    u32 offset = 0; //Dummy variable used by IASetVertBuffers. Passing nullptr doesn't work even though the MSDN docs say the arg is optional
 
     //Draw linelist primitives
+    u32 strideColoredVertex = sizeof(ColoredVertex);
+    linelistMaterial_->Use(d3d11Context_);
+    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    d3d11Context_->IASetVertexBuffers(0, 1, lineVertexBuffer_.GetAddressOf(), &strideColoredVertex, &offset);
     d3d11Context_->Draw(numLineVertices_, 0);
+
+    //Draw unlit triangle list primitives
+    d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    offset = 0;
+    trianglelistMaterial_->Use(d3d11Context_);
+    d3d11Context_->IASetVertexBuffers(0, 1, triangleListVertexBuffer_.GetAddressOf(), &strideColoredVertex, &offset);
+    d3d11Context_->Draw(numTriangleListVertices_, 0);
+
+    //Draw lit triangle list primitives
+    offset = 0;
+    u32 strideLit = sizeof(ColoredVertexLit);
+    litTrianglelistMaterial_->Use(d3d11Context_);
+    d3d11Context_->IASetVertexBuffers(0, 1, litTriangleListVertexBuffer_.GetAddressOf(), &strideLit, &offset);
+    d3d11Context_->Draw(numLitTriangleListVertices_, 0);
 }
 
 void Scene::HandleResize(u32 windowWidth, u32 windowHeight)
@@ -186,17 +227,34 @@ void Scene::InitPrimitiveState()
     rasterizerDesc.AntialiasedLineEnable = false;
     DxCheck(d3d11Device_->CreateRasterizerState(&rasterizerDesc, primitiveRasterizerState_.GetAddressOf()), "Primitive rasterizer state creation failed!");
 
-    //Create linelist primitive vertex buffer
-    lineVertexBuffer_.Create(d3d11Device_, 1200, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+    //Create primitive vertex buffers
+    lineVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertex) * 100, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+    triangleListVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertex) * 100, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+    litTriangleListVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertexLit) * 100, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 
-    auto material = Render::GetMaterial("Linelist");
-    if (!material)
+    linelistMaterial_ = Render::GetMaterial("Linelist");
+    if (!linelistMaterial_)
     {
         LOG_ERROR("Failed to locate material 'Linelist' for Scene primitive rendering. Scene disabled.");
         errorOccurred_ = true;
         return;
     }
-    linelistMaterial_ = material;
+
+    trianglelistMaterial_ = Render::GetMaterial("SolidTriList");
+    if (!trianglelistMaterial_)
+    {
+        LOG_ERROR("Failed to locate material 'SolidTriList' for Scene primitive rendering. Scene disabled.");
+        errorOccurred_ = true;
+        return;
+    }
+
+    litTrianglelistMaterial_ = Render::GetMaterial("LitTriList");
+    if (!litTrianglelistMaterial_)
+    {
+        LOG_ERROR("Failed to locate material 'LitTriList' for Scene primitive rendering. Scene disabled.");
+        errorOccurred_ = true;
+        return;
+    }
 }
 
 void Scene::InitRenderTarget()
@@ -220,31 +278,114 @@ void Scene::DrawLine(const Vec3& start, const Vec3& end, const Vec3& color)
     primitiveBufferNeedsUpdate_ = true;
 }
 
+void Scene::DrawQuad(const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec3& color)
+{
+    DrawLine(bottomLeft, topLeft, color);
+    DrawLine(topLeft, topRight, color);
+    DrawLine(topRight, bottomRight, color);
+    DrawLine(bottomRight, bottomLeft, color);
+}
+
 void Scene::DrawBox(const Vec3& min, const Vec3& max, const Vec3& color)
 {
-    Vec3 diff = max - min;
-    Vec3 vert0 = min;
-    Vec3 vert1 = min + Vec3(diff.x, 0.0f, 0.0f);
-    Vec3 vert2 = min + Vec3(0.0f, 0.0f, diff.z);
-    Vec3 vert3 = min + Vec3(diff.x, 0.0f, diff.z);
+    Vec3 size = max - min;
+    Vec3 bottomLeftFront = min;
+    Vec3 bottomLeftBack = min + Vec3(size.x, 0.0f, 0.0f);
+    Vec3 bottomRightFront = min + Vec3(0.0f, 0.0f, size.z);
+    Vec3 bottomRightBack = min + Vec3(size.x, 0.0f, size.z);
 
-    Vec3 vert4 = max;
-    Vec3 vert5(vert1.x, max.y, vert1.z);
-    Vec3 vert6(vert2.x, max.y, vert2.z);
-    Vec3 vert7(min.x, max.y, min.z);
+    Vec3 topRightBack = max;
+    Vec3 topLeftBack(bottomLeftBack.x, max.y, bottomLeftBack.z);
+    Vec3 topRightFront(bottomRightFront.x, max.y, bottomRightFront.z);
+    Vec3 topLeftFront(min.x, max.y, min.z);
 
-    DrawLine(vert0, vert1, color);
-    DrawLine(vert0, vert2, color);
-    DrawLine(vert0, vert7, color);
-    DrawLine(vert1, vert3, color);
-    DrawLine(vert1, vert5, color);
-    DrawLine(vert2, vert3, color);
-    DrawLine(vert2, vert6, color);
-    DrawLine(vert3, vert4, color);
-    DrawLine(vert4, vert5, color);
-    DrawLine(vert4, vert6, color);
-    DrawLine(vert5, vert7, color);
-    DrawLine(vert6, vert7, color);
+    //Draw quads for the front and back faces
+    DrawQuad(bottomLeftFront, topLeftFront, topRightFront, bottomRightFront, color);
+    DrawQuad(bottomLeftBack, topLeftBack, topRightBack, bottomRightBack, color);
+
+    //Draw lines connecting the two faces
+    DrawLine(bottomLeftFront, bottomLeftBack, color);
+    DrawLine(topLeftFront, topLeftBack, color);
+    DrawLine(topRightFront, topRightBack, color);
+    DrawLine(bottomRightFront, bottomRightBack, color);
+
+    primitiveBufferNeedsUpdate_ = true;
+}
+
+void Scene::DrawQuadSolid(const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec3& color)
+{
+    //First triangle
+    triangleListVertices_.push_back({ bottomLeft, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    triangleListVertices_.push_back({ topLeft, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    triangleListVertices_.push_back({ topRight, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+
+    //Second triangle
+    triangleListVertices_.push_back({ topRight, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    triangleListVertices_.push_back({ bottomRight, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    triangleListVertices_.push_back({ bottomLeft, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+
+    primitiveBufferNeedsUpdate_ = true;
+}
+
+void Scene::DrawBoxSolid(const Vec3& min, const Vec3& max, const Vec3& color)
+{
+    Vec3 size = max - min;
+    Vec3 bottomLeftFront = min;
+    Vec3 bottomLeftBack = min + Vec3(size.x, 0.0f, 0.0f);
+    Vec3 bottomRightFront = min + Vec3(0.0f, 0.0f, size.z);
+    Vec3 bottomRightBack = min + Vec3(size.x, 0.0f, size.z);
+
+    Vec3 topRightBack = max;
+    Vec3 topLeftBack(bottomLeftBack.x, max.y, bottomLeftBack.z);
+    Vec3 topRightFront(bottomRightFront.x, max.y, bottomRightFront.z);
+    Vec3 topLeftFront(min.x, max.y, min.z);
+
+    //Draw quads for each face
+    DrawQuadSolid(bottomLeftFront, topLeftFront, topRightFront, bottomRightFront, color);     //Front
+    DrawQuadSolid(bottomLeftBack, topLeftBack, topRightBack, bottomRightBack, color);         //Back
+    DrawQuadSolid(bottomLeftBack, topLeftBack, topLeftFront, bottomLeftFront, color);         //Left
+    DrawQuadSolid(bottomRightFront, topRightFront, topRightBack, bottomRightBack, color);     //Right
+    DrawQuadSolid(topLeftFront, topLeftBack, topRightBack, topRightFront, color);             //Top
+    DrawQuadSolid(bottomLeftFront, bottomLeftBack, bottomRightBack, bottomRightFront, color); //Bottom
+
+    primitiveBufferNeedsUpdate_ = true;
+}
+
+void Scene::DrawQuadLit(const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec3& normal, const Vec3& color)
+{
+    //First triangle
+    litTriangleListVertices_.push_back({ bottomLeft, normal, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    litTriangleListVertices_.push_back({ topLeft, normal, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    litTriangleListVertices_.push_back({ topRight, normal, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+
+    //Second triangle
+    litTriangleListVertices_.push_back({ topRight, normal, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    litTriangleListVertices_.push_back({ bottomRight, normal, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+    litTriangleListVertices_.push_back({ bottomLeft, normal, (u8)(color.x * 255), (u8)(color.y * 255), (u8)(color.z * 255) });
+
+    primitiveBufferNeedsUpdate_ = true;
+}
+
+void Scene::DrawBoxLit(const Vec3& min, const Vec3& max, const Vec3& color)
+{
+    Vec3 size = max - min;
+    Vec3 bottomLeftFront = min;
+    Vec3 bottomLeftBack = min + Vec3(size.x, 0.0f, 0.0f);
+    Vec3 bottomRightFront = min + Vec3(0.0f, 0.0f, size.z);
+    Vec3 bottomRightBack = min + Vec3(size.x, 0.0f, size.z);
+
+    Vec3 topRightBack = max;
+    Vec3 topLeftBack(bottomLeftBack.x, max.y, bottomLeftBack.z);
+    Vec3 topRightFront(bottomRightFront.x, max.y, bottomRightFront.z);
+    Vec3 topLeftFront(min.x, max.y, min.z);
+
+    //Draw quads for each face
+    DrawQuadLit(bottomLeftFront, topLeftFront, topRightFront, bottomRightFront, { -1.0f, 0.0f, 0.0f }, color);     //Front
+    DrawQuadLit(bottomLeftBack, topLeftBack, topRightBack, bottomRightBack, { 1.0f, 0.0f, 0.0f }, color);          //Back
+    DrawQuadLit(bottomLeftBack, topLeftBack, topLeftFront, bottomLeftFront, { 0.0f, 0.0f, -1.0f }, color);         //Left
+    DrawQuadLit(bottomRightFront, topRightFront, topRightBack, bottomRightBack, { 0.0f, 0.0f, 1.0f }, color);      //Right
+    DrawQuadLit(topLeftFront, topLeftBack, topRightBack, topRightFront, { 0.0f, 1.0f, 0.0f }, color);              //Top
+    DrawQuadLit(bottomLeftFront, bottomLeftBack, bottomRightBack, bottomRightFront, { 0.0f, -1.0f, 0.0f }, color); //Bottom
 
     primitiveBufferNeedsUpdate_ = true;
 }
@@ -253,6 +394,8 @@ void Scene::ResetPrimitives()
 {
     primitiveBufferNeedsUpdate_ = true;
     lineVertices_.clear();
+    triangleListVertices_.clear();
+    litTriangleListVertices_.clear();
 }
 
 Handle<RenderObject> Scene::CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position)

@@ -37,6 +37,7 @@ struct ZoneObjectClass
     bool Show = true;
     bool ShowLabel = false;
     const char* LabelIcon = "";
+    bool DrawSolid = false; //If true bounding boxes are drawn fully solid instead of wireframe
 };
 
 constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;

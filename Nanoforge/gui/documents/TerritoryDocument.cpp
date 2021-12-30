@@ -509,12 +509,19 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                 lineEnd.y += 300.0f;
 
                 //Draw object bounding box and line from it's bottom into the sky
-                Scene->DrawBox(object.Bmin, object.Bmax, color);
+                if (objectClass.DrawSolid)
+                    Scene->DrawBoxLit(object.Bmin, object.Bmax, color);
+                else
+                    Scene->DrawBox(object.Bmin, object.Bmax, color);
+
                 Scene->DrawLine(lineStart, lineEnd, color);
             }
             else //If not selected just draw bounding box with static color
             {
-                Scene->DrawBox(object.Bmin, object.Bmax, objectClass.Color);
+                if (objectClass.DrawSolid)
+                    Scene->DrawBoxLit(object.Bmin, object.Bmax, objectClass.Color);
+                else
+                    Scene->DrawBox(object.Bmin, object.Bmax, objectClass.Color);
             }
         }
     }

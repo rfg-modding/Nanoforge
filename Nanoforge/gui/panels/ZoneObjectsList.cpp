@@ -63,12 +63,15 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
             if (ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true))
             {
-                ImGui::Text(" " ICON_FA_EYE);
-                gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
+                ImGui::Text(" " ICON_FA_EYE "     " ICON_FA_BOX);
+                gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class. The second checkbox toggles between wireframe and solid bounding boxes.", nullptr);
 
                 for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
                 {
                     if (ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show))
+                        state->CurrentTerritoryUpdateDebugDraw = true;
+                    ImGui::SameLine();
+                    if (ImGui::Checkbox((string("##solidBB") + objectClass.Name).c_str(), &objectClass.DrawSolid))
                         state->CurrentTerritoryUpdateDebugDraw = true;
 
                     ImGui::SameLine();

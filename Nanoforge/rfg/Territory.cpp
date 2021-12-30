@@ -658,7 +658,7 @@ void Territory::InitObjectClassData()
 {
     ZoneObjectClasses =
     {
-        {"rfg_mover",                      2898847573, 0, Vec3{ 0.923f, 0.648f, 0.0f }, true ,   false, ICON_FA_HOME " "},
+        {"rfg_mover",                      2898847573, 0, Vec3{ 0.819f, 0.819f, 0.819f }, true ,   false, ICON_FA_HOME " ", true },
         {"cover_node",                     3322951465, 0, Vec3{ 1.0f, 0.0f, 0.0f },     false,   false, ICON_FA_SHIELD_ALT " "},
         {"navpoint",                       4055578105, 0, Vec3{ 1.0f, 0.968f, 0.0f },   false,   false, ICON_FA_LOCATION_ARROW " "},
         {"general_mover",                  1435016567, 0, Vec3{ 0.738f, 0.0f, 0.0f },   true ,   false, ICON_FA_CUBES  " "},

@@ -142,7 +142,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     finalNormal = normalize(finalNormal);
 
     //Sun direction for diffuse lighting
-    float3 sunDir = float3(0.0f, -1.0f, -1.0f);
+    float3 sunDir = float3(0.3f, -1.0f, -1.0f);
 
     //Ambient
     float ambientIntensity = 0.1f;
