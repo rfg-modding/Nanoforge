@@ -187,15 +187,20 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
     else if (missionInfo)
         name = missionInfo->Data;
 
-    if (name != "")
-        name = " |   " + name;
-
     //Store selected object in global gui state for debug draw in TerritoryDocument.cpp, ~line 290
     if (object.Selected)
         state->ZoneObjectList_SelectedObject = object.Self;
 
+    //Determine best object name
+    string objectLabel = objectClass.LabelIcon;
+    if (name != "")
+        objectLabel += name; //Use custom name if available
+    else
+        objectLabel += object.Self->Classname; //Otherwise use object type name (e.g. rfg_mover, navpoint, obj_light, etc)
+
     //Draw node
-    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(objectIndex_)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+    ImGui::PushID((u64)&object); //Push unique ID for the UI element
+    if (ImGui::TreeNodeEx(objectLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
         (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
     {
         //Update selection state
@@ -205,12 +210,6 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
             state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
         }
 
-        if (name != "")
-        {
-            ImGui::SameLine();
-            ImGui::TextColored(gui::SecondaryTextColor, name);
-        }
-
         //Draw child nodes
         for (auto& childObject : object.Children)
         {
@@ -218,14 +217,7 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
         }
         ImGui::TreePop();
     }
-    else
-    {
-        if (name != "")
-        {
-            ImGui::SameLine();
-            ImGui::TextColored(gui::SecondaryTextColor, name);
-        }
-    }
+    ImGui::PopID();
 }
 
 bool ZoneObjectsList::ZoneAnyChildObjectsVisible(GuiState* state, ZoneData& zone)
