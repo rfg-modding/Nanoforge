@@ -23,4 +23,6 @@ private:
 
     string searchTerm_ = "";
     u32 objectIndex_ = 0;
+    //If true zones outside the territory viewing distance are hidden. Configurable via the buttons in the top left of the territory viewer.
+    bool onlyShowNearZones_ = true;
 };

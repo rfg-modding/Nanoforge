@@ -21,7 +21,7 @@ ZoneObjectsList::~ZoneObjectsList()
 void ZoneObjectsList::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin("Zone objects", open))
+    if (!ImGui::Begin(ICON_FA_BOXES " Zone objects", open))
     {
         ImGui::End();
         return;
@@ -33,12 +33,7 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
     }
     else
     {
-        //Draw zone objects list
-        state->FontManager->FontL.Push();
-        ImGui::Text(ICON_FA_BOXES " Zone objects");
-        state->FontManager->FontL.Pop();
-        ImGui::Separator();
-
+        //Zone object filters
         if (ImGui::CollapsingHeader(ICON_FA_FILTER " Filters##CollapsingHeader"))
         {
             if (ImGui::Button("Show all types"))
@@ -58,9 +53,10 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
                 }
                 state->CurrentTerritoryUpdateDebugDraw = true;
             }
+            ImGui::Checkbox("Hide distant objects", &onlyShowNearZones_);
+            gui::HelpMarker("If checked then objects outside of the viewing range are hidden. The viewing range is configurable through the buttons in the top left corner of the map viewer.", ImGui::GetIO().FontDefault);
 
             //Draw object filters sub-window
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
             if (ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true))
             {
                 ImGui::Text(" " ICON_FA_EYE "     " ICON_FA_BOX);
@@ -86,7 +82,6 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
                 }
                 ImGui::EndChild();
             }
-            ImGui::PopStyleColor();
             ImGui::Separator();
         }
 
@@ -96,20 +91,20 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
         {
             //Todo: Separate node structure from ZoneObject36 class. This should really be independent of the format since it's only relevant to Nanoforge
             //Draw each node
-
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
             if (state->CurrentTerritory->Ready())
             {
                 //Loop through visible zones
                 for (auto& zone : state->CurrentTerritory->ZoneFiles)
                 {
-                    if (!zone.RenderBoundingBoxes)
+                    if (onlyShowNearZones_ && !zone.RenderBoundingBoxes)
                         continue;
 
                     //Close zone node if none of it's child objects a visible (based on object type filters)
                     bool anyChildrenVisible = ZoneAnyChildObjectsVisible(state, zone);
+                    bool visible = onlyShowNearZones_ ? anyChildrenVisible : true;
                     if (ImGui::TreeNodeEx(zone.Name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
-                        (!anyChildrenVisible ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)))
+                        (!visible ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)))
                     {
                         for (auto& object : zone.Zone.ObjectsHierarchical)
                         {
@@ -136,7 +131,9 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
 void ZoneObjectsList::DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
 {
     //Don't show node if it and it's children object types are being hidden
-    if (!ShowObjectOrChildren(state, object))
+    bool showObjectOrChildren = ShowObjectOrChildren(state, object);
+    bool visible = onlyShowNearZones_ ? ShowObjectOrChildren(state, object) : true;
+    if (!visible)
         return;
 
     auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);

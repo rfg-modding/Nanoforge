@@ -40,5 +40,8 @@ private:
     u32 numTerrainInstances_ = 0;
     bool useHighLodTerrain_ = true;
 
+    //Zone object visibility range
+    f32 zoneObjDistance_ = 1200.0f;
+
     GuiState* state_ = nullptr;
 };

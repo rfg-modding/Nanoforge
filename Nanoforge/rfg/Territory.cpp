@@ -12,6 +12,7 @@
 #include "gui/documents/PegHelpers.h"
 #include "rfg/TextureIndex.h"
 #include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
+#include <RfgTools++\formats\zones\properties\compound\OpProperty.h>
 #include <synchapi.h> //For Sleep()
 #include <ranges>
 #include <RfgTools++/formats/packfiles/Packfile3.h>
@@ -132,9 +133,9 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
             zoneFile.Zone.GenerateObjectHierarchy();
             zoneFile.MissionLayer = true;
             zoneFile.ActivityLayer = false;
-            SetZoneShortName(zoneFile);
             if (String::StartsWith(zoneFile.Name, "p_"))
                 zoneFile.Persistent = true;
+            SetZoneShortName(zoneFile);
         }
     }
 
@@ -156,9 +157,9 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
             zoneFile.Zone.GenerateObjectHierarchy();
             zoneFile.MissionLayer = false;
             zoneFile.ActivityLayer = true;
-            SetZoneShortName(zoneFile);
             if (String::StartsWith(zoneFile.Name, "p_"))
                 zoneFile.Persistent = true;
+            SetZoneShortName(zoneFile);
         }
     }
 
@@ -180,17 +181,9 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     //Get zone name with most characters for UI purposes
     u32 longest = 0;
     for (auto& zone : ZoneFiles)
-    {
         if (zone.ShortName.length() > longest)
             longest = (u32)zone.ShortName.length();
-    }
     LongestZoneName = longest;
-
-    //Draw bounding boxes for zone with the most objects
-    if (ZoneFiles.size() > 0 && ZoneFiles[0].Zone.Objects.size() > 0)
-    {
-        ZoneFiles[0].RenderBoundingBoxes = true;
-    }
 
     //Init object class data used for filtering and labelling
     EarlyStopCheck();
@@ -228,9 +221,35 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         zoneFile.Zone.SetName(zoneFile.Name);
         zoneFile.Zone.Read(reader);
         zoneFile.Zone.GenerateObjectHierarchy();
-        SetZoneShortName(zoneFile);
         if (String::StartsWith(zoneFile.Name, "p_"))
             zoneFile.Persistent = true;
+        SetZoneShortName(zoneFile);
+
+        //Determine zone position
+        ZoneObject36* objZone = zoneFile.Zone.GetSingleObject("obj_zone");
+        if (objZone)
+        {
+            //Use obj_zone position if available. They're always at the center of the zone
+            OpProperty* op = objZone->GetProperty<OpProperty>("op");
+            zoneFile.Position = op->Position;
+        }
+        else
+        {
+            //Otherwise take the average of all object positions
+            Vec3 averagePosition;
+            size_t numPositions = 0;
+            for (ZoneObject36& obj : zoneFile.Zone.Objects)
+            {
+                OpProperty* op = obj.GetProperty<OpProperty>("op");
+                if (op)
+                {
+                    averagePosition += op->Position;
+                    numPositions++;
+                }
+            }
+
+            zoneFile.Position = averagePosition / (f32)numPositions;
+        }
     }
 
     //Check if the zone has terrain by looking for an obj_zone object with terrain_file_name property

@@ -612,9 +612,9 @@ void MainGui::DrawDockspace()
         ImGui::DockBuilderDockWindow("Start page", dockspaceCentralNodeId);
         ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
         ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
-        ImGui::DockBuilderDockWindow("Zones", dockLeftId);
-        ImGui::DockBuilderDockWindow("Zone objects", dockLeftBottomId);
-        ImGui::DockBuilderDockWindow("Properties", dockRightId);
+        ImGui::DockBuilderDockWindow(ICON_FA_MAP " Zones", dockLeftId);
+        ImGui::DockBuilderDockWindow(ICON_FA_BOXES " Zone objects", dockLeftBottomId);
+        ImGui::DockBuilderDockWindow(ICON_FA_WRENCH " Properties", dockRightId);
         ImGui::DockBuilderDockWindow("Render settings", dockRightId);
         ImGui::DockBuilderDockWindow("Scriptx viewer", dockspaceCentralNodeId);
         ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);

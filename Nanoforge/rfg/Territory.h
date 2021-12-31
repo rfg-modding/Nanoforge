@@ -24,6 +24,7 @@ struct ZoneData
     bool Persistent = false;
     bool MissionLayer = false; //If true the zone is from a mission layer file
     bool ActivityLayer = false; //If true the zone is from a activity layer file
+    Vec3 Position; //Position of the obj_zone object (typically at the center). If not present this is the average of all objects
 };
 
 //Used by Territory to filter objects list by class type

@@ -228,9 +228,10 @@ void Scene::InitPrimitiveState()
     DxCheck(d3d11Device_->CreateRasterizerState(&rasterizerDesc, primitiveRasterizerState_.GetAddressOf()), "Primitive rasterizer state creation failed!");
 
     //Create primitive vertex buffers
-    lineVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertex) * 100, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-    triangleListVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertex) * 100, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-    litTriangleListVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertexLit) * 100, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+    u32 initialPrimitiveVertices = 250000; //Initial size of primitive buffers. Made fairly large to reduce the need for resizes at runtime. They cause lag when large enough.
+    lineVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertex) * initialPrimitiveVertices, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+    triangleListVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertex) * initialPrimitiveVertices, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+    litTriangleListVertexBuffer_.Create(d3d11Device_, sizeof(ColoredVertexLit) * initialPrimitiveVertices, D3D11_BIND_VERTEX_BUFFER, nullptr, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 
     linelistMaterial_ = Render::GetMaterial("Linelist");
     if (!linelistMaterial_)

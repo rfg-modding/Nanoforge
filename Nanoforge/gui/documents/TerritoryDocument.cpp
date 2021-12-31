@@ -285,6 +285,10 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
             }
         }
 
+        ImGui::SliderFloat("Zone object distance", &zoneObjDistance_, 0.0f, 10000.0f);
+        ImGui::SameLine();
+        gui::HelpMarker("Zone object bounding boxes and meshes aren't drawn beyond this distance from the camera.", ImGui::GetIO().FontDefault);
+
         ImGui::EndPopup();
     }
 
@@ -464,6 +468,18 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
 {
     //Reset primitives first to ensure old primitives get cleared
     Scene->ResetPrimitives();
+
+    //Update zone visibility based on distance from camera
+    for (ZoneData& zone : Territory.ZoneFiles)
+    {
+        if (zone.ActivityLayer || zone.MissionLayer)
+            continue; //Activity and mission visibility is manually controlled
+
+        Vec2 subzonePos = zone.Position.XZ();
+        Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
+        f32 distanceFromCamera = subzonePos.Distance(cameraPos);
+        zone.RenderBoundingBoxes = (distanceFromCamera <= zoneObjDistance_);
+    }
 
     //Draw bounding boxes
     for (const auto& zone : Territory.ZoneFiles)
