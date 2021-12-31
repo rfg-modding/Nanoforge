@@ -187,6 +187,10 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
     WorkerPercentage = 0.0f;
     PackagingCancelled = false;
 
+    //Ensure custom path ends with '\' or '/' so filesystem functions treat it as a folder
+    if (!String::EndsWith(CustomOutputPath, "\\") && !String::EndsWith(CustomOutputPath, "/"))
+        CustomOutputPath += "\\";
+
     //Stop early if the cancel button was pressed
 #define ThreadEarlyStopCheck() if (PackagingCancelled) { WorkerRunning = false; return; }
 
@@ -357,7 +361,7 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
     //Copy mod to custom output folder if that option is enabled
     if (UseCustomOutputPath)
     {
-        std::filesystem::copy(outputPath, CustomOutputPath);
+        std::filesystem::copy(outputPath, CustomOutputPath, std::filesystem::copy_options::overwrite_existing);
     }
 
     WorkerPercentage = 1.0f;
