@@ -1,6 +1,7 @@
 #include "StatusBar.h"
 #include "gui/GuiState.h"
 #include "util/TaskScheduler.h"
+#include "render/imgui/imgui_ext.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include <stdexcept>
 
@@ -112,13 +113,13 @@ void StatusBar::Update(GuiState* state, bool* open)
                 if (!task)
                     continue;
 
-                //Draw simple spinner
+                //Task spinner showing that it's in progress
                 ImVec2 cursorPos = ImGui::GetCursorPos();
-                ImGui::Text("%c", "|/-\\"[(int)(ImGui::GetTime() / 0.1f) & 3]);
+                ImGui::Spinner("", 7.0f, 3.0f, gui::SecondaryTextColor);
                 ImGui::SameLine();
 
-                //Draw task name. X pos is adjusted manually so it doesn't constantly move as the spinner size changes
-                ImGui::SetCursorPosX(cursorPos.x + 10.0f);
+                //Draw task name to the right of the spinner
+                ImGui::SetCursorPosX(cursorPos.x + 20.0f);
                 ImGui::Text(task->Name.c_str());
             }
         }

@@ -18,4 +18,10 @@ namespace ImGui
 
     IMGUI_API void OpenPopup(std::string str_id);
     IMGUI_API bool BeginPopupModal(std::string name, bool* p_open = nullptr, ImGuiWindowFlags flags = 0);
+
+    //Blue spinner. From: https://github.com/ocornut/imgui/issues/1901
+    IMGUI_API bool Spinner(const char* label, float radius, int thickness, const ImVec4& color);
+
+    //Progress bar with animated circles on the right side. From: https://github.com/ocornut/imgui/issues/1901
+    IMGUI_API bool BufferingBar(const char* label, float value, const ImVec2& size_arg, const ImVec4& bg_col, const ImVec4& fg_col);
 }
