@@ -70,6 +70,13 @@ void FileExplorer::Update(GuiState* state, bool* open)
         return;
     }
 
+    //Set custom file highlight colors
+    ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
+    ImVec4 highlightColor = { selectedColor.x * 1.1f, selectedColor.y * 1.1f, selectedColor.z * 1.1f, 1.0f };
+    ImGui::PushStyleColor(ImGuiCol_Header, selectedColor);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, highlightColor);
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, highlightColor);
+
     //Draw nodes
     if (ImGui::BeginChild("FileExplorerList"))
     {
@@ -82,6 +89,7 @@ void FileExplorer::Update(GuiState* state, bool* open)
         ImGui::PopStyleVar();
         ImGui::EndChild();
     }
+    ImGui::PopStyleColor(3);
 
     ImGui::End();
 }
@@ -258,7 +266,7 @@ void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
     if (!node.MatchesSearchTerm && !node.AnyChildNodeMatchesSearchTerm)
         return;
 
-    //Draw node texxt
+    //Draw node text
     f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
     node.Open = ImGui::TreeNodeEx(node.Text.c_str(),
         //Make full node width clickable
