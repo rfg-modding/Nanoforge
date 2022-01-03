@@ -85,26 +85,39 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
             ImGui::Separator();
         }
 
-        //Draw object list
-        objectIndex_ = 0;
-        if (ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true))
+        //Zone object table
+        if (state->CurrentTerritory->Ready())
         {
-            //Todo: Separate node structure from ZoneObject36 class. This should really be independent of the format since it's only relevant to Nanoforge
-            //Draw each node
-            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
-            if (state->CurrentTerritory->Ready())
+            //Set custom highlight colors for the table
+            ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
+            ImVec4 highlightColor = { selectedColor.x * 1.1f, selectedColor.y * 1.1f, selectedColor.z * 1.1f, 1.0f };
+            ImGui::PushStyleColor(ImGuiCol_Header, selectedColor);
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, highlightColor);
+            ImGui::PushStyleColor(ImGuiCol_HeaderActive, highlightColor);
+
+            //Draw table
+            ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter |
+                ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
+                ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingFixedFit;
+            if (ImGui::BeginTable("ZoneObjectTable", 1, flags))
             {
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableHeadersRow();
+
                 //Loop through visible zones
                 for (auto& zone : state->CurrentTerritory->ZoneFiles)
                 {
                     if (onlyShowNearZones_ && !zone.RenderBoundingBoxes)
                         continue;
 
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
                     //Close zone node if none of it's child objects a visible (based on object type filters)
                     bool anyChildrenVisible = ZoneAnyChildObjectsVisible(state, zone);
                     bool visible = onlyShowNearZones_ ? anyChildrenVisible : true;
-                    if (ImGui::TreeNodeEx(zone.Name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
-                        (!visible ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)))
+                    if (ImGui::TreeNodeEx(zone.Name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | (visible ? 0 : ImGuiTreeNodeFlags_Leaf)))
                     {
                         for (auto& object : zone.Zone.ObjectsHierarchical)
                         {
@@ -114,14 +127,14 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
                     }
 
                 }
-            }
-            else
-            {
-                ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Loading zones...");
-            }
 
-            ImGui::PopStyleVar();
-            ImGui::EndChild();
+                ImGui::PopStyleColor(3);
+                ImGui::EndTable();
+            }
+        }
+        else
+        {
+            ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Loading zones...");
         }
     }
 
@@ -139,7 +152,6 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
     auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
 
     //Update node index and selection state
-    objectIndex_++; //Incremented for each node so they all have a unique id within dear imgui
     object.Selected = &object == state->SelectedObject;
 
     //Attempt to find a human friendly name for the object
@@ -192,25 +204,38 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
         state->ZoneObjectList_SelectedObject = object.Self;
 
     //Determine best object name
-    string objectLabel = objectClass.LabelIcon;
+    string objectLabel = "      "; //Empty space for node icon
     if (name != "")
         objectLabel += name; //Use custom name if available
     else
         objectLabel += object.Self->Classname; //Otherwise use object type name (e.g. rfg_mover, navpoint, obj_light, etc)
 
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+
     //Draw node
     ImGui::PushID((u64)&object); //Push unique ID for the UI element
-    if (ImGui::TreeNodeEx(objectLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
-        (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
-    {
-        //Update selection state
-        if (ImGui::IsItemClicked())
-        {
-            state->SetSelectedZoneObject(&object);
-            state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
-        }
+    f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
+    bool nodeOpen = ImGui::TreeNodeEx(objectLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+        (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : 0) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0));
 
-        //Draw child nodes
+    //Update selection state
+    if (ImGui::IsItemClicked())
+    {
+        state->SetSelectedZoneObject(&object);
+        state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
+    }
+
+    //Draw node icon
+    ImGui::PushStyleColor(ImGuiCol_Text, { objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f });
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(nodeXPos + 22.0f);
+    ImGui::Text(objectClass.LabelIcon);
+    ImGui::PopStyleColor();
+
+    //Draw child nodes
+    if (nodeOpen)
+    {
         for (auto& childObject : object.Children)
         {
             DrawObjectNode(state, childObject);

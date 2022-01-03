@@ -92,6 +92,7 @@ void PropertyPanel_ZoneObject(GuiState* state)
         ZoneObjectNode36& selected = *state->SelectedObject;
         gui::LabelAndValue("Handle:", std::to_string(selected.Self->Handle));
         gui::LabelAndValue("Num:", std::to_string(selected.Self->Num));
+        gui::LabelAndValue("Flags:", std::to_string(selected.Self->Flags));
         if (ImGui::Button("Copy scriptx ref to clipboard"))
         {
             ImGui::LogToClipboard();
