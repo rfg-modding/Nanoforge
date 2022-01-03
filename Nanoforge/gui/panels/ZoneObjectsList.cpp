@@ -99,10 +99,13 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
             ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter |
                 ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
                 ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingFixedFit;
-            if (ImGui::BeginTable("ZoneObjectTable", 1, flags))
+            if (ImGui::BeginTable("ZoneObjectTable", 4, flags))
             {
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Flags");
+                ImGui::TableSetupColumn("Num");
+                ImGui::TableSetupColumn("Handle");
                 ImGui::TableHeadersRow();
 
                 //Loop through visible zones
@@ -232,6 +235,18 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
     ImGui::SetCursorPosX(nodeXPos + 22.0f);
     ImGui::Text(objectClass.LabelIcon);
     ImGui::PopStyleColor();
+
+    //Flags
+    ImGui::TableNextColumn();
+    ImGui::Text(std::to_string(object.Self->Flags));
+
+    //Num
+    ImGui::TableNextColumn();
+    ImGui::Text(std::to_string(object.Self->Num));
+
+    //Handle
+    ImGui::TableNextColumn();
+    ImGui::Text(std::to_string(object.Self->Handle));
 
     //Draw child nodes
     if (nodeOpen)
