@@ -11,7 +11,7 @@ Registry& Registry::Get()
 ObjectHandle Registry::CreateObject(std::string_view objectName, std::string_view typeName)
 {
     const u64 uid = _nextUID++;
-    _objects[uid] = { objectName, uid };
+    _objects[uid] = Object(objectName, uid);
     ObjectHandle handle = { &_objects[uid] };
     if (typeName != "")
         handle.GetOrCreateProperty("Type").Set(string(typeName));

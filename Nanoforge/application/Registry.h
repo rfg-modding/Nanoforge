@@ -16,8 +16,8 @@ class PropertyHandle;
 class ObjectHandle;
 
 //Value storage for Property
-using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, void*>;
-static const u64 InvalidUID = std::numeric_limits<u64>::max();
+using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, void*, std::vector<ObjectHandle>>;
+static const u64 NullUID = std::numeric_limits<u64>::max();
 
 //Global data registry. Contains objects which consist of properties.
 //The object format focuses on ease of editing instead of performance. Tracks edits for undo/redo.
@@ -59,9 +59,12 @@ public:
     u64 ParentUID;
     std::vector<Property> Properties;
     std::vector<u64> SubObjects;
+    //Locked when editing properties. Temporary bandaid. The current design is going to be tested on the map editor first.
+    //Afterwards a better solution for thread safety and any other major design flaws found will be fixed.
+    std::unique_ptr<std::mutex> Mutex = std::make_unique<std::mutex>();
 
     Object() { }
-    Object(std::string_view name, u64 uid, u64 parentUID = InvalidUID) : Name(name), UID(uid), ParentUID(parentUID)
+    Object(std::string_view name, u64 uid, u64 parentUID = NullUID) : Name(name), UID(uid), ParentUID(parentUID)
     {
 
     }
@@ -72,11 +75,10 @@ class PropertyHandle
 {
 public:
     PropertyHandle(Object* object, u32 index) : _object(object), _index(index) { }
-    bool Valid() const { return _object && _object->UID != InvalidUID; }
-    //Allows checking handle validity ith if statements. E.g. if (handle) { /*valid*/ } else { /*invalid*/ }
+    bool Valid() const { return _object && _object->UID != NullUID; }
+    //Allows checking handle validity with if statements. E.g. if (handle) { /*valid*/ } else { /*invalid*/ }
     explicit operator bool() const { return Valid(); }
 
-    //TODO: Implement Get/Set for buffers
     template<typename T>
     T Get()
     {
@@ -88,11 +90,13 @@ public:
             std::is_same<T, u8>() ||
             std::is_same<T, f32>() ||
             std::is_same<T, bool>() ||
-            std::is_same<T, string>(), "Unsupported type used by Property::Get<T>()");
+            std::is_same<T, string>() ||
+            std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by Property::Get<T>()");
 
         if (!_object)
             THROW_EXCEPTION("Called ::Get() on and invalid property handle!");
 
+        std::lock_guard<std::mutex> lock(*_object->Mutex.get());
         Property& prop = _object->Properties[_index];
         return std::get<T>(prop.Value);
     }
@@ -108,13 +112,27 @@ public:
             std::is_same<T, u8>() ||
             std::is_same<T, f32>() ||
             std::is_same<T, bool>() ||
-            std::is_same<T, string>(), "Unsupported type used by Property::Set<T>()");
+            std::is_same<T, string>() ||
+            std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by Property::Set<T>()");
 
         if (!_object)
             THROW_EXCEPTION("Called ::Set() on and invalid property handle!");
 
+        std::lock_guard<std::mutex> lock(*_object->Mutex.get());
         Property& prop = _object->Properties[_index];
         prop.Value = value;
+    }
+
+    //Special cases of Get<T>() and Set<T>() for object lists. For convenience to avoid using Get<std::vector<ObjectHandle>>()
+    std::vector<ObjectHandle>& GetObjectList()
+    {
+        Property& prop = _object->Properties[_index];
+        return std::get<std::vector<ObjectHandle>>(prop.Value);
+    }
+    void SetObjectList(const std::vector<ObjectHandle>& newList = {})
+    {
+        Property& prop = _object->Properties[_index];
+        prop.Value = newList; //Replaces existing list
     }
 
 private:
@@ -130,9 +148,9 @@ public:
     {
 
     }
-    u64 UID() const { return _object ? _object->UID : InvalidUID; }
-    bool Valid() const { return _object && _object->UID != InvalidUID; }
-    //Allows checking handle validity ith if statements. E.g. if (handle) { /*valid*/ } else { /*invalid*/ }
+    u64 UID() const { return _object ? _object->UID : NullUID; }
+    bool Valid() const { return _object && _object->UID != NullUID; }
+    //Allows checking handle validity with if statements. E.g. if (handle) { /*valid*/ } else { /*invalid*/ }
     explicit operator bool() const { return Valid(); }
 
     //Todo: Add functions for accessing and modifying object name/type/properties/sub-objects/etc
@@ -160,7 +178,29 @@ public:
         }
     }
 
+    std::vector<PropertyHandle> Properties()
+    {
+        std::vector<PropertyHandle> properties = {};
+        for (u32 i = 0; i < _object->Properties.size(); i++)
+            properties.emplace_back(_object, i);
+
+        return properties;
+    }
+
+    //Note: Option for manually locking the object mutex. PropertyHandle::Set()//::Get() already do this, but the functions related to object lists don't.
+    //The need for this will be removed in the rewrite that'll take place after testing this out on the map editor.
+    void Lock()
+    {
+        _object->Mutex->lock();
+    }
+    void Unlock()
+    {
+        _object->Mutex->unlock();
+    }
 
 private:
     Object* _object;
 };
+
+static const ObjectHandle NullObjectHandle = { nullptr };
+static const PropertyHandle NullPropertyHandle = { nullptr, std::numeric_limits<u32>::max() };

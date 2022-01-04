@@ -18,11 +18,7 @@ ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
     object.GetOrCreateProperty("Name").Set(asmFile.Name);
     object.GetOrCreateProperty("Signature").Set(asmFile.Signature);
     object.GetOrCreateProperty("Version").Set(asmFile.Version);
-    //object.GetOrCreateProperty("Containers").Set({});
-    //Todo: Somehow add a container list to the asmFile object. Ideas:
-    //          - Add a list and sub-object list property type. Could probably just be std::vector<u64> or something
-    //          - Add a list subobject, then add each container to that, like xml (seems a bit messy)
-    //          - Add each one as a subobject (bad if you wanted multiple lists in an object)
+    object.GetOrCreateProperty("Containers").SetObjectList();
 
     //Set containers
     for (AsmContainer& asmContainer : asmFile.Containers)
@@ -33,7 +29,10 @@ ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
         container.GetOrCreateProperty("Flags").Set((u16)asmContainer.Flags);
         container.GetOrCreateProperty("DataOffset").Set(asmContainer.DataOffset);
         container.GetOrCreateProperty("CompressedSize").Set(asmContainer.CompressedSize);
-        //container.GetOrCreateProperty("Primitives").Set({});
+        container.GetOrCreateProperty("Primitives").SetObjectList({});
+
+        //Add container asm files list
+        object.GetProperty("Containers").GetObjectList().push_back(container);
 
         //Set container primitives
         size_t i = 0;
@@ -50,6 +49,9 @@ ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
             primitive.GetOrCreateProperty("HeaderSize").Set(asmPrimitive.HeaderSize);
             primitive.GetOrCreateProperty("DataSize").Set(asmPrimitive.DataSize);
             i++;
+
+            //Add primitive to containers list
+            container.GetProperty("Primitives").GetObjectList().push_back(primitive);
         }
     }
 
@@ -96,6 +98,14 @@ void AsmDocument::Update(GuiState* state)
     ImGui::Text(fmt::format("{} {}", ICON_FA_DATABASE, Title.c_str()));
     state->FontManager->FontMedium.Pop();
     ImGui::Separator();
+
+    //Draw UI from asmfile registry object
+    {
+        for (PropertyHandle prop : _asmFileObject.Properties())
+        {
+
+        }
+    }
 
     //Header data
     ImGui::Indent(indent);

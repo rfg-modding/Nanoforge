@@ -24,6 +24,6 @@ private:
     bool inContainer_;
 
     AsmFile5* asmFile_ = nullptr;
-    ObjectHandle _asmFileObject = { nullptr };
+    ObjectHandle _asmFileObject = NullObjectHandle;
     string search_;
 };
