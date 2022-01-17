@@ -323,7 +323,7 @@ void StaticMeshDocument::DrawOverlayButtons(GuiState* state)
         //Output format radio selector
         ImGui::Text("Format: ");
         ImGui::SameLine();
-        ImGui::RadioButton("Obj", true);
+        ImGui::RadioButton("Gltf", true);
 
         static string MeshExportPath;
         ImGui::InputText("Export path", &MeshExportPath);
