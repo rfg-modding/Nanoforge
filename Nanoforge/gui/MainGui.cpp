@@ -555,6 +555,12 @@ void MainGui::DrawMainMenuBar()
         cursorPos.y -= 1.0f;
 #endif
 
+        //Draw Nanoforge version at the far right
+        f32 versionTextWidth = ImGui::CalcTextSize(BuildConfig::Version.c_str()).x;
+        f32 padding = 8.0f;
+        cursorPos = { ImGui::GetWindowWidth() - versionTextWidth - padding, 3.0f };
+        drawList->AddText(cursorPos, 0xF2F5FAFF, BuildConfig::Version.c_str(), BuildConfig::Version.c_str() + BuildConfig::Version.length());
+
         ImGui::EndMainMenuBar();
     }
 }
