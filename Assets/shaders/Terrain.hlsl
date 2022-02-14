@@ -1,4 +1,7 @@
 
+//Better texturing method with lower performance. Textures don't stretch on cliffs, but they must be sampled 3 times, making performance worse.
+#define UseTriplanarMapping true
+
 cbuffer cbPerObject
 {
     float4x4 WVP;
@@ -30,6 +33,7 @@ struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
     float4 ZonePos : POSITION0;
+    float3 PosWorld : POSITION1;
     float3 Normal : NORMAL0;
     float2 UvBase : TEXCOORD0;
     float2 Uv0 : TEXCOORD1;
@@ -85,6 +89,7 @@ VS_OUTPUT VS(int2 inPos : POSITION0, float4 inNormal : NORMAL0)
 
     //Calc texture UV relative to start of this map zone
     float3 posWorld = posFinal.xyz + WorldPosition.xyz;
+    output.PosWorld = posWorld;
     output.UvBase = posWorld.xz / 511.0f;
 
     //Adjustable per material scaling to reduce tiling
@@ -102,29 +107,20 @@ VS_OUTPUT VS(int2 inPos : POSITION0, float4 inNormal : NORMAL0)
     return output;
 }
 
-float4 PS(VS_OUTPUT input) : SV_TARGET
+float4 CalcTerrainColorOld(VS_OUTPUT input, float4 blendWeights)
 {
-    //Get weight of each texture from alpha00 texture
-    float4 blendWeights = Texture0.Sample(Sampler0, input.UvBase);
-
     //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps
     //Nanoforge uses it as a temporary way to get colors closer to the games colors
     float4 combColor = Texture1.Sample(Sampler1, input.UvBase);
     float combGamma = 0.45f;
     combColor = pow(combColor.xyzw, 1.0 / combGamma);
-    
+
     //Get data for terrain materials. 4 of them, each with their own diffuse and normal maps
     //Sample diffuse maps
     float4 color0 = Texture2.Sample(Sampler2, input.Uv0);
     float4 color1 = Texture4.Sample(Sampler4, input.Uv1);
     float4 color2 = Texture6.Sample(Sampler6, input.Uv2);
     float4 color3 = Texture8.Sample(Sampler8, input.Uv3);
-
-    //Sample normal maps
-    float4 normal0 = normalize(Texture3.Sample(Sampler3, input.Uv0) * 2 - 1);
-    float4 normal1 = normalize(Texture5.Sample(Sampler5, input.Uv1) * 2 - 1);
-    float4 normal2 = normalize(Texture7.Sample(Sampler7, input.Uv2) * 2 - 1);
-    float4 normal3 = normalize(Texture9.Sample(Sampler9, input.Uv3) * 2 - 1);
 
     //Calculate final diffuse color
     float4 finalColor = color0 + combColor;
@@ -133,6 +129,86 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     finalColor += color2 * blendWeights.y;
     finalColor += color3 * blendWeights.x;
 
+    return finalColor;
+}
+
+float4 CalcTerrainNormalOld(VS_OUTPUT input, float4 blendWeights)
+{
+    //Sample normal maps
+    float4 normal0 = normalize(Texture3.Sample(Sampler3, input.Uv0) * 2 - 1);
+    float4 normal1 = normalize(Texture5.Sample(Sampler5, input.Uv1) * 2 - 1);
+    float4 normal2 = normalize(Texture7.Sample(Sampler7, input.Uv2) * 2 - 1);
+    float4 normal3 = normalize(Texture9.Sample(Sampler9, input.Uv3) * 2 - 1);
+
+    //Calculate final normal
+    float4 finalNormal = float4(input.Normal, 1.0f);
+    finalNormal += normal3 * blendWeights.w;
+    finalNormal += normal1 * blendWeights.z;
+    finalNormal += normal2 * blendWeights.y;
+    finalNormal += normal3 * blendWeights.x;
+    finalNormal = normalize(finalNormal);
+
+    return finalNormal;
+}
+
+float4 TriplanarSample(VS_OUTPUT input, Texture2D tex, sampler texSampler, float3 blend, float2 uvScale)
+{
+    //Sample texture from 3 directions & blend the results
+    float4 xaxis = tex.Sample(texSampler, input.PosWorld.zy * uvScale);
+    float4 yaxis = tex.Sample(texSampler, input.PosWorld.xz * uvScale);
+    float4 zaxis = tex.Sample(texSampler, input.PosWorld.yx * uvScale);
+    float4 finalTex = xaxis * blend.x + yaxis * blend.y + zaxis * blend.z;
+    return finalTex;
+}
+
+//Per material scaling to reduce tiling. Only used by triplanar mapping functions. Otherwise the ones in the vertex shader are used.
+static float2 material0Scale = float2(0.25f, 0.25f);
+static float2 material1Scale = float2(0.25f, 0.25f);
+static float2 material2Scale = float2(0.1f, 0.1f);
+static float2 material3Scale = float2(0.1f, 0.1f);
+
+float4 CalcTerrainColorTriplanar(VS_OUTPUT input, float4 blendWeights)
+{
+    //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps
+    //Nanoforge uses it as a temporary way to get colors closer to the games colors
+    float4 combColor = Texture1.Sample(Sampler1, input.UvBase);
+    float combGamma = 0.45f;
+    combColor = pow(combColor.xyzw, 1.0 / combGamma);
+
+    //Calculate triplanar mapping blend
+    float3 blend = abs(input.Normal);
+    blend = normalize(max(blend, 0.00001)); //Force weights to sum to 1.0
+    blend /= (blend.x + blend.y + blend.z);
+
+    //Sample textures using triplanar mapping
+    float4 color0 = TriplanarSample(input, Texture2, Sampler2, blend, material0Scale);
+    float4 color1 = TriplanarSample(input, Texture4, Sampler4, blend, material1Scale);
+    float4 color2 = TriplanarSample(input, Texture6, Sampler6, blend, material2Scale);
+    float4 color3 = TriplanarSample(input, Texture8, Sampler8, blend, material3Scale);
+
+    //Calculate final diffuse color with blend weights
+    float4 finalColor = color0 + combColor;
+    finalColor += color3 * blendWeights.w;
+    finalColor += color1 * blendWeights.z;
+    finalColor += color2 * blendWeights.y;
+    finalColor += color3 * blendWeights.x;
+
+    return finalColor;
+}
+
+float4 CalcTerrainNormalTriplanar(VS_OUTPUT input, float4 blendWeights)
+{
+    //Calculate triplanar mapping blend
+    float3 blend = abs(input.Normal);
+    blend = normalize(max(blend, 0.00001)); //Force weights to sum to 1.0
+    blend /= (blend.x + blend.y + blend.z);
+
+    //Sample textures using triplanar mapping
+    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, blend, material0Scale) * 2.0 - 1.0);
+    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, blend, material1Scale) * 2.0 - 1.0);
+    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, blend, material2Scale) * 2.0 - 1.0);
+    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, blend, material3Scale) * 2.0 - 1.0);
+
     //Calculate final normal
     float4 finalNormal = float4(input.Normal, 1.0f) + normal0;
     finalNormal += normal3 * blendWeights.w;
@@ -140,6 +216,27 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     finalNormal += normal2 * blendWeights.y;
     finalNormal += normal3 * blendWeights.x;
     finalNormal = normalize(finalNormal);
+
+    return finalNormal;
+}
+
+float4 PS(VS_OUTPUT input) : SV_TARGET
+{
+    //Get weight of each texture from alpha00 texture
+    float4 blendWeights = Texture0.Sample(Sampler0, input.UvBase);
+    float4 finalColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    float4 finalNormal = float4(1.0f, 1.0f, 1.0f, 1.0f);
+
+    if (UseTriplanarMapping)
+    {
+        finalColor = CalcTerrainColorTriplanar(input, blendWeights);
+        finalNormal = CalcTerrainNormalTriplanar(input, blendWeights);
+    }
+    else
+    {
+        finalColor = CalcTerrainColorOld(input, blendWeights);
+        finalNormal = CalcTerrainNormalOld(input, blendWeights);
+    }
 
     //Sun direction for diffuse lighting
     float3 sunDir = float3(0.3f, -1.0f, -1.0f);
