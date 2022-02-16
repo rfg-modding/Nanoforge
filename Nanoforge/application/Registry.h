@@ -1,7 +1,9 @@
 #pragma once
 #include "common/Typedefs.h"
-#include "util/Hash.h"
+#include <RfgTools++/types/Vec3.h>
+#include <RfgTools++/types/Mat3.h>
 #include <unordered_map>
+#include "util/Hash.h"
 #include <stdexcept>
 #include <optional>
 #include <vector>
@@ -16,7 +18,7 @@ class PropertyHandle;
 class ObjectHandle;
 
 //Value storage for Property
-using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, void*, std::vector<ObjectHandle>>;
+using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, void*, std::vector<ObjectHandle>, Vec3, Mat3>;
 static const u64 NullUID = std::numeric_limits<u64>::max();
 
 //Global data registry. Contains objects which consist of properties.
@@ -37,6 +39,7 @@ private:
     //      They rely on the fact that pointers to std::unordered_map values are stable.
     std::unordered_map<u64, Object> _objects = {};
     u64 _nextUID = 0;
+    std::mutex _objectCreationLock;
 
     Object& GetObjectByUID(u64 uid);
 
@@ -91,6 +94,8 @@ public:
             std::is_same<T, f32>() ||
             std::is_same<T, bool>() ||
             std::is_same<T, string>() ||
+            std::is_same<T, Vec3>() ||
+            std::is_same<T, Mat3>() ||
             std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by Property::Get<T>()");
 
         if (!_object)
@@ -113,6 +118,8 @@ public:
             std::is_same<T, f32>() ||
             std::is_same<T, bool>() ||
             std::is_same<T, string>() ||
+            std::is_same<T, Vec3>() ||
+            std::is_same<T, Mat3>() ||
             std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by Property::Set<T>()");
 
         if (!_object)
@@ -166,15 +173,22 @@ public:
 
     PropertyHandle GetOrCreateProperty(std::string_view name)
     {
-        if (PropertyHandle handle = GetProperty(name); _object && handle)
+        if (_object)
         {
-            return handle;
+            if (PropertyHandle handle = GetProperty(name); handle)
+            {
+                return handle;
+            }
+            else
+            {
+                Property& prop = _object->Properties.emplace_back();
+                prop.Name = string(name);
+                return { _object, (u32)(_object->Properties.size() - 1) };
+            }
         }
         else
         {
-            Property& prop = _object->Properties.emplace_back();
-            prop.Name = name;
-            return { _object, (u32)(_object->Properties.size() - 1) };
+            THROW_EXCEPTION("Attempted to get property from a null object.");
         }
     }
 

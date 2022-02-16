@@ -2,9 +2,9 @@
 #include "common/Typedefs.h"
 #include "common/timing/Timer.h"
 #include "rfg/TerrainHelpers.h"
-#include <RfgTools++\formats\zones\ZonePc36.h>
 #include <RfgTools++\types\Vec3.h>
 #include "render/resources/Texture2D.h"
+#include "application/Registry.h"
 #include <unordered_map>
 #include <mutex>
 
@@ -13,37 +13,9 @@ class Scene;
 class TextureIndex;
 class PackfileVFS;
 class Packfile3;
-
-//Wrapper around ZonePc36 used by Territory
-struct ZoneData
-{
-    string Name;
-    string ShortName;
-    ZonePc36 Zone;
-    bool RenderBoundingBoxes = false;
-    bool Persistent = false;
-    bool MissionLayer = false; //If true the zone is from a mission layer file
-    bool ActivityLayer = false; //If true the zone is from a activity layer file
-    Vec3 Position; //Position of the obj_zone object (typically at the center). If not present this is the average of all objects
-};
-
-//Used by Territory to filter objects list by class type
-struct ZoneObjectClass
-{
-    string Name;
-    u32 Hash = 0;
-    u32 NumInstances = 0;
-    //Todo: This is mixing ui logic with data. I'd like to separate this stuff out of Territory if possible
-    Vec3 Color = { 1.0f, 1.0f, 1.0f };
-    bool Show = true;
-    bool ShowLabel = false;
-    const char* LabelIcon = "";
-    bool DrawSolid = false; //If true bounding boxes are drawn fully solid instead of wireframe
-};
-
-constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
-
 class GuiState;
+struct ZoneObjectClass;
+constexpr u32 InvalidZoneIndex = 0xFFFFFFFF;
 
 //Loads all zone files for a territory and tracks info about them and their contents
 class Territory
@@ -63,7 +35,7 @@ public:
     void InitObjectClassData(); //Initialize object class data. Used for identification and filtering.
     ZoneObjectClass& GetObjectClass(u32 classnameHash);
 
-    std::vector<ZoneData> ZoneFiles;
+    std::vector<ObjectHandle> Zones = {};
     std::vector<ZoneObjectClass> ZoneObjectClasses = {};
     std::mutex ZoneFilesLock;
     std::vector<TerrainInstance> TerrainInstances = {};
@@ -78,7 +50,7 @@ private:
     //Load texture (xxx.tga) and create a render texture from it. Textures are cached to prevent repeat loads
     std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, const string& textureName);
 
-    void SetZoneShortName(ZoneData& zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
+    void SetZoneShortName(ObjectHandle zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
 
     PackfileVFS* packfileVFS_ = nullptr;
     string territoryFilename_; //Name of the vpp_pc file that zone data is loaded from at startup
@@ -88,4 +60,18 @@ private:
     bool loadThreadRunning_ = false;
     bool useHighLodTerrain_ = true;
     std::unordered_map<string, Texture2D> textureCache_; //Textures loaded during territory load are cached to prevent repeat loads. Cleared once territory is done loading.
+};
+
+//Used by Territory to filter objects list by class type
+struct ZoneObjectClass
+{
+    string Name;
+    u32 Hash = 0;
+    u32 NumInstances = 0;
+    //Todo: This is mixing ui logic with data. I'd like to separate this stuff out of Territory if possible
+    Vec3 Color = { 1.0f, 1.0f, 1.0f };
+    bool Show = true;
+    bool ShowLabel = false;
+    const char* LabelIcon = "";
+    bool DrawSolid = false; //If true bounding boxes are drawn fully solid instead of wireframe
 };

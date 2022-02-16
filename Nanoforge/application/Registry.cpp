@@ -10,8 +10,10 @@ Registry& Registry::Get()
 
 ObjectHandle Registry::CreateObject(std::string_view objectName, std::string_view typeName)
 {
+    _objectCreationLock.lock();
     const u64 uid = _nextUID++;
-    _objects[uid] = Object(objectName, uid);
+    _objects[uid] = Object(string(objectName), uid);
+    _objectCreationLock.unlock();
     ObjectHandle handle = { &_objects[uid] };
     if (typeName != "")
         handle.GetOrCreateProperty("Type").Set(string(typeName));
