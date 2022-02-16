@@ -115,7 +115,7 @@ void StatusBar::Update(GuiState* state, bool* open)
 
                 //Task spinner showing that it's in progress
                 ImVec2 cursorPos = ImGui::GetCursorPos();
-                ImGui::Spinner("", 7.0f, 3.0f, gui::SecondaryTextColor);
+                ImGui::Spinner(fmt::format("##{}", (u64)task.get()).c_str(), 7.0f, 3.0f, gui::SecondaryTextColor);
                 ImGui::SameLine();
 
                 //Draw task name to the right of the spinner
