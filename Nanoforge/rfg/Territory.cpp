@@ -155,12 +155,10 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
     //Load zone
     Registry& registry = Registry::Get();
-    //ObjectHandle zone = registry.CreateObject(zoneFilename, "RfgZone");
-    //ZoneFilesLock.lock();
-    //Zones.push_back(zone);
-    //ZoneFilesLock.unlock();
+    ObjectHandle zone = NullObjectHandle;
     {
         PROFILER_SCOPED("Load zone");
+        //Load zone file
         std::optional<std::vector<u8>> zoneBytes = packfile->ExtractSingleFile(zoneFilename);
         if (!zoneBytes)
         {
@@ -168,20 +166,18 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
             return;
         }
 
-
+        //Convert zone file to editor data format
         if (auto result = ZoneFile::Read(zoneBytes.value(), zoneFilename); result.has_value())
         {
             ZoneFile& zoneFile = result.value();
-            ObjectHandle zone = Importers::ImportZoneFile(zoneFile);
+            zone = Importers::ImportZoneFile(zoneFile);
             if (zone.Valid())
             {
                 ZoneFilesLock.lock();
                 Zones.push_back(zone);
                 ZoneFilesLock.unlock();
             }
-            //TODO: Add zone file importer and use it here to convert zone to registry object
-                //TODO: Consider how this might be worked into a generalized asset/streaming system + how terrain would be worked into that.
-            //TODO: Add helpers for reading zone object properties
+            SetZoneShortName(zone);
             //TODO: Replace old zone object heirarchy with object parent/child nodes & references
         }
         else
@@ -191,107 +187,26 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         }
     }
 
+    //Get terrain filename from obj_zone object
+    ObjectHandle objZone = GetZoneObject(zone, "obj_zone");
+    ObjectHandle terrainFilenameProperty = objZone.Valid() ? GetZoneProperty(objZone, "terrain_file_name") : NullObjectHandle;
 
+    //Determine zone position
+    if (!objZone.Valid() || !terrainFilenameProperty.Valid())
+        return; //No terrain
 
-
-
-
-
-
-
-
-
-
-
-    //ZoneFilesLock.lock();
-    //ZoneData& zoneFile = ZoneFiles.emplace_back();
-    //ZoneFilesLock.unlock();
-    //{
-    //    PROFILER_SCOPED("Load zone");
-    //    std::optional<std::vector<u8>> fileBuffer = packfile->ExtractSingleFile(zoneFilename);
-    //    if (!fileBuffer)
-    //    {
-    //        LOG_ERROR("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
-    //        return;
-    //    }
-
-    //    BinaryReader reader(fileBuffer.value());
-    //    zoneFile.Name = Path::GetFileName(std::filesystem::path(zoneFilename));
-    //    zoneFile.Zone.SetName(zoneFile.Name);
-    //    zoneFile.Zone.Read(reader);
-    //    zoneFile.Zone.GenerateObjectHierarchy();
-    //    if (String::StartsWith(zoneFile.Name, "p_"))
-    //        zoneFile.Persistent = true;
-    //    SetZoneShortName(zoneFile);
-
-    //    //Determine zone position
-    //    ZoneObject36* objZone = zoneFile.Zone.GetSingleObject("obj_zone");
-    //    if (objZone)
-    //    {
-    //        //Use obj_zone position if available. They're always at the center of the zone
-    //        OpProperty* op = objZone->GetProperty<OpProperty>("op");
-    //        zoneFile.Position = op->Position;
-    //    }
-    //    else
-    //    {
-    //        //Otherwise take the average of all object positions
-    //        Vec3 averagePosition;
-    //        size_t numPositions = 0;
-    //        for (ZoneObject36& obj : zoneFile.Zone.Objects)
-    //        {
-    //            OpProperty* op = obj.GetProperty<OpProperty>("op");
-    //            if (op)
-    //            {
-    //                averagePosition += op->Position;
-    //                numPositions++;
-    //            }
-    //        }
-
-    //        zoneFile.Position = averagePosition / (f32)numPositions;
-    //    }
-    //}
-
-    ////Check if the zone has terrain by looking for an obj_zone object with terrain_file_name property
-    //SubThreadEarlyStopCheck();
-    //auto* objZoneObject = zoneFile.Zone.GetSingleObject("obj_zone");
-    //if (!objZoneObject)
-    //    return; //No terrain
-
-    //auto* terrainFilenameProperty = objZoneObject->GetProperty<StringProperty>("terrain_file_name");
-    //if (!terrainFilenameProperty)
-    //    return; //No terrain
-
-    ////Remove extra null terminators if present
-    //string terrainName = terrainFilenameProperty->Data;
-    //if (terrainName.ends_with('\0'))
-    //    terrainName.pop_back();
-
-
-
-
-
-
-
-
-
-
+    string terrainName = terrainFilenameProperty.GetProperty("terrain_file_name").Get<string>();
+    if (terrainName.ends_with('\0'))
+        terrainName.pop_back(); //Remove extra null terminators
 
     //Create new terrain instance
     TerrainLock.lock();
     TerrainInstance& terrain = TerrainInstances.emplace_back();
     TerrainLock.unlock();
-
-    //**********************************************************************************************************************************
-    //**********************************************************************************************************************************
-    //TODO: RE-IMPLEMENT !!!!!!!!!!!!!!!!!!!!!!!!
-    //terrain.Name = terrainName;
-    //terrain.Position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
-    terrain.Name = "NOT IMPLEMENTED";
-    terrain.Position = { 0.0f, 0.0f, 0.0f };
-    string terrainName = "NOT IMPLEMENTED";
+    terrain.Name = terrainName;
+    terrain.Position = zone.GetProperty("Position").Get<Vec3>(); //objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
 
     SubThreadEarlyStopCheck();
-
     {
         PROFILER_SCOPED("Load low lod terrain")
         std::vector<MeshInstanceData> lowLodMeshes = { };
@@ -303,9 +218,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         auto lowLodTerrainCpuFileHandles = state->PackfileVFS->GetFiles(lowLodTerrainName, true, true);
         if (lowLodTerrainCpuFileHandles.size() == 0)
         {
-            //**********************************************************************************************************************************
-            //TODO: RE-IMPLEMENT !!!!!!!!!!!!!!!!!!!!!!!!
-            //Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zoneFile.Name);
+            Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zone.GetProperty("Name").Get<string>());
             return;
         }
         FileHandle terrainMesh = lowLodTerrainCpuFileHandles[0];
@@ -660,39 +573,35 @@ bool Territory::ObjectClassRegistered(u32 classnameHash, u32& outIndex)
 
 void Territory::UpdateObjectClassInstanceCounts()
 {
-    //**********************************************************************************************************************************
-    //TODO: RE-IMPLEMENT !!!!!!!!!!!!!!!!!!!!!!!!
+    //Zero instance counts for each object class
+    for (auto& objectClass : ZoneObjectClasses)
+        objectClass.NumInstances = 0;
 
-    ////Zero instance counts for each object class
-    //for (auto& objectClass : ZoneObjectClasses)
-    //    objectClass.NumInstances = 0;
+    //Update instance count for each object class in visible zones
+    for (ObjectHandle zone : Zones)
+    {
+        if (!zone.GetOrCreateProperty("RenderBoundingBoxes").Get<bool>())
+            continue;
 
-    ////Update instance count for each object class in visible zones
-    //for (auto& zoneFile : ZoneFiles)
-    //{
-    //    if (!zoneFile.RenderBoundingBoxes)
-    //        continue;
+        for (ObjectHandle object : zone.GetProperty("Objects").GetObjectList())
+        {
+            for (auto& objectClass : ZoneObjectClasses)
+            {
+                if (objectClass.Hash == object.GetProperty("ClassnameHash").Get<u32>())
+                {
+                    objectClass.NumInstances++;
+                    break;
+                }
+            }
+        }
+    }
 
-    //    auto& zone = zoneFile.Zone;
-    //    for (auto& object : zone.Objects)
-    //    {
-    //        for (auto& objectClass : ZoneObjectClasses)
-    //        {
-    //            if (objectClass.Hash == object.ClassnameHash)
-    //            {
-    //                objectClass.NumInstances++;
-    //                break;
-    //            }
-    //        }
-    //    }
-    //}
-
-    ////Sort vector by instance count for convenience
-    //std::sort(ZoneObjectClasses.begin(), ZoneObjectClasses.end(),
-    //[](const ZoneObjectClass& classA, const ZoneObjectClass& classB)
-    //{
-    //    return classA.NumInstances > classB.NumInstances;
-    //});
+    //Sort vector by instance count for convenience
+    std::sort(ZoneObjectClasses.begin(), ZoneObjectClasses.end(),
+    [](const ZoneObjectClass& classA, const ZoneObjectClass& classB)
+    {
+        return classA.NumInstances > classB.NumInstances;
+    });
 }
 
 void Territory::InitObjectClassData()
@@ -746,21 +655,18 @@ void Territory::InitObjectClassData()
         {"obj_light",                      2915886275, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   true,  ICON_FA_LIGHTBULB " "}
     };
 
-    //**********************************************************************************************************************************
-    //TODO: RE-IMPLEMENT !!!!!!!!!!!!!!!!!!!!!!!!
-
-    //for (auto& zone : ZoneFiles)
-    //{
-    //    for (auto& object : zone.Zone.Objects)
-    //    {
-    //        u32 outIndex = InvalidZoneIndex;
-    //        if (!ObjectClassRegistered(object.ClassnameHash, outIndex))
-    //        {
-    //            ZoneObjectClasses.push_back({ object.Classname, object.ClassnameHash, 0, Vec3{ 1.0f, 1.0f, 1.0f }, true });
-    //            Log->warn("Found unknown object class with hash {} and name \"{}\"", object.ClassnameHash, object.Classname);
-    //        }
-    //    }
-    //}
+    for (ObjectHandle zone : Zones)
+    {
+        for (ObjectHandle object : zone.GetProperty("Objects").GetObjectList())
+        {
+            u32 outIndex = InvalidZoneIndex;
+            if (!ObjectClassRegistered(object.GetProperty("ClassnameHash").Get<u32>(), outIndex))
+            {
+                ZoneObjectClasses.push_back({ object.GetProperty("Classname").Get<string>(), object.GetProperty("ClassnameHash").Get<u32>(), 0, Vec3{ 1.0f, 1.0f, 1.0f }, true });
+                Log->warn("Found unknown object class with hash {} and name \"{}\"", object.GetProperty("ClassnameHash").Get<u32>(), object.GetProperty("Classname").Get<string>());
+            }
+        }
+    }
 }
 
 ZoneObjectClass& Territory::GetObjectClass(u32 classnameHash)
@@ -777,41 +683,38 @@ ZoneObjectClass& Territory::GetObjectClass(u32 classnameHash)
 
 void Territory::SetZoneShortName(ObjectHandle zone)
 {
-    //**********************************************************************************************************************************
-    //TODO: RE-IMPLEMENT !!!!!!!!!!!!!!!!!!!!!!!!
+    const string& fullName = zone.GetProperty("Name").Get<string>();
+    zone.GetOrCreateProperty("ShortName").Set<string>(fullName); //Set shortname to fullname by default in case of failure
+    const string expectedPostfix0 = ".rfgzone_pc";
+    const string expectedPostfix1 = ".layer_pc";
+    const string expectedPrefix = zone.GetProperty("Persistent").Get<bool>() ? "p_" + territoryShortname_ + "_" : territoryShortname_ + "_";
 
-    //const string& fullName = zone.Name;
-    //zone.ShortName = fullName; //Set shortname to fullname by default in case of failure
-    //const string expectedPostfix0 = ".rfgzone_pc";
-    //const string expectedPostfix1 = ".layer_pc";
-    //const string expectedPrefix = zone.Persistent ? "p_" + territoryShortname_ + "_" : territoryShortname_ + "_";
+    //Try to find location of rfgzone_pc or layer_pc extension. If neither is found return
+    size_t postfixIndex0 = fullName.find(expectedPostfix0, 0);
+    size_t postfixIndex1 = fullName.find(expectedPostfix1, 0);
+    size_t finalPostfixIndex = string::npos;
+    if (postfixIndex0 != string::npos)
+        finalPostfixIndex = postfixIndex0;
+    else if (postfixIndex1 != string::npos)
+        finalPostfixIndex = postfixIndex1;
+    else
+        return;
 
-    ////Try to find location of rfgzone_pc or layer_pc extension. If neither is found return
-    //size_t postfixIndex0 = fullName.find(expectedPostfix0, 0);
-    //size_t postfixIndex1 = fullName.find(expectedPostfix1, 0);
-    //size_t finalPostfixIndex = string::npos;
-    //if (postfixIndex0 != string::npos)
-    //    finalPostfixIndex = postfixIndex0;
-    //else if (postfixIndex1 != string::npos)
-    //    finalPostfixIndex = postfixIndex1;
-    //else
-    //    return;
+    //Make sure the name starts with the expected prefix
+    if (!String::StartsWith(fullName, expectedPrefix))
+        return;
 
-    ////Make sure the name starts with the expected prefix
-    //if (!String::StartsWith(fullName, expectedPrefix))
-    //    return;
+    //For some files there is nothing between the prefix and postfix. We preserve the prefix in this case so something remains
+    if (finalPostfixIndex == expectedPrefix.length())
+    {
+        zone.GetProperty("ShortName").Set<string>(fullName.substr(0, finalPostfixIndex)); //Remove the postfix, keep the rest
+    }
+    else //Otherwise we strip the prefix and postfix and use the remaining string as our shortname
+    {
+        zone.GetProperty("ShortName").Set<string>(fullName.substr(expectedPrefix.length(), finalPostfixIndex - expectedPrefix.length())); //Keep string between prefix and postfix
+    }
 
-    ////For some files there is nothing between the prefix and postfix. We preserve the prefix in this case so something remains
-    //if (finalPostfixIndex == expectedPrefix.length())
-    //{
-    //    zone.ShortName = fullName.substr(0, finalPostfixIndex); //Remove the postfix, keep the rest
-    //}
-    //else //Otherwise we strip the prefix and postfix and use the remaining string as our shortname
-    //{
-    //    zone.ShortName = fullName.substr(expectedPrefix.length(), finalPostfixIndex - expectedPrefix.length()); //Keep string between prefix and postfix
-    //}
-
-    ////Add p_ prefix back onto persistent files
-    //if (zone.Persistent)
-    //    zone.ShortName = "p_" + zone.ShortName;
+    //Add p_ prefix back onto persistent files
+    if (zone.GetProperty("Persistent").Get<bool>())
+        zone.GetProperty("ShortName").Set<string>("p_" + zone.GetProperty("ShortName").Get<string>());
 }

@@ -1,4 +1,5 @@
 #include "Importers.h"
+#include "common/string/String.h"
 #include <RfgTools++/formats/zones/ZoneFile.h>
 #include <RfgTools++/hashes/HashGuesser.h>
 #include <RfgTools++/hashes/Hash.h>
@@ -49,6 +50,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     zone.GetOrCreateProperty("DistrictHash").Set<u32>(zoneFile.Header.DistrictHash);
     zone.GetOrCreateProperty("DistrictFlags").Set<u32>(zoneFile.Header.DistrictFlags);
     zone.GetOrCreateProperty("Name").Set<string>(zoneFile.Name);
+    zone.GetOrCreateProperty("Persistent").Set<bool>(String::StartsWith(zoneFile.Name, "p_"));
     zone.GetOrCreateProperty("Objects").SetObjectList({});
 
     //Convert zone object
@@ -108,6 +110,31 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
 
         current = zoneFile.NextObject(current);
         j++;
+    }
+
+    //Determine zone position
+    ObjectHandle objZone = GetZoneObject(zone, "obj_zone");
+    ObjectHandle op = objZone.Valid() ? GetZoneProperty(objZone, "op") : NullObjectHandle;
+    if (objZone.Valid() && op.Valid())
+    {
+        //Use obj_zone position if available. They're always at the center of the zone
+        zone.GetOrCreateProperty("Position").Set<Vec3>(op.GetOrCreateProperty("Position").Get<Vec3>());
+    }
+    else
+    {
+        //Otherwise take the average of all object positions
+        Vec3 averagePosition;
+        size_t numPositions = 0;
+        for (ObjectHandle obj : zone.GetOrCreateProperty("Objects").GetObjectList())
+        {
+            ObjectHandle op2 = GetZoneProperty(obj, "op");
+            if (op2.Valid())
+            {
+                averagePosition += op2.GetOrCreateProperty("Position").Get<Vec3>();
+                numPositions++;
+            }
+        }
+        zone.GetOrCreateProperty("Position").Set<Vec3>(averagePosition / (f32)numPositions);
     }
 
     //Todo: Make hierarchical set of objects either using reference properties or parent + sibling value
@@ -275,4 +302,22 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject)
                 return propType.Loader(prop, zoneObject, name);
 
     return false;
+}
+
+ObjectHandle GetZoneObject(ObjectHandle zone, std::string_view classname)
+{
+    for (ObjectHandle obj : zone.GetOrCreateProperty("Objects").GetObjectList())
+        if (obj.GetOrCreateProperty("Classname").Get<string>() == classname)
+            return obj;
+
+    return NullObjectHandle;
+}
+
+ObjectHandle GetZoneProperty(ObjectHandle obj, std::string_view propertyName)
+{
+    for (ObjectHandle prop : obj.GetOrCreateProperty("Properties").GetObjectList())
+        if (prop.GetOrCreateProperty("Name").Get<string>() == propertyName)
+            return prop;
+
+    return NullObjectHandle;
 }

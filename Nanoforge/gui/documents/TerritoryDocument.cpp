@@ -138,12 +138,11 @@ void TerritoryDocument::Update(GuiState* state)
     }
     //Update debug draw regardless of focus state since we'll never be focused when using the other panels which control debug draw
     state->CurrentTerritoryUpdateDebugDraw = true; //Now set to true permanently to support time based coloring. Quick hack, probably should remove this variable later.
-    ImGui::Text("TODO: Re-implement territory debug draw!");
-    //if (Territory.ZoneFiles.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && Territory.Ready())
-    //{
-    //    UpdateDebugDraw(state);
-    //    PrimitivesNeedRedraw = false;
-    //}
+    if (Territory.Zones.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && Territory.Ready())
+    {
+        UpdateDebugDraw(state);
+        PrimitivesNeedRedraw = false;
+    }
 
     ImVec2 contentAreaSize;
     contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
@@ -468,85 +467,84 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
 
 void TerritoryDocument::UpdateDebugDraw(GuiState* state)
 {
-    //TODO: Re-implement!
-    return;
+    //Reset primitives first to ensure old primitives get cleared
+    Scene->ResetPrimitives();
 
-    ////Reset primitives first to ensure old primitives get cleared
-    //Scene->ResetPrimitives();
+    //Update zone visibility based on distance from camera
+    for (ObjectHandle zone : Territory.Zones)
+    {
+        //TODO: Re-implement **************************************************************************************
+        //if (zone.ActivityLayer || zone.MissionLayer)
+        //    continue; //Activity and mission visibility is manually controlled
 
-    ////Update zone visibility based on distance from camera
-    //for (ZoneData& zone : Territory.ZoneFiles)
-    //{
-    //    if (zone.ActivityLayer || zone.MissionLayer)
-    //        continue; //Activity and mission visibility is manually controlled
+        Vec2 subzonePos = zone.GetProperty("Position").Get<Vec3>().XZ();
+        Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
+        f32 distanceFromCamera = subzonePos.Distance(cameraPos);
+        zone.GetOrCreateProperty("RenderBoundingBoxes").Set<bool>(distanceFromCamera <= zoneObjDistance_);
+    }
 
-    //    Vec2 subzonePos = zone.Position.XZ();
-    //    Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
-    //    f32 distanceFromCamera = subzonePos.Distance(cameraPos);
-    //    zone.RenderBoundingBoxes = (distanceFromCamera <= zoneObjDistance_);
-    //}
+    //Draw bounding boxes
+    for (ObjectHandle zone : Territory.Zones)
+    {
+        if (!zone.GetProperty("RenderBoundingBoxes").Get<bool>())
+            continue;
 
-    ////Draw bounding boxes
-    //for (const auto& zone : Territory.ZoneFiles)
-    //{
-    //    if (!zone.RenderBoundingBoxes)
-    //        continue;
+        for (ObjectHandle object : zone.GetProperty("Objects").GetObjectList())
+        {
+            auto objectClass = Territory.GetObjectClass(object.GetProperty("ClassnameHash").Get<u32>());
+            if (!objectClass.Show)
+                continue;
 
-    //    for (const auto& object : zone.Zone.Objects)
-    //    {
-    //        auto objectClass = Territory.GetObjectClass(object.ClassnameHash);
-    //        if (!objectClass.Show)
-    //            continue;
+            //TODO: Re-implement **************************************************************************************
+            //If object is selected in zone object list panel use different drawing method for visibilty
+            //bool selectedInZoneObjectList = &object == state->ZoneObjectList_SelectedObject;
+            //if (selectedInZoneObjectList)
+            //{
+            //    //Calculate color that changes with time
+            //    Vec3 color = objectClass.Color;
+            //    f32 colorMagnitude = objectClass.Color.Magnitude();
+            //    //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
+            //    f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
+            //    color.x = objectClass.Color.x + powf(sin(Scene->TotalTime * 2.0f), 2.0f) * multiplier;
+            //    color.y = objectClass.Color.y + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+            //    color.z = objectClass.Color.z + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
 
-    //        //If object is selected in zone object list panel use different drawing method for visibilty
-    //        bool selectedInZoneObjectList = &object == state->ZoneObjectList_SelectedObject;
-    //        if (selectedInZoneObjectList)
-    //        {
-    //            //Calculate color that changes with time
-    //            Vec3 color = objectClass.Color;
-    //            f32 colorMagnitude = objectClass.Color.Magnitude();
-    //            //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
-    //            f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
-    //            color.x = objectClass.Color.x + powf(sin(Scene->TotalTime * 2.0f), 2.0f) * multiplier;
-    //            color.y = objectClass.Color.y + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
-    //            color.z = objectClass.Color.z + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+            //    //Keep color in a certain range so it stays visible against the terrain
+            //    f32 magnitudeMin = 0.20f;
+            //    f32 colorMin = 0.20f;
+            //    if (color.Magnitude() < magnitudeMin)
+            //    {
+            //        color.x = std::max(color.x, colorMin);
+            //        color.y = std::max(color.y, colorMin);
+            //        color.z = std::max(color.z, colorMin);
+            //    }
 
-    //            //Keep color in a certain range so it stays visible against the terrain
-    //            f32 magnitudeMin = 0.20f;
-    //            f32 colorMin = 0.20f;
-    //            if (color.Magnitude() < magnitudeMin)
-    //            {
-    //                color.x = std::max(color.x, colorMin);
-    //                color.y = std::max(color.y, colorMin);
-    //                color.z = std::max(color.z, colorMin);
-    //            }
+            //    //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
+            //    Vec3 lineStart;
+            //    lineStart.x = (object.Bmin.x + object.Bmax.x) / 2.0f;
+            //    lineStart.y = object.Bmin.y;
+            //    lineStart.z = (object.Bmin.z + object.Bmax.z) / 2.0f;
+            //    Vec3 lineEnd = lineStart;
+            //    lineEnd.y += 300.0f;
 
-    //            //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
-    //            Vec3 lineStart;
-    //            lineStart.x = (object.Bmin.x + object.Bmax.x) / 2.0f;
-    //            lineStart.y = object.Bmin.y;
-    //            lineStart.z = (object.Bmin.z + object.Bmax.z) / 2.0f;
-    //            Vec3 lineEnd = lineStart;
-    //            lineEnd.y += 300.0f;
+            //    //Draw object bounding box and line from it's bottom into the sky
+            //    if (objectClass.DrawSolid)
+            //        Scene->DrawBoxLit(object.Bmin, object.Bmax, color);
+            //    else
+            //        Scene->DrawBox(object.Bmin, object.Bmax, color);
 
-    //            //Draw object bounding box and line from it's bottom into the sky
-    //            if (objectClass.DrawSolid)
-    //                Scene->DrawBoxLit(object.Bmin, object.Bmax, color);
-    //            else
-    //                Scene->DrawBox(object.Bmin, object.Bmax, color);
+            //    Scene->DrawLine(lineStart, lineEnd, color);
+            //}
+            //else //If not selected just draw bounding box with static color
+            {
+                if (objectClass.DrawSolid)
+                    Scene->DrawBoxLit(object.GetProperty("Bmin").Get<Vec3>(), object.GetProperty("Bmax").Get<Vec3>(), objectClass.Color);
+                else
+                    Scene->DrawBox(object.GetProperty("Bmin").Get<Vec3>(), object.GetProperty("Bmax").Get<Vec3>(), objectClass.Color);
+            }
+        }
+    }
 
-    //            Scene->DrawLine(lineStart, lineEnd, color);
-    //        }
-    //        else //If not selected just draw bounding box with static color
-    //        {
-    //            if (objectClass.DrawSolid)
-    //                Scene->DrawBoxLit(object.Bmin, object.Bmax, objectClass.Color);
-    //            else
-    //                Scene->DrawBox(object.Bmin, object.Bmax, objectClass.Color);
-    //        }
-    //    }
-    //}
-
-    //Scene->NeedsRedraw = true;
-    //state->CurrentTerritoryUpdateDebugDraw = false;
+    Scene->NeedsRedraw = true;
+    state->CurrentTerritoryUpdateDebugDraw = false;
 }
