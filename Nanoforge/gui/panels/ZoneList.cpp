@@ -37,100 +37,97 @@ void ZoneList::Update(GuiState* state, bool* open)
         return;
     }
 
-    //TODO: Re-implement
-    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Object list needs to be re-implemented for the editor format!");
+    static bool hideEmptyZones = true;
+    static bool hideObjectBelowObjectThreshold = false;
+    static u32 minObjectsToShowZone = 0;
+    static bool showMissionAndActivityZones = false;
+    if (ImGui::CollapsingHeader("Filters"))
+    {
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
+        if (ImGui::BeginChild("##ZoneListFiltersChild", ImVec2(0, 200.0f), true))
+        {
+            ImGui::Checkbox("Hide empty zones", &hideEmptyZones);
+            ImGui::SameLine();
+            ImGui::Checkbox("Minimum object count", &hideObjectBelowObjectThreshold);
+            if (hideObjectBelowObjectThreshold)
+            {
+                ImGui::SetNextItemWidth(176.5f);
+                ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
+            }
+            ImGui::Checkbox("Show missions and activities", &showMissionAndActivityZones);
+            ImGui::EndChild();
+        }
+        ImGui::PopStyleColor();
+        ImGui::Separator();
+    }
 
-    //static bool hideEmptyZones = true;
-    //static bool hideObjectBelowObjectThreshold = false;
-    //static u32 minObjectsToShowZone = 0;
-    //static bool showMissionAndActivityZones = false;
-    //if (ImGui::CollapsingHeader("Filters"))
-    //{
-    //    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
-    //    if (ImGui::BeginChild("##ZoneListFiltersChild", ImVec2(0, 200.0f), true))
-    //    {
-    //        ImGui::Checkbox("Hide empty zones", &hideEmptyZones);
-    //        ImGui::SameLine();
-    //        ImGui::Checkbox("Minimum object count", &hideObjectBelowObjectThreshold);
-    //        if (hideObjectBelowObjectThreshold)
-    //        {
-    //            ImGui::SetNextItemWidth(176.5f);
-    //            ImGui::InputScalar("Min objects to show zone", ImGuiDataType_U32, &minObjectsToShowZone);
-    //        }
-    //        ImGui::Checkbox("Show missions and activities", &showMissionAndActivityZones);
-    //        ImGui::EndChild();
-    //    }
-    //    ImGui::PopStyleColor();
-    //    ImGui::Separator();
-    //}
+    if (ImGui::Button("Show all"))
+    {
+        for (ObjectHandle zone : state->CurrentTerritory->Zones)
+        {
+            zone.GetProperty("RenderBoundingBoxes").Set<bool>(true);
+        }
+        state->CurrentTerritoryUpdateDebugDraw = true;
+        state->CurrentTerritory->UpdateObjectClassInstanceCounts();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Hide all"))
+    {
+        for (ObjectHandle zone : state->CurrentTerritory->Zones)
+        {
+            zone.GetProperty("RenderBoundingBoxes").Set<bool>(false);
+        }
+        state->CurrentTerritoryUpdateDebugDraw = true;
+        state->CurrentTerritory->UpdateObjectClassInstanceCounts();
+    }
 
-    //if (ImGui::Button("Show all"))
-    //{
-    //    for (auto& zone : state->CurrentTerritory->ZoneFiles)
-    //    {
-    //        zone.RenderBoundingBoxes = true;
-    //    }
-    //    state->CurrentTerritoryUpdateDebugDraw = true;
-    //    state->CurrentTerritory->UpdateObjectClassInstanceCounts();
-    //}
-    //ImGui::SameLine();
-    //if (ImGui::Button("Hide all"))
-    //{
-    //    for (auto& zone : state->CurrentTerritory->ZoneFiles)
-    //    {
-    //        zone.RenderBoundingBoxes = false;
-    //    }
-    //    state->CurrentTerritoryUpdateDebugDraw = true;
-    //    state->CurrentTerritory->UpdateObjectClassInstanceCounts();
-    //}
+    ImGui::Separator();
+    ImGui::InputText("Search", &searchTerm_);
 
-    //ImGui::Separator();
-    //ImGui::InputText("Search", &searchTerm_);
+    if (ImGui::BeginTable("Zone list table", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
+        | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1);
 
-    //if (ImGui::BeginTable("Zone list table", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable
-    //    | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable))
-    //{
-    //    ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None);
+        ImGui::TableSetupColumn("# Objects", ImGuiTableColumnFlags_None);
+        ImGui::TableSetupColumn("District", ImGuiTableColumnFlags_None);
+        ImGui::TableHeadersRow();
 
-    //    ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_None);
-    //    ImGui::TableSetupColumn("# Objects", ImGuiTableColumnFlags_None);
-    //    ImGui::TableSetupColumn("District", ImGuiTableColumnFlags_None);
-    //    ImGui::TableHeadersRow();
+        u32 i = 0;
+        for (ObjectHandle zone : state->CurrentTerritory->Zones)
+        {
+            //Skip zones that don't meet search term or filter requirements
+            if (searchTerm_ != "" && zone.GetProperty("Name").Get<string>().find(searchTerm_) == string::npos)
+                continue;
+            if (hideEmptyZones && zone.GetProperty("Objects").GetObjectList().size() == 0 || !(hideObjectBelowObjectThreshold ? zone.GetProperty("Objects").GetObjectList().size() >= minObjectsToShowZone : true))
+            {
+                i++;
+                continue;
+            }
+            //Hide mission and activity layers if they aren't enabled
+            if (!showMissionAndActivityZones && (zone.GetProperty("MissionLayer").Get<bool>() || zone.GetProperty("ActivityLayer").Get<bool>()))
+                continue;
 
-    //    u32 i = 0;
-    //    for (auto& zone : state->CurrentTerritory->ZoneFiles)
-    //    {
-    //        //Skip zones that don't meet search term or filter requirements
-    //        if (searchTerm_ != "" && zone.Name.find(searchTerm_) == string::npos)
-    //            continue;
-    //        if (hideEmptyZones && zone.Zone.Header.NumObjects == 0 || !(hideObjectBelowObjectThreshold ? zone.Zone.Objects.size() >= minObjectsToShowZone : true))
-    //        {
-    //            i++;
-    //            continue;
-    //        }
-    //        //Hide mission and activity layers if they aren't enabled
-    //        if (!showMissionAndActivityZones && (zone.MissionLayer || zone.ActivityLayer))
-    //            continue;
+            ImGui::TableNextRow();
 
-    //        ImGui::TableNextRow();
+            //Name
+            ImGui::TableNextColumn();
+            ImGui::Text(zone.GetProperty("ShortName").Get<string>().c_str());
 
-    //        //Name
-    //        ImGui::TableNextColumn();
-    //        ImGui::Text(zone.ShortName.c_str());
+            //# objects
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", zone.GetProperty("Objects").GetObjectList().size());
 
-    //        //# objects
-    //        ImGui::TableNextColumn();
-    //        ImGui::Text("%d", zone.Zone.Header.NumObjects);
+            //District
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", zone.GetProperty("DistrictName").Get<string>().c_str());
 
-    //        //District
-    //        ImGui::TableNextColumn();
-    //        ImGui::Text("%s", zone.Zone.DistrictName() == "unknown" ? "" : zone.Zone.DistrictNameCstr());
+            i++;
+        }
 
-    //        i++;
-    //    }
-
-    //    ImGui::EndTable();
-    //}
+        ImGui::EndTable();
+    }
 
     ImGui::End();
 }

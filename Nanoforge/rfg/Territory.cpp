@@ -116,6 +116,44 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     }
     EarlyStopCheck();
 
+    //Load mission zones
+    EarlyStopCheck();
+    {
+        PROFILER_SCOPED("Load mission layers");
+        for (FileHandle& layerFile : missionLayerFiles)
+        {
+            ObjectHandle zone = Importers::ImportZoneFile(layerFile.Get(), layerFile.Filename(), territoryFilename_);
+            if (zone.Valid())
+            {
+                ZoneFilesLock.lock();
+                Zones.push_back(zone);
+                ZoneFilesLock.unlock();
+                SetZoneShortName(zone);
+                zone.GetOrCreateProperty("MissionLayer").Set<bool>(true);
+                zone.GetOrCreateProperty("RenderBoundingBoxes").Set<bool>(false);
+            }
+        }
+    }
+
+    //Load activity zones
+    EarlyStopCheck();
+    {
+        PROFILER_SCOPED("Load activity layers");
+        for (FileHandle& layerFile : activityLayerFiles)
+        {
+            ObjectHandle zone = Importers::ImportZoneFile(layerFile.Get(), layerFile.Filename(), territoryFilename_);
+            if (zone.Valid())
+            {
+                ZoneFilesLock.lock();
+                Zones.push_back(zone);
+                ZoneFilesLock.unlock();
+                SetZoneShortName(zone);
+                zone.GetOrCreateProperty("ActivityLayer").Set<bool>(true);
+                zone.GetOrCreateProperty("RenderBoundingBoxes").Set<bool>(false);
+            }
+        }
+    }
+
     //Wait for all workers to finish
     {
         PROFILER_SCOPED("Wait for territory load worker threads");
@@ -155,35 +193,18 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
     //Load zone
     Registry& registry = Registry::Get();
-    ObjectHandle zone = NullObjectHandle;
+    ObjectHandle zone = NullObjectHandle; // zoneBytes.has_value() ? Importers::ImportZoneFile(zoneBytes.value(), zoneFilename, territoryFilename_) : NullObjectHandle;
+    std::optional<std::vector<u8>> zoneBytes = packfile->ExtractSingleFile(zoneFilename);
+    if (zoneBytes.has_value())
     {
         PROFILER_SCOPED("Load zone");
-        //Load zone file
-        std::optional<std::vector<u8>> zoneBytes = packfile->ExtractSingleFile(zoneFilename);
-        if (!zoneBytes)
+        zone = Importers::ImportZoneFile(zoneBytes.value(), zoneFilename, territoryFilename_);
+        if (zone.Valid())
         {
-            LOG_ERROR("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
-            return;
-        }
-
-        //Convert zone file to editor data format
-        if (auto result = ZoneFile::Read(zoneBytes.value(), zoneFilename); result.has_value())
-        {
-            ZoneFile& zoneFile = result.value();
-            zone = Importers::ImportZoneFile(zoneFile);
-            if (zone.Valid())
-            {
-                ZoneFilesLock.lock();
-                Zones.push_back(zone);
-                ZoneFilesLock.unlock();
-            }
+            ZoneFilesLock.lock();
+            Zones.push_back(zone);
+            ZoneFilesLock.unlock();
             SetZoneShortName(zone);
-            //TODO: Replace old zone object heirarchy with object parent/child nodes & references
-        }
-        else
-        {
-            LOG_ERROR("Failed to parse zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
-            return;
         }
     }
 
@@ -284,7 +305,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     }
 
     SubThreadEarlyStopCheck();
-    if(useHighLodTerrain_)
+    if (useHighLodTerrain_)
     {
         PROFILER_SCOPED("Load high lod terrain");
         std::vector<MeshInstanceData> highLodMeshes = { };

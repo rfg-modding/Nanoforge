@@ -1,6 +1,7 @@
 #include "Registry.h"
 #include <ranges>
 #include <string>
+#include "Log.h"
 
 Registry& Registry::Get()
 {
@@ -19,6 +20,14 @@ ObjectHandle Registry::CreateObject(std::string_view objectName, std::string_vie
         handle.GetOrCreateProperty("Type").Set(string(typeName));
 
     return handle;
+}
+
+ObjectHandle Registry::GetObjectHandleByUID(u64 uid)
+{
+    if (!_objects.contains(uid))
+        THROW_EXCEPTION("Failed to find object with uid '{}'", uid);
+
+    return { &_objects[uid] };
 }
 
 bool Registry::ObjectExists(u64 uid) const

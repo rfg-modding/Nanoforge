@@ -31,6 +31,7 @@ public:
     static Registry& Get();
     //Create registry object. Returns a handle to the object if it succeeds, or InvalidHandle if it fails.
     ObjectHandle CreateObject(std::string_view objectName = "", std::string_view typeName = "");
+    ObjectHandle GetObjectHandleByUID(u64 uid);
     bool ObjectExists(u64 uid) const;
 
 private:
@@ -88,6 +89,7 @@ public:
         //Comptime check that T is supported
         static_assert(
             std::is_same<T, i32>() ||
+            std::is_same<T, u64>() ||
             std::is_same<T, u32>() ||
             std::is_same<T, u16>() ||
             std::is_same<T, u8>() ||
@@ -112,6 +114,7 @@ public:
         //Comptime check that T is supported
         static_assert(
             std::is_same<T, i32>() ||
+            std::is_same<T, u64>() ||
             std::is_same<T, u32>() ||
             std::is_same<T, u16>() ||
             std::is_same<T, u8>() ||
@@ -136,6 +139,7 @@ public:
         Property& prop = _object->Properties[_index];
         return std::get<std::vector<ObjectHandle>>(prop.Value);
     }
+
     void SetObjectList(const std::vector<ObjectHandle>& newList = {})
     {
         Property& prop = _object->Properties[_index];
@@ -159,8 +163,13 @@ public:
     bool Valid() const { return _object && _object->UID != NullUID; }
     //Allows checking handle validity with if statements. E.g. if (handle) { /*valid*/ } else { /*invalid*/ }
     explicit operator bool() const { return Valid(); }
-
-    //Todo: Add functions for accessing and modifying object name/type/properties/sub-objects/etc
+    std::vector<u64>& SubObjects()
+    {
+        if (_object)
+            return _object->SubObjects;
+        else
+            THROW_EXCEPTION("Attempted to get SubObjects from null object handle.")
+    }
 
     PropertyHandle GetProperty(std::string_view name)
     {
@@ -192,6 +201,16 @@ public:
         }
     }
 
+    bool Has(std::string_view propertyName)
+    {
+        if (_object)
+            for (size_t i = 0; i < _object->Properties.size(); i++)
+                if (_object->Properties[i].Name == propertyName)
+                    return true;
+
+        return false;
+    }
+
     std::vector<PropertyHandle> Properties()
     {
         std::vector<PropertyHandle> properties = {};
@@ -207,9 +226,15 @@ public:
     {
         _object->Mutex->lock();
     }
+
     void Unlock()
     {
         _object->Mutex->unlock();
+    }
+
+    bool operator==(ObjectHandle other)
+    {
+        return _object == other._object;
     }
 
 private:

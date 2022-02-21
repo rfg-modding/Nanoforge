@@ -1,5 +1,6 @@
 #include "Importers.h"
 #include "common/string/String.h"
+#include "common/filesystem/Path.h"
 #include <RfgTools++/formats/zones/ZoneFile.h>
 #include <RfgTools++/hashes/HashGuesser.h>
 #include <RfgTools++/hashes/Hash.h>
@@ -23,6 +24,24 @@ std::mutex ZonePropertyTypesMutex;
 
 void InitZonePropertyLoaders();
 bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject);
+
+//Load zone file and convert it to the editor data format
+ObjectHandle Importers::ImportZoneFile(const std::vector<u8>& zoneBytes, const std::string& filename, const std::string& territoryName)
+{
+    //Convert zone file to editor data format
+    ObjectHandle zone = NullObjectHandle;
+    if (auto result = ZoneFile::Read(std::span<u8>{(u8*)zoneBytes.data(), zoneBytes.size()}, filename); result.has_value())
+    {
+        ZoneFile& zoneFile = result.value();
+        zone = Importers::ImportZoneFile(zoneFile);
+        return zone;
+    }
+    else
+    {
+        LOG_ERROR("Failed to parse zone file \"{}\" from \"{}\".", Path::GetFileName(filename), territoryName);
+        return NullObjectHandle;
+    }
+}
 
 //Convert rfg zone file to a set of registry objects
 ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
@@ -49,9 +68,13 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     zone.GetOrCreateProperty("NumHandles").Set<u32>(zoneFile.Header.NumHandles);
     zone.GetOrCreateProperty("DistrictHash").Set<u32>(zoneFile.Header.DistrictHash);
     zone.GetOrCreateProperty("DistrictFlags").Set<u32>(zoneFile.Header.DistrictFlags);
+    zone.GetOrCreateProperty("DistrictName").Set<string>(zoneFile.DistrictName());
     zone.GetOrCreateProperty("Name").Set<string>(zoneFile.Name);
     zone.GetOrCreateProperty("Persistent").Set<bool>(String::StartsWith(zoneFile.Name, "p_"));
     zone.GetOrCreateProperty("Objects").SetObjectList({});
+    zone.GetOrCreateProperty("ActivityLayer").Set<bool>(false);
+    zone.GetOrCreateProperty("MissionLayer").Set<bool>(false);
+    zone.GetOrCreateProperty("RenderBoundingBoxes").Set<bool>(true);
 
     //Convert zone object
     ZoneObject* current = zoneFile.Objects;
@@ -59,8 +82,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     while (current)
     {
         //Create zone object and add to zone object list
-        auto maybeClassname = current->Classname();
-        string classname = maybeClassname.has_value() ? maybeClassname.value() : "UnknownObjectClass";
+        string classname = current->Classname();
         ObjectHandle zoneObject = registry.CreateObject(classname, "ZoneFile");
         zone.GetProperty("Objects").GetObjectList().push_back(zoneObject);
         //TODO: Strip properties not needed by the editor
@@ -71,14 +93,17 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         zoneObject.GetOrCreateProperty("Bmax").Set<Vec3>(current->Bmax);
         zoneObject.GetOrCreateProperty("Flags").Set<u16>(current->Flags);
         zoneObject.GetOrCreateProperty("BlockSize").Set<u16>(current->BlockSize);
-        zoneObject.GetOrCreateProperty("Parent").Set<u32>(current->Parent);
-        zoneObject.GetOrCreateProperty("Sibling").Set<u32>(current->Sibling);
-        zoneObject.GetOrCreateProperty("Child").Set<u32>(current->Child);
+        zoneObject.GetOrCreateProperty("ParentHandle").Set<u32>(current->Parent);
+        zoneObject.GetOrCreateProperty("SiblingHandle").Set<u32>(current->Sibling);
+        zoneObject.GetOrCreateProperty("ChildHandle").Set<u32>(current->Child);
         zoneObject.GetOrCreateProperty("Num").Set<u32>(current->Num);
         zoneObject.GetOrCreateProperty("NumProps").Set<u16>(current->NumProps);
         zoneObject.GetOrCreateProperty("PropBlockSize").Set<u16>(current->PropBlockSize);
         zoneObject.GetOrCreateProperty("Classname").Set<string>(classname);
         zoneObject.GetOrCreateProperty("Properties").SetObjectList({});
+        zoneObject.GetOrCreateProperty("Parent").Set<u64>(NullUID);
+        zoneObject.GetOrCreateProperty("Child").Set<u64>(NullUID);
+        zoneObject.GetOrCreateProperty("Sibling").Set<u64>(NullUID);
 
         //Setup properties
         ZoneObjectProperty* currentProp = current->Properties();
@@ -137,7 +162,75 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         zone.GetOrCreateProperty("Position").Set<Vec3>(averagePosition / (f32)numPositions);
     }
 
-    //Todo: Make hierarchical set of objects either using reference properties or parent + sibling value
+    std::vector<ObjectHandle> objects = zone.GetProperty("Objects").GetObjectList();
+    auto getObject = [&](u32 handle) -> ObjectHandle
+    {
+        for (ObjectHandle object : objects)
+            if (object.GetProperty("Handle").Get<u32>() == handle)
+                return object;
+
+        return NullObjectHandle;
+    };
+
+    //Set references to relative objects. Forms tree of object relations.
+    const u32 InvalidHandle = 0xFFFFFFFF;
+    for (ObjectHandle object : objects)
+    {
+        //Set parent references + add references child references to parent
+        u32 parentHandle = object.GetProperty("ParentHandle").Get<u32>();
+        if (parentHandle == InvalidHandle)
+        {
+            ObjectHandle parent = getObject(parentHandle);
+            if (parent.Valid())
+            {
+                object.GetOrCreateProperty("Parent").Set<u64>(parent.UID());
+                parent.SubObjects().push_back(object.UID());
+            }
+            else
+            {
+                //TODO: Try searching other zones for object parents
+            }
+        }
+
+        //Set sibling references
+        ObjectHandle current = object;
+        u32 siblingHandle = current.GetOrCreateProperty("SiblingHandle").Get<u32>();
+        while (siblingHandle != InvalidHandle)
+        {
+            ObjectHandle sibling = getObject(siblingHandle);
+            if (!sibling.Valid())
+                break;
+
+            current.GetOrCreateProperty("Sibling").Set<u64>(sibling.UID());//.SetObjectRef(sibling);
+            current = sibling;
+            siblingHandle = current.GetOrCreateProperty("SiblingHandle").Get<u32>();
+        }
+    }
+
+    //Set custom object names based on properties
+    const std::vector<string> customNameProperties =
+    {
+        "display_name", "chunk_name", "animation_type", "activity_type", "raid_type", "courier_type",
+        "spawn_set", "item_type", "dummy_type", "weapon_type", "region_kill_type", "delivery_type",
+        "squad_def", "mission_info"
+    };
+    for (ObjectHandle object : objects)
+    {
+        string name = "";
+        std::vector<ObjectHandle> properties = object.GetOrCreateProperty("Properties").GetObjectList();
+        for (ObjectHandle prop : properties)
+        {
+            for (const string& propertyName : customNameProperties)
+            {
+                if (prop.GetProperty("Name").Get<string>() == propertyName)
+                {
+                    name = prop.GetProperty(propertyName).Get<string>();
+                    break;
+                }
+            }
+        }
+        object.GetOrCreateProperty("Name").Set<string>(name);
+    }
 
     return zone;
 }
