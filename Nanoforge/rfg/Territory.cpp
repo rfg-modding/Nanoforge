@@ -216,7 +216,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     if (!objZone.Valid() || !terrainFilenameProperty.Valid())
         return; //No terrain
 
-    string terrainName = terrainFilenameProperty.GetProperty("terrain_file_name").Get<string>();
+    string terrainName = terrainFilenameProperty.GetProperty("String").Get<string>();
     if (terrainName.ends_with('\0'))
         terrainName.pop_back(); //Remove extra null terminators
 

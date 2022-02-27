@@ -10,11 +10,12 @@
 //Defines a zone property type (string, uint, bool, etc) and a loader function
 struct ZonePropertyType
 {
+    const string Name;
     const std::vector<std::string_view> PropertyNames;
     const std::function<bool(ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName)> Loader;
 
-    ZonePropertyType(const std::vector<std::string_view>& propertyNames, std::function<bool(ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName)> loader)
-        : PropertyNames(propertyNames), Loader(loader)
+    ZonePropertyType(const string& name, const std::vector<std::string_view>& propertyNames, std::function<bool(ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName)> loader)
+        : Name(name), PropertyNames(propertyNames), Loader(loader)
     {
 
     }
@@ -222,9 +223,9 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         {
             for (const string& propertyName : customNameProperties)
             {
-                if (prop.GetProperty("Name").Get<string>() == propertyName)
+                if (prop.GetProperty("TypeName").Get<string>() == "String" && prop.GetProperty("Name").Get<string>() == propertyName)
                 {
-                    name = prop.GetProperty(propertyName).Get<string>();
+                    name = prop.GetProperty("String").Get<string>();
                     break;
                 }
             }
@@ -241,6 +242,7 @@ void InitZonePropertyLoaders()
     //String or enum properties
     ZonePropertyTypes.emplace_back
     (
+        "String",
         std::vector<std::string_view>
         {
             "district", "terrain_file_name", "ambient_spawn", "mission_info", "mp_team", "item_type", "default_orders", "squad_def", "respawn_speed", "vehicle_type",
@@ -250,10 +252,10 @@ void InitZonePropertyLoaders()
             "dummy_type", "demolitions_master_type", "team", "sound_alr", "sound", "visual", "behavior", "roadblock_type", "type_enum", "clip_mesh", "light_flags",
             "backpack_type", "marker_type", "area_type", "spawn_resource_data", "parent_name"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             const char* data = (const char*)prop->Data();
-            zoneObject.GetOrCreateProperty(propertyName).Set<string>(data);
+            propObject.GetOrCreateProperty("String").Set<string>(data);
             return true;
         }
     );
@@ -261,6 +263,7 @@ void InitZonePropertyLoaders()
     //Bool properties
     ZonePropertyTypes.emplace_back
     (
+        "Bool",
         std::vector<std::string_view>
         {
             "respawn", "respawns", "checkpoint_respawns", "initial_spawn", "activity_respawn", "special_npc", "safehouse_vip", "special_vehicle", "hands_off_raid_squad",
@@ -270,10 +273,10 @@ void InitZonePropertyLoaders()
             "disabled", "tag_node", "start_node", "end_game_only", "visible", "vehicle_only", "npc_only", "dead_body", "looping", "use_object_orient", "random_backpacks",
             "liberated", "liberated_play_line"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             bool* data = (bool*)prop->Data();
-            zoneObject.GetOrCreateProperty(propertyName).Set<bool>(*data);
+            propObject.GetOrCreateProperty("Bool").Set<bool>(*data);
             return true;
         }
     );
@@ -281,16 +284,17 @@ void InitZonePropertyLoaders()
     //Float properties
     ZonePropertyTypes.emplace_back
     (
+        "Float",
         std::vector<std::string_view>
         {
             "wind_min_speed", "wind_max_speed", "spawn_prob", "night_spawn_prob", "angle_left", "angle_right", "rotation_limit", "game_destroyed_pct", "outer_radius",
             "night_trigger_prob", "day_trigger_prob", "speed_limit", "hotspot_falloff_size", "atten_range", "aspect", "hotspot_size", "atten_start", "control",
             "control_max", "morale", "morale_max"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             f32* data = (f32*)prop->Data();
-            zoneObject.GetOrCreateProperty(propertyName).Set<f32>(*data);
+            propObject.GetOrCreateProperty("Float").Set<f32>(*data);
             return true;
         }
     );
@@ -298,16 +302,17 @@ void InitZonePropertyLoaders()
     //Unsigned int properties
     ZonePropertyTypes.emplace_back
     (
+        "Uint",
         std::vector<std::string_view>
         {
             "gm_flags", "dest_checksum", "uid", "next", "prev", "mtype", "group_id", "ladder_rungs", "min_ambush_squads", "max_ambush_squads", "host_index",
             "child_index", "child_alt_hk_body_index", "host_handle", "child_handle", "path_road_flags", "patrol_start", "yellow_num_points", "yellow_num_triangles",
             "warning_num_points", "warning_num_triangles", "pair_number", "group", "priority", "num_backpacks"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             u32* data = (u32*)prop->Data();
-            zoneObject.GetOrCreateProperty(propertyName).Set<u32>(*data);
+            propObject.GetOrCreateProperty("Uint").Set<u32>(*data);
             return true;
         }
    );
@@ -315,14 +320,15 @@ void InitZonePropertyLoaders()
     //Vec3 properties
     ZonePropertyTypes.emplace_back
     (
+        "Vec3",
         std::vector<std::string_view>
         {
             "just_pos", "min_clip", "max_clip", "clr_orig"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             Vec3* data = (Vec3*)prop->Data();
-            zoneObject.GetOrCreateProperty(propertyName).Set<Vec3>(*data);
+            propObject.GetOrCreateProperty("Vec3").Set<Vec3>(*data);
             return true;
         }
     );
@@ -330,14 +336,15 @@ void InitZonePropertyLoaders()
     //Matrix33 properties
     ZonePropertyTypes.emplace_back
     (
+        "Matrix33",
         std::vector<std::string_view>
         {
             "nav_orient"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             Mat3* data = (Mat3*)prop->Data();
-            zoneObject.GetOrCreateProperty(propertyName).Set<Mat3>(*data);
+            propObject.GetOrCreateProperty("Matrix33").Set<Mat3>(*data);
             return true;
         }
     );
@@ -345,16 +352,17 @@ void InitZonePropertyLoaders()
     //Bounding box property
     ZonePropertyTypes.emplace_back
     (
+        "BoundingBox",
         std::vector<std::string_view>
         {
             "bb"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             struct bb { Vec3 bmin; Vec3 bmax; };
             bb* data = (bb*)prop->Data();
-            zoneObject.GetOrCreateProperty("bmin").Set<Vec3>(data->bmin);
-            zoneObject.GetOrCreateProperty("bmax").Set<Vec3>(data->bmax);
+            propObject.GetOrCreateProperty("Bmin").Set<Vec3>(data->bmin);
+            propObject.GetOrCreateProperty("Bmax").Set<Vec3>(data->bmax);
             return true;
         }
     );
@@ -362,16 +370,17 @@ void InitZonePropertyLoaders()
     //Op property
     ZonePropertyTypes.emplace_back
     (
+        "Op",
         std::vector<std::string_view>
         {
             "op"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             struct op { Vec3 Position; Mat3 Orient; };
             op* data = (op*)prop->Data();
-            zoneObject.GetOrCreateProperty("Position").Set<Vec3>(data->Position);
-            zoneObject.GetOrCreateProperty("Orient").Set<Mat3>(data->Orient);
+            propObject.GetOrCreateProperty("Position").Set<Vec3>(data->Position);
+            propObject.GetOrCreateProperty("Orient").Set<Mat3>(data->Orient);
             return true;
         }
     );
@@ -382,7 +391,7 @@ void InitZonePropertyLoaders()
 }
 
 //Convert a zone object property to a registry
-bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject)
+bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle propObject)
 {
     auto maybeName = prop->Name();
     if (!maybeName.has_value())
@@ -392,7 +401,14 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject)
     for (ZonePropertyType& propType : ZonePropertyTypes)
         for (const std::string_view propName : propType.PropertyNames)
             if (propName == name)
-                return propType.Loader(prop, zoneObject, name);
+            {
+                propObject.GetOrCreateProperty("TypeName").Set<string>(propType.Name);
+                return propType.Loader(prop, propObject, name);
+                //bool result = propType.Loader(prop, propObject, name);
+                //if (result)
+                //    propObject.GetOrCreateProperty("Name").Set<string>(string(propName));
+                //return result;
+            }
 
     return false;
 }

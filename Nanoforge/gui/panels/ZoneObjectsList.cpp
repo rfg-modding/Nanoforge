@@ -191,6 +191,10 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
         state->SetSelectedZoneObject(object);
         state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
     }
+    if (ImGui::IsItemHovered())
+    {
+        gui::TooltipOnPrevious(object.GetProperty("Classname").Get<string>(), ImGui::GetIO().FontDefault);
+    }
 
     //Draw node icon
     ImGui::PushStyleColor(ImGuiCol_Text, { objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f });
