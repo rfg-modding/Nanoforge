@@ -10,6 +10,7 @@
 //Buffer for per-object shader constants (set once per object)
 struct PerObjectConstants
 {
+    DirectX::XMMATRIX Model;
     DirectX::XMMATRIX MVP;
     DirectX::XMVECTOR WorldPosition;
 };

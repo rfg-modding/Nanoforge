@@ -16,10 +16,11 @@ void RenderObject::Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObj
     DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
     DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(Position.x, Position.y, Position.z);
     DirectX::XMMATRIX scale = DirectX::XMMatrixScaling(Scale.x, Scale.y, Scale.z);
-    constants.MVP = DirectX::XMMatrixIdentity();
-    constants.MVP = translation * rotation * scale; //First calculate the model matrix
+    //First calculate the model matrix
+    constants.Model = DirectX::XMMatrixIdentity();
+    constants.Model = translation * rotation * scale;
     //Then calculate model matrix with Model * View * Projection
-    constants.MVP = DirectX::XMMatrixTranspose(constants.MVP * cam.camView * cam.camProjection);
+    constants.MVP = DirectX::XMMatrixTranspose(constants.Model * cam.camView * cam.camProjection);
 
     constants.WorldPosition.m128_f32[0] = Position.x;
     constants.WorldPosition.m128_f32[1] = Position.y;

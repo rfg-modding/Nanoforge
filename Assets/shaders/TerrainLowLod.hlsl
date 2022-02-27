@@ -1,6 +1,7 @@
 
 cbuffer cbPerObject
 {
+    float4x4 Model;
     float4x4 WVP;
     float4 WorldPosition;
 };
