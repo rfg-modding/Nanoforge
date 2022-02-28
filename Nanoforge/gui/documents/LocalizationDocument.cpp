@@ -1,4 +1,4 @@
-#include "LocalizationDocument.h"
+﻿#include "LocalizationDocument.h"
 #include "render/imgui/imgui_ext.h"
 #include "BinaryTools/BinaryReader.h"
 #include "gui/GuiState.h"

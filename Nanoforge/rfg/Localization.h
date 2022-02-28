@@ -10,7 +10,9 @@ class Config;
 //Todo: Support locales using non-latin alphabets
 //Note:
 //  - Only the locales with an rfglocatext file included with the vanilla game are listed currently.
-//  - Only locales using the Latin alphabet are supported currently. The others are commented out.
+//  - Only locales using the characters supported by the base noto sans font are enabled at the moment.
+//    Noto sans has separate fonts for Japanese, Chinese, Korean, and Arabic characters but they're not loaded yet due to long load times and low demand.
+//    Eventually Nanoforge will have a full localization system that can selectively load fonts to fix this issue.
 enum class Locale
 {
     //Using Arabic alphabet
@@ -27,7 +29,7 @@ enum class Locale
     //PT_BR, //Portuguese (Brazil) //Note: Not yet supported by vanilla game. Rfglocatext file is filled with english strings.
 
     //Using Polish alphabet
-    PL_PL, //Polish (Poland) //Note: Some characters of the Polish alphabet are not supported by the font Nanoforge uses.
+    PL_PL, //Polish (Poland)
 
     //Using Japanese alphabet
     //JA_JP, //Japanese (Japan)
@@ -36,7 +38,7 @@ enum class Locale
     //KO_KR, //Korean (Korea)
 
     //Using Cyrillic alphabet
-    //RU_RU, //Russian (Russia)
+    RU_RU, //Russian (Russia)
 
     //Using Chinese alphabet
     //ZH_CN, //Chinese (China)

@@ -24,9 +24,14 @@ public:
 
         size_ *= CVar_UIScale.Get<f32>();
         //Load normal font
-        io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_);
+        //ImFontConfig icons_config;
+        //icons_config.MergeMode = false;
+        //icons_config.PixelSnapH = false;
+        io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_, nullptr, glyph_ranges);
         //Load FontAwesome image font and merge with normal font
         ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::FontAwesomePath.c_str(), size_, font_cfg_template, glyph_ranges);
+        //Load japanese font and merge
+        //ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::JapaneseFontPath.c_str(), size_, font_cfg_template, glyph_ranges);
     }
 
 private:
@@ -39,9 +44,9 @@ class ImGuiFontManager
 public:
     void RegisterFonts();
 
-    ImGuiFont FontSmall{ 11.0f };
-    ImGuiFont FontDefault{ 13.0f };
-    ImGuiFont FontMedium{ 16.0f };
-    ImGuiFont FontL{ 24.0f };
-    ImGuiFont FontXL{ 31.5f };
+    ImGuiFont FontSmall{ 12.0f };
+    ImGuiFont FontDefault{ 14.0f };
+    ImGuiFont FontMedium{ 17.0f };
+    ImGuiFont FontL{ 25.0f };
+    ImGuiFont FontXL{ 32.5f };
 };
