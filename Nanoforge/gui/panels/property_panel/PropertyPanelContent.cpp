@@ -80,9 +80,9 @@ void PropertyPanel_ZoneObject(GuiState* state)
     {
         ObjectHandle selected = state->SelectedObject;
 
-        string name = selected.GetProperty("Name").Get<string>();
+        string name = selected.Property("Name").Get<string>();
         if (name == "")
-            name = selected.GetProperty("Classname").Get<string>();
+            name = selected.Property("Classname").Get<string>();
 
         //Object name
         state->FontManager->FontMedium.Push();
@@ -91,13 +91,13 @@ void PropertyPanel_ZoneObject(GuiState* state)
 
         //Object class name
         ImGui::PushStyleColor(ImGuiCol_Text, gui::SecondaryTextColor);
-        ImGui::Text(selected.GetProperty("Classname").Get<string>().c_str());
+        ImGui::Text(selected.Property("Classname").Get<string>().c_str());
         ImGui::PopStyleColor();
         ImGui::Separator();
 
-        u32 handle = selected.GetProperty("Handle").Get<u32>();
-        u32 num = selected.GetProperty("Num").Get<u32>();
-        u32 flags = selected.GetProperty("Flags").Get<u16>();
+        u32 handle = selected.Property("Handle").Get<u32>();
+        u32 num = selected.Property("Num").Get<u32>();
+        u32 flags = selected.Property("Flags").Get<u16>();
         ImGui::InputScalar("Handle", ImGuiDataType_U32, &handle);
         ImGui::InputScalar("Num", ImGuiDataType_U32, &num);
         ImGui::InputScalar("Flags", ImGuiDataType_U16, &flags);
@@ -110,78 +110,78 @@ void PropertyPanel_ZoneObject(GuiState* state)
             ImGui::LogFinish();
         }
 
-        std::vector<ObjectHandle>& properties = selected.GetProperty("Properties").GetObjectList();
+        std::vector<ObjectHandle>& properties = selected.Property("Properties").GetObjectList();
         for (ObjectHandle prop : properties)
         {
-            string typeName = prop.GetProperty("TypeName").Get<string>();
+            string typeName = prop.Property("TypeName").Get<string>();
             const f32 indent = 15.0f;
-            if (ImGui::CollapsingHeader(prop.GetProperty("Name").Get<string>().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader(prop.Property("Name").Get<string>().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Indent(indent);
                 if (typeName == "String")
                 {
-                    string data = prop.GetProperty("String").Get<string>();
+                    string data = prop.Property("String").Get<string>();
                     if (ImGui::InputText("String", &data))
-                        prop.GetProperty("String").Set<string>(data);
+                        prop.Property("String").Set<string>(data);
                 }
                 else if (typeName == "Bool")
                 {
-                    bool data = prop.GetProperty("Bool").Get<bool>();
+                    bool data = prop.Property("Bool").Get<bool>();
                     if (ImGui::Checkbox("Bool", &data))
-                        prop.GetProperty("Bool").Set<bool>(data);
+                        prop.Property("Bool").Set<bool>(data);
                 }
                 else if (typeName == "Float")
                 {
-                    f32 data = prop.GetProperty("Float").Get<f32>();
+                    f32 data = prop.Property("Float").Get<f32>();
                     if (ImGui::InputFloat("Float", &data))
-                        prop.GetProperty("Float").Set<f32>(data);
+                        prop.Property("Float").Set<f32>(data);
                 }
                 else if (typeName == "Uint")
                 {
-                    u32 data = prop.GetProperty("Uint").Get<u32>();
+                    u32 data = prop.Property("Uint").Get<u32>();
                     if (ImGui::InputScalar("Number", ImGuiDataType_U32, &data))
-                        prop.GetProperty("Uint").Set<u32>(data);
+                        prop.Property("Uint").Set<u32>(data);
                 }
                 else if (typeName == "BoundingBox")
                 {
-                    Vec3 bmin = prop.GetProperty("Bmin").Get<Vec3>();
-                    Vec3 bmax = prop.GetProperty("Bmax").Get<Vec3>();
+                    Vec3 bmin = prop.Property("Bmin").Get<Vec3>();
+                    Vec3 bmax = prop.Property("Bmax").Get<Vec3>();
                     if (ImGui::InputFloat3("Min", (f32*)&bmin))
-                        prop.GetProperty("Bmin").Set<Vec3>(bmin);
+                        prop.Property("Bmin").Set<Vec3>(bmin);
                     if (ImGui::InputFloat3("Max", (f32*)&bmax))
-                        prop.GetProperty("Bmax").Set<Vec3>(bmax);
+                        prop.Property("Bmax").Set<Vec3>(bmax);
                 }
                 else if (typeName == "Vec3")
                 {
-                    Vec3 data = prop.GetProperty("Vector").Get<Vec3>();
+                    Vec3 data = prop.Property("Vector").Get<Vec3>();
                     if (ImGui::InputFloat3("Vector", (f32*)&data))
-                        prop.GetProperty("Vector").Set<Vec3>(data);
+                        prop.Property("Vector").Set<Vec3>(data);
                 }
                 else if (typeName == "Matrix33")
                 {
-                    Mat3 data = prop.GetProperty("Matrix33").Get<Mat3>();
+                    Mat3 data = prop.Property("Matrix33").Get<Mat3>();
                     if (ImGui::InputFloat3("Right", (f32*)&data.rvec))
-                        prop.GetProperty("Matrix33").Set<Mat3>(data);
+                        prop.Property("Matrix33").Set<Mat3>(data);
                     if (ImGui::InputFloat3("Up", (f32*)&data.uvec))
-                        prop.GetProperty("Matrix33").Set<Mat3>(data);
+                        prop.Property("Matrix33").Set<Mat3>(data);
                     if (ImGui::InputFloat3("Forward", (f32*)&data.fvec))
-                        prop.GetProperty("Matrix33").Set<Mat3>(data);
+                        prop.Property("Matrix33").Set<Mat3>(data);
                 }
                 else if (typeName == "Op")
                 {
                     ImGui::Text("Orientation:");
-                    Mat3 orient = prop.GetProperty("Orient").Get<Mat3>();
+                    Mat3 orient = prop.Property("Orient").Get<Mat3>();
                     if (ImGui::InputFloat3("Right", (f32*)&orient.rvec))
-                        prop.GetProperty("Orient").Set<Mat3>(orient);
+                        prop.Property("Orient").Set<Mat3>(orient);
                     if (ImGui::InputFloat3("Up", (f32*)&orient.uvec))
-                        prop.GetProperty("Orient").Set<Mat3>(orient);
+                        prop.Property("Orient").Set<Mat3>(orient);
                     if (ImGui::InputFloat3("Forward", (f32*)&orient.fvec))
-                        prop.GetProperty("Orient").Set<Mat3>(orient);
+                        prop.Property("Orient").Set<Mat3>(orient);
 
                     ImGui::Text("Position:");
-                    Vec3 pos = prop.GetProperty("Position").Get<Vec3>();
+                    Vec3 pos = prop.Property("Position").Get<Vec3>();
                     if (ImGui::InputFloat3("Position", (f32*)&pos))
-                        prop.GetProperty("Position").Set<Vec3>(pos);
+                        prop.Property("Position").Set<Vec3>(pos);
                 }
                 else if (typeName == "DistrictFlags")
                 {

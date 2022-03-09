@@ -473,24 +473,24 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
     //Update zone visibility based on distance from camera
     for (ObjectHandle zone : Territory.Zones)
     {
-        if (zone.GetOrCreateProperty("ActivityLayer").Get<bool>() || zone.GetOrCreateProperty("MissionLayer").Get<bool>())
+        if (zone.Property("ActivityLayer").Get<bool>() || zone.Property("MissionLayer").Get<bool>())
             continue; //Activity and mission visibility is manually controlled
 
-        Vec2 subzonePos = zone.GetProperty("Position").Get<Vec3>().XZ();
+        Vec2 subzonePos = zone.Property("Position").Get<Vec3>().XZ();
         Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
         f32 distanceFromCamera = subzonePos.Distance(cameraPos);
-        zone.GetOrCreateProperty("RenderBoundingBoxes").Set<bool>(distanceFromCamera <= zoneObjDistance_);
+        zone.Property("RenderBoundingBoxes").Set<bool>(distanceFromCamera <= zoneObjDistance_);
     }
 
     //Draw bounding boxes
     for (ObjectHandle zone : Territory.Zones)
     {
-        if (!zone.GetProperty("RenderBoundingBoxes").Get<bool>())
+        if (!zone.Property("RenderBoundingBoxes").Get<bool>())
             continue;
 
-        for (ObjectHandle object : zone.GetProperty("Objects").GetObjectList())
+        for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         {
-            auto objectClass = Territory.GetObjectClass(object.GetProperty("ClassnameHash").Get<u32>());
+            auto objectClass = Territory.GetObjectClass(object.Property("ClassnameHash").Get<u32>());
             if (!objectClass.Show)
                 continue;
 
@@ -517,8 +517,8 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                     color.z = std::max(color.z, colorMin);
                 }
 
-                Vec3 bmin = object.GetProperty("Bmin").Get<Vec3>();
-                Vec3 bmax = object.GetProperty("Bmax").Get<Vec3>();
+                Vec3 bmin = object.Property("Bmin").Get<Vec3>();
+                Vec3 bmax = object.Property("Bmax").Get<Vec3>();
 
                 //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
                 Vec3 lineStart;
@@ -539,9 +539,9 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
             else //If not selected just draw bounding box with static color
             {
                 if (objectClass.DrawSolid)
-                    Scene->DrawBoxLit(object.GetProperty("Bmin").Get<Vec3>(), object.GetProperty("Bmax").Get<Vec3>(), objectClass.Color);
+                    Scene->DrawBoxLit(object.Property("Bmin").Get<Vec3>(), object.Property("Bmax").Get<Vec3>(), objectClass.Color);
                 else
-                    Scene->DrawBox(object.GetProperty("Bmin").Get<Vec3>(), object.GetProperty("Bmax").Get<Vec3>(), objectClass.Color);
+                    Scene->DrawBox(object.Property("Bmin").Get<Vec3>(), object.Property("Bmax").Get<Vec3>(), objectClass.Color);
             }
         }
     }

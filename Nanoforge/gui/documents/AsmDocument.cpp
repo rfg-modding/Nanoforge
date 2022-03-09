@@ -15,24 +15,24 @@ ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
 
     //Create editor object for asm_pc file
     ObjectHandle object = registry.CreateObject(asmFile.Name, "AsmFile");
-    object.GetOrCreateProperty("Name").Set(asmFile.Name);
-    object.GetOrCreateProperty("Signature").Set(asmFile.Signature);
-    object.GetOrCreateProperty("Version").Set(asmFile.Version);
-    object.GetOrCreateProperty("Containers").SetObjectList();
+    object.Property("Name").Set(asmFile.Name);
+    object.Property("Signature").Set(asmFile.Signature);
+    object.Property("Version").Set(asmFile.Version);
+    object.Property("Containers").SetObjectList();
 
     //Set containers
     for (AsmContainer& asmContainer : asmFile.Containers)
     {
         ObjectHandle container = registry.CreateObject(asmContainer.Name, "AsmContainer");
-        container.GetOrCreateProperty("Name").Set(asmContainer.Name);
-        container.GetOrCreateProperty("Type").Set((u8)asmContainer.Type);
-        container.GetOrCreateProperty("Flags").Set((u16)asmContainer.Flags);
-        container.GetOrCreateProperty("DataOffset").Set(asmContainer.DataOffset);
-        container.GetOrCreateProperty("CompressedSize").Set(asmContainer.CompressedSize);
-        container.GetOrCreateProperty("Primitives").SetObjectList({});
+        container.Property("Name").Set(asmContainer.Name);
+        container.Property("Type").Set((u8)asmContainer.Type);
+        container.Property("Flags").Set((u16)asmContainer.Flags);
+        container.Property("DataOffset").Set(asmContainer.DataOffset);
+        container.Property("CompressedSize").Set(asmContainer.CompressedSize);
+        container.Property("Primitives").SetObjectList({});
 
         //Add container asm files list
-        object.GetProperty("Containers").GetObjectList().push_back(container);
+        object.Property("Containers").GetObjectList().push_back(container);
 
         //Set container primitives
         size_t i = 0;
@@ -40,18 +40,18 @@ ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
         {
             //TODO: Add to container primitives list, however lists are determined to work
             ObjectHandle primitive = registry.CreateObject(asmPrimitive.Name, "AsmPrimitive");
-            primitive.GetOrCreateProperty("Name").Set(asmPrimitive.Name);
-            primitive.GetOrCreateProperty("Type").Set((u8)asmPrimitive.Type);
-            primitive.GetOrCreateProperty("Allocator").Set((u8)asmPrimitive.Allocator);
-            primitive.GetOrCreateProperty("Flags").Set((u8)asmPrimitive.Flags);
-            primitive.GetOrCreateProperty("SplitExtIndex").Set(asmPrimitive.SplitExtIndex);
-            primitive.GetOrCreateProperty("TotalSize").Set(asmContainer.PrimitiveSizes[i]);
-            primitive.GetOrCreateProperty("HeaderSize").Set(asmPrimitive.HeaderSize);
-            primitive.GetOrCreateProperty("DataSize").Set(asmPrimitive.DataSize);
+            primitive.Property("Name").Set(asmPrimitive.Name);
+            primitive.Property("Type").Set((u8)asmPrimitive.Type);
+            primitive.Property("Allocator").Set((u8)asmPrimitive.Allocator);
+            primitive.Property("Flags").Set((u8)asmPrimitive.Flags);
+            primitive.Property("SplitExtIndex").Set(asmPrimitive.SplitExtIndex);
+            primitive.Property("TotalSize").Set(asmContainer.PrimitiveSizes[i]);
+            primitive.Property("HeaderSize").Set(asmPrimitive.HeaderSize);
+            primitive.Property("DataSize").Set(asmPrimitive.DataSize);
             i++;
 
             //Add primitive to containers list
-            container.GetProperty("Primitives").GetObjectList().push_back(primitive);
+            container.Property("Primitives").GetObjectList().push_back(primitive);
         }
     }
 

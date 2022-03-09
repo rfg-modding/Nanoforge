@@ -110,7 +110,7 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
                 //Loop through visible zones
                 for (ObjectHandle zone : state->CurrentTerritory->Zones)
                 {
-                    if (onlyShowNearZones_ && !zone.GetProperty("RenderBoundingBoxes").Get<bool>())
+                    if (onlyShowNearZones_ && !zone.Property("RenderBoundingBoxes").Get<bool>())
                         continue;
 
                     ImGui::TableNextRow();
@@ -124,12 +124,12 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
                     if (selected)
                         flags |= ImGuiTreeNodeFlags_Selected;
 
-                    if (ImGui::TreeNodeEx(zone.GetProperty("Name").Get<string>().c_str(), flags))
+                    if (ImGui::TreeNodeEx(zone.Property("Name").Get<string>().c_str(), flags))
                     {
-                        for (ObjectHandle object : zone.GetOrCreateProperty("Objects").GetObjectList())
+                        for (ObjectHandle object : zone.Property("Objects").GetObjectList())
                         {
                             //Don't draw objects with parents at the top of the tree. They'll be drawn as subnodes when their parent calls DrawObjectNode()
-                            if (object.GetProperty("Parent").Get<u64>() != NullUID)
+                            if (object.Property("Parent").Get<u64>() != NullUID)
                                 continue;
 
                             DrawObjectNode(state, object);
@@ -159,20 +159,20 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
     if (!visible)
         return;
 
-    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.GetProperty("ClassnameHash").Get<u32>());
+    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Property("ClassnameHash").Get<u32>());
 
     //Update node index and selection state
     bool selected = (object == state->ZoneObjectList_SelectedObject);
 
     //Attempt to find a human friendly name for the object
-    string name = object.GetProperty("Name").Get<string>();
+    string name = object.Property("Name").Get<string>();
 
     //Determine best object name
     string objectLabel = "      "; //Empty space for node icon
     if (name != "")
         objectLabel += name; //Use custom name if available
     else
-        objectLabel += object.GetProperty("Classname").Get<string>(); //Otherwise use object type name (e.g. rfg_mover, navpoint, obj_light, etc)
+        objectLabel += object.Property("Classname").Get<string>(); //Otherwise use object type name (e.g. rfg_mover, navpoint, obj_light, etc)
 
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
@@ -193,7 +193,7 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
     }
     if (ImGui::IsItemHovered())
     {
-        gui::TooltipOnPrevious(object.GetProperty("Classname").Get<string>(), ImGui::GetIO().FontDefault);
+        gui::TooltipOnPrevious(object.Property("Classname").Get<string>(), ImGui::GetIO().FontDefault);
     }
 
     //Draw node icon
@@ -205,26 +205,23 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
 
     //Flags
     ImGui::TableNextColumn();
-    ImGui::Text(std::to_string(object.GetProperty("Flags").Get<u16>()));
+    ImGui::Text(std::to_string(object.Property("Flags").Get<u16>()));
 
     //Num
     ImGui::TableNextColumn();
-    ImGui::Text(std::to_string(object.GetProperty("Num").Get<u32>()));
+    ImGui::Text(std::to_string(object.Property("Num").Get<u32>()));
 
     //Handle
     ImGui::TableNextColumn();
-    ImGui::Text(std::to_string(object.GetProperty("Handle").Get<u32>()));
+    ImGui::Text(std::to_string(object.Property("Handle").Get<u32>()));
 
     //Draw child nodes
     Registry& registry = Registry::Get();
     if (nodeOpen)
     {
-        for (u64 childUID : object.SubObjects())
-        {
-            ObjectHandle child = registry.GetObjectHandleByUID(childUID);
+        for (ObjectHandle child : object.SubObjects())
             if (child)
                 DrawObjectNode(state, child);
-        }
         ImGui::TreePop();
     }
     ImGui::PopID();
@@ -232,7 +229,7 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
 
 bool ZoneObjectsList::ZoneAnyChildObjectsVisible(GuiState* state, ObjectHandle zone)
 {
-    for (ObjectHandle object : zone.GetOrCreateProperty("Objects").GetObjectList())
+    for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         if (ShowObjectOrChildren(state, object))
             return true;
 
@@ -241,17 +238,14 @@ bool ZoneObjectsList::ZoneAnyChildObjectsVisible(GuiState* state, ObjectHandle z
 
 bool ZoneObjectsList::ShowObjectOrChildren(GuiState* state, ObjectHandle object)
 {
-    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.GetProperty("ClassnameHash").Get<u32>());
+    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Property("ClassnameHash").Get<u32>());
     if (objectClass.Show)
         return true;
 
     Registry& registry = Registry::Get();
-    for (u64 childUID : object.SubObjects())
-    {
-        ObjectHandle child = registry.GetObjectHandleByUID(childUID);
+    for (ObjectHandle child : object.SubObjects())
         if (child.Valid() && ShowObjectOrChildren(state, child))
             return true;
-    }
 
     return false;
 }

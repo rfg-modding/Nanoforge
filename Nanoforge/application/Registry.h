@@ -17,8 +17,6 @@ class Object;
 class PropertyHandle;
 class ObjectHandle;
 
-//Value storage for Property
-using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, void*, std::vector<ObjectHandle>, Vec3, Mat3>;
 static const u64 NullUID = std::numeric_limits<u64>::max();
 
 //Global data registry. Contains objects which consist of properties.
@@ -48,7 +46,29 @@ private:
     friend class PropertyHandle;
 };
 
-class Property
+//Handle to registry object
+class ObjectHandle
+{
+public:
+    ObjectHandle(Object* object);
+    u64 UID() const;
+    bool Valid() const;
+    explicit operator bool() const; //Used to check if handle is valid
+    std::vector<ObjectHandle>& SubObjects();
+    //Get object property. Adds the property to the object if it doesn't already exist. Use ::Has() to check for the property first to avoid adding it.
+    PropertyHandle Property(std::string_view name);
+    bool Has(std::string_view propertyName);
+    std::vector<PropertyHandle> Properties();
+    bool operator==(ObjectHandle other);
+
+private:
+    Object* _object;
+};
+
+//Value storage for Property
+using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, void*, std::vector<ObjectHandle>, Vec3, Mat3, ObjectHandle>;
+
+class RegistryProperty
 {
 public:
     string Name;
@@ -61,8 +81,8 @@ public:
     string Name;
     u64 UID;
     u64 ParentUID;
-    std::vector<Property> Properties;
-    std::vector<u64> SubObjects;
+    std::vector<RegistryProperty> Properties;
+    std::vector<ObjectHandle> SubObjects;
     //Locked when editing properties. Temporary bandaid. The current design is going to be tested on the map editor first.
     //Afterwards a better solution for thread safety and any other major design flaws found will be fixed.
     std::unique_ptr<std::mutex> Mutex = std::make_unique<std::mutex>();
@@ -74,6 +94,17 @@ public:
     }
 };
 
+template<typename T>
+class Prop
+{
+public:
+
+
+private:
+    Object* _object;
+    u32 _index; //Index of property in Object::Properties
+};
+
 //Handle to a property of a registry object
 class PropertyHandle
 {
@@ -82,67 +113,19 @@ public:
     bool Valid() const { return _object && _object->UID != NullUID; }
     //Allows checking handle validity with if statements. E.g. if (handle) { /*valid*/ } else { /*invalid*/ }
     explicit operator bool() const { return Valid(); }
-
-    template<typename T>
-    T Get()
-    {
-        //Comptime check that T is supported
-        static_assert(
-            std::is_same<T, i32>() ||
-            std::is_same<T, u64>() ||
-            std::is_same<T, u32>() ||
-            std::is_same<T, u16>() ||
-            std::is_same<T, u8>() ||
-            std::is_same<T, f32>() ||
-            std::is_same<T, bool>() ||
-            std::is_same<T, string>() ||
-            std::is_same<T, Vec3>() ||
-            std::is_same<T, Mat3>() ||
-            std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by Property::Get<T>()");
-
-        if (!_object)
-            THROW_EXCEPTION("Called ::Get() on and invalid property handle!");
-
-        std::lock_guard<std::mutex> lock(*_object->Mutex.get());
-        Property& prop = _object->Properties[_index];
-        return std::get<T>(prop.Value);
-    }
-
-    template<typename T>
-    void Set(T value)
-    {
-        //Comptime check that T is supported
-        static_assert(
-            std::is_same<T, i32>() ||
-            std::is_same<T, u64>() ||
-            std::is_same<T, u32>() ||
-            std::is_same<T, u16>() ||
-            std::is_same<T, u8>() ||
-            std::is_same<T, f32>() ||
-            std::is_same<T, bool>() ||
-            std::is_same<T, string>() ||
-            std::is_same<T, Vec3>() ||
-            std::is_same<T, Mat3>() ||
-            std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by Property::Set<T>()");
-
-        if (!_object)
-            THROW_EXCEPTION("Called ::Set() on and invalid property handle!");
-
-        std::lock_guard<std::mutex> lock(*_object->Mutex.get());
-        Property& prop = _object->Properties[_index];
-        prop.Value = value;
-    }
+    template<typename T> T Get();
+    template<typename T> void Set(T value);
 
     //Special cases of Get<T>() and Set<T>() for object lists. For convenience to avoid using Get<std::vector<ObjectHandle>>()
     std::vector<ObjectHandle>& GetObjectList()
     {
-        Property& prop = _object->Properties[_index];
+        RegistryProperty& prop = _object->Properties[_index];
         return std::get<std::vector<ObjectHandle>>(prop.Value);
     }
 
     void SetObjectList(const std::vector<ObjectHandle>& newList = {})
     {
-        Property& prop = _object->Properties[_index];
+        RegistryProperty& prop = _object->Properties[_index];
         prop.Value = newList; //Replaces existing list
     }
 
@@ -151,95 +134,57 @@ private:
     u32 _index; //Index of property in Object::Properties
 };
 
-//Handle to registry object
-class ObjectHandle
-{
-public:
-    ObjectHandle(Object* object) : _object(object)
-    {
-
-    }
-    u64 UID() const { return _object ? _object->UID : NullUID; }
-    bool Valid() const { return _object && _object->UID != NullUID; }
-    //Allows checking handle validity with if statements. E.g. if (handle) { /*valid*/ } else { /*invalid*/ }
-    explicit operator bool() const { return Valid(); }
-    std::vector<u64>& SubObjects()
-    {
-        if (_object)
-            return _object->SubObjects;
-        else
-            THROW_EXCEPTION("Attempted to get SubObjects from null object handle.")
-    }
-
-    PropertyHandle GetProperty(std::string_view name)
-    {
-        for (size_t i = 0; i < _object->Properties.size(); i++)
-            if (_object->Properties[i].Name == name)
-                return { _object, (u32)i };
-
-        return { nullptr, std::numeric_limits<u32>::max() };
-    }
-
-    PropertyHandle GetOrCreateProperty(std::string_view name)
-    {
-        if (_object)
-        {
-            if (PropertyHandle handle = GetProperty(name); handle)
-            {
-                return handle;
-            }
-            else
-            {
-                Property& prop = _object->Properties.emplace_back();
-                prop.Name = string(name);
-                return { _object, (u32)(_object->Properties.size() - 1) };
-            }
-        }
-        else
-        {
-            THROW_EXCEPTION("Attempted to get property from a null object.");
-        }
-    }
-
-    bool Has(std::string_view propertyName)
-    {
-        if (_object)
-            for (size_t i = 0; i < _object->Properties.size(); i++)
-                if (_object->Properties[i].Name == propertyName)
-                    return true;
-
-        return false;
-    }
-
-    std::vector<PropertyHandle> Properties()
-    {
-        std::vector<PropertyHandle> properties = {};
-        for (u32 i = 0; i < _object->Properties.size(); i++)
-            properties.emplace_back(_object, i);
-
-        return properties;
-    }
-
-    //Note: Option for manually locking the object mutex. PropertyHandle::Set()//::Get() already do this, but the functions related to object lists don't.
-    //The need for this will be removed in the rewrite that'll take place after testing this out on the map editor.
-    void Lock()
-    {
-        _object->Mutex->lock();
-    }
-
-    void Unlock()
-    {
-        _object->Mutex->unlock();
-    }
-
-    bool operator==(ObjectHandle other)
-    {
-        return _object == other._object;
-    }
-
-private:
-    Object* _object;
-};
-
 static const ObjectHandle NullObjectHandle = { nullptr };
 static const PropertyHandle NullPropertyHandle = { nullptr, std::numeric_limits<u32>::max() };
+
+template<typename T>
+T PropertyHandle::Get()
+{
+    //Comptime check that T is supported
+    static_assert(
+        std::is_same<T, i32>() ||
+        std::is_same<T, u64>() ||
+        std::is_same<T, u32>() ||
+        std::is_same<T, u16>() ||
+        std::is_same<T, u8>() ||
+        std::is_same<T, f32>() ||
+        std::is_same<T, bool>() ||
+        std::is_same<T, string>() ||
+        std::is_same<T, Vec3>() ||
+        std::is_same<T, Mat3>() ||
+        std::is_same<T, ObjectHandle>() ||
+        std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by RegistryProperty::Get<T>()");
+
+    if (!_object)
+        THROW_EXCEPTION("Called ::Get() on and invalid property handle!");
+
+    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    RegistryProperty& prop = _object->Properties[_index];
+    return std::get<T>(prop.Value);
+}
+
+template<typename T>
+void PropertyHandle::Set(T value)
+{
+    //Comptime check that T is supported
+    static_assert(
+        std::is_same<T, i32>() ||
+        std::is_same<T, u64>() ||
+        std::is_same<T, u32>() ||
+        std::is_same<T, u16>() ||
+        std::is_same<T, u8>() ||
+        std::is_same<T, f32>() ||
+        std::is_same<T, bool>() ||
+        std::is_same<T, string>() ||
+        std::is_same<T, Vec3>() ||
+        std::is_same<T, Mat3>() ||
+        std::is_same<T, ObjectHandle>() ||
+        std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by RegistryProperty::Set<T>()");
+
+    if (!_object)
+        THROW_EXCEPTION("Called ::Set() on and invalid property handle!");
+
+    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    RegistryProperty& prop = _object->Properties[_index];
+    prop.Value = value;
+}

@@ -65,7 +65,7 @@ void ZoneList::Update(GuiState* state, bool* open)
     {
         for (ObjectHandle zone : state->CurrentTerritory->Zones)
         {
-            zone.GetProperty("RenderBoundingBoxes").Set<bool>(true);
+            zone.Property("RenderBoundingBoxes").Set<bool>(true);
         }
         state->CurrentTerritoryUpdateDebugDraw = true;
         state->CurrentTerritory->UpdateObjectClassInstanceCounts();
@@ -75,7 +75,7 @@ void ZoneList::Update(GuiState* state, bool* open)
     {
         for (ObjectHandle zone : state->CurrentTerritory->Zones)
         {
-            zone.GetProperty("RenderBoundingBoxes").Set<bool>(false);
+            zone.Property("RenderBoundingBoxes").Set<bool>(false);
         }
         state->CurrentTerritoryUpdateDebugDraw = true;
         state->CurrentTerritory->UpdateObjectClassInstanceCounts();
@@ -98,30 +98,30 @@ void ZoneList::Update(GuiState* state, bool* open)
         for (ObjectHandle zone : state->CurrentTerritory->Zones)
         {
             //Skip zones that don't meet search term or filter requirements
-            if (searchTerm_ != "" && zone.GetProperty("Name").Get<string>().find(searchTerm_) == string::npos)
+            if (searchTerm_ != "" && zone.Property("Name").Get<string>().find(searchTerm_) == string::npos)
                 continue;
-            if (hideEmptyZones && zone.GetProperty("Objects").GetObjectList().size() == 0 || !(hideObjectBelowObjectThreshold ? zone.GetProperty("Objects").GetObjectList().size() >= minObjectsToShowZone : true))
+            if (hideEmptyZones && zone.Property("Objects").GetObjectList().size() == 0 || !(hideObjectBelowObjectThreshold ? zone.Property("Objects").GetObjectList().size() >= minObjectsToShowZone : true))
             {
                 i++;
                 continue;
             }
             //Hide mission and activity layers if they aren't enabled
-            if (!showMissionAndActivityZones && (zone.GetProperty("MissionLayer").Get<bool>() || zone.GetProperty("ActivityLayer").Get<bool>()))
+            if (!showMissionAndActivityZones && (zone.Property("MissionLayer").Get<bool>() || zone.Property("ActivityLayer").Get<bool>()))
                 continue;
 
             ImGui::TableNextRow();
 
             //Name
             ImGui::TableNextColumn();
-            ImGui::Text(zone.GetProperty("ShortName").Get<string>().c_str());
+            ImGui::Text(zone.Property("ShortName").Get<string>().c_str());
 
             //# objects
             ImGui::TableNextColumn();
-            ImGui::Text("%d", zone.GetProperty("Objects").GetObjectList().size());
+            ImGui::Text("%d", zone.Property("Objects").GetObjectList().size());
 
             //District
             ImGui::TableNextColumn();
-            ImGui::Text("%s", zone.GetProperty("DistrictName").Get<string>().c_str());
+            ImGui::Text("%s", zone.Property("DistrictName").Get<string>().c_str());
 
             i++;
         }

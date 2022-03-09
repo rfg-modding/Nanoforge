@@ -63,19 +63,19 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     ObjectHandle zone = registry.CreateObject(zoneFile.Name, "Zone");
 
     //Convert zone header
-    zone.GetOrCreateProperty("Signature").Set<u32>(zoneFile.Header.Signature);
-    zone.GetOrCreateProperty("Version").Set<u32>(zoneFile.Header.Version);
-    zone.GetOrCreateProperty("NumObjects").Set<u32>(zoneFile.Header.NumObjects);
-    zone.GetOrCreateProperty("NumHandles").Set<u32>(zoneFile.Header.NumHandles);
-    zone.GetOrCreateProperty("DistrictHash").Set<u32>(zoneFile.Header.DistrictHash);
-    zone.GetOrCreateProperty("DistrictFlags").Set<u32>(zoneFile.Header.DistrictFlags);
-    zone.GetOrCreateProperty("DistrictName").Set<string>(zoneFile.DistrictName());
-    zone.GetOrCreateProperty("Name").Set<string>(zoneFile.Name);
-    zone.GetOrCreateProperty("Persistent").Set<bool>(String::StartsWith(zoneFile.Name, "p_"));
-    zone.GetOrCreateProperty("Objects").SetObjectList({});
-    zone.GetOrCreateProperty("ActivityLayer").Set<bool>(false);
-    zone.GetOrCreateProperty("MissionLayer").Set<bool>(false);
-    zone.GetOrCreateProperty("RenderBoundingBoxes").Set<bool>(true);
+    zone.Property("Signature").Set<u32>(zoneFile.Header.Signature);
+    zone.Property("Version").Set<u32>(zoneFile.Header.Version);
+    zone.Property("NumObjects").Set<u32>(zoneFile.Header.NumObjects);
+    zone.Property("NumHandles").Set<u32>(zoneFile.Header.NumHandles);
+    zone.Property("DistrictHash").Set<u32>(zoneFile.Header.DistrictHash);
+    zone.Property("DistrictFlags").Set<u32>(zoneFile.Header.DistrictFlags);
+    zone.Property("DistrictName").Set<string>(zoneFile.DistrictName());
+    zone.Property("Name").Set<string>(zoneFile.Name);
+    zone.Property("Persistent").Set<bool>(String::StartsWith(zoneFile.Name, "p_"));
+    zone.Property("Objects").SetObjectList({});
+    zone.Property("ActivityLayer").Set<bool>(false);
+    zone.Property("MissionLayer").Set<bool>(false);
+    zone.Property("RenderBoundingBoxes").Set<bool>(true);
 
     //Convert zone object
     ZoneObject* current = zoneFile.Objects;
@@ -85,26 +85,26 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         //Create zone object and add to zone object list
         string classname = current->Classname();
         ObjectHandle zoneObject = registry.CreateObject(classname, "ZoneFile");
-        zone.GetProperty("Objects").GetObjectList().push_back(zoneObject);
+        zone.Property("Objects").GetObjectList().push_back(zoneObject);
         //TODO: Strip properties not needed by the editor
         //TODO: Replace parent/child/sibling properties with ObjectHandle variables on Object
-        zoneObject.GetOrCreateProperty("ClassnameHash").Set<u32>(current->ClassnameHash);
-        zoneObject.GetOrCreateProperty("Handle").Set<u32>(current->Handle);
-        zoneObject.GetOrCreateProperty("Bmin").Set<Vec3>(current->Bmin);
-        zoneObject.GetOrCreateProperty("Bmax").Set<Vec3>(current->Bmax);
-        zoneObject.GetOrCreateProperty("Flags").Set<u16>(current->Flags);
-        zoneObject.GetOrCreateProperty("BlockSize").Set<u16>(current->BlockSize);
-        zoneObject.GetOrCreateProperty("ParentHandle").Set<u32>(current->Parent);
-        zoneObject.GetOrCreateProperty("SiblingHandle").Set<u32>(current->Sibling);
-        zoneObject.GetOrCreateProperty("ChildHandle").Set<u32>(current->Child);
-        zoneObject.GetOrCreateProperty("Num").Set<u32>(current->Num);
-        zoneObject.GetOrCreateProperty("NumProps").Set<u16>(current->NumProps);
-        zoneObject.GetOrCreateProperty("PropBlockSize").Set<u16>(current->PropBlockSize);
-        zoneObject.GetOrCreateProperty("Classname").Set<string>(classname);
-        zoneObject.GetOrCreateProperty("Properties").SetObjectList({});
-        zoneObject.GetOrCreateProperty("Parent").Set<u64>(NullUID);
-        zoneObject.GetOrCreateProperty("Child").Set<u64>(NullUID);
-        zoneObject.GetOrCreateProperty("Sibling").Set<u64>(NullUID);
+        zoneObject.Property("ClassnameHash").Set<u32>(current->ClassnameHash);
+        zoneObject.Property("Handle").Set<u32>(current->Handle);
+        zoneObject.Property("Bmin").Set<Vec3>(current->Bmin);
+        zoneObject.Property("Bmax").Set<Vec3>(current->Bmax);
+        zoneObject.Property("Flags").Set<u16>(current->Flags);
+        zoneObject.Property("BlockSize").Set<u16>(current->BlockSize);
+        zoneObject.Property("ParentHandle").Set<u32>(current->Parent);
+        zoneObject.Property("SiblingHandle").Set<u32>(current->Sibling);
+        zoneObject.Property("ChildHandle").Set<u32>(current->Child);
+        zoneObject.Property("Num").Set<u32>(current->Num);
+        zoneObject.Property("NumProps").Set<u16>(current->NumProps);
+        zoneObject.Property("PropBlockSize").Set<u16>(current->PropBlockSize);
+        zoneObject.Property("Classname").Set<string>(classname);
+        zoneObject.Property("Properties").SetObjectList({});
+        zoneObject.Property("Parent").Set<ObjectHandle>(NullObjectHandle);
+        zoneObject.Property("Child").Set<ObjectHandle>(NullObjectHandle);
+        zoneObject.Property("Sibling").Set<ObjectHandle>(NullObjectHandle);
 
         //Setup properties
         ZoneObjectProperty* currentProp = current->Properties();
@@ -115,15 +115,15 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
             auto maybeName = currentProp->Name();
             string name = maybeName.has_value() ? maybeName.value() : "UnknownPropertyType";
             ObjectHandle prop = registry.CreateObject(name, "ZoneObjectProperty");
-            prop.GetOrCreateProperty("Type").Set<u16>(currentProp->Type);
-            prop.GetOrCreateProperty("Size").Set<u16>(currentProp->Size);
-            prop.GetOrCreateProperty("NameHash").Set<u32>(currentProp->NameHash);
-            prop.GetOrCreateProperty("Name").Set<string>(name);
+            prop.Property("Type").Set<u16>(currentProp->Type);
+            prop.Property("Size").Set<u16>(currentProp->Size);
+            prop.Property("NameHash").Set<u32>(currentProp->NameHash);
+            prop.Property("Name").Set<string>(name);
 
             //Attempt to load property
             if (ImportZoneObjectProperty(currentProp, prop))
             {
-                zoneObject.GetOrCreateProperty("Properties").GetObjectList().push_back(prop);
+                zoneObject.Property("Properties").GetObjectList().push_back(prop);
             }
             else
             {
@@ -140,34 +140,34 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
 
     //Determine zone position
     ObjectHandle objZone = GetZoneObject(zone, "obj_zone");
-    ObjectHandle op = objZone.Valid() ? GetZoneProperty(objZone, "op") : NullObjectHandle;
-    if (objZone.Valid() && op.Valid())
+    ObjectHandle op = objZone ? GetZoneProperty(objZone, "op") : NullObjectHandle;
+    if (objZone && op)
     {
         //Use obj_zone position if available. They're always at the center of the zone
-        zone.GetOrCreateProperty("Position").Set<Vec3>(op.GetOrCreateProperty("Position").Get<Vec3>());
+        zone.Property("Position").Set<Vec3>(op.Property("Position").Get<Vec3>());
     }
     else
     {
         //Otherwise take the average of all object positions
         Vec3 averagePosition;
         size_t numPositions = 0;
-        for (ObjectHandle obj : zone.GetOrCreateProperty("Objects").GetObjectList())
+        for (ObjectHandle obj : zone.Property("Objects").GetObjectList())
         {
             ObjectHandle op2 = GetZoneProperty(obj, "op");
-            if (op2.Valid())
+            if (op2)
             {
-                averagePosition += op2.GetOrCreateProperty("Position").Get<Vec3>();
+                averagePosition += op2.Property("Position").Get<Vec3>();
                 numPositions++;
             }
         }
-        zone.GetOrCreateProperty("Position").Set<Vec3>(averagePosition / (f32)numPositions);
+        zone.Property("Position").Set<Vec3>(averagePosition / (f32)numPositions);
     }
 
-    std::vector<ObjectHandle> objects = zone.GetProperty("Objects").GetObjectList();
+    std::vector<ObjectHandle> objects = zone.Property("Objects").GetObjectList();
     auto getObject = [&](u32 handle) -> ObjectHandle
     {
         for (ObjectHandle object : objects)
-            if (object.GetProperty("Handle").Get<u32>() == handle)
+            if (object.Property("Handle").Get<u32>() == handle)
                 return object;
 
         return NullObjectHandle;
@@ -178,14 +178,14 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     for (ObjectHandle object : objects)
     {
         //Set parent references + add references child references to parent
-        u32 parentHandle = object.GetProperty("ParentHandle").Get<u32>();
+        u32 parentHandle = object.Property("ParentHandle").Get<u32>();
         if (parentHandle == InvalidHandle)
         {
             ObjectHandle parent = getObject(parentHandle);
-            if (parent.Valid())
+            if (parent)
             {
-                object.GetOrCreateProperty("Parent").Set<u64>(parent.UID());
-                parent.SubObjects().push_back(object.UID());
+                object.Property("Parent").Set<ObjectHandle>(parent);
+                parent.SubObjects().push_back(object);
             }
             else
             {
@@ -195,16 +195,16 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
 
         //Set sibling references
         ObjectHandle current = object;
-        u32 siblingHandle = current.GetOrCreateProperty("SiblingHandle").Get<u32>();
+        u32 siblingHandle = current.Property("SiblingHandle").Get<u32>();
         while (siblingHandle != InvalidHandle)
         {
             ObjectHandle sibling = getObject(siblingHandle);
-            if (!sibling.Valid())
+            if (!sibling)
                 break;
 
-            current.GetOrCreateProperty("Sibling").Set<u64>(sibling.UID());//.SetObjectRef(sibling);
+            current.Property("Sibling").Set<ObjectHandle>(sibling);//.SetObjectRef(sibling);
             current = sibling;
-            siblingHandle = current.GetOrCreateProperty("SiblingHandle").Get<u32>();
+            siblingHandle = current.Property("SiblingHandle").Get<u32>();
         }
     }
 
@@ -218,19 +218,19 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     for (ObjectHandle object : objects)
     {
         string name = "";
-        std::vector<ObjectHandle> properties = object.GetOrCreateProperty("Properties").GetObjectList();
+        std::vector<ObjectHandle> properties = object.Property("Properties").GetObjectList();
         for (ObjectHandle prop : properties)
         {
             for (const string& propertyName : customNameProperties)
             {
-                if (prop.GetProperty("TypeName").Get<string>() == "String" && prop.GetProperty("Name").Get<string>() == propertyName)
+                if (prop.Property("TypeName").Get<string>() == "String" && prop.Property("Name").Get<string>() == propertyName)
                 {
-                    name = prop.GetProperty("String").Get<string>();
+                    name = prop.Property("String").Get<string>();
                     break;
                 }
             }
         }
-        object.GetOrCreateProperty("Name").Set<string>(name);
+        object.Property("Name").Set<string>(name);
     }
 
     return zone;
@@ -255,7 +255,7 @@ void InitZonePropertyLoaders()
         [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             const char* data = (const char*)prop->Data();
-            propObject.GetOrCreateProperty("String").Set<string>(data);
+            propObject.Property("String").Set<string>(data);
             return true;
         }
     );
@@ -276,7 +276,7 @@ void InitZonePropertyLoaders()
         [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             bool* data = (bool*)prop->Data();
-            propObject.GetOrCreateProperty("Bool").Set<bool>(*data);
+            propObject.Property("Bool").Set<bool>(*data);
             return true;
         }
     );
@@ -294,7 +294,7 @@ void InitZonePropertyLoaders()
         [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             f32* data = (f32*)prop->Data();
-            propObject.GetOrCreateProperty("Float").Set<f32>(*data);
+            propObject.Property("Float").Set<f32>(*data);
             return true;
         }
     );
@@ -312,7 +312,7 @@ void InitZonePropertyLoaders()
         [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             u32* data = (u32*)prop->Data();
-            propObject.GetOrCreateProperty("Uint").Set<u32>(*data);
+            propObject.Property("Uint").Set<u32>(*data);
             return true;
         }
    );
@@ -328,7 +328,7 @@ void InitZonePropertyLoaders()
         [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             Vec3* data = (Vec3*)prop->Data();
-            propObject.GetOrCreateProperty("Vec3").Set<Vec3>(*data);
+            propObject.Property("Vec3").Set<Vec3>(*data);
             return true;
         }
     );
@@ -344,7 +344,7 @@ void InitZonePropertyLoaders()
         [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
         {
             Mat3* data = (Mat3*)prop->Data();
-            propObject.GetOrCreateProperty("Matrix33").Set<Mat3>(*data);
+            propObject.Property("Matrix33").Set<Mat3>(*data);
             return true;
         }
     );
@@ -361,8 +361,8 @@ void InitZonePropertyLoaders()
         {
             struct bb { Vec3 bmin; Vec3 bmax; };
             bb* data = (bb*)prop->Data();
-            propObject.GetOrCreateProperty("Bmin").Set<Vec3>(data->bmin);
-            propObject.GetOrCreateProperty("Bmax").Set<Vec3>(data->bmax);
+            propObject.Property("Bmin").Set<Vec3>(data->bmin);
+            propObject.Property("Bmax").Set<Vec3>(data->bmax);
             return true;
         }
     );
@@ -379,8 +379,8 @@ void InitZonePropertyLoaders()
         {
             struct op { Vec3 Position; Mat3 Orient; };
             op* data = (op*)prop->Data();
-            propObject.GetOrCreateProperty("Position").Set<Vec3>(data->Position);
-            propObject.GetOrCreateProperty("Orient").Set<Mat3>(data->Orient);
+            propObject.Property("Position").Set<Vec3>(data->Position);
+            propObject.Property("Orient").Set<Mat3>(data->Orient);
             return true;
         }
     );
@@ -402,12 +402,8 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle propObject)
         for (const std::string_view propName : propType.PropertyNames)
             if (propName == name)
             {
-                propObject.GetOrCreateProperty("TypeName").Set<string>(propType.Name);
+                propObject.Property("TypeName").Set<string>(propType.Name);
                 return propType.Loader(prop, propObject, name);
-                //bool result = propType.Loader(prop, propObject, name);
-                //if (result)
-                //    propObject.GetOrCreateProperty("Name").Set<string>(string(propName));
-                //return result;
             }
 
     return false;
@@ -415,8 +411,8 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle propObject)
 
 ObjectHandle GetZoneObject(ObjectHandle zone, std::string_view classname)
 {
-    for (ObjectHandle obj : zone.GetOrCreateProperty("Objects").GetObjectList())
-        if (obj.GetOrCreateProperty("Classname").Get<string>() == classname)
+    for (ObjectHandle obj : zone.Property("Objects").GetObjectList())
+        if (obj.Property("Classname").Get<string>() == classname)
             return obj;
 
     return NullObjectHandle;
@@ -424,8 +420,8 @@ ObjectHandle GetZoneObject(ObjectHandle zone, std::string_view classname)
 
 ObjectHandle GetZoneProperty(ObjectHandle obj, std::string_view propertyName)
 {
-    for (ObjectHandle prop : obj.GetOrCreateProperty("Properties").GetObjectList())
-        if (prop.GetOrCreateProperty("Name").Get<string>() == propertyName)
+    for (ObjectHandle prop : obj.Property("Properties").GetObjectList())
+        if (prop.Property("Name").Get<string>() == propertyName)
             return prop;
 
     return NullObjectHandle;
