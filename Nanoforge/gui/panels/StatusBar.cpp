@@ -109,7 +109,7 @@ void StatusBar::Update(GuiState* state, bool* open)
 
             for (u32 i = 0; i < threadTasks.size(); i++)
             {
-                auto& task = threadTasks[i];
+                Handle<Task> task = threadTasks[i];
                 if (!task)
                     continue;
 
