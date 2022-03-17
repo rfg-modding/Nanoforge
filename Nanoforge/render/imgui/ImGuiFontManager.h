@@ -20,13 +20,7 @@ public:
     void Pop() const { ImGui::PopFont(); }
     void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges)
     {
-        Config* config = Config::Get();
-
-        size_ *= CVar_UIScale.Get<f32>();
         //Load normal font
-        //ImFontConfig icons_config;
-        //icons_config.MergeMode = false;
-        //icons_config.PixelSnapH = false;
         io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_, nullptr, glyph_ranges);
         //Load FontAwesome image font and merge with normal font
         ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::FontAwesomePath.c_str(), size_, font_cfg_template, glyph_ranges);
@@ -44,9 +38,9 @@ class ImGuiFontManager
 public:
     void RegisterFonts();
 
-    ImGuiFont FontSmall{ 12.0f };
-    ImGuiFont FontDefault{ 14.0f };
-    ImGuiFont FontMedium{ 17.0f };
-    ImGuiFont FontL{ 25.0f };
-    ImGuiFont FontXL{ 32.5f };
+    ImGuiFont FontSmall{ 13.0f };
+    ImGuiFont FontDefault{ 15.0f };
+    ImGuiFont FontMedium{ 18.0f };
+    ImGuiFont FontL{ 26.0f };
+    ImGuiFont FontXL{ 33.5f };
 };
