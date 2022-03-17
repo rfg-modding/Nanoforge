@@ -179,7 +179,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     {
         //Set parent references + add references child references to parent
         u32 parentHandle = object.Property("ParentHandle").Get<u32>();
-        if (parentHandle == InvalidHandle)
+        if (parentHandle != InvalidHandle)
         {
             ObjectHandle parent = getObject(parentHandle);
             if (parent)
