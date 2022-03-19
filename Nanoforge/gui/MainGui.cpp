@@ -441,6 +441,36 @@ void MainGui::DrawMainMenuBar()
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("View"))
+        {
+            if (ImGui::BeginMenu("Layout"))
+            {
+                if (ImGui::MenuItem("Default"))
+                {
+                    //Todo: Give panels and documents separate identifiers so their titles can change without breaking everything
+                    SetPanelVisibility("Start page", true);
+                    SetPanelVisibility(ICON_FA_WRENCH " Properties", false);
+                    SetPanelVisibility("Log", false);
+                    SetPanelVisibility(ICON_FA_BOXES " Zone objects", false);
+                    SetPanelVisibility(ICON_FA_MAP " Zones", false);
+                    SetPanelVisibility("File explorer", true);
+                    SetPanelVisibility("Scriptx viewer", false);
+                }
+                if (ImGui::MenuItem("Level editing"))
+                {
+                    SetPanelVisibility("Start page", false);
+                    SetPanelVisibility(ICON_FA_WRENCH " Properties", true);
+                    SetPanelVisibility("Log", false);
+                    SetPanelVisibility(ICON_FA_BOXES " Zone objects", true);
+                    SetPanelVisibility(ICON_FA_MAP " Zones", false);
+                    SetPanelVisibility("File explorer", true);
+                    SetPanelVisibility("Scriptx viewer", false);
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenu();
+        }
+
         //Draw menu item for each panel (e.g. file explorer, properties, log, etc)
         for (auto& menuItem : menuItems_)
         {
@@ -609,8 +639,8 @@ void MainGui::DrawDockspace()
     if (firstDraw)
     {
         ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
-        ImGuiID dockLeftBottomId = ImGui::DockBuilderSplitNode(dockLeftId, ImGuiDir_Down, 0.5f, nullptr, &dockLeftId);
-        ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.15f, nullptr, &dockspaceId);
+        ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.25f, nullptr, &dockspaceId);
+        ImGuiID dockRightUp = ImGui::DockBuilderSplitNode(dockRightId, ImGuiDir_Up, 0.3f, nullptr, &dockRightId);
         dockspaceCentralNodeId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
         ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockspaceCentralNodeId, ImGuiDir_Down, 0.20f, nullptr, &dockspaceCentralNodeId);
 
@@ -619,7 +649,7 @@ void MainGui::DrawDockspace()
         ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
         ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
         ImGui::DockBuilderDockWindow(ICON_FA_MAP " Zones", dockLeftId);
-        ImGui::DockBuilderDockWindow(ICON_FA_BOXES " Zone objects", dockLeftBottomId);
+        ImGui::DockBuilderDockWindow(ICON_FA_BOXES " Zone objects", dockRightUp);
         ImGui::DockBuilderDockWindow(ICON_FA_WRENCH " Properties", dockRightId);
         ImGui::DockBuilderDockWindow("Render settings", dockRightId);
         ImGui::DockBuilderDockWindow("Scriptx viewer", dockspaceCentralNodeId);
@@ -681,4 +711,16 @@ MenuItem* MainGui::GetMenu(std::string_view text)
             return &item;
     }
     return nullptr;
+}
+
+void MainGui::SetPanelVisibility(const std::string& title, bool visible)
+{
+    for (Handle<IGuiPanel> panel : panels_)
+    {
+        if (panel->Title == title)
+        {
+            panel->Open = visible;
+            return;
+        }
+    }
 }

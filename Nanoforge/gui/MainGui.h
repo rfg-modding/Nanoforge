@@ -34,6 +34,7 @@ private:
     void DrawDockspace();
     void GenerateMenus();
     MenuItem* GetMenu(std::string_view text);
+    void SetPanelVisibility(const std::string& title, bool visible);
 
     std::vector<Handle<IGuiPanel>> panels_ = {};
     std::vector<MenuItem> menuItems_ = {}; //Main menu bar items

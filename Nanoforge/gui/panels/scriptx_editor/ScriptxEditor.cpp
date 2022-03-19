@@ -22,6 +22,7 @@
 
 ScriptxEditor::ScriptxEditor(GuiState* state)
 {
+    Title = "Scriptx viewer";
     state_ = state;
 }
 
@@ -34,7 +35,7 @@ void ScriptxEditor::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
     ImGui::SetNextWindowSize({ 400.0f, 400.0f }, ImGuiCond_Appearing);
-    if (!ImGui::Begin("Scriptx viewer", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;

@@ -6,7 +6,7 @@
 
 PropertyPanel::PropertyPanel()
 {
-
+    Title = ICON_FA_WRENCH " Properties";
 }
 
 PropertyPanel::~PropertyPanel()
@@ -17,7 +17,7 @@ PropertyPanel::~PropertyPanel()
 void PropertyPanel::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin(ICON_FA_WRENCH " Properties", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;

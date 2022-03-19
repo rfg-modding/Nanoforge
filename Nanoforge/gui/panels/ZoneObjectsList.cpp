@@ -9,7 +9,7 @@
 
 ZoneObjectsList::ZoneObjectsList()
 {
-
+    Title = ICON_FA_BOXES " Zone objects";
 }
 
 ZoneObjectsList::~ZoneObjectsList()
@@ -20,7 +20,7 @@ ZoneObjectsList::~ZoneObjectsList()
 void ZoneObjectsList::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin(ICON_FA_BOXES " Zone objects", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;

@@ -7,7 +7,7 @@
 
 LogPanel::LogPanel()
 {
-
+    Title = "Log";
 }
 
 LogPanel::~LogPanel()
@@ -19,7 +19,7 @@ LogPanel::~LogPanel()
 void LogPanel::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin("Log", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;

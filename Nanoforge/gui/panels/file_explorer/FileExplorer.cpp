@@ -21,6 +21,7 @@
 FileExplorer::FileExplorer()
 {
     searchTask_ = Task::Create("Regenerating file tree...");
+    Title = "File explorer";
 }
 
 FileExplorer::~FileExplorer()
@@ -31,7 +32,7 @@ FileExplorer::~FileExplorer()
 void FileExplorer::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin("File explorer", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;

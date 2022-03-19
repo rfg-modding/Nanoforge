@@ -11,7 +11,7 @@
 
 ZoneList::ZoneList()
 {
-
+    Title = ICON_FA_MAP " Zones";
 }
 
 ZoneList::~ZoneList()
@@ -22,7 +22,7 @@ ZoneList::~ZoneList()
 void ZoneList::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin(ICON_FA_MAP " Zones", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;

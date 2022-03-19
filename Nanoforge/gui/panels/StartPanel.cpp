@@ -23,6 +23,7 @@
 StartPanel::StartPanel()
 {
     dataFolderParseTask_ = Task::Create("Parse data folder");
+    Title = "Start page";
 }
 
 StartPanel::~StartPanel()
@@ -33,7 +34,7 @@ StartPanel::~StartPanel()
 void StartPanel::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin("Start page", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;
