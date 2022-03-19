@@ -129,7 +129,7 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
                         for (ObjectHandle object : zone.Property("Objects").GetObjectList())
                         {
                             //Don't draw objects with parents at the top of the tree. They'll be drawn as subnodes when their parent calls DrawObjectNode()
-                            if (!object || !object.Property("Parent").Get<ObjectHandle>())
+                            if (!object || object.Property("Parent").Get<ObjectHandle>())
                                 continue;
 
                             DrawObjectNode(state, object);
