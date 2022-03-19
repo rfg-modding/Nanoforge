@@ -63,6 +63,7 @@ void StatusBar::Update(GuiState* state, bool* open)
 
     //If custom message is empty, use the default ones
     ImGui::SameLine();
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 2.0f);
     if (state->CustomStatusMessage == "")
     {
         switch (state->Status)
