@@ -9,5 +9,5 @@ namespace BuildConfig
     //static const std::string JapaneseFontPath = AssetFolderPath + "fonts/NotoSansJP-Medium.otf";
     static const std::string FontAwesomePath = AssetFolderPath + "fonts/fa-solid-900.ttf";
     static const std::string ShaderPath = AssetFolderPath + "shaders/";
-    static const std::string Version = "v0.20.0-pre";
+    static const std::string Version = "v0.20.0-pre0";
 }
