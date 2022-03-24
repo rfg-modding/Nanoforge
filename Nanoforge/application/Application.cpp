@@ -23,6 +23,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
+#include <windowsx.h>
 
 //Callback that handles windows messages such as keypresses
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -30,6 +31,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 //Pointer to application instance for WndProc
 Application* appInstance = nullptr;
+
+//Cursors used depending on mouse position (in window, at corners/sides of window, etc)
+HCURSOR CursorArrow = nullptr;
+HCURSOR CursorSizeWE = nullptr;
+HCURSOR CursorSizeNS = nullptr;
+HCURSOR CursorSizeNWSE = nullptr;
+HCURSOR CursorSizeNESW = nullptr;
 
 void Application::Run()
 {
@@ -76,6 +84,13 @@ void Application::Init()
     localization_.Init(&packfileVFS_);
     gui_.Init(&fontManager_, &packfileVFS_, &renderer_, &project_, &xtblManager_, &localization_, &textureSearchIndex_);
 
+    //Preload cursors for custom titlebar logic in wndproc
+    CursorArrow = LoadCursor(nullptr, IDC_ARROW);
+    CursorSizeWE = LoadCursor(nullptr, IDC_SIZEWE);
+    CursorSizeNS = LoadCursor(nullptr, IDC_SIZENS);
+    CursorSizeNWSE = LoadCursor(nullptr, IDC_SIZENWSE);
+    CursorSizeNESW = LoadCursor(nullptr, IDC_SIZENESW);
+
     //Maximize window by default
     ShowWindow(renderer_.GetSystemWindowHandle(), SW_SHOWMAXIMIZED);
 
@@ -92,7 +107,7 @@ void Application::MainLoop()
 
     //Loop until exit is requested
     FrameTimer.Start();
-    while (!Exit)
+    while (!Exit && !gui_.Shutdown)
     {
         static const char* MainFrame = "MainFrame";
         PROFILER_FRAME_MARK_START(MainFrame);
@@ -171,7 +186,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return true;
 
     appInstance->HandleCameraInput(hwnd, msg, wParam, lParam);
-
     switch (msg)
     {
     case WM_CLOSE:
@@ -210,6 +224,114 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
         appInstance->HandleResize();
         return 0;
+    case WM_NCPAINT:
+        return DefWindowProc(hwnd, msg, wParam, lParam);
+    case WM_NCCALCSIZE: //Calculate client area size
+        {
+            RECT& clientAreaRect = *reinterpret_cast<RECT*>(lParam);
+            RECT originalClientArea = clientAreaRect;
+            DefWindowProc(hwnd, msg, wParam, lParam);
+
+            if (IsZoomed(hwnd))
+            {
+                //Get window size/shape
+                WINDOWINFO windowInfo = {};
+                windowInfo.cbSize = sizeof(WINDOWINFO);
+                GetWindowInfo(hwnd, &windowInfo);
+
+                //Calculate size of new client area
+                clientAreaRect.left = originalClientArea.left + windowInfo.cyWindowBorders;
+                clientAreaRect.top = originalClientArea.top + windowInfo.cyWindowBorders;
+                clientAreaRect.right = originalClientArea.right - windowInfo.cyWindowBorders;
+                clientAreaRect.bottom = originalClientArea.bottom - windowInfo.cyWindowBorders + 1;
+            }
+            else
+            {
+                clientAreaRect = originalClientArea;
+            }
+
+            return 0;
+        }
+    case WM_NCHITTEST: //Test if the mouse is colliding with any regions of the window
+        {
+            POINT mousePos = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+            const POINT border =
+            {
+                (GetSystemMetrics(SM_CXFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER)),
+                (GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER))
+            };
+            RECT window;
+            if (!GetWindowRect(hwnd, &window))
+                return HTNOWHERE;
+
+            constexpr i32 regionClient = 0b0000;
+            constexpr i32 regionLeft = 0b0001;
+            constexpr i32 regionRight = 0b0010;
+            constexpr i32 regionTop = 0b0100;
+            constexpr i32 regionBottom = 0b1000;
+            const i32 result =
+                regionLeft * (mousePos.x < (window.left + border.x)) |
+                regionRight * (mousePos.x >= (window.right - border.x)) |
+                regionTop * (mousePos.y < (window.top + border.y)) |
+                regionBottom * (mousePos.y >= (window.bottom - border.y));
+
+            switch (result)
+            {
+            case regionLeft:
+                return HTLEFT;
+            case regionRight:
+                return HTRIGHT;
+            case regionTop:
+                return HTTOP;
+            case regionBottom:
+                return HTBOTTOM;
+            case regionTop | regionLeft:
+                return HTTOPLEFT;
+            case regionTop | regionRight:
+                return HTTOPRIGHT;
+            case regionBottom | regionLeft:
+                return HTBOTTOMLEFT;
+            case regionBottom | regionRight:
+                return HTBOTTOMRIGHT;
+            case regionClient:
+            default:
+                if ((mousePos.y < (window.top + appInstance->gui_.mainMenuHeight * 2)) && !(ImGui::IsAnyItemHovered() || ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)))
+                    return HTCAPTION;
+                else
+                    break;
+            }
+            break;
+        }
+    case WM_SETCURSOR: //Update cursor based on hit test result
+        {
+            WORD hitPos = LOWORD(lParam);
+            switch (hitPos)
+            {
+            case HTCAPTION:
+            case HTCLIENT:
+                SetCursor(CursorArrow);
+                break;
+            case HTRIGHT:
+            case HTLEFT:
+                SetCursor(CursorSizeWE);
+                break;
+            case HTTOP:
+            case HTBOTTOM:
+                SetCursor(CursorSizeNS);
+                break;
+            case HTTOPLEFT:
+            case HTBOTTOMRIGHT:
+                SetCursor(CursorSizeNWSE);
+                break;
+            case HTTOPRIGHT:
+            case HTBOTTOMLEFT:
+                SetCursor(CursorSizeNESW);
+                break;
+            default:
+                break;
+            }
+            return TRUE;
+        }
     }
 
     //Return the message for windows to handle it

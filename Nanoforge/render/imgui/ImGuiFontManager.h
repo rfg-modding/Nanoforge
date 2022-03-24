@@ -4,6 +4,7 @@
 #include "ImGuiConfig.h"
 #include "application/Config.h"
 #include <IconsFontAwesome5_c.h>
+#include "VsCodeIconFont.h"
 #include <imgui.h>
 
 extern CVar CVar_UIScale;
@@ -24,6 +25,8 @@ public:
         io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_, nullptr, glyph_ranges);
         //Load FontAwesome image font and merge with normal font
         ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::FontAwesomePath.c_str(), size_, font_cfg_template, glyph_ranges);
+        //Load VSCode icons and merge
+        ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::VsCodeIconsPath.c_str(), size_, font_cfg_template, glyph_ranges);
         //Load japanese font and merge
         //ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::JapaneseFontPath.c_str(), size_, font_cfg_template, glyph_ranges);
     }

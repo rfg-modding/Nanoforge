@@ -49,6 +49,7 @@ void ImGuiFontManager::RegisterFonts()
         0x30A0, 0x30FF, //Katakana
         0x4E00, 0x9FFF, //CJK Unified Ideographs
         ICON_MIN_FA, ICON_MAX_FA, //Font awesome icons
+        ICON_MIN_VS, ICON_MAX_VS, //VSCode icons
         0
     };
     ImFontConfig icons_config;

@@ -41,7 +41,6 @@ void StartPanel::Update(GuiState* state, bool* open)
     }
 
     DrawDataPathSelector(state);
-    ImGui::Separator();
 
     if (ImGui::SmallButton("New project"))
     {
@@ -171,8 +170,6 @@ void StartPanel::DrawDataPathSelector(GuiState* state)
 
 void StartPanel::DrawRecentProjectsList(GuiState* state)
 {
-    ImGui::Separator();
-
     //Get recent projects
     std::vector<string>& recentProjects = CVar_RecentProjects.Get<std::vector<string>>();
 

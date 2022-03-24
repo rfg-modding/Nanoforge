@@ -55,10 +55,11 @@ void StatusBar::Update(GuiState* state, bool* open)
     ImGui::PopStyleColor();
     ImVec2 startPos = ImGui::GetCursorPos();
 
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 5.0f);
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 6.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
     if (ImGui::Button("Tasks"))
         ImGui::OpenPopup("##TaskListPopup");
-
+    ImGui::PopStyleVar();
     ImGui::PopStyleVar(2);
 
     //If custom message is empty, use the default ones

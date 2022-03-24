@@ -98,7 +98,7 @@ namespace gui
             style->IndentSpacing = 25.0f;
             style->ScrollbarSize = 18.0f;
             style->GrabMinSize = 12.0f;
-            style->WindowBorderSize = 1.0f;
+            style->WindowBorderSize = 0.0f;
             style->ChildBorderSize = 1.0f;
             style->PopupBorderSize = 1.0f;
             style->FrameBorderSize = 1.0f;
@@ -175,7 +175,7 @@ namespace gui
             style->IndentSpacing = 25.0f;
             style->ScrollbarSize = 18.0f;
             style->GrabMinSize = 12.0f;
-            style->WindowBorderSize = 1.0f;
+            style->WindowBorderSize = 0.0f;
             style->ChildBorderSize = 1.0f;
             style->PopupBorderSize = 1.0f;
             style->FrameBorderSize = 1.0f;
@@ -251,7 +251,7 @@ namespace gui
             style->IndentSpacing = 25.0f;
             style->ScrollbarSize = 18.0f;
             style->GrabMinSize = 12.0f;
-            style->WindowBorderSize = 1.0f;
+            style->WindowBorderSize = 0.0f;
             style->ChildBorderSize = 1.0f;
             style->PopupBorderSize = 1.0f;
             style->FrameBorderSize = 1.0f;

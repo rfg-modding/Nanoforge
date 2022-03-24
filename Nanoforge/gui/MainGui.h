@@ -27,6 +27,9 @@ public:
     void SaveFocusedDocument();
 
     GuiState State; //Global gui state provided to each panel and document
+    f32 mainMenuHeight = 8.0f;
+    f32 toolbarHeight = 16.0f;
+    bool Shutdown = false;
 
 private:
     void AddMenuItem(std::string_view menuPos, bool open, Handle<IGuiPanel> panel);
