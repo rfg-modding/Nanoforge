@@ -52,7 +52,7 @@ public:
 
     GuiStatus Status = Ready;
     string CustomStatusMessage = "";
-    f32 StatusBarHeight = 25.0f;
+    f32 StatusBarHeight = 30.0f;
 
     ObjectHandle SelectedObject = nullptr;
 

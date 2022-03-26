@@ -64,7 +64,7 @@ void StatusBar::Update(GuiState* state, bool* open)
 
     //If custom message is empty, use the default ones
     ImGui::SameLine();
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 2.0f);
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 1.0f); //TODO: Calculate this based on status bar height
     if (state->CustomStatusMessage == "")
     {
         switch (state->Status)
@@ -88,12 +88,15 @@ void StatusBar::Update(GuiState* state, bool* open)
     }
 
     //Get task list
-    ImVec2 taskListSize = { 300.0f, 300.0f };
     std::vector<Handle<Task>>& threadTasks = TaskScheduler::threadTasks_;
     u32 numTasksRunning = (u32)std::ranges::count_if(threadTasks, [](Handle<Task> task) { return task != nullptr; });
 
     //Draw task list toggle button
+    static ImVec2 taskListSizeLastFrame = { 0.0f, 0.0f };
+    ImVec2 taskListSize = { 300.0f, 300.0f };
+    ImVec2 taskListPos = { pos.x + 10.0f, pos.y - 10.0f - taskListSizeLastFrame.y };
     ImGui::SetNextWindowSizeConstraints({ taskListSize.x, 0.0f }, taskListSize);
+    ImGui::SetNextWindowPos(taskListPos, ImGuiCond_Always);
     if (ImGui::BeginPopup("##TaskListPopup", ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (numTasksRunning == 0)
@@ -126,6 +129,7 @@ void StatusBar::Update(GuiState* state, bool* open)
             }
         }
 
+        taskListSizeLastFrame = ImGui::GetWindowSize();
         ImGui::EndPopup();
     }
 

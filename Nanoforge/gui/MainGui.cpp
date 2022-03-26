@@ -623,55 +623,64 @@ void MainGui::DrawMainMenuBar()
         //Draw Nanoforge version at the far right
         f32 versionTextWidth = ImGui::CalcTextSize(BuildConfig::Version.c_str()).x;
         f32 padding = 8.0f;
-        f32 rightPadding = 100.0f;
+        f32 rightPadding = 166.0f;
         f32 versionTextPadding = 16.0f; //TODO: CLEAN UP THIS CODE/VARIABLES
         cursorPos = { ImGui::GetWindowWidth() - versionTextWidth - padding - rightPadding - versionTextPadding, mainMenuContentStartY };
         drawList->AddText(cursorPos, 0xF2F5FAFF, BuildConfig::Version.c_str(), BuildConfig::Version.c_str() + BuildConfig::Version.length());
 
         //Draw minimize, maximize, and close buttons
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetColorU32(ImGuiCol_MenuBarBg));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabHovered));
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - padding - rightPadding);
-        ImGui::SetCursorPosY(mainMenuContentStartY + 1.0f);// (0.5f * ImGui::GetFont()->FontSize));
+        {
+            ImVec2 windowButtonSize = { 58.0f, 40.0f };
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0.0f, ImGui::GetStyle().ItemSpacing.y });
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetColorU32(ImGuiCol_MenuBarBg));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabHovered));
+            ImGui::SetCursorPosX(ImGui::GetWindowWidth() - padding - rightPadding);
+            ImGui::SetCursorPosY(0.0f); //mainMenuContentStartY + 1.0f);// (0.5f * ImGui::GetFont()->FontSize));
 
-        //Minimize button
-        if (ImGui::Button(ICON_VS_CHROME_MINIMIZE))
-        {
-            ShowWindow(hwnd, SW_SHOWMINIMIZED);
-        }
+            //Minimize button
+            if (ImGui::Button(ICON_VS_CHROME_MINIMIZE, windowButtonSize))
+            {
+                ShowWindow(hwnd, SW_SHOWMINIMIZED);
+            }
 
-        //Maximize button. Icon changes depending on if the window is maximized currently
-        ImGui::SameLine();
-        if (IsZoomed(hwnd))
-        {
-            if (ImGui::Button(ICON_VS_CHROME_RESTORE)) //Window already maximized
-                ShowWindow(hwnd, SW_SHOWDEFAULT);
-        }
-        else
-        {
-            if (ImGui::Button(ICON_VS_CHROME_MAXIMIZE)) //Window not maximized
-                ShowWindow(hwnd, SW_SHOWMAXIMIZED);
-        }
+            //Maximize button. Icon changes depending on if the window is maximized currently
+            ImGui::SameLine();
+            if (IsZoomed(hwnd))
+            {
+                if (ImGui::Button(ICON_VS_CHROME_RESTORE, windowButtonSize)) //Window already maximized
+                    ShowWindow(hwnd, SW_SHOWDEFAULT);
+            }
+            else
+            {
+                if (ImGui::Button(ICON_VS_CHROME_MAXIMIZE, windowButtonSize)) //Window not maximized
+                    ShowWindow(hwnd, SW_SHOWMAXIMIZED);
+            }
 
-        //Close button
-        ImGui::SameLine();
-        if (ImGui::Button(ICON_VS_CHROME_CLOSE))
-        {
-            Shutdown = true;
+            //Close button
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32({ 197.0f / 255.0f, 20.0f / 255.0f, 43.0f / 255.0f, 1.0f }));
+            if (ImGui::Button(ICON_VS_CHROME_CLOSE, windowButtonSize))
+            {
+                Shutdown = true;
+            }
+            ImGui::PopStyleColor();
+            ImGui::PopStyleColor(3);
+            ImGui::PopStyleVar(3);
         }
-        ImGui::PopStyleColor(3);
-        ImGui::PopStyleVar();
         ImGui::EndMainMenuBar();
     }
 
+    //Draw toolbar
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImVec2 toolbarPos = viewport->WorkPos;
     ImVec2 toolbarSize = { viewport->WorkSize.x, 32.0f };
     toolbarHeight = toolbarSize.y;
     ImGui::SetNextWindowPos(toolbarPos);
     ImGui::SetNextWindowSize(toolbarSize, ImGuiCond_Always);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetColorU32(ImGuiCol_MenuBarBg));
     if (ImGui::Begin("##Toolbar0", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize))
     {
@@ -695,6 +704,7 @@ void MainGui::DrawMainMenuBar()
         ImGui::End();
     }
     ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
 }
 
 void MainGui::DrawDockspace()
@@ -711,6 +721,8 @@ void MainGui::DrawDockspace()
     dockspacePos.y += toolbarHeight;
     ImVec2 dockspaceSize = viewport->WorkSize;
     dockspaceSize.y -= State.StatusBarHeight;
+    dockspaceSize.y -= toolbarHeight;
+    dockspaceSize.y += 1; //Cover up a 1 pixel wide line separating the dockspace and status bar
     ImGui::SetNextWindowPos(dockspacePos);
     ImGui::SetNextWindowSize(dockspaceSize);
     ImGui::SetNextWindowViewport(viewport->ID);
