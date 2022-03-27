@@ -43,8 +43,11 @@ namespace gui
      * created. The font argument is optional. If you leave it blank it'll use the current
      * font on the top of the stack.
      */
-    static void TooltipOnPrevious(const char* Description, ImFont* Font)
+    static void TooltipOnPrevious(const char* Description, ImFont* Font = nullptr)
     {
+        if (Font == nullptr)
+            Font = ImGui::GetFont();
+
         if (ImGui::IsItemHovered())
         {
             if (Font)

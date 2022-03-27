@@ -62,6 +62,17 @@ bool ImGui::InputTextMultiline(const char* label, std::string* str, const ImVec2
     return InputTextMultiline(label, (char*)str->c_str(), str->capacity() + 1, size, flags, InputTextCallback, &cb_user_data);
 }
 
+IMGUI_API bool ImGui::InputTextWithHint(const std::string& label, const std::string& hint, std::string& str, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+{
+    flags |= ImGuiInputTextFlags_CallbackResize;
+
+    InputTextCallback_UserData cb_user_data;
+    cb_user_data.Str = &str;
+    cb_user_data.ChainCallback = callback;
+    cb_user_data.ChainCallbackUserData = user_data;
+    return ImGui::InputTextWithHint(label.c_str(), hint.c_str(), (char*)str.c_str(), str.capacity() + 1, flags, InputTextCallback, &cb_user_data);
+}
+
 bool ImGui::Button(std::string label, const ImVec2& size_arg)
 {
     return ImGui::Button(label.c_str(), size_arg);
@@ -174,4 +185,17 @@ IMGUI_API bool ImGui::BufferingBar(const char* label, float value, const ImVec2&
     window->DrawList->AddCircleFilled(ImVec2(pos.x + circleEnd - o1, bb.Min.y + r), r, bg);
     window->DrawList->AddCircleFilled(ImVec2(pos.x + circleEnd - o2, bb.Min.y + r), r, bg);
     window->DrawList->AddCircleFilled(ImVec2(pos.x + circleEnd - o3, bb.Min.y + r), r, bg);
+}
+
+IMGUI_API bool ImGui::ToggleButton(const char* label, bool* value, const ImVec2& size_arg)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, *value ? 1.0f : 0.0f);
+    ImGui::PushStyleColor(ImGuiCol_Button, *value ? ImGui::GetColorU32(ImGuiCol_ButtonHovered) : ImGui::GetColorU32(ImGuiCol_WindowBg));
+    bool buttonClicked = ImGui::Button(label, size_arg);
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+    if (buttonClicked)
+        *value = !(*value);
+
+    return buttonClicked;
 }

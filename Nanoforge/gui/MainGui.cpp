@@ -693,11 +693,13 @@ void MainGui::DrawMainMenuBar()
         {
 
         }
+        gui::TooltipOnPrevious("Undo");
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_REDO))
         {
 
         }
+        gui::TooltipOnPrevious("Redo");
         ImGui::PopStyleColor(3);
         ImGui::PopStyleVar();
 
