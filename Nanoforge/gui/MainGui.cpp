@@ -370,33 +370,7 @@ void MainGui::DrawMainMenuBar()
     if (ImGui::BeginMainMenuBar())
     {
         ImGui::PopStyleVar();
-
-        //Track mouse movement in screen coords
-        static int moveOffsetX = 0;
-        static int moveOffsetY = 0;
         HWND hwnd = State.Renderer->GetSystemWindowHandle();
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-        {
-            POINT point;
-            RECT rect;
-
-            GetCursorPos(&point);
-            GetWindowRect(hwnd, &rect);
-
-            // Calculate the difference between the cursor pos and window pos
-            moveOffsetX = point.x - rect.left;
-            moveOffsetY = point.y - rect.top;
-        }
-
-        //Move native window if user click-drags the imgui main menu bar
-        if ((moveOffsetY >= 0 && moveOffsetY <= (i32)mainMenuHeight) && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) //Cursor must be *on* the titlebar
-        {
-            POINT point;
-            GetCursorPos(&point);
-
-            SetWindowPos(hwnd, nullptr, point.x - moveOffsetX, point.y - moveOffsetY, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-        }
-
 
         //Draw file menu
         if (ImGui::BeginMenu("File"))

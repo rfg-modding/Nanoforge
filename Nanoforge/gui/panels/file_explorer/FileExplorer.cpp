@@ -100,7 +100,6 @@ void FileExplorer::Update(GuiState* state, bool* open)
     ImGui::PushStyleColor(ImGuiCol_Header, selectedColor);
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, highlightColor);
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, highlightColor);
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetColorU32(ImGuiCol_WindowBg));
 
     //Draw nodes
     if (ImGui::BeginChild("FileExplorerList"))
@@ -114,7 +113,7 @@ void FileExplorer::Update(GuiState* state, bool* open)
         ImGui::PopStyleVar();
         ImGui::EndChild();
     }
-    ImGui::PopStyleColor(4);
+    ImGui::PopStyleColor(3);
 
     ImGui::End();
 }
