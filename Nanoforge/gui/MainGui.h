@@ -53,6 +53,7 @@ private:
     bool openProjectRequested_ = false;
     bool closeProjectRequested_ = false;
     bool openRecentProjectRequested_ = false;
+    bool imguiDemoWindowOpen_ = true;
     string openRecentProjectRequestData_;
 
     Handle<IDocument> currentDocument_ = nullptr;

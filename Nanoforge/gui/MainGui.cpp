@@ -148,7 +148,10 @@ void MainGui::Update()
     DrawMainMenuBar();
     DrawDockspace();
 #ifdef DEVELOPMENT_BUILD
-    ImGui::ShowDemoWindow();
+    if (imguiDemoWindowOpen_)
+    {
+        ImGui::ShowDemoWindow(&imguiDemoWindowOpen_);
+    }
 #endif
 
     //Draw panels
@@ -500,6 +503,12 @@ void MainGui::DrawMainMenuBar()
                 }
                 ImGui::EndMenu();
             }
+#ifdef DEVELOPMENT_BUILD
+            if (ImGui::MenuItem("ImGui Demo", nullptr, &imguiDemoWindowOpen_))
+            {
+
+            }
+#endif
             ImGui::EndMenu();
         }
 
