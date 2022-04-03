@@ -598,6 +598,7 @@ void MainGui::DrawMainMenuBar()
 #ifdef TRACY_ENABLE
         const char* text = ICON_FA_EXCLAMATION_TRIANGLE " PROFILER ENABLED";
         cursorPos.y += 1.0f;
+        cursorPos.x += 10.0f;
         drawList->AddText(cursorPos, ImGui::GetColorU32({ 1.0f, 0.5f, 0.153f, 1.0f }), text, text + strlen(text));
         cursorPos.x += ImGui::CalcTextSize(text).x;
         cursorPos.y -= 1.0f;

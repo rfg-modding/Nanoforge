@@ -10,5 +10,5 @@ namespace BuildConfig
     static const std::string FontAwesomePath = AssetFolderPath + "fonts/fa-solid-900.ttf";
     static const std::string VsCodeIconsPath = AssetFolderPath + "fonts/codicon.ttf";
     static const std::string ShaderPath = AssetFolderPath + "shaders/";
-    static const std::string Version = "v0.20.0-pre0";
+    static const std::string Version = "v0.20.0-pre1";
 }
