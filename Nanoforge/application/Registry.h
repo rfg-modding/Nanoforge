@@ -125,6 +125,7 @@ public:
     explicit operator bool() const { return Valid(); }
     template<typename T> T Get();
     template<typename T> void Set(T value);
+    template<typename T> bool IsType();
 
     //Special cases of Get<T>() and Set<T>() for object lists. For convenience to avoid using Get<std::vector<ObjectHandle>>()
     std::vector<ObjectHandle>& GetObjectList()
@@ -197,4 +198,15 @@ void PropertyHandle::Set(T value)
     std::lock_guard<std::mutex> lock(*_object->Mutex.get());
     RegistryProperty& prop = _object->Properties[_index];
     prop.Value = value;
+}
+
+template<typename T>
+bool PropertyHandle::IsType()
+{
+    if (!_object)
+        THROW_EXCEPTION("Called ::IsType<T>() on and invalid property handle!");
+
+    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    RegistryProperty& prop = _object->Properties[_index];
+    return std::holds_alternative<T>(prop.Value);
 }

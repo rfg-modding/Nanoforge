@@ -204,14 +204,13 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     for (ObjectHandle object : objects)
     {
         string name = "";
-        std::vector<ObjectHandle> properties = object.Property("Properties").GetObjectList();
-        for (ObjectHandle prop : properties)
+        for (PropertyHandle prop : object.Properties())
         {
             for (const string& propertyName : customNameProperties)
             {
-                if (prop.Property("TypeName").Get<string>() == "String" && prop.Property("Name").Get<string>() == propertyName)
+                if (prop.IsType<string>() && prop.Name() == propertyName)
                 {
-                    name = prop.Property("String").Get<string>();
+                    name = prop.Get<string>();
                     break;
                 }
             }
