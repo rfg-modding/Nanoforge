@@ -30,9 +30,14 @@ public:
     //Create registry object. Returns a handle to the object if it succeeds, or InvalidHandle if it fails.
     ObjectHandle CreateObject(std::string_view objectName = "", std::string_view typeName = "");
     ObjectHandle GetObjectHandleByUID(u64 uid);
+    u64 NumObjects() const;
     bool ObjectExists(u64 uid) const;
-
+    //Load registry from folder
+    bool Load(const string& inFolderPath);
+    //Save registry to folder
+    bool Save(const string& outFolderPath);
 private:
+    ObjectHandle CreateObjectInternal(u64 uid, u64 parentUID = NullUID, std::string_view objectName = "", std::string_view typeName = ""); //For internal use by Registry::Load() only
     //Registry objects mapped to their UIDs
     //Note: If the container type is changed ObjectHandle and PropertyHandle likely won't be able to hold pointers anymore.
     //      They rely on the fact that pointers to std::unordered_map values are stable.
@@ -63,10 +68,12 @@ public:
 
 private:
     Object* _object;
+
+    friend class Registry;
 };
 
 //Value storage for Property
-using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, void*, std::vector<ObjectHandle>, Vec3, Mat3, ObjectHandle>;
+using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, std::vector<ObjectHandle>, Vec3, Mat3, ObjectHandle>;
 
 class RegistryProperty
 {
@@ -83,6 +90,8 @@ public:
     u64 ParentUID;
     std::vector<RegistryProperty> Properties;
     std::vector<ObjectHandle> SubObjects;
+    RegistryProperty& Property(std::string_view name); //Note: Returned property is for short term use in Registry.cpp only. It isn't stable like the PropertyHandle returned by ObjectHandle::Property()
+    bool Has(std::string_view propertyName);
     //Locked when editing properties. Temporary bandaid. The current design is going to be tested on the map editor first.
     //Afterwards a better solution for thread safety and any other major design flaws found will be fixed.
     std::unique_ptr<std::mutex> Mutex = std::make_unique<std::mutex>();
@@ -111,6 +120,7 @@ class PropertyHandle
 public:
     PropertyHandle(Object* object, u32 index) : _object(object), _index(index) { }
     bool Valid() const { return _object && _object->UID != NullUID; }
+    string Name() { return _object->Properties[_index].Name; }
     //Allows checking handle validity with if statements. E.g. if (handle) { /*valid*/ } else { /*invalid*/ }
     explicit operator bool() const { return Valid(); }
     template<typename T> T Get();

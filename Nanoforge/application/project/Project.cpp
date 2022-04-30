@@ -13,6 +13,7 @@
 #include "util/TaskScheduler.h"
 #include "rfg/xtbl/IXtblNode.h"
 #include "rfg/xtbl/Xtbl.h"
+#include "application/Registry.h"
 #include <ranges>
 
 Project::Project()
@@ -63,7 +64,9 @@ bool Project::Save()
     project.InsertFirstChild(projectBlock);
     project.SaveFile((Path + "\\" + ProjectFilename).c_str());
 
-    return true;
+    Path::CreatePath(Path + "\\Registry\\");
+    Registry& registry = Registry::Get();
+    return registry.Save(Path + "\\Registry\\");
 }
 
 void Project::Close()
@@ -180,7 +183,8 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
         edit = edit->NextSiblingElement("Edit");
     }
 
-    return true;
+    Registry& registry = Registry::Get();
+    return registry.Load(Path + "\\Registry\\");
 }
 
 void Project::PackageModThread(Handle<Task> task, std::string outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
