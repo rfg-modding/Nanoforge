@@ -180,7 +180,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     EarlyStopCheck();
     InitObjectClassData();
 
-    Log->info("Done loading {}. Took {} seconds", territoryFilename_, LoadThreadTimer.ElapsedSecondsPrecise());
+    Log->info("Done loading {}. Took {} seconds. {} objects in registry", territoryFilename_, LoadThreadTimer.ElapsedSecondsPrecise(), Registry::Get().NumObjects());
     state->ClearStatus();
     loadThreadRunning_ = false;
     ready_ = true;
@@ -210,13 +210,13 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
 
     //Get terrain filename from obj_zone object
     ObjectHandle objZone = GetZoneObject(zone, "obj_zone");
-    ObjectHandle terrainFilenameProperty = objZone ? GetZoneProperty(objZone, "terrain_file_name") : NullObjectHandle;
+    PropertyHandle terrainFilenameProperty = objZone ? GetZoneProperty(objZone, "terrain_file_name") : NullPropertyHandle;
 
     //Determine zone position
     if (!objZone || !terrainFilenameProperty)
         return; //No terrain
 
-    string terrainName = terrainFilenameProperty.Property("String").Get<string>();
+    string terrainName = terrainFilenameProperty.Get<string>();
     if (terrainName.ends_with('\0'))
         terrainName.pop_back(); //Remove extra null terminators
 

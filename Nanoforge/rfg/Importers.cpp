@@ -101,33 +101,22 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         zoneObject.Property("NumProps").Set<u16>(current->NumProps);
         zoneObject.Property("PropBlockSize").Set<u16>(current->PropBlockSize);
         zoneObject.Property("Classname").Set<string>(classname);
-        zoneObject.Property("Properties").SetObjectList({});
         zoneObject.Property("Parent").Set<ObjectHandle>(NullObjectHandle);
         zoneObject.Property("Child").Set<ObjectHandle>(NullObjectHandle);
         zoneObject.Property("Sibling").Set<ObjectHandle>(NullObjectHandle);
 
-        //Setup properties
+        //Load zone object properties
         ZoneObjectProperty* currentProp = current->Properties();
         u32 i = 0;
         while (currentProp && i < current->NumProps)
         {
-            //Create property object
+            //Attempt to load property
             auto maybeName = currentProp->Name();
             string name = maybeName.has_value() ? maybeName.value() : "UnknownPropertyType";
-            ObjectHandle prop = registry.CreateObject(name, "ZoneObjectProperty");
-            prop.Property("Type").Set<u16>(currentProp->Type);
-            prop.Property("Size").Set<u16>(currentProp->Size);
-            prop.Property("NameHash").Set<u32>(currentProp->NameHash);
-            prop.Property("Name").Set<string>(name);
-
-            //Attempt to load property
-            if (ImportZoneObjectProperty(currentProp, prop))
+            PropertyHandle prop0 = zoneObject.Property(name);
+            if (!ImportZoneObjectProperty(currentProp, zoneObject))
             {
-                zoneObject.Property("Properties").GetObjectList().push_back(prop);
-            }
-            else
-            {
-
+                //Todo: Add some kind of error handling here. Waiting until edit tracking + undo/redo is implemented since that'll make it simple.
             }
 
             currentProp = current->NextProperty(currentProp);
@@ -140,11 +129,11 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
 
     //Determine zone position
     ObjectHandle objZone = GetZoneObject(zone, "obj_zone");
-    ObjectHandle op = objZone ? GetZoneProperty(objZone, "op") : NullObjectHandle;
-    if (objZone && op)
+    PropertyHandle pos = objZone ? GetZoneProperty(objZone, "Position") : NullPropertyHandle;
+    if (objZone && pos)
     {
         //Use obj_zone position if available. They're always at the center of the zone
-        zone.Property("Position").Set<Vec3>(op.Property("Position").Get<Vec3>());
+        zone.Property("Position").Set<Vec3>(pos.Get<Vec3>());
     }
     else
     {
@@ -153,10 +142,10 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         size_t numPositions = 0;
         for (ObjectHandle obj : zone.Property("Objects").GetObjectList())
         {
-            ObjectHandle op2 = GetZoneProperty(obj, "op");
-            if (op2)
+            PropertyHandle pos2 = GetZoneProperty(obj, "Position");
+            if (pos2)
             {
-                averagePosition += op2.Property("Position").Get<Vec3>();
+                averagePosition += pos2.Get<Vec3>();
                 numPositions++;
             }
         }
@@ -249,10 +238,10 @@ void InitZonePropertyLoaders()
             "dummy_type", "demolitions_master_type", "team", "sound_alr", "sound", "visual", "behavior", "roadblock_type", "type_enum", "clip_mesh", "light_flags",
             "backpack_type", "marker_type", "area_type", "spawn_resource_data", "parent_name"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             const char* data = (const char*)prop->Data();
-            propObject.Property("String").Set<string>(data);
+            zoneObject.Property(propertyName).Set<string>(data);
             return true;
         }
     );
@@ -270,10 +259,10 @@ void InitZonePropertyLoaders()
             "disabled", "tag_node", "start_node", "end_game_only", "visible", "vehicle_only", "npc_only", "dead_body", "looping", "use_object_orient", "random_backpacks",
             "liberated", "liberated_play_line"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             bool* data = (bool*)prop->Data();
-            propObject.Property("Bool").Set<bool>(*data);
+            zoneObject.Property(propertyName).Set<bool>(*data);
             return true;
         }
     );
@@ -288,10 +277,10 @@ void InitZonePropertyLoaders()
             "night_trigger_prob", "day_trigger_prob", "speed_limit", "hotspot_falloff_size", "atten_range", "aspect", "hotspot_size", "atten_start", "control",
             "control_max", "morale", "morale_max"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             f32* data = (f32*)prop->Data();
-            propObject.Property("Float").Set<f32>(*data);
+            zoneObject.Property(propertyName).Set<f32>(*data);
             return true;
         }
     );
@@ -306,10 +295,10 @@ void InitZonePropertyLoaders()
             "child_index", "child_alt_hk_body_index", "host_handle", "child_handle", "path_road_flags", "patrol_start", "yellow_num_points", "yellow_num_triangles",
             "warning_num_points", "warning_num_triangles", "pair_number", "group", "priority", "num_backpacks"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             u32* data = (u32*)prop->Data();
-            propObject.Property("Uint").Set<u32>(*data);
+            zoneObject.Property(propertyName).Set<u32>(*data);
             return true;
         }
    );
@@ -322,10 +311,10 @@ void InitZonePropertyLoaders()
         {
             "just_pos", "min_clip", "max_clip", "clr_orig"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             Vec3* data = (Vec3*)prop->Data();
-            propObject.Property("Vec3").Set<Vec3>(*data);
+            zoneObject.Property(propertyName).Set<Vec3>(*data);
             return true;
         }
     );
@@ -338,10 +327,10 @@ void InitZonePropertyLoaders()
         {
             "nav_orient"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             Mat3* data = (Mat3*)prop->Data();
-            propObject.Property("Matrix33").Set<Mat3>(*data);
+            zoneObject.Property(propertyName).Set<Mat3>(*data);
             return true;
         }
     );
@@ -354,12 +343,12 @@ void InitZonePropertyLoaders()
         {
             "bb"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             struct bb { Vec3 bmin; Vec3 bmax; };
             bb* data = (bb*)prop->Data();
-            propObject.Property("Bmin").Set<Vec3>(data->bmin);
-            propObject.Property("Bmax").Set<Vec3>(data->bmax);
+            zoneObject.Property("Bmin").Set<Vec3>(data->bmin);
+            zoneObject.Property("Bmax").Set<Vec3>(data->bmax);
             return true;
         }
     );
@@ -372,12 +361,12 @@ void InitZonePropertyLoaders()
         {
             "op"
         },
-        [](ZoneObjectProperty* prop, ObjectHandle propObject, std::string_view propertyName) -> bool
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             struct op { Vec3 Position; Mat3 Orient; };
             op* data = (op*)prop->Data();
-            propObject.Property("Position").Set<Vec3>(data->Position);
-            propObject.Property("Orient").Set<Mat3>(data->Orient);
+            zoneObject.Property("Position").Set<Vec3>(data->Position);
+            zoneObject.Property("Orient").Set<Mat3>(data->Orient);
             return true;
         }
     );
@@ -388,7 +377,7 @@ void InitZonePropertyLoaders()
 }
 
 //Convert a zone object property to a registry
-bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle propObject)
+bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject)
 {
     auto maybeName = prop->Name();
     if (!maybeName.has_value())
@@ -399,8 +388,7 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle propObject)
         for (const std::string_view propName : propType.PropertyNames)
             if (propName == name)
             {
-                propObject.Property("TypeName").Set<string>(propType.Name);
-                return propType.Loader(prop, propObject, name);
+                return propType.Loader(prop, zoneObject, name);
             }
 
     return false;
@@ -415,11 +403,11 @@ ObjectHandle GetZoneObject(ObjectHandle zone, std::string_view classname)
     return NullObjectHandle;
 }
 
-ObjectHandle GetZoneProperty(ObjectHandle obj, std::string_view propertyName)
+PropertyHandle GetZoneProperty(ObjectHandle obj, std::string_view propertyName)
 {
-    for (ObjectHandle prop : obj.Property("Properties").GetObjectList())
-        if (prop.Property("Name").Get<string>() == propertyName)
+    for (PropertyHandle prop : obj.Properties())
+        if (prop.Name() == propertyName)
             return prop;
 
-    return NullObjectHandle;
+    return NullPropertyHandle;
 }
