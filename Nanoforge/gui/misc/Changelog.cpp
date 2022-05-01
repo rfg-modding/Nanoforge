@@ -118,6 +118,9 @@ R"(# Getting started
   * See [Nanoforge texture editing](https://www.redfactionwiki.com/wiki/Nanoforge_Texture_Editing) for a guide on using Nanoforge to edit textures.
 
 # Changelog
+## v0.19.1 - Bugfixes
+This release fixes a crash when opening and creating projects and fixes a font scaling bug.
+
 ## v0.19.0 - High resolution terrain + Mesh viewer improvements
 This release adds support for high lod terrain meshes and high resolution terrain textures (see it via `Tools > Open Territory`). It also fixes some mesh rendering bugs and has a much quicker texture search that fails less often.
 
