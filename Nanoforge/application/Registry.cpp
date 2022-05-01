@@ -4,6 +4,10 @@
 #include <string>
 #include "Log.h"
 #include "pugixml/src/pugixml.hpp"
+#include "common/timing/Timer.h"
+#include "common/filesystem/File.h"
+#include "common/string/String.h"
+#include <charconv>
 
 Registry& Registry::Get()
 {
@@ -15,7 +19,7 @@ ObjectHandle Registry::CreateObject(std::string_view objectName, std::string_vie
 {
     _objectCreationLock.lock();
     const u64 uid = _nextUID++;
-    _objects[uid] = Object(string(objectName), uid);
+    _objects[uid] = Object(uid, NullUID, objectName);
     _objectCreationLock.unlock();
     ObjectHandle handle = { &_objects[uid] };
     if (typeName != "")
@@ -30,8 +34,7 @@ ObjectHandle Registry::CreateObjectInternal(u64 uid, u64 parentUID, std::string_
         return nullptr;
 
     _objectCreationLock.lock();
-    _objects[uid] = Object(string(objectName), uid);
-    _objects[uid].ParentUID = parentUID;
+    _objects[uid] = Object(uid, parentUID, objectName);
     _objectCreationLock.unlock();
     ObjectHandle handle = { &_objects[uid] };
     if (typeName != "")
@@ -59,340 +62,395 @@ bool Registry::ObjectExists(u64 uid) const
     return find != _objects.end();
 }
 
-bool Registry::Load(const string& inFolderPath)
+//Convert string_view to integer/floating point type. Avoids using std::to_string() and needing to allocating a string.
+template<typename T>
+T ConvertStringView(std::string_view str, T valueDefault = (T)0)
 {
-    //Clear existing state
-    Registry& self = Registry::Get();
-    self._objects.clear();
+    //Comptime check that T is supported. Compiler will yell at you already for passing a T to std::from_chars() with no overload. This just provides a more clear error message.
+    static_assert(
+        std::is_same<T, i64>() ||
+        std::is_same<T, i32>() ||
+        std::is_same<T, i16>() ||
+        std::is_same<T, i8>()  ||
+        std::is_same<T, u64>() ||
+        std::is_same<T, u32>() ||
+        std::is_same<T, u16>() ||
+        std::is_same<T, u8>()  ||
+        std::is_same<T, f32>() ||
+        std::is_same<T, f64>(), "Unsupported type T used on ConvertStringView<T>()");
 
-    string registryFilePath = inFolderPath + "\\Registry.xml";
-    if (!std::filesystem::exists(registryFilePath))
-        return true;
+    T value = valueDefault;
+    std::from_chars(str.data(), str.data() + str.size(), value);
+    return value;
+}
 
-    pugi::xml_document xml;
-    xml.load_file(registryFilePath.c_str());
-    pugi::xml_node root = xml.child("Registry");
-    if (!root)
+//Split string read from serialized registry file into a list of views for each value. E.g. "{1, 2, 3, 4}" -> std::vector<std::string_view>{"1", "2", "3", "4"}
+std::vector<std::string_view> SplitTextArray(std::string_view str)
+{
+    //Remove { and } and any whitespace from ends to get comma separated list
+    std::string_view commaSeparated = String::TrimWhitespace(str);
+    commaSeparated.remove_prefix(1);
+    commaSeparated.remove_suffix(1);
+    std::vector<std::string_view> values = String::SplitString(commaSeparated, ","); //Separate values by comma
+    for (std::string_view& value : values)
+        value = String::TrimWhitespace(value); //Trim whitespace from each value
+
+    return values;
+}
+
+ObjectHandle Registry::LoadEntry(const std::vector<std::string_view>& lines, size_t entryLineStart)
+{
+    //Find object start
+    size_t i = 0;
+    bool foundObjectStart = false;
+    while (i < lines.size())
     {
-        Log->info("<Registry> block not found in registry file \"{}\"", registryFilePath);
-        return false;
-    }
-
-    pugi::xml_node objects = xml.child("Objects");
-    pugi::xml_node buffers = xml.child("Buffers");
-    if (!objects || !buffers)
-    {
-        if (!objects) Log->info("<Objects> block not found in registry file \"{}\"", registryFilePath);
-        if (!buffers) Log->info("<Buffers> block not found in registry file \"{}\"", registryFilePath);
-        return false;
-    }
-
-    //Load objects
-    {
-        //Stage 1: Load objects. Set internal pointers for ObjectHandles to uidXml
-        u64 highestUID = 0;
-        std::vector<u64> objectsWithHandles = {}; //Objects that have ObjectHandle propertiesXml or subobjects that need patching
-        pugi::xml_node objectXml = objects.child("Object");
-        for (pugi::xml_node objectXml : objects.children("Object"))
+        if (String::StartsWith(lines[i], "Object("))
         {
-            //Validate object
-            pugi::xml_node nameXml = objectXml.child("Name");
-            pugi::xml_node typeXml = objectXml.child("Type");
-            pugi::xml_node uidXml = objectXml.child("UID");
-            pugi::xml_node parentUidXml = objectXml.child("ParentUID");
-            pugi::xml_node propertiesXml = objectXml.child("Properties");
-            pugi::xml_node subObjectsXml = objectXml.child("SubObjects");
-            if (!nameXml || !uidXml || !parentUidXml || !propertiesXml || !subObjectsXml)
+            foundObjectStart = true;
+            break;
+        }
+        else
+        {
+            i++;
+            continue;
+        }
+    }
+    if (!foundObjectStart)
+    {
+        return NullObjectHandle;
+    }
+
+    //Parse object header. E.g. Object(1812312921321):
+    std::vector<std::string_view> objectSplit = String::SplitString(lines[i], "Object(");
+    if (objectSplit.size() != 1)
+    {
+        Log->error("Failed to parse registry object. Invalid header '{}'", lines[i]);
+        return NullObjectHandle;
+    }
+    std::string_view uidStrView = objectSplit[0];
+    uidStrView.remove_suffix(2); //Remove "):" from end
+    u64 uid = ConvertStringView<u64>(uidStrView, NullUID); //uid string to u64
+
+    //Create object in memory
+    ObjectHandle object = CreateObjectInternal(uid);
+    if (!object)
+    {
+        Log->error("Failed to create object. UID = {}, Registry.registry line {}", uid, entryLineStart + i);
+        return NullObjectHandle;
+    }
+    i++;
+
+    //Parse properties
+    while (i < lines.size())
+    {
+        //Split property E.g. name : type = value
+        std::string_view line = String::TrimWhitespace(lines[i]);
+        std::vector<std::string_view> split = String::SplitString(line, "=");
+        std::vector<std::string_view> nameAndType = split.size() == 2 ? String::SplitString(split[0], ":") : std::vector<std::string_view>{};
+        if (split.size() != 2)
+        {
+            Log->info("Bad syntax on line {}. Expected 'name : type = value'", entryLineStart + i);
+            return NullObjectHandle;
+        }
+
+        std::string_view name = String::TrimWhitespace(nameAndType[0]);
+        std::string_view type = nameAndType.size() == 2 ? String::TrimWhitespace(nameAndType[1]) : "";
+        std::string_view value = String::TrimWhitespace(split[1]);
+
+        //Parse value
+        if (type == "" && name == "SubObjects") //Special case
+        {
+            std::vector<std::string_view> handles = SplitTextArray(value); //Extract handles from array
+            for (std::string_view handle : handles)
             {
-                Log->error("Invalid registry object. Missing one or more required values: <Name>, <UID>, <ParentUID>, <Properties>, <SubObjects>. Skipping object...");
-                continue;
-            }
-
-            //Create object in memory
-            string name = nameXml.text().as_string();
-            string objectType = typeXml ? typeXml.text().as_string() : "";
-            u64 uid = uidXml.text().as_ullong();
-            u64 parentUid = parentUidXml.text().as_ullong();
-            ObjectHandle object = self.CreateObjectInternal(uid, parentUid, name, objectType);
-            if (!object)
-            {
-                Log->error("Failed to create object. Name = '{}', Type = '{}', UID = {}, ParentUID = {}. Skipping object...", name, objectType, uid, parentUid);
-                continue;
-            }
-
-            if (uid > highestUID)
-                highestUID = uid;
-
-            //Load properties
-            for (pugi::xml_node prop : objects.children("Property"))
-            {
-                pugi::xml_node propNameXml = prop.child("Name");
-                pugi::xml_node propTypeXml = prop.child("Type");
-                pugi::xml_node propValueXml = prop.child("Value");
-                if (!propNameXml || !propTypeXml || !propValueXml)
-                {
-                    Log->error("Invalid registry object property. Missing one or more required values: <Name>, <Type>, <Value>. Skipping property...");
-                    continue;
-                }
-                std::string_view propName = propNameXml.text().as_string();
-                std::string_view propType = propTypeXml.text().as_string();
-
-                //Read property value
-                if (propType == "i32")
-                {
-                    object.Property(propName).Set<i32>(propValueXml.text().as_int());
-                }
-                else if (propType == "u64")
-                {
-                    object.Property(propName).Set<u64>(propValueXml.text().as_ullong());
-                }
-                else if (propType == "u32")
-                {
-                    object.Property(propName).Set<u32>(propValueXml.text().as_uint());
-                }
-                else if (propType == "u16")
-                {
-                    object.Property(propName).Set<u16>(propValueXml.text().as_uint());
-                }
-                else if (propType == "u8")
-                {
-                    object.Property(propName).Set<u8>(propValueXml.text().as_uint());
-                }
-                else if (propType == "f32")
-                {
-                    object.Property(propName).Set<f32>(propValueXml.text().as_float());
-                }
-                else if (propType == "bool")
-                {
-                    object.Property(propName).Set<bool>(propValueXml.text().as_bool());
-                }
-                else if (propType == "string")
-                {
-                    object.Property(propName).Set<string>(propValueXml.text().as_string());
-                }
-                else if (propType == "ObjectHandleList")
-                {
-                    objectsWithHandles.push_back(uid);
-                    for (pugi::xml_node handleXml : prop.children("Handle"))
-                    {
-                        const char* handleText = handleXml.text().as_string();
-                        u64 subUid = NullUID;
-                        if (handleText)
-                            subUid = std::stoull(handleText);
-
-                        object.Property(propName).GetObjectList().push_back(ObjectHandle{ (Object*)subUid });
-                    }
-                }
-                else if (propType == "Vec3")
-                {
-                    Vec3 value;
-                    value.x = prop.child("X").text().as_float();
-                    value.y = prop.child("Y").text().as_float();
-                    value.z = prop.child("Z").text().as_float();
-                    object.Property(propName).Set<Vec3>(value);
-                }
-                else if (propType == "Mat3")
-                {
-                    Mat3 value;
-                    value.rvec.x = prop.child("RX").text().as_float();
-                    value.rvec.y = prop.child("RY").text().as_float();
-                    value.rvec.z = prop.child("RZ").text().as_float();
-                    value.uvec.x = prop.child("UX").text().as_float();
-                    value.uvec.y = prop.child("UY").text().as_float();
-                    value.uvec.z = prop.child("UZ").text().as_float();
-                    value.fvec.x = prop.child("FX").text().as_float();
-                    value.fvec.y = prop.child("FY").text().as_float();
-                    value.fvec.z = prop.child("FZ").text().as_float();
-                    object.Property(propName).Set<Mat3>(value);
-                }
-                else if (propType == "ObjectHandle")
-                {
-                    u64 handleUid = prop.text().as_ullong();
-                    object.Property(propName).Set<ObjectHandle>((Object*)handleUid);
-                    objectsWithHandles.push_back(uid);
-                }
-                else
-                {
-                    Log->error("Invalid registry object property. Unsupported type '{}'. Skipping property...", propType);
-                    continue;
-                }
-            }
-
-            //Load subobjects
-            if (subObjectsXml.child("SubObject")) objectsWithHandles.push_back(uid);
-            for (pugi::xml_node subObject : subObjectsXml.children("SubObject"))
-            {
-                u64 subObjectUid = subObject.text().as_ullong();
+                //Fill handle list
+                u64 subObjectUid = ConvertStringView<u64>(String::TrimWhitespace(handle));
                 object.SubObjects().push_back({ (Object*)subObjectUid });
             }
         }
-        self._nextUID = highestUID + 1;
-
-        //Stage 2: Patch ObjectHandle internal pointers
-        auto patchObjectHandle = [](ObjectHandle& handle)
+        else if (type == "i32")
         {
-            Registry& registry = Registry::Get();
-            u64 uid = (u64)handle._object; //Stage one stores uid in handle._object since all objects aren't loaded yet
-            Object* object = &registry._objects[uid];
-            handle._object = object; //By stage two all objects are loaded, so we get the actual Object* and patch it
-        };
-        for (u64 uid : objectsWithHandles)
+            object.Property(name).Set<i32>(ConvertStringView<i32>(value));
+        }
+        else if (type == "u64")
         {
-            Object& object = self.GetObjectByUID(uid);
-            //Patch properties
-            for (RegistryProperty& prop : object.Properties)
+            object.Property(name).Set<u64>(ConvertStringView<u64>(value));
+        }
+        else if (type == "u32")
+        {
+            object.Property(name).Set<u32>(ConvertStringView<u32>(value));
+        }
+        else if (type == "u16")
+        {
+            object.Property(name).Set<u16>(ConvertStringView<u16>(value));
+        }
+        else if (type == "u8")
+        {
+            object.Property(name).Set<u8>(ConvertStringView<u8>(value));
+        }
+        else if (type == "f32")
+        {
+            object.Property(name).Set<f32>(ConvertStringView<f32>(value));
+        }
+        else if (type == "bool")
+        {
+            object.Property(name).Set<bool>(value == "true" ? true : false);
+        }
+        else if (type == "string")
+        {
+            //Remove quotation marks from start and end of string
+            value.remove_prefix(1);
+            value.remove_suffix(1);
+            object.Property(name).Set<string>(string(value));
+        }
+        else if (type == "ObjectHandleList")
+        {
+            object.Property(name).SetObjectList({}); //Ensure property set to correct type
+            std::vector<std::string_view> handles = SplitTextArray(value); //Extract handles from array
+            for (std::string_view handle : handles)
             {
-                if (std::holds_alternative<ObjectHandle>(prop.Value))
-                {
-                    patchObjectHandle(std::get<ObjectHandle>(prop.Value));
-                }
-                else if (std::holds_alternative<std::vector<ObjectHandle>>(prop.Value))
-                {
-                    std::vector<ObjectHandle>& handleList = std::get<std::vector<ObjectHandle>>(prop.Value);
-                    for (ObjectHandle& handle : handleList)
-                        patchObjectHandle(handle);
-                }
+                //Fill handle list
+                u64 handleUid = ConvertStringView<u64>(String::TrimWhitespace(handle));
+                object.Property(name).GetObjectList().push_back(ObjectHandle{ (Object*)handleUid });
+            }
+        }
+        else if (type == "Vec3")
+        {
+            std::vector<std::string_view> xyz = SplitTextArray(value); //Extract x, y, z from array
+            if (xyz.size() != 3)
+            {
+                Log->info("Invalid Vec3 property at line {}. Had {} values, expected 3 (x,y,z). Skipping object.", entryLineStart + i, xyz.size());
+                _objects.erase(uid);
+                return NullObjectHandle;
             }
 
-            //Patch sub object handles
-            for (ObjectHandle& handle : object.SubObjects)
+            Vec3 value;
+            value.x = ConvertStringView<f32>(xyz[0]);
+            value.y = ConvertStringView<f32>(xyz[1]);
+            value.z = ConvertStringView<f32>(xyz[2]);
+            object.Property(name).Set<Vec3>(value);
+        }
+        else if (type == "Mat33")
+        {
+            std::vector<std::string_view> values = SplitTextArray(value); //Extract values from array
+            if (values.size() != 9)
             {
-                patchObjectHandle(handle);
+                Log->info("Invalid Mat3 property at line {}. Had {} values, expected 9 (x,y,z for right, up, and forward vecs). Skipping object.", entryLineStart + i, values.size());
+                _objects.erase(uid);
+                return NullObjectHandle;
             }
+
+            Mat3 value;
+            value.rvec.x = ConvertStringView<f32>(values[0]);
+            value.rvec.y = ConvertStringView<f32>(values[1]);
+            value.rvec.z = ConvertStringView<f32>(values[2]);
+            value.uvec.x = ConvertStringView<f32>(values[3]);
+            value.uvec.y = ConvertStringView<f32>(values[4]);
+            value.uvec.z = ConvertStringView<f32>(values[5]);
+            value.fvec.x = ConvertStringView<f32>(values[6]);
+            value.fvec.y = ConvertStringView<f32>(values[7]);
+            value.fvec.z = ConvertStringView<f32>(values[8]);
+            object.Property(name).Set<Mat3>(value);
+        }
+        else if (type == "ObjectHandle")
+        {
+            u64 handleUid = ConvertStringView<u64>(value);
+            object.Property(name).Set<ObjectHandle>((Object*)handleUid);
+        }
+        else
+        {
+            Log->error("Invalid registry object property. Unsupported type '{}'. Skipping property...", type);
+            i++;
+            continue;
+        }
+
+        i++;
+    }
+
+    return object;
+}
+
+bool Registry::Load(const string& inFolderPath)
+{
+#ifdef DEBUG_BUILD
+    Timer timer;
+    timer.Start();
+#endif
+    //Clear existing state
+    _objects.clear();
+
+    string registryFilePath = inFolderPath + "\\Registry.registry";
+    if (!std::filesystem::exists(registryFilePath))
+        return true;
+
+    string fileBuffer = File::ReadToString(registryFilePath);
+    std::vector<std::string_view> entries = String::SplitString(fileBuffer, ";"); //Each entry ends with a semicolon
+
+    //Load objects
+    u64 highestUID = 0;
+    size_t entryLineStart = 0;
+    for (std::string_view entryText : entries)
+    {
+        std::vector<std::string_view> lines = String::SplitString(entryText, "\r\n"); //Get view on each line
+        ObjectHandle object = LoadEntry(lines, entryLineStart);
+        entryLineStart += lines.size();
+        if (object && object.UID() > highestUID)
+            highestUID = object.UID();
+    }
+    _nextUID = highestUID + 1;
+
+    //Patch ObjectHandle internal pointers
+    auto patchObjectHandle = [](ObjectHandle& handle)
+    {
+        Registry& registry = Registry::Get();
+        u64 uid = (u64)handle._object; //Stage one stores uid in handle._object since all objects aren't loaded yet
+        Object* object = &registry._objects[uid];
+        handle._object = object; //By stage two all objects are loaded, so we get the actual Object* and patch it
+    };
+    for (auto& kv : _objects)
+    {
+        Object& object = kv.second;
+        //Patch properties
+        for (RegistryProperty& prop : object.Properties)
+        {
+            if (std::holds_alternative<ObjectHandle>(prop.Value))
+            {
+                patchObjectHandle(std::get<ObjectHandle>(prop.Value));
+            }
+            else if (std::holds_alternative<std::vector<ObjectHandle>>(prop.Value))
+            {
+                std::vector<ObjectHandle>& handleList = std::get<std::vector<ObjectHandle>>(prop.Value);
+                for (ObjectHandle& handle : handleList)
+                    patchObjectHandle(handle);
+            }
+        }
+
+        //Patch sub object handles
+        for (ObjectHandle& handle : object.SubObjects)
+        {
+            patchObjectHandle(handle);
         }
     }
 
-    //Load buffers
-    {
-        //Buffers not yet implemented
-    }
-
+#ifdef DEBUG_BUILD
+    Log->info("Loading Registry took {}s", timer.ElapsedSecondsPrecise());
+#endif
     return true;
 }
 
 bool Registry::Save(const string& outFolderPath)
 {
+#ifdef DEBUG_BUILD
+    Timer timer;
+    timer.Start();
+#endif
     Path::CreatePath(outFolderPath);
-    Registry& registry = Registry::Get();
-    pugi::xml_document xml;
-    pugi::xml_node root = xml.append_child("Registry");
-    pugi::xml_node objects = root.append_child("Objects");
-    pugi::xml_node buffer = root.append_child("Buffers");
+
+    string fileBuffer; //Generate file in memory then write all at once
+    fileBuffer.reserve(_objects.size() * 1200); //Rough guess of 1000 characters per object in text form. Prevents a bunch of reallocations during generation
 
     //Write objects
-    for (auto& kv : registry._objects)
+    for (auto& kv : _objects)
     {
         Object& object = kv.second;
-        pugi::xml_node objectXml = objects.append_child("Object");
-        objectXml.append_child("Name").text().set(object.Name.c_str());
-        if (object.Has("Type"))
-            objectXml.append_child("Type").text().set(std::get<string>(object.Property("Type").Value).c_str());
-        objectXml.append_child("UID").text().set(object.UID);
-        objectXml.append_child("ParentUID").text().set(object.ParentUID);
-        pugi::xml_node properties = objectXml.append_child("Properties");
-        pugi::xml_node subObjects = objectXml.append_child("SubObjects");
+        fileBuffer += fmt::format("Object({}):\n", object.UID);
 
-        //Write propertiesXml
+        //Write properties
         for (RegistryProperty& prop : object.Properties)
         {
-            pugi::xml_node propXml = properties.append_child("Property");
-            propXml.append_child("Name").text().set(prop.Name.c_str());
-
-            //Write property value + type string
+            string propType = "";
+            string propValue = "";
+            if (std::holds_alternative<i32>(prop.Value))
             {
-                pugi::xml_node propTypeXml = propXml.append_child("Type");
-                pugi::xml_node propValueXml = propXml.append_child("Value");
-
-                string propType = "";
-                if (std::holds_alternative<i32>(prop.Value))
-                {
-                    propType = "i32";
-                    propValueXml.text().set(std::get<i32>(prop.Value));
-                }
-                else if (std::holds_alternative<u64>(prop.Value))
-                {
-                    propType = "u64";
-                    propValueXml.text().set(std::get<u64>(prop.Value));
-                }
-                else if (std::holds_alternative<u32>(prop.Value))
-                {
-                    propType = "u32";
-                    propValueXml.text().set(std::get<u32>(prop.Value));
-                }
-                else if (std::holds_alternative<u16>(prop.Value))
-                {
-                    propType = "u16";
-                    propValueXml.text().set(std::get<u16>(prop.Value));
-                }
-                else if (std::holds_alternative<u8>(prop.Value))
-                {
-                    propType = "u8";
-                    propValueXml.text().set(std::get<u8>(prop.Value));
-                }
-                else if (std::holds_alternative<f32>(prop.Value))
-                {
-                    propType = "f32";
-                    propValueXml.text().set(std::get<f32>(prop.Value));
-                }
-                else if (std::holds_alternative<bool>(prop.Value))
-                {
-                    propType = "bool";
-                    propValueXml.text().set(std::get<bool>(prop.Value));
-                }
-                else if (std::holds_alternative<string>(prop.Value))
-                {
-                    propType = "string";
-                    propValueXml.text().set(std::get<string>(prop.Value).c_str());
-                }
-                else if (std::holds_alternative<std::vector<ObjectHandle>>(prop.Value))
-                {
-                    propType = "ObjectHandleList";
-                    std::vector<ObjectHandle>& handles = std::get<std::vector<ObjectHandle>>(prop.Value);
-                    for (ObjectHandle handle : handles)
-                    {
-                        pugi::xml_node handleXml = propValueXml.append_child("Handle");
-                        handleXml.text().set(handle.UID());
-                    }
-                }
-                else if (std::holds_alternative<Vec3>(prop.Value))
-                {
-                    propType = "Vec3";
-                    Vec3& value = std::get<Vec3>(prop.Value);
-                    propValueXml.append_child("Y").text().set(value.y);
-                    propValueXml.append_child("Z").text().set(value.z);
-                    propValueXml.append_child("X").text().set(value.x);
-                }
-                else if (std::holds_alternative<Mat3>(prop.Value))
-                {
-                    propType = "Mat3";
-                    Mat3& value = std::get<Mat3>(prop.Value);
-                    propValueXml.append_child("RX").text().set(value.rvec.x);
-                    propValueXml.append_child("RY").text().set(value.rvec.y);
-                    propValueXml.append_child("RZ").text().set(value.rvec.z);
-                    propValueXml.append_child("UX").text().set(value.uvec.x);
-                    propValueXml.append_child("UY").text().set(value.uvec.y);
-                    propValueXml.append_child("UZ").text().set(value.uvec.z);
-                    propValueXml.append_child("FX").text().set(value.fvec.x);
-                    propValueXml.append_child("FY").text().set(value.fvec.y);
-                    propValueXml.append_child("FZ").text().set(value.fvec.z);
-                }
-                else if (std::holds_alternative<ObjectHandle>(prop.Value))
-                {
-                    propType = "ObjectHandle";
-                    propValueXml.text().set(std::get<ObjectHandle>(prop.Value).UID());
-                }
-                else
-                {
-                    Log->error("Unsupported PropertyValue type for property '{}', object uid = {}", prop.Name, object.UID);
-                    return false;
-                }
-                propTypeXml.text().set(propType.c_str());
+                propType = "i32";
+                propValue = std::to_string(std::get<i32>(prop.Value));
             }
+            else if (std::holds_alternative<u64>(prop.Value))
+            {
+                propType = "u64";
+                propValue = std::to_string(std::get<u64>(prop.Value));
+            }
+            else if (std::holds_alternative<u32>(prop.Value))
+            {
+                propType = "u32";
+                propValue = std::to_string(std::get<u32>(prop.Value));
+            }
+            else if (std::holds_alternative<u16>(prop.Value))
+            {
+                propType = "u16";
+                propValue = std::to_string(std::get<u16>(prop.Value));
+            }
+            else if (std::holds_alternative<u8>(prop.Value))
+            {
+                propType = "u8";
+                propValue = std::to_string(std::get<u8>(prop.Value));
+            }
+            else if (std::holds_alternative<f32>(prop.Value))
+            {
+                propType = "f32";
+                propValue = std::to_string(std::get<f32>(prop.Value));
+            }
+            else if (std::holds_alternative<bool>(prop.Value))
+            {
+                propType = "bool";
+                propValue = std::get<bool>(prop.Value) ? "true" : "false";
+            }
+            else if (std::holds_alternative<string>(prop.Value))
+            {
+                propType = "string";
+                propValue = "\"" + std::get<string>(prop.Value) + "\"";
+            }
+            else if (std::holds_alternative<std::vector<ObjectHandle>>(prop.Value))
+            {
+                propType = "ObjectHandleList";
+                std::vector<ObjectHandle>& handles = std::get<std::vector<ObjectHandle>>(prop.Value);
+                propValue = "{";
+                for (size_t i = 0; i < handles.size(); i++)
+                {
+                    propValue += std::to_string(handles[i].UID());
+                    if (i < handles.size() - 1)
+                        propValue += ", ";
+                }
+                propValue += "}";
+            }
+            else if (std::holds_alternative<Vec3>(prop.Value))
+            {
+                propType = "Vec3";
+                Vec3& value = std::get<Vec3>(prop.Value);
+                propValue = fmt::format("{{{}, {}, {}}}", value.x, value.y, value.z);
+                //Note: Syntax above might look odd. The first two curly braces are doubled to escape fmt formatting and will result in a single {. The third will be replaced by fmt with value.x
+                //      Final result is a single { at the start of the vector and a single } at the end with arbitrary x, y, z values between. E.g {1.2, 400.2, -120.2}
+            }
+            else if (std::holds_alternative<Mat3>(prop.Value))
+            {
+                propType = "Mat33";
+                Mat3& value = std::get<Mat3>(prop.Value);
+                propValue = fmt::format("{{{}, {}, {}, {}, {}, {}, {}, {}, {}}}", value.rvec.x, value.rvec.y, value.rvec.z, value.uvec.x, value.uvec.y, value.uvec.z, value.fvec.x, value.fvec.y, value.fvec.z);
+            }
+            else if (std::holds_alternative<ObjectHandle>(prop.Value))
+            {
+                propType = "ObjectHandle";
+                propValue = std::to_string(std::get<ObjectHandle>(prop.Value).UID());
+            }
+            else
+            {
+                Log->error("Unsupported PropertyValue type for property '{}', object uid = {}", prop.Name, object.UID);
+                return false;
+            }
+
+            fileBuffer += fmt::format("\t{} : {} = {}\n", prop.Name, propType, propValue);
         }
 
-        //Write sub objects
-        for (ObjectHandle subObject : object.SubObjects)
-            subObjects.append_child("SubObject").text().set(subObject.UID());
+        fileBuffer += "\tSubObjects := {";
+        for (size_t i = 0; i < object.SubObjects.size(); i++)
+        {
+            fileBuffer += std::to_string(object.SubObjects[i].UID());
+            if (i < object.SubObjects.size() - 1)
+                fileBuffer += ", ";
+        }
+        fileBuffer += "}\n";
+        fileBuffer += ";\n\n"; //End of object + a few empty lines for spacing
     }
 
     //Write buffers
@@ -400,8 +458,12 @@ bool Registry::Save(const string& outFolderPath)
         //Buffers not yet implemented
     }
 
-    string outXmlPath = outFolderPath + "\\Registry.xml";
-    xml.save_file(outXmlPath.c_str());
+    string outPath = outFolderPath + "\\Registry.registry";
+    File::WriteTextToFile(outPath, fileBuffer);
+
+#ifdef DEBUG_BUILD
+    Log->info("Saving Registry took {}s", timer.ElapsedSecondsPrecise());
+#endif
     return true;
 }
 

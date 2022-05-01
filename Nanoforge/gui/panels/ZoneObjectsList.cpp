@@ -172,13 +172,13 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
     if (name != "")
         objectLabel += name; //Use custom name if available
     else
-        objectLabel += object.Property("Classname").Get<string>(); //Otherwise use object type name (e.g. rfg_mover, navpoint, obj_light, etc)
+        objectLabel += object.Property("Type").Get<string>(); //Otherwise use object type name (e.g. rfg_mover, navpoint, obj_light, etc)
 
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
     //Draw node
-    ImGui::PushID((u64)&object); //Push unique ID for the UI element
+    ImGui::PushID(object.UID()); //Push unique ID for the UI element
     f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
     bool nodeOpen = ImGui::TreeNodeEx(objectLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
         (object.SubObjects().size() == 0 ? ImGuiTreeNodeFlags_Leaf : 0) | (selected ? ImGuiTreeNodeFlags_Selected : 0));
@@ -193,7 +193,7 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
     }
     if (ImGui::IsItemHovered())
     {
-        gui::TooltipOnPrevious(object.Property("Classname").Get<string>(), ImGui::GetIO().FontDefault);
+        gui::TooltipOnPrevious(object.Property("Type").Get<string>(), ImGui::GetIO().FontDefault);
     }
 
     //Draw node icon

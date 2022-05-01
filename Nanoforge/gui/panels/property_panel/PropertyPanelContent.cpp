@@ -82,7 +82,7 @@ void PropertyPanel_ZoneObject(GuiState* state)
 
         string name = selected.Property("Name").Get<string>();
         if (name == "")
-            name = selected.Property("Classname").Get<string>();
+            name = selected.Property("Type").Get<string>();
 
         //Object name
         state->FontManager->FontMedium.Push();
@@ -91,7 +91,7 @@ void PropertyPanel_ZoneObject(GuiState* state)
 
         //Object class name
         ImGui::PushStyleColor(ImGuiCol_Text, gui::SecondaryTextColor);
-        ImGui::Text(selected.Property("Classname").Get<string>().c_str());
+        ImGui::Text(selected.Property("Type").Get<string>().c_str());
         ImGui::PopStyleColor();
         ImGui::Separator();
 
@@ -110,129 +110,127 @@ void PropertyPanel_ZoneObject(GuiState* state)
             ImGui::LogFinish();
         }
 
-        std::vector<ObjectHandle>& properties = selected.Property("Properties").GetObjectList();
-        for (ObjectHandle prop : properties)
+        for (PropertyHandle prop : selected.Properties())
         {
-            string typeName = prop.Property("TypeName").Get<string>();
             const f32 indent = 15.0f;
-            if (ImGui::CollapsingHeader(prop.Property("Name").Get<string>().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader(prop.Name().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Indent(indent);
-                if (typeName == "String")
+                if (prop.IsType<string>())
                 {
-                    string data = prop.Property("String").Get<string>();
+                    string data = prop.Get<string>();
                     if (ImGui::InputText("String", &data))
-                        prop.Property("String").Set<string>(data);
+                        prop.Set<string>(data);
                 }
-                else if (typeName == "Bool")
+                else if (prop.IsType<bool>())
                 {
-                    bool data = prop.Property("Bool").Get<bool>();
+                    bool data = prop.Get<bool>();
                     if (ImGui::Checkbox("Bool", &data))
-                        prop.Property("Bool").Set<bool>(data);
+                        prop.Set<bool>(data);
                 }
-                else if (typeName == "Float")
+                else if (prop.IsType<f32>())
                 {
-                    f32 data = prop.Property("Float").Get<f32>();
+                    f32 data = prop.Get<f32>();
                     if (ImGui::InputFloat("Float", &data))
-                        prop.Property("Float").Set<f32>(data);
+                        prop.Set<f32>(data);
                 }
-                else if (typeName == "Uint")
+                else if (prop.IsType<u32>())
                 {
-                    u32 data = prop.Property("Uint").Get<u32>();
+                    u32 data = prop.Get<u32>();
                     if (ImGui::InputScalar("Number", ImGuiDataType_U32, &data))
-                        prop.Property("Uint").Set<u32>(data);
+                        prop.Set<u32>(data);
                 }
-                else if (typeName == "BoundingBox")
+                //else if (typeName == "BoundingBox")
+                //{
+                //    Vec3 bmin = prop.Property("Bmin").Get<Vec3>();
+                //    Vec3 bmax = prop.Property("Bmax").Get<Vec3>();
+                //    if (ImGui::InputFloat3("Min", (f32*)&bmin))
+                //        prop.Property("Bmin").Set<Vec3>(bmin);
+                //    if (ImGui::InputFloat3("Max", (f32*)&bmax))
+                //        prop.Property("Bmax").Set<Vec3>(bmax);
+                //}
+                else if (prop.IsType<Vec3>())
                 {
-                    Vec3 bmin = prop.Property("Bmin").Get<Vec3>();
-                    Vec3 bmax = prop.Property("Bmax").Get<Vec3>();
-                    if (ImGui::InputFloat3("Min", (f32*)&bmin))
-                        prop.Property("Bmin").Set<Vec3>(bmin);
-                    if (ImGui::InputFloat3("Max", (f32*)&bmax))
-                        prop.Property("Bmax").Set<Vec3>(bmax);
-                }
-                else if (typeName == "Vec3")
-                {
-                    Vec3 data = prop.Property("Vector").Get<Vec3>();
+                    Vec3 data = prop.Get<Vec3>();
                     if (ImGui::InputFloat3("Vector", (f32*)&data))
-                        prop.Property("Vector").Set<Vec3>(data);
+                        prop.Set<Vec3>(data);
                 }
-                else if (typeName == "Matrix33")
+                else if (prop.IsType<Mat3>())
                 {
-                    Mat3 data = prop.Property("Matrix33").Get<Mat3>();
+                    Mat3 data = prop.Get<Mat3>();
                     if (ImGui::InputFloat3("Right", (f32*)&data.rvec))
-                        prop.Property("Matrix33").Set<Mat3>(data);
+                        prop.Set<Mat3>(data);
                     if (ImGui::InputFloat3("Up", (f32*)&data.uvec))
-                        prop.Property("Matrix33").Set<Mat3>(data);
+                        prop.Set<Mat3>(data);
                     if (ImGui::InputFloat3("Forward", (f32*)&data.fvec))
-                        prop.Property("Matrix33").Set<Mat3>(data);
+                        prop.Set<Mat3>(data);
                 }
-                else if (typeName == "Op")
-                {
-                    ImGui::Text("Orientation:");
-                    Mat3 orient = prop.Property("Orient").Get<Mat3>();
-                    if (ImGui::InputFloat3("Right", (f32*)&orient.rvec))
-                        prop.Property("Orient").Set<Mat3>(orient);
-                    if (ImGui::InputFloat3("Up", (f32*)&orient.uvec))
-                        prop.Property("Orient").Set<Mat3>(orient);
-                    if (ImGui::InputFloat3("Forward", (f32*)&orient.fvec))
-                        prop.Property("Orient").Set<Mat3>(orient);
+                //else if (typeName == "Op")
+                //{
+                //    ImGui::Text("Orientation:");
+                //    Mat3 orient = prop.Property("Orient").Get<Mat3>();
+                //    if (ImGui::InputFloat3("Right", (f32*)&orient.rvec))
+                //        prop.Property("Orient").Set<Mat3>(orient);
+                //    if (ImGui::InputFloat3("Up", (f32*)&orient.uvec))
+                //        prop.Property("Orient").Set<Mat3>(orient);
+                //    if (ImGui::InputFloat3("Forward", (f32*)&orient.fvec))
+                //        prop.Property("Orient").Set<Mat3>(orient);
 
-                    ImGui::Text("Position:");
-                    Vec3 pos = prop.Property("Position").Get<Vec3>();
-                    if (ImGui::InputFloat3("Position", (f32*)&pos))
-                        prop.Property("Position").Set<Vec3>(pos);
-                }
-                else if (typeName == "DistrictFlags")
-                {
-                    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
-                    //auto* districtFlagsProp = static_cast<DistrictFlagsProperty*>(prop);
-                    //u32 flags = (u32)districtFlagsProp->Data;
+                //    ImGui::Text("Position:");
+                //    Vec3 pos = prop.Property("Position").Get<Vec3>();
+                //    if (ImGui::InputFloat3("Position", (f32*)&pos))
+                //        prop.Property("Position").Set<Vec3>(pos);
+                //}
+                //else if (typeName == "DistrictFlags")
+                //{
+                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                //    //auto* districtFlagsProp = static_cast<DistrictFlagsProperty*>(prop);
+                //    //u32 flags = (u32)districtFlagsProp->Data;
 
-                    //bool allowCough = ((flags & (u32)DistrictFlags::AllowCough) != 0);
-                    //bool allowAmbEdfCivilianDump = ((flags & (u32)DistrictFlags::AllowAmbEdfCivilianDump) != 0);
-                    //bool playCapstoneUnlockedLines = ((flags & (u32)DistrictFlags::PlayCapstoneUnlockedLines) != 0);
-                    //bool disableMoraleChange = ((flags & (u32)DistrictFlags::DisableMoraleChange) != 0);
-                    //bool disableControlChange = ((flags & (u32)DistrictFlags::DisableControlChange) != 0);
+                //    //bool allowCough = ((flags & (u32)DistrictFlags::AllowCough) != 0);
+                //    //bool allowAmbEdfCivilianDump = ((flags & (u32)DistrictFlags::AllowAmbEdfCivilianDump) != 0);
+                //    //bool playCapstoneUnlockedLines = ((flags & (u32)DistrictFlags::PlayCapstoneUnlockedLines) != 0);
+                //    //bool disableMoraleChange = ((flags & (u32)DistrictFlags::DisableMoraleChange) != 0);
+                //    //bool disableControlChange = ((flags & (u32)DistrictFlags::DisableControlChange) != 0);
 
-                    ////Draws checkbox for flag and updates bitflags stored in flags
-                    //#define DrawDistrictFlagsCheckbox(text, value, flagEnum) \
-                    //    if (ImGui::Checkbox(text, &value)) \
-                    //    { \
-                    //        if (value) \
-                    //            flags |= (u32)flagEnum; \
-                    //        else \
-                    //            flags &= (~(u32)flagEnum); \
-                    //    } \
+                //    ////Draws checkbox for flag and updates bitflags stored in flags
+                //    //#define DrawDistrictFlagsCheckbox(text, value, flagEnum) \
+                //    //    if (ImGui::Checkbox(text, &value)) \
+                //    //    { \
+                //    //        if (value) \
+                //    //            flags |= (u32)flagEnum; \
+                //    //        else \
+                //    //            flags &= (~(u32)flagEnum); \
+                //    //    } \
 
-                    //DrawDistrictFlagsCheckbox("Allow cough", allowCough, DistrictFlags::AllowCough);
-                    //DrawDistrictFlagsCheckbox("Allow edf civilian dump", allowAmbEdfCivilianDump, DistrictFlags::AllowAmbEdfCivilianDump);
-                    //DrawDistrictFlagsCheckbox("Play capstone unlocked lines", playCapstoneUnlockedLines, DistrictFlags::PlayCapstoneUnlockedLines);
-                    //DrawDistrictFlagsCheckbox("Disable morale change", disableMoraleChange, DistrictFlags::DisableMoraleChange);
-                    //DrawDistrictFlagsCheckbox("Disable control change", disableControlChange, DistrictFlags::DisableControlChange);
+                //    //DrawDistrictFlagsCheckbox("Allow cough", allowCough, DistrictFlags::AllowCough);
+                //    //DrawDistrictFlagsCheckbox("Allow edf civilian dump", allowAmbEdfCivilianDump, DistrictFlags::AllowAmbEdfCivilianDump);
+                //    //DrawDistrictFlagsCheckbox("Play capstone unlocked lines", playCapstoneUnlockedLines, DistrictFlags::PlayCapstoneUnlockedLines);
+                //    //DrawDistrictFlagsCheckbox("Disable morale change", disableMoraleChange, DistrictFlags::DisableMoraleChange);
+                //    //DrawDistrictFlagsCheckbox("Disable control change", disableControlChange, DistrictFlags::DisableControlChange);
 
-                    //districtFlagsProp->Data = (DistrictFlags)flags;
-                }
-                else if (typeName == "List")
-                {
-                    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
-                }
-                else if (typeName == "NavpointData")
-                {
-                    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
-                    //auto* propNavpointData = static_cast<NavpointDataProperty*>(prop);
-                    //ImGui::InputScalar("Type", ImGuiDataType_U32, &propNavpointData->NavpointType);
-                    //ImGui::InputScalar("Unknown0", ImGuiDataType_U32, &propNavpointData->UnkFlag1); //Note: This might actually be type
-                    //ImGui::InputFloat("Radius", &propNavpointData->Radius);
-                    //ImGui::InputFloat("Speed", &propNavpointData->Speed);
-                    //ImGui::InputScalar("Unknown1", ImGuiDataType_U32, &propNavpointData->UnkFlag2);
-                    //ImGui::InputScalar("Unknown2", ImGuiDataType_U32, &propNavpointData->UnkFlag3);
-                    //ImGui::InputScalar("Unknown3", ImGuiDataType_U32, &propNavpointData->UnkVar1);
-                }
-                else if (typeName == "Constraint")
-                {
-                    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
-                }
+                //    //districtFlagsProp->Data = (DistrictFlags)flags;
+                //}
+                //else if (typeName == "List")
+                //{
+                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                //}
+                //else if (typeName == "NavpointData")
+                //{
+                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                //    //auto* propNavpointData = static_cast<NavpointDataProperty*>(prop);
+                //    //ImGui::InputScalar("Type", ImGuiDataType_U32, &propNavpointData->NavpointType);
+                //    //ImGui::InputScalar("Unknown0", ImGuiDataType_U32, &propNavpointData->UnkFlag1); //Note: This might actually be type
+                //    //ImGui::InputFloat("Radius", &propNavpointData->Radius);
+                //    //ImGui::InputFloat("Speed", &propNavpointData->Speed);
+                //    //ImGui::InputScalar("Unknown1", ImGuiDataType_U32, &propNavpointData->UnkFlag2);
+                //    //ImGui::InputScalar("Unknown2", ImGuiDataType_U32, &propNavpointData->UnkFlag3);
+                //    //ImGui::InputScalar("Unknown3", ImGuiDataType_U32, &propNavpointData->UnkVar1);
+                //}
+                //else if (typeName == "Constraint")
+                //{
+                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                //}
                 else
                 {
                     ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");

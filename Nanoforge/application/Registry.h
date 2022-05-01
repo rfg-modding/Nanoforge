@@ -1,5 +1,6 @@
 #pragma once
 #include "common/Typedefs.h"
+#include "common/String.h"
 #include <RfgTools++/types/Vec3.h>
 #include <RfgTools++/types/Mat3.h>
 #include <unordered_map>
@@ -37,6 +38,7 @@ public:
     //Save registry to folder
     bool Save(const string& outFolderPath);
 private:
+    ObjectHandle LoadEntry(const std::vector<std::string_view>& lines, size_t entryLineStart); //Load object from lines of serialized registry. Returns null handle if it fails.
     ObjectHandle CreateObjectInternal(u64 uid, u64 parentUID = NullUID, std::string_view objectName = "", std::string_view typeName = ""); //For internal use by Registry::Load() only
     //Registry objects mapped to their UIDs
     //Note: If the container type is changed ObjectHandle and PropertyHandle likely won't be able to hold pointers anymore.
@@ -85,9 +87,7 @@ public:
 class Object
 {
 public:
-    string Name;
     u64 UID;
-    u64 ParentUID;
     std::vector<RegistryProperty> Properties;
     std::vector<ObjectHandle> SubObjects;
     RegistryProperty& Property(std::string_view name); //Note: Returned property is for short term use in Registry.cpp only. It isn't stable like the PropertyHandle returned by ObjectHandle::Property()
@@ -96,10 +96,13 @@ public:
     //Afterwards a better solution for thread safety and any other major design flaws found will be fixed.
     std::unique_ptr<std::mutex> Mutex = std::make_unique<std::mutex>();
 
-    Object() { }
-    Object(std::string_view name, u64 uid, u64 parentUID = NullUID) : Name(name), UID(uid), ParentUID(parentUID)
+    Object() : UID(NullUID) { }
+    Object(u64 uid, u64 parentUID = NullUID, std::string_view name = "") : UID(uid)
     {
-
+        if (parentUID != NullUID)
+            Property("ParentUID").Value = parentUID;
+        if (name != "")
+            Property("Name").Value = string(name);
     }
 };
 

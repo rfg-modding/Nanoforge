@@ -79,7 +79,8 @@ void StartPanel::Update(GuiState* state, bool* open)
     {
         if (std::filesystem::exists(openRecentProjectRequestData_))
         {
-            state->CurrentProject->Save();
+            if (state->CurrentProject->Loaded())
+                state->CurrentProject->Save();
             state->CurrentProject->Load(openRecentProjectRequestData_);
             state->Xtbls->ReloadXtbls();
         }

@@ -71,8 +71,8 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     zone.Property("DistrictFlags").Set<u32>(zoneFile.Header.DistrictFlags);
     zone.Property("DistrictName").Set<string>(zoneFile.DistrictName());
     zone.Property("Name").Set<string>(zoneFile.Name);
-    zone.Property("Persistent").Set<bool>(String::StartsWith(zoneFile.Name, "p_"));
     zone.Property("Objects").SetObjectList({});
+    zone.Property("Persistent").Set<bool>(String::StartsWith(zoneFile.Name, "p_"));
     zone.Property("ActivityLayer").Set<bool>(false);
     zone.Property("MissionLayer").Set<bool>(false);
     zone.Property("RenderBoundingBoxes").Set<bool>(true);
@@ -84,7 +84,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     {
         //Create zone object and add to zone object list
         string classname = current->Classname();
-        ObjectHandle zoneObject = registry.CreateObject(classname, "ZoneFile");
+        ObjectHandle zoneObject = registry.CreateObject(classname);
         zone.Property("Objects").GetObjectList().push_back(zoneObject);
         //TODO: Strip properties not needed by the editor
         //TODO: Replace parent/child/sibling properties with ObjectHandle variables on Object
@@ -100,7 +100,8 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         zoneObject.Property("Num").Set<u32>(current->Num);
         zoneObject.Property("NumProps").Set<u16>(current->NumProps);
         zoneObject.Property("PropBlockSize").Set<u16>(current->PropBlockSize);
-        zoneObject.Property("Classname").Set<string>(classname);
+        if (classname != "Unknown")
+            zoneObject.Property("Type").Set<string>(classname);
         zoneObject.Property("Parent").Set<ObjectHandle>(NullObjectHandle);
         zoneObject.Property("Child").Set<ObjectHandle>(NullObjectHandle);
         zoneObject.Property("Sibling").Set<ObjectHandle>(NullObjectHandle);
@@ -393,10 +394,10 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject)
     return false;
 }
 
-ObjectHandle GetZoneObject(ObjectHandle zone, std::string_view classname)
+ObjectHandle GetZoneObject(ObjectHandle zone, std::string_view type)
 {
     for (ObjectHandle obj : zone.Property("Objects").GetObjectList())
-        if (obj.Property("Classname").Get<string>() == classname)
+        if (obj.Property("Type").Get<string>() == type)
             return obj;
 
     return NullObjectHandle;

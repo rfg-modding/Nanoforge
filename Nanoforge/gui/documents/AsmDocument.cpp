@@ -25,7 +25,7 @@ ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
     {
         ObjectHandle container = registry.CreateObject(asmContainer.Name, "AsmContainer");
         container.Property("Name").Set(asmContainer.Name);
-        container.Property("Type").Set((u8)asmContainer.Type);
+        container.Property("TypeNum").Set((u8)asmContainer.Type);
         container.Property("Flags").Set((u16)asmContainer.Flags);
         container.Property("DataOffset").Set(asmContainer.DataOffset);
         container.Property("CompressedSize").Set(asmContainer.CompressedSize);
@@ -41,7 +41,7 @@ ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
             //TODO: Add to container primitives list, however lists are determined to work
             ObjectHandle primitive = registry.CreateObject(asmPrimitive.Name, "AsmPrimitive");
             primitive.Property("Name").Set(asmPrimitive.Name);
-            primitive.Property("Type").Set((u8)asmPrimitive.Type);
+            primitive.Property("TypeNum").Set((u8)asmPrimitive.Type);
             primitive.Property("Allocator").Set((u8)asmPrimitive.Allocator);
             primitive.Property("Flags").Set((u8)asmPrimitive.Flags);
             primitive.Property("SplitExtIndex").Set(asmPrimitive.SplitExtIndex);

@@ -683,8 +683,8 @@ void Territory::InitObjectClassData()
             u32 outIndex = InvalidZoneIndex;
             if (!ObjectClassRegistered(object.Property("ClassnameHash").Get<u32>(), outIndex))
             {
-                ZoneObjectClasses.push_back({ object.Property("Classname").Get<string>(), object.Property("ClassnameHash").Get<u32>(), 0, Vec3{ 1.0f, 1.0f, 1.0f }, true });
-                Log->warn("Found unknown object class with hash {} and name \"{}\"", object.Property("ClassnameHash").Get<u32>(), object.Property("Classname").Get<string>());
+                ZoneObjectClasses.push_back({ object.Property("Type").Get<string>(), object.Property("ClassnameHash").Get<u32>(), 0, Vec3{ 1.0f, 1.0f, 1.0f }, true });
+                Log->warn("Found unknown object class with hash {} and name \"{}\"", object.Property("ClassnameHash").Get<u32>(), object.Property("Type").Get<string>());
             }
         }
     }

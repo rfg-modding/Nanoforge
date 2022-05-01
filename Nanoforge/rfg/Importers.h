@@ -11,5 +11,5 @@ namespace Importers
 }
 
 //Helpers for dealing with zone related registry objects
-ObjectHandle GetZoneObject(ObjectHandle zone, std::string_view classname);
+ObjectHandle GetZoneObject(ObjectHandle zone, std::string_view type);
 PropertyHandle GetZoneProperty(ObjectHandle obj, std::string_view propertyName);
