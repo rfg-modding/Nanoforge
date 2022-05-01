@@ -27,6 +27,9 @@ public:
     void SaveFocusedDocument();
 
     GuiState State; //Global gui state provided to each panel and document
+    f32 mainMenuHeight = 8.0f;
+    f32 toolbarHeight = 16.0f;
+    bool Shutdown = false;
 
 private:
     void AddMenuItem(std::string_view menuPos, bool open, Handle<IGuiPanel> panel);
@@ -34,6 +37,7 @@ private:
     void DrawDockspace();
     void GenerateMenus();
     MenuItem* GetMenu(std::string_view text);
+    void SetPanelVisibility(const std::string& title, bool visible);
 
     std::vector<Handle<IGuiPanel>> panels_ = {};
     std::vector<MenuItem> menuItems_ = {}; //Main menu bar items
@@ -49,6 +53,7 @@ private:
     bool openProjectRequested_ = false;
     bool closeProjectRequested_ = false;
     bool openRecentProjectRequested_ = false;
+    bool imguiDemoWindowOpen_ = true;
     string openRecentProjectRequestData_;
 
     Handle<IDocument> currentDocument_ = nullptr;

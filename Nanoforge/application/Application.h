@@ -29,6 +29,7 @@ public:
     bool Paused = false;
     Timer FrameTimer;
     MainGui gui_;
+    DX11Renderer renderer_;
 
 private:
     void Init();
@@ -36,7 +37,6 @@ private:
     void NewFrame();
 
     //These all have global lifetime
-    DX11Renderer renderer_;
     ImGuiFontManager fontManager_;
     PackfileVFS packfileVFS_;
     TextureIndex textureSearchIndex_;

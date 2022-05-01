@@ -45,8 +45,17 @@ public:
     u32 Height() { return sceneViewHeight_; }
 
     //Primitive drawing functions. Must be called each frame
+    //Functions drawing line lists
     void DrawLine(const Vec3& start, const Vec3& end, const Vec3& color = ColorWhite);
+    void DrawQuad(const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec3& color = ColorWhite);
     void DrawBox(const Vec3& min, const Vec3& max, const Vec3& color = ColorWhite);
+    //Functions drawing triangle strips
+    void DrawQuadSolid(const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec3& color = ColorWhite);
+    void DrawBoxSolid(const Vec3& min, const Vec3& max, const Vec3& color = ColorWhite);
+    //Functions draw triangle strips with basic lighting
+    void DrawQuadLit(const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec3& normal, const Vec3& color = ColorWhite);
+    void DrawBoxLit(const Vec3& min, const Vec3& max, const Vec3& color = ColorWhite);
+
     //Clear any existing primitives and force the primitive vertex buffers to be updated
     void ResetPrimitives();
 
@@ -90,7 +99,7 @@ private:
     //Track object materials so objects can be batch rendered by material
     std::unordered_map<string, std::vector<Handle<RenderObject>>> objectMaterials_;
 
-    //Used for line and box drawing
+    //Used for line, box, and triangle list drawing
     struct ColoredVertex
     {
         Vec3 Position;
@@ -98,15 +107,35 @@ private:
     };
     static_assert(sizeof(ColoredVertex) == 16, "sizeof(ColoredVertex) must be 16 bytes.");
 
-    ComPtr<ID3D11RasterizerState> primitiveRasterizerState_ = nullptr;
-    Material* linelistMaterial_ = nullptr;
+    //For triangle lists with basic lighting
+    struct ColoredVertexLit
+    {
+        Vec3 Position;
+        Vec3 Normal;
+        u8 r, g, b, a;
+    };
+    static_assert(sizeof(ColoredVertexLit) == 28, "sizeof(ColoredVertexLit) must be 28 bytes");
 
-    //Primitive drawing temporary buffers. Cleared each frame
-    //Line and linestrip data. Lines are also used to draw boxes
+    ComPtr<ID3D11RasterizerState> primitiveRasterizerState_ = nullptr;
+    bool primitiveBufferNeedsUpdate_ = true;
+
+    //Data for drawing linelist primitives
+    Material* linelistMaterial_ = nullptr;
     std::vector<ColoredVertex> lineVertices_;
     Buffer lineVertexBuffer_;
     u32 numLineVertices_ = 0;
-    bool primitiveBufferNeedsUpdate_ = true;
+
+    //Data for drawing solid shaded triangle list primitives
+    Material* trianglelistMaterial_ = nullptr;
+    std::vector<ColoredVertex> triangleListVertices_;
+    Buffer triangleListVertexBuffer_;
+    u32 numTriangleListVertices_ = 0;
+
+    //Data for drawing triangle list primitives with basic lighting
+    Material* litTrianglelistMaterial_ = nullptr;
+    std::vector<ColoredVertexLit> litTriangleListVertices_;
+    Buffer litTriangleListVertexBuffer_;
+    u32 numLitTriangleListVertices_ = 0;
 
     bool errorOccurred_ = false;
 };

@@ -1,6 +1,7 @@
 ﻿#include "application/Application.h"
 #include <ext/WindowsWrapper.h>
 #include "gui/util/WinUtil.h"
+#include "cli/CommandLine.h"
 #include "util/Profiler.h"
 #include "CrashHandler.h"
 #include <iostream>
@@ -31,8 +32,15 @@ int WINAPI main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, i
     //Catches unhandled c++ exceptions
     try
     {
-        Application app(hInstance);
-        app.Run();
+        if (GetArgc(lpCmdLine) == 1)
+        {
+            Application app(hInstance);
+            app.Run();
+        }
+        else
+        {
+            ProcessCommandLine(lpCmdLine);
+        }
     }
     catch(std::exception ex)
     {

@@ -1,18 +1,7 @@
 #include "PropertyPanelContent.h"
 #include "gui/panels/file_explorer/FileExplorer.h"
 #include "render/imgui/imgui_ext.h"
-#include "RfgTools++/formats/zones/properties/primitive/StringProperty.h"
-#include "RfgTools++/formats/zones/properties/primitive/BoolProperty.h"
-#include "RfgTools++/formats/zones/properties/primitive/FloatProperty.h"
-#include "RfgTools++/formats/zones/properties/primitive/UintProperty.h"
-#include "RfgTools++/formats/zones/properties/compound/Vec3Property.h"
-#include "RfgTools++/formats/zones/properties/compound/Matrix33Property.h"
-#include "RfgTools++/formats/zones/properties/compound/BoundingBoxProperty.h"
-#include "RfgTools++/formats/zones/properties/compound/OpProperty.h"
-#include "RfgTools++/formats/zones/properties/special/DistrictFlagsProperty.h"
-#include "RfgTools++/formats/zones/properties/compound/ListProperty.h"
-#include "RfgTools++/formats/zones/properties/special/NavpointDataProperty.h"
-#include "RfgTools++/formats/zones/ZonePc36.h"
+#include "RfgTools++/formats/zones/ZoneFile.h"
 #include "util/Profiler.h"
 #include "gui/GuiState.h"
 #include "render/imgui/ImGuiConfig.h"
@@ -83,156 +72,171 @@ void PropertyPanel_Str2Content(GuiState* state)
 void PropertyPanel_ZoneObject(GuiState* state)
 {
     PROFILER_FUNCTION();
-    if (!state->SelectedObject)
+    if (!state->SelectedObject.Valid())
     {
         ImGui::Text("%s Select a zone object to see it's properties", ICON_FA_EXCLAMATION_CIRCLE);
     }
     else
     {
-        ZoneObjectNode36& selected = *state->SelectedObject;
-        gui::LabelAndValue("Handle:", std::to_string(selected.Self->Handle));
-        gui::LabelAndValue("Num:", std::to_string(selected.Self->Num));
+        ObjectHandle selected = state->SelectedObject;
+
+        string name = selected.Property("Name").Get<string>();
+        if (name == "")
+            name = selected.Property("Type").Get<string>();
+
+        //Object name
+        state->FontManager->FontMedium.Push();
+        ImGui::Text(name);
+        state->FontManager->FontMedium.Pop();
+
+        //Object class name
+        ImGui::PushStyleColor(ImGuiCol_Text, gui::SecondaryTextColor);
+        ImGui::Text(selected.Property("Type").Get<string>().c_str());
+        ImGui::PopStyleColor();
+        ImGui::Separator();
+
+        u32 handle = selected.Property("Handle").Get<u32>();
+        u32 num = selected.Property("Num").Get<u32>();
+        u32 flags = selected.Property("Flags").Get<u16>();
+        ImGui::InputScalar("Handle", ImGuiDataType_U32, &handle);
+        ImGui::InputScalar("Num", ImGuiDataType_U32, &num);
+        ImGui::InputScalar("Flags", ImGuiDataType_U16, &flags);
         if (ImGui::Button("Copy scriptx ref to clipboard"))
         {
             ImGui::LogToClipboard();
-            ImGui::LogText("<object>%X\n", selected.Self->Handle);
-            ImGui::LogText("    <object_number>%d</object_number>\n", selected.Self->Num);
+            ImGui::LogText("<object>%X\n", handle);
+            ImGui::LogText("    <object_number>%d</object_number>\n", num);
             ImGui::LogText("</object>");
             ImGui::LogFinish();
         }
 
-        for (IZoneProperty* prop : selected.Self->Properties)
+        for (PropertyHandle prop : selected.Properties())
         {
-            //Todo: Add support for these types
-            //Ignore these types for now since they're not yet supported
-            if (!prop || prop->DataType == ZonePropertyType::NavpointData || prop->DataType == ZonePropertyType::List || prop->DataType == ZonePropertyType::ConstraintTemplate)
-                continue;
-
-            ImGui::Separator();
-            state->FontManager->FontMedium.Push();
-            ImGui::Text(prop->Name);
-            //state->FontManager->FontMedium.Pop();
-            //ImGui::Separator();
-
-            switch (prop->DataType)
+            const f32 indent = 15.0f;
+            if (ImGui::CollapsingHeader(prop.Name().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
             {
-            case ZonePropertyType::None:
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-                break;
-            case ZonePropertyType::String:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[String]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
+                ImGui::Indent(indent);
+                if (prop.IsType<string>())
+                {
+                    string data = prop.Get<string>();
+                    if (ImGui::InputText("String", &data))
+                        prop.Set<string>(data);
+                }
+                else if (prop.IsType<bool>())
+                {
+                    bool data = prop.Get<bool>();
+                    if (ImGui::Checkbox("Bool", &data))
+                        prop.Set<bool>(data);
+                }
+                else if (prop.IsType<f32>())
+                {
+                    f32 data = prop.Get<f32>();
+                    if (ImGui::InputFloat("Float", &data))
+                        prop.Set<f32>(data);
+                }
+                else if (prop.IsType<u32>())
+                {
+                    u32 data = prop.Get<u32>();
+                    if (ImGui::InputScalar("Number", ImGuiDataType_U32, &data))
+                        prop.Set<u32>(data);
+                }
+                //else if (typeName == "BoundingBox")
+                //{
+                //    Vec3 bmin = prop.Property("Bmin").Get<Vec3>();
+                //    Vec3 bmax = prop.Property("Bmax").Get<Vec3>();
+                //    if (ImGui::InputFloat3("Min", (f32*)&bmin))
+                //        prop.Property("Bmin").Set<Vec3>(bmin);
+                //    if (ImGui::InputFloat3("Max", (f32*)&bmax))
+                //        prop.Property("Bmax").Set<Vec3>(bmax);
+                //}
+                else if (prop.IsType<Vec3>())
+                {
+                    Vec3 data = prop.Get<Vec3>();
+                    if (ImGui::InputFloat3("Vector", (f32*)&data))
+                        prop.Set<Vec3>(data);
+                }
+                else if (prop.IsType<Mat3>())
+                {
+                    Mat3 data = prop.Get<Mat3>();
+                    if (ImGui::InputFloat3("Right", (f32*)&data.rvec))
+                        prop.Set<Mat3>(data);
+                    if (ImGui::InputFloat3("Up", (f32*)&data.uvec))
+                        prop.Set<Mat3>(data);
+                    if (ImGui::InputFloat3("Forward", (f32*)&data.fvec))
+                        prop.Set<Mat3>(data);
+                }
+                //else if (typeName == "Op")
+                //{
+                //    ImGui::Text("Orientation:");
+                //    Mat3 orient = prop.Property("Orient").Get<Mat3>();
+                //    if (ImGui::InputFloat3("Right", (f32*)&orient.rvec))
+                //        prop.Property("Orient").Set<Mat3>(orient);
+                //    if (ImGui::InputFloat3("Up", (f32*)&orient.uvec))
+                //        prop.Property("Orient").Set<Mat3>(orient);
+                //    if (ImGui::InputFloat3("Forward", (f32*)&orient.fvec))
+                //        prop.Property("Orient").Set<Mat3>(orient);
 
-                gui::LabelAndValue("    - Value:", static_cast<StringProperty*>(prop)->Data);
-                break;
-            case ZonePropertyType::Bool:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Bool]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
+                //    ImGui::Text("Position:");
+                //    Vec3 pos = prop.Property("Position").Get<Vec3>();
+                //    if (ImGui::InputFloat3("Position", (f32*)&pos))
+                //        prop.Property("Position").Set<Vec3>(pos);
+                //}
+                //else if (typeName == "DistrictFlags")
+                //{
+                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                //    //auto* districtFlagsProp = static_cast<DistrictFlagsProperty*>(prop);
+                //    //u32 flags = (u32)districtFlagsProp->Data;
 
-                gui::LabelAndValue("    - Value:", static_cast<BoolProperty*>(prop)->Data ? "true" : "false");
-                break;
-            case ZonePropertyType::Float:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Float]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
+                //    //bool allowCough = ((flags & (u32)DistrictFlags::AllowCough) != 0);
+                //    //bool allowAmbEdfCivilianDump = ((flags & (u32)DistrictFlags::AllowAmbEdfCivilianDump) != 0);
+                //    //bool playCapstoneUnlockedLines = ((flags & (u32)DistrictFlags::PlayCapstoneUnlockedLines) != 0);
+                //    //bool disableMoraleChange = ((flags & (u32)DistrictFlags::DisableMoraleChange) != 0);
+                //    //bool disableControlChange = ((flags & (u32)DistrictFlags::DisableControlChange) != 0);
 
-                gui::LabelAndValue("    - Value:", std::to_string(static_cast<FloatProperty*>(prop)->Data));
-                break;
-            case ZonePropertyType::Uint:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Uint]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
+                //    ////Draws checkbox for flag and updates bitflags stored in flags
+                //    //#define DrawDistrictFlagsCheckbox(text, value, flagEnum) \
+                //    //    if (ImGui::Checkbox(text, &value)) \
+                //    //    { \
+                //    //        if (value) \
+                //    //            flags |= (u32)flagEnum; \
+                //    //        else \
+                //    //            flags &= (~(u32)flagEnum); \
+                //    //    } \
 
-                gui::LabelAndValue("    - Value:", std::to_string(static_cast<UintProperty*>(prop)->Data));
-                break;
-            case ZonePropertyType::BoundingBox:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Bounding box]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
+                //    //DrawDistrictFlagsCheckbox("Allow cough", allowCough, DistrictFlags::AllowCough);
+                //    //DrawDistrictFlagsCheckbox("Allow edf civilian dump", allowAmbEdfCivilianDump, DistrictFlags::AllowAmbEdfCivilianDump);
+                //    //DrawDistrictFlagsCheckbox("Play capstone unlocked lines", playCapstoneUnlockedLines, DistrictFlags::PlayCapstoneUnlockedLines);
+                //    //DrawDistrictFlagsCheckbox("Disable morale change", disableMoraleChange, DistrictFlags::DisableMoraleChange);
+                //    //DrawDistrictFlagsCheckbox("Disable control change", disableControlChange, DistrictFlags::DisableControlChange);
 
-                gui::LabelAndValue("    - Min:", static_cast<BoundingBoxProperty*>(prop)->Min.String());
-                gui::LabelAndValue("    - Max:", static_cast<BoundingBoxProperty*>(prop)->Max.String());
-                break;
-                //case ZonePropertyType::ConstraintTemplate: //Todo: Support this type
-                //    ImGui::SameLine();
-                //    ImGui::TextColored(gui::TertiaryTextColor, "[Constraint template]");
-                //    state->FontManager->FontMedium.Pop();
-                //    ImGui::Separator();
+                //    //districtFlagsProp->Data = (DistrictFlags)flags;
+                //}
+                //else if (typeName == "List")
+                //{
+                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                //}
+                //else if (typeName == "NavpointData")
+                //{
+                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                //    //auto* propNavpointData = static_cast<NavpointDataProperty*>(prop);
+                //    //ImGui::InputScalar("Type", ImGuiDataType_U32, &propNavpointData->NavpointType);
+                //    //ImGui::InputScalar("Unknown0", ImGuiDataType_U32, &propNavpointData->UnkFlag1); //Note: This might actually be type
+                //    //ImGui::InputFloat("Radius", &propNavpointData->Radius);
+                //    //ImGui::InputFloat("Speed", &propNavpointData->Speed);
+                //    //ImGui::InputScalar("Unknown1", ImGuiDataType_U32, &propNavpointData->UnkFlag2);
+                //    //ImGui::InputScalar("Unknown2", ImGuiDataType_U32, &propNavpointData->UnkFlag3);
+                //    //ImGui::InputScalar("Unknown3", ImGuiDataType_U32, &propNavpointData->UnkVar1);
+                //}
+                //else if (typeName == "Constraint")
+                //{
+                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                //}
+                else
+                {
+                    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                }
 
-
-                //    break;
-            case ZonePropertyType::Matrix33:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Matrix33]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Rvec:", static_cast<Matrix33Property*>(prop)->Data.rvec.String());
-                gui::LabelAndValue("    - Uvec:", static_cast<Matrix33Property*>(prop)->Data.uvec.String());
-                gui::LabelAndValue("    - Fvec:", static_cast<Matrix33Property*>(prop)->Data.fvec.String());
-                break;
-            case ZonePropertyType::Vec3:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Vec3]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Value:", static_cast<Vec3Property*>(prop)->Data.String());
-                break;
-            case ZonePropertyType::DistrictFlags:
-            {
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[DistrictFlags]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                u32 flags = static_cast<u32>(static_cast<DistrictFlagsProperty*>(prop)->Data);
-                gui::LabelAndValue("    - AllowCough:", (flags & static_cast<u32>(DistrictFlags::AllowCough)) != 0 ? "true" : "false");
-                gui::LabelAndValue("    - AllowAmbEdfCivilianDump:", (flags & static_cast<u32>(DistrictFlags::AllowAmbEdfCivilianDump)) != 0 ? "true" : "false");
-                gui::LabelAndValue("    - PlayCapstoneUnlockedLines:", (flags & static_cast<u32>(DistrictFlags::PlayCapstoneUnlockedLines)) != 0 ? "true" : "false");
-                gui::LabelAndValue("    - DisableMoraleChange:", (flags & static_cast<u32>(DistrictFlags::DisableMoraleChange)) != 0 ? "true" : "false");
-                gui::LabelAndValue("    - DisableControlChange:", (flags & static_cast<u32>(DistrictFlags::DisableControlChange)) != 0 ? "true" : "false");
-            }
-            break;
-            //case ZonePropertyType::NavpointData:
-            //    ImGui::SameLine();
-            //    ImGui::TextColored(gui::TertiaryTextColor, "[NavpointData]");
-            //    state->FontManager->FontMedium.Pop();
-            //    ImGui::Separator();
-
-
-            //    break;
-            //case ZonePropertyType::List: //Todo: Support this type
-            //    ImGui::SameLine();
-            //    ImGui::TextColored(gui::TertiaryTextColor, "[List]");
-            //    state->FontManager->FontMedium.Pop();
-            //    ImGui::Separator();
-
-
-            //    break;
-            case ZonePropertyType::Op:
-                ImGui::SameLine();
-                ImGui::TextColored(gui::TertiaryTextColor, "[Orient & position]");
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-
-                gui::LabelAndValue("    - Position:", static_cast<OpProperty*>(prop)->Position.String());
-                gui::LabelAndValue("    - Orient.Rvec:", static_cast<OpProperty*>(prop)->Orient.rvec.String());
-                gui::LabelAndValue("    - Orient.Uvec:", static_cast<OpProperty*>(prop)->Orient.uvec.String());
-                gui::LabelAndValue("    - Orient.Fvec:", static_cast<OpProperty*>(prop)->Orient.fvec.String());
-                break;
-            default:
-                state->FontManager->FontMedium.Pop();
-                ImGui::Separator();
-                break;
+                ImGui::Unindent(indent);
             }
         }
     }

@@ -29,6 +29,7 @@
 #include "gui/documents/PegHelpers.h"
 #include "application/Config.h"
 #include "render/Render.h"
+#include <dwmapi.h>
 
 //Tracy profiler context
 #ifdef TRACY_ENABLE
@@ -250,7 +251,7 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
         WS_EX_ACCEPTFILES, //Extended style
         windowClassName, //Name of our windows class
         "Nanoforge", //Name in the title bar of our window
-        WS_OVERLAPPEDWINDOW, //style of our window
+        WS_POPUPWINDOW, //style of our window
         CW_USEDEFAULT, CW_USEDEFAULT, //Top left corner of window
         windowWidth_, //Width of our window
         windowHeight_, //Height of our window
@@ -262,6 +263,16 @@ bool DX11Renderer::InitWindow(WNDPROC wndProc)
 
     if (!hwnd_) //Make sure our window has been created
         THROW_EXCEPTION("Failed to create window.");
+
+    //Enable non client rendering and setup window style to support custom titlebar
+    {
+        DWORD attribute = DWMNCRP_ENABLED;
+        DwmSetWindowAttribute(hwnd_, DWMWA_NCRENDERING_POLICY, &attribute, sizeof(attribute));
+        MARGINS frameMargins = { 1, 1, 1, 1 };
+        DwmExtendFrameIntoClientArea(hwnd_, &frameMargins);
+        SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_NOSIZE | SWP_NOMOVE);
+        SetWindowLong(hwnd_, GWL_STYLE, GetWindowLong(hwnd_, GWL_STYLE) | WS_OVERLAPPEDWINDOW);
+    }
 
     ShowWindow(hwnd_, SW_SHOW); //Shows our window
     UpdateWindow(hwnd_); //Its good to update our window

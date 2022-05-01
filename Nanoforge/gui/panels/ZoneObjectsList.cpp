@@ -1,7 +1,6 @@
 #include "ZoneObjectsList.h"
 #include "render/imgui/ImGuiConfig.h"
 #include "property_panel/PropertyPanelContent.h"
-#include "RfgTools++/formats/zones/properties/primitive/StringProperty.h"
 #include "render/imgui/imgui_ext.h"
 #include "util/Profiler.h"
 #include "gui/GuiState.h"
@@ -10,7 +9,7 @@
 
 ZoneObjectsList::ZoneObjectsList()
 {
-
+    Title = ICON_FA_BOXES " Zone objects";
 }
 
 ZoneObjectsList::~ZoneObjectsList()
@@ -21,7 +20,7 @@ ZoneObjectsList::~ZoneObjectsList()
 void ZoneObjectsList::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin("Zone objects", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;
@@ -33,12 +32,7 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
     }
     else
     {
-        //Draw zone objects list
-        state->FontManager->FontL.Push();
-        ImGui::Text(ICON_FA_BOXES " Zone objects");
-        state->FontManager->FontL.Pop();
-        ImGui::Separator();
-
+        //Zone object filters
         if (ImGui::CollapsingHeader(ICON_FA_FILTER " Filters##CollapsingHeader"))
         {
             if (ImGui::Button("Show all types"))
@@ -58,17 +52,21 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
                 }
                 state->CurrentTerritoryUpdateDebugDraw = true;
             }
+            ImGui::Checkbox("Hide distant objects", &onlyShowNearZones_);
+            gui::HelpMarker("If checked then objects outside of the viewing range are hidden. The viewing range is configurable through the buttons in the top left corner of the map viewer.", ImGui::GetIO().FontDefault);
 
             //Draw object filters sub-window
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.134f, 0.160f, 0.196f, 1.0f));
             if (ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true))
             {
-                ImGui::Text(" " ICON_FA_EYE);
-                gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class", nullptr);
+                ImGui::Text(" " ICON_FA_EYE "     " ICON_FA_BOX);
+                gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class. The second checkbox toggles between wireframe and solid bounding boxes.", nullptr);
 
                 for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
                 {
                     if (ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show))
+                        state->CurrentTerritoryUpdateDebugDraw = true;
+                    ImGui::SameLine();
+                    if (ImGui::Checkbox((string("##solidBB") + objectClass.Name).c_str(), &objectClass.DrawSolid))
                         state->CurrentTerritoryUpdateDebugDraw = true;
 
                     ImGui::SameLine();
@@ -83,172 +81,171 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
                 }
                 ImGui::EndChild();
             }
-            ImGui::PopStyleColor();
             ImGui::Separator();
         }
 
-        //Draw object list
-        objectIndex_ = 0;
-        if (ImGui::BeginChild("##Zone object list", ImVec2(0, 0), true))
+        //Zone object table
+        if (state->CurrentTerritory->Ready())
         {
-            //Todo: Separate node structure from ZoneObject36 class. This should really be independent of the format since it's only relevant to Nanoforge
-            //Draw each node
+            //Set custom highlight colors for the table
+            ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
+            ImVec4 highlightColor = { selectedColor.x * 1.1f, selectedColor.y * 1.1f, selectedColor.z * 1.1f, 1.0f };
+            ImGui::PushStyleColor(ImGuiCol_Header, selectedColor);
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, highlightColor);
+            ImGui::PushStyleColor(ImGuiCol_HeaderActive, highlightColor);
 
-            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 0.75f); //Increase spacing to differentiate leaves from expanded contents.
-            if (state->CurrentTerritory->Ready())
+            //Draw table
+            ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter |
+                ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
+                ImGuiTableFlags_Hideable | ImGuiTableFlags_SizingFixedFit;
+            if (ImGui::BeginTable("ZoneObjectTable", 4, flags))
             {
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Flags");
+                ImGui::TableSetupColumn("Num");
+                ImGui::TableSetupColumn("Handle");
+                ImGui::TableHeadersRow();
+
                 //Loop through visible zones
-                for (auto& zone : state->CurrentTerritory->ZoneFiles)
+                for (ObjectHandle zone : state->CurrentTerritory->Zones)
                 {
-                    if (!zone.RenderBoundingBoxes)
+                    if (onlyShowNearZones_ && !zone.Property("RenderBoundingBoxes").Get<bool>())
                         continue;
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
 
                     //Close zone node if none of it's child objects a visible (based on object type filters)
                     bool anyChildrenVisible = ZoneAnyChildObjectsVisible(state, zone);
-                    if (ImGui::TreeNodeEx(zone.Name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
-                        (!anyChildrenVisible ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)))
+                    bool visible = onlyShowNearZones_ ? anyChildrenVisible : true;
+                    bool selected = (zone == state->ZoneObjectList_SelectedObject);
+                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | (visible ? 0 : ImGuiTreeNodeFlags_Leaf);
+                    if (selected)
+                        flags |= ImGuiTreeNodeFlags_Selected;
+
+                    if (ImGui::TreeNodeEx(zone.Property("Name").Get<string>().c_str(), flags))
                     {
-                        for (auto& object : zone.Zone.ObjectsHierarchical)
+                        for (ObjectHandle object : zone.Property("Objects").GetObjectList())
                         {
+                            //Don't draw objects with parents at the top of the tree. They'll be drawn as subnodes when their parent calls DrawObjectNode()
+                            if (!object || object.Property("Parent").Get<ObjectHandle>())
+                                continue;
+
                             DrawObjectNode(state, object);
                         }
                         ImGui::TreePop();
                     }
-
                 }
-            }
-            else
-            {
-                ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Loading zones...");
-            }
 
-            ImGui::PopStyleVar();
-            ImGui::EndChild();
+                ImGui::PopStyleColor(3);
+                ImGui::EndTable();
+            }
+        }
+        else
+        {
+            ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Loading zones...");
         }
     }
 
     ImGui::End();
 }
 
-void ZoneObjectsList::DrawObjectNode(GuiState* state, ZoneObjectNode36& object)
+void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
 {
     //Don't show node if it and it's children object types are being hidden
-    if (!ShowObjectOrChildren(state, object))
+    bool showObjectOrChildren = ShowObjectOrChildren(state, object);
+    bool visible = onlyShowNearZones_ ? ShowObjectOrChildren(state, object) : true;
+    if (!visible)
         return;
 
-    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
+    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Property("ClassnameHash").Get<u32>());
 
     //Update node index and selection state
-    objectIndex_++; //Incremented for each node so they all have a unique id within dear imgui
-    object.Selected = &object == state->SelectedObject;
+    bool selected = (object == state->ZoneObjectList_SelectedObject);
 
     //Attempt to find a human friendly name for the object
-    string name = "";
-    auto* displayName = object.Self->GetProperty<StringProperty>("display_name");
-    auto* chunkName = object.Self->GetProperty<StringProperty>("chunk_name");
-    auto* animationType = object.Self->GetProperty<StringProperty>("animation_type");
-    auto* activityType = object.Self->GetProperty<StringProperty>("activity_type");
-    auto* raidType = object.Self->GetProperty<StringProperty>("raid_type");
-    auto* courierType = object.Self->GetProperty<StringProperty>("courier_type");
-    auto* spawnSet = object.Self->GetProperty<StringProperty>("spawn_set");
-    auto* itemType = object.Self->GetProperty<StringProperty>("item_type");
-    auto* dummyType = object.Self->GetProperty<StringProperty>("dummy_type");
-    auto* weaponType = object.Self->GetProperty<StringProperty>("weapon_type");
-    auto* regionKillType = object.Self->GetProperty<StringProperty>("region_kill_type");
-    auto* deliveryType = object.Self->GetProperty<StringProperty>("delivery_type");
-    auto* squadDef = object.Self->GetProperty<StringProperty>("squad_def");
-    auto* missionInfo = object.Self->GetProperty<StringProperty>("mission_info");
-    if (displayName)
-        name = displayName->Data;
-    else if (chunkName)
-        name = chunkName->Data;
-    else if (animationType)
-        name = animationType->Data;
-    else if (activityType)
-        name = activityType->Data;
-    else if (raidType)
-        name = raidType->Data;
-    else if (courierType)
-        name = courierType->Data;
-    else if (spawnSet)
-        name = spawnSet->Data;
-    else if (itemType)
-        name = itemType->Data;
-    else if (dummyType)
-        name = dummyType->Data;
-    else if (weaponType)
-        name = weaponType->Data;
-    else if (regionKillType)
-        name = regionKillType->Data;
-    else if (deliveryType)
-        name = deliveryType->Data;
-    else if (squadDef)
-        name = squadDef->Data;
-    else if (missionInfo)
-        name = missionInfo->Data;
+    string name = object.Property("Name").Get<string>();
 
+    //Determine best object name
+    string objectLabel = "      "; //Empty space for node icon
     if (name != "")
-        name = " |   " + name;
+        objectLabel += name; //Use custom name if available
+    else
+        objectLabel += object.Property("Type").Get<string>(); //Otherwise use object type name (e.g. rfg_mover, navpoint, obj_light, etc)
 
-    //Store selected object in global gui state for debug draw in TerritoryDocument.cpp, ~line 290
-    if (object.Selected)
-        state->ZoneObjectList_SelectedObject = object.Self;
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
 
     //Draw node
-    if (ImGui::TreeNodeEx((string(objectClass.LabelIcon) + object.Self->Classname + "##" + std::to_string(objectIndex_)).c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
-        (object.Children.size() == 0 ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None) | (object.Selected ? ImGuiTreeNodeFlags_Selected : 0)))
+    ImGui::PushID(object.UID()); //Push unique ID for the UI element
+    f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
+    bool nodeOpen = ImGui::TreeNodeEx(objectLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+        (object.SubObjects().size() == 0 ? ImGuiTreeNodeFlags_Leaf : 0) | (selected ? ImGuiTreeNodeFlags_Selected : 0));
+    if (ImGui::IsItemClicked())
+        state->ZoneObjectList_SelectedObject = object;
+
+    //Update selection state
+    if (ImGui::IsItemClicked())
     {
-        //Update selection state
-        if (ImGui::IsItemClicked())
-        {
-            state->SetSelectedZoneObject(&object);
-            state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
-        }
+        state->SetSelectedZoneObject(object);
+        state->PropertyPanelContentFuncPtr = &PropertyPanel_ZoneObject;
+    }
+    if (ImGui::IsItemHovered())
+    {
+        gui::TooltipOnPrevious(object.Property("Type").Get<string>(), ImGui::GetIO().FontDefault);
+    }
 
-        if (name != "")
-        {
-            ImGui::SameLine();
-            ImGui::TextColored(gui::SecondaryTextColor, name);
-        }
+    //Draw node icon
+    ImGui::PushStyleColor(ImGuiCol_Text, { objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f });
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(nodeXPos + 22.0f);
+    ImGui::Text(objectClass.LabelIcon);
+    ImGui::PopStyleColor();
 
-        //Draw child nodes
-        for (auto& childObject : object.Children)
-        {
-            DrawObjectNode(state, childObject);
-        }
+    //Flags
+    ImGui::TableNextColumn();
+    ImGui::Text(std::to_string(object.Property("Flags").Get<u16>()));
+
+    //Num
+    ImGui::TableNextColumn();
+    ImGui::Text(std::to_string(object.Property("Num").Get<u32>()));
+
+    //Handle
+    ImGui::TableNextColumn();
+    ImGui::Text(std::to_string(object.Property("Handle").Get<u32>()));
+
+    //Draw child nodes
+    Registry& registry = Registry::Get();
+    if (nodeOpen)
+    {
+        for (ObjectHandle child : object.SubObjects())
+            if (child)
+                DrawObjectNode(state, child);
         ImGui::TreePop();
     }
-    else
-    {
-        if (name != "")
-        {
-            ImGui::SameLine();
-            ImGui::TextColored(gui::SecondaryTextColor, name);
-        }
-    }
+    ImGui::PopID();
 }
 
-bool ZoneObjectsList::ZoneAnyChildObjectsVisible(GuiState* state, ZoneData& zone)
+bool ZoneObjectsList::ZoneAnyChildObjectsVisible(GuiState* state, ObjectHandle zone)
 {
-    for (auto& object : zone.Zone.ObjectsHierarchical)
-    {
+    for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         if (ShowObjectOrChildren(state, object))
             return true;
-    }
+
     return false;
 }
 
-bool ZoneObjectsList::ShowObjectOrChildren(GuiState* state, ZoneObjectNode36& object)
+bool ZoneObjectsList::ShowObjectOrChildren(GuiState* state, ObjectHandle object)
 {
-    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Self->ClassnameHash);
+    auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Property("ClassnameHash").Get<u32>());
     if (objectClass.Show)
         return true;
 
-    for (auto& child : object.Children)
-    {
-        if (ShowObjectOrChildren(state, child))
+    Registry& registry = Registry::Get();
+    for (ObjectHandle child : object.SubObjects())
+        if (child.Valid() && ShowObjectOrChildren(state, child))
             return true;
-    }
 
     return false;
 }

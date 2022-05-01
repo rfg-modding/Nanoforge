@@ -148,7 +148,10 @@ void MainGui::Update()
     DrawMainMenuBar();
     DrawDockspace();
 #ifdef DEVELOPMENT_BUILD
-    ImGui::ShowDemoWindow();
+    if (imguiDemoWindowOpen_)
+    {
+        ImGui::ShowDemoWindow(&imguiDemoWindowOpen_);
+    }
 #endif
 
     //Draw panels
@@ -360,9 +363,15 @@ void MainGui::AddMenuItem(std::string_view menuPos, bool open, Handle<IGuiPanel>
 
 void MainGui::DrawMainMenuBar()
 {
-    //Todo: Make this actually work
+    const f32 mainMenuFramePaddingY = 8.0f;
+    const f32 mainMenuContentStartY = 5.0f;
+    mainMenuHeight = (1.0f * ImGui::GetFont()->FontSize) + (2.0f * mainMenuFramePaddingY);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { ImGui::GetStyle().FramePadding.x, mainMenuFramePaddingY });
     if (ImGui::BeginMainMenuBar())
     {
+        ImGui::PopStyleVar();
+        HWND hwnd = State.Renderer->GetSystemWindowHandle();
+
         //Draw file menu
         if (ImGui::BeginMenu("File"))
         {
@@ -441,6 +450,42 @@ void MainGui::DrawMainMenuBar()
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("View"))
+        {
+            if (ImGui::BeginMenu("Layout"))
+            {
+                if (ImGui::MenuItem("Default"))
+                {
+                    //Todo: Give panels and documents separate identifiers so their titles can change without breaking everything
+                    SetPanelVisibility("Start page", true);
+                    SetPanelVisibility(ICON_FA_WRENCH " Properties", false);
+                    SetPanelVisibility("Log", false);
+                    SetPanelVisibility(ICON_FA_BOXES " Zone objects", false);
+                    SetPanelVisibility(ICON_FA_MAP " Zones", false);
+                    SetPanelVisibility("File explorer", true);
+                    SetPanelVisibility("Scriptx viewer", false);
+                }
+                if (ImGui::MenuItem("Level editing"))
+                {
+                    SetPanelVisibility("Start page", false);
+                    SetPanelVisibility(ICON_FA_WRENCH " Properties", true);
+                    SetPanelVisibility("Log", false);
+                    SetPanelVisibility(ICON_FA_BOXES " Zone objects", true);
+                    SetPanelVisibility(ICON_FA_MAP " Zones", false);
+                    SetPanelVisibility("File explorer", true);
+                    SetPanelVisibility("Scriptx viewer", false);
+                }
+                ImGui::EndMenu();
+            }
+#ifdef DEVELOPMENT_BUILD
+            if (ImGui::MenuItem("ImGui Demo", nullptr, &imguiDemoWindowOpen_))
+            {
+
+            }
+#endif
+            ImGui::EndMenu();
+        }
+
         //Draw menu item for each panel (e.g. file explorer, properties, log, etc)
         for (auto& menuItem : menuItems_)
         {
@@ -498,6 +543,7 @@ void MainGui::DrawMainMenuBar()
         //Draw themes menu
         if (ImGui::BeginMenu("Theme"))
         {
+
             if (ImGui::MenuItem("Dark"))
             {
                 gui::SetThemePreset(Dark);
@@ -520,13 +566,15 @@ void MainGui::DrawMainMenuBar()
         }
 
         bool showFPS = CVar_ShowFPS.Get<bool>();
-        ImVec2 cursorPos = { ImGui::GetCursorPosX(), 3.0f };
+        ImVec2 cursorPos = { ImGui::GetCursorPosX(), mainMenuContentStartY + 2.0f }; // mainMenuFramePaddingY
         auto* drawList = ImGui::GetWindowDrawList();
 
         //Draw project name
         string projectName = State.CurrentProject->Loaded() ? State.CurrentProject->Name : "No project loaded";
         projectName = "|    " + projectName;
         drawList->AddText(cursorPos, 0xF2F5FAFF, projectName.c_str(), projectName.c_str() + projectName.length());
+
+        //cursorPos.y = mainMenuContentStartY;
         cursorPos.x += ImGui::CalcTextSize(projectName.c_str()).x;
 
         //Draw FPS meter if it's enabled
@@ -550,13 +598,99 @@ void MainGui::DrawMainMenuBar()
 #ifdef TRACY_ENABLE
         const char* text = ICON_FA_EXCLAMATION_TRIANGLE " PROFILER ENABLED";
         cursorPos.y += 1.0f;
+        cursorPos.x += 10.0f;
         drawList->AddText(cursorPos, ImGui::GetColorU32({ 1.0f, 0.5f, 0.153f, 1.0f }), text, text + strlen(text));
         cursorPos.x += ImGui::CalcTextSize(text).x;
         cursorPos.y -= 1.0f;
 #endif
 
+        //Draw Nanoforge version at the far right
+        f32 versionTextWidth = ImGui::CalcTextSize(BuildConfig::Version.c_str()).x;
+        f32 padding = 8.0f;
+        f32 rightPadding = 166.0f;
+        f32 versionTextPadding = 16.0f; //TODO: CLEAN UP THIS CODE/VARIABLES
+        cursorPos = { ImGui::GetWindowWidth() - versionTextWidth - padding - rightPadding - versionTextPadding, mainMenuContentStartY };
+        drawList->AddText(cursorPos, 0xF2F5FAFF, BuildConfig::Version.c_str(), BuildConfig::Version.c_str() + BuildConfig::Version.length());
+
+        //Draw minimize, maximize, and close buttons
+        {
+            ImVec2 windowButtonSize = { 58.0f, 40.0f };
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0.0f, ImGui::GetStyle().ItemSpacing.y });
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetColorU32(ImGuiCol_MenuBarBg));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabHovered));
+            ImGui::SetCursorPosX(ImGui::GetWindowWidth() - padding - rightPadding);
+            ImGui::SetCursorPosY(0.0f); //mainMenuContentStartY + 1.0f);// (0.5f * ImGui::GetFont()->FontSize));
+
+            //Minimize button
+            if (ImGui::Button(ICON_VS_CHROME_MINIMIZE, windowButtonSize))
+            {
+                ShowWindow(hwnd, SW_SHOWMINIMIZED);
+            }
+
+            //Maximize button. Icon changes depending on if the window is maximized currently
+            ImGui::SameLine();
+            if (IsZoomed(hwnd))
+            {
+                if (ImGui::Button(ICON_VS_CHROME_RESTORE, windowButtonSize)) //Window already maximized
+                    ShowWindow(hwnd, SW_SHOWDEFAULT);
+            }
+            else
+            {
+                if (ImGui::Button(ICON_VS_CHROME_MAXIMIZE, windowButtonSize)) //Window not maximized
+                    ShowWindow(hwnd, SW_SHOWMAXIMIZED);
+            }
+
+            //Close button
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32({ 197.0f / 255.0f, 20.0f / 255.0f, 43.0f / 255.0f, 1.0f }));
+            if (ImGui::Button(ICON_VS_CHROME_CLOSE, windowButtonSize))
+            {
+                Shutdown = true;
+            }
+            ImGui::PopStyleColor();
+            ImGui::PopStyleColor(3);
+            ImGui::PopStyleVar(3);
+        }
         ImGui::EndMainMenuBar();
     }
+
+    //Draw toolbar
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 toolbarPos = viewport->WorkPos;
+    ImVec2 toolbarSize = { viewport->WorkSize.x, 32.0f };
+    toolbarHeight = toolbarSize.y;
+    ImGui::SetNextWindowPos(toolbarPos);
+    ImGui::SetNextWindowSize(toolbarSize, ImGuiCond_Always);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetColorU32(ImGuiCol_MenuBarBg));
+    if (ImGui::Begin("##Toolbar0", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize))
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetColorU32(ImGuiCol_MenuBarBg));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabActive));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(ImGuiCol_ScrollbarGrabHovered));
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 8.0f);
+        if (ImGui::Button(ICON_FA_UNDO))
+        {
+
+        }
+        gui::TooltipOnPrevious("Undo");
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_REDO))
+        {
+
+        }
+        gui::TooltipOnPrevious("Redo");
+        ImGui::PopStyleColor(3);
+        ImGui::PopStyleVar();
+
+        ImGui::End();
+    }
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
 }
 
 void MainGui::DrawDockspace()
@@ -569,9 +703,13 @@ void MainGui::DrawDockspace()
                                     | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
                                     | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImVec2 dockspacePos = viewport->WorkPos;
+    dockspacePos.y += toolbarHeight;
     ImVec2 dockspaceSize = viewport->WorkSize;
     dockspaceSize.y -= State.StatusBarHeight;
+    dockspaceSize.y -= toolbarHeight;
+    dockspaceSize.y += 1; //Cover up a 1 pixel wide line separating the dockspace and status bar
+    ImGui::SetNextWindowPos(dockspacePos);
     ImGui::SetNextWindowSize(dockspaceSize);
     ImGui::SetNextWindowViewport(viewport->ID);
 
@@ -591,6 +729,8 @@ void MainGui::DrawDockspace()
         {
             ImGui::DockBuilderRemoveNode(dockspaceId);
             ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+            ImGuiDockNode* dockspaceNode = ImGui::DockBuilderGetNode(dockspaceId);
+            dockspaceNode->LocalFlags |= ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton; //Disable extra close button on dockspace. Tabs will still have their own.
             ImGui::DockBuilderFinish(dockspaceId);
         }
         ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspace_flags);
@@ -603,8 +743,8 @@ void MainGui::DrawDockspace()
     if (firstDraw)
     {
         ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
-        ImGuiID dockLeftBottomId = ImGui::DockBuilderSplitNode(dockLeftId, ImGuiDir_Down, 0.5f, nullptr, &dockLeftId);
-        ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.15f, nullptr, &dockspaceId);
+        ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.25f, nullptr, &dockspaceId);
+        ImGuiID dockRightUp = ImGui::DockBuilderSplitNode(dockRightId, ImGuiDir_Up, 0.3f, nullptr, &dockRightId);
         dockspaceCentralNodeId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
         ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockspaceCentralNodeId, ImGuiDir_Down, 0.20f, nullptr, &dockspaceCentralNodeId);
 
@@ -612,9 +752,9 @@ void MainGui::DrawDockspace()
         ImGui::DockBuilderDockWindow("Start page", dockspaceCentralNodeId);
         ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
         ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
-        ImGui::DockBuilderDockWindow("Zones", dockLeftId);
-        ImGui::DockBuilderDockWindow("Zone objects", dockLeftBottomId);
-        ImGui::DockBuilderDockWindow("Properties", dockRightId);
+        ImGui::DockBuilderDockWindow(ICON_FA_MAP " Zones", dockLeftId);
+        ImGui::DockBuilderDockWindow(ICON_FA_BOXES " Zone objects", dockRightUp);
+        ImGui::DockBuilderDockWindow(ICON_FA_WRENCH " Properties", dockRightId);
         ImGui::DockBuilderDockWindow("Render settings", dockRightId);
         ImGui::DockBuilderDockWindow("Scriptx viewer", dockspaceCentralNodeId);
         ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
@@ -675,4 +815,16 @@ MenuItem* MainGui::GetMenu(std::string_view text)
             return &item;
     }
     return nullptr;
+}
+
+void MainGui::SetPanelVisibility(const std::string& title, bool visible)
+{
+    for (Handle<IGuiPanel> panel : panels_)
+    {
+        if (panel->Title == title)
+        {
+            panel->Open = visible;
+            return;
+        }
+    }
 }

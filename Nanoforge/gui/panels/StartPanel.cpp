@@ -23,6 +23,7 @@
 StartPanel::StartPanel()
 {
     dataFolderParseTask_ = Task::Create("Parse data folder");
+    Title = "Start page";
 }
 
 StartPanel::~StartPanel()
@@ -33,14 +34,13 @@ StartPanel::~StartPanel()
 void StartPanel::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin("Start page", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;
     }
 
     DrawDataPathSelector(state);
-    ImGui::Separator();
 
     if (ImGui::SmallButton("New project"))
     {
@@ -79,7 +79,8 @@ void StartPanel::Update(GuiState* state, bool* open)
     {
         if (std::filesystem::exists(openRecentProjectRequestData_))
         {
-            state->CurrentProject->Save();
+            if (state->CurrentProject->Loaded())
+                state->CurrentProject->Save();
             state->CurrentProject->Load(openRecentProjectRequestData_);
             state->Xtbls->ReloadXtbls();
         }
@@ -170,8 +171,6 @@ void StartPanel::DrawDataPathSelector(GuiState* state)
 
 void StartPanel::DrawRecentProjectsList(GuiState* state)
 {
-    ImGui::Separator();
-
     //Get recent projects
     std::vector<string>& recentProjects = CVar_RecentProjects.Get<std::vector<string>>();
 

@@ -3,6 +3,7 @@
 #include "common/Handle.h"
 #include "documents/IDocument.h"
 #include "RfgTools++/types/Vec3.h"
+#include "application/Registry.h"
 
 class DX11Renderer;
 class PackfileVFS;
@@ -51,15 +52,15 @@ public:
 
     GuiStatus Status = Ready;
     string CustomStatusMessage = "";
-    f32 StatusBarHeight = 25.0f;
+    f32 StatusBarHeight = 30.0f;
 
-    ZoneObjectNode36* SelectedObject = nullptr;
+    ObjectHandle SelectedObject = nullptr;
 
     //Used to trigger and reload and load a different territory
     string CurrentTerritoryName = "terr01";
     string CurrentTerritoryShortname = "zonescript_terr01.vpp_pc";
 
-    ZoneObject36* ZoneObjectList_SelectedObject = nullptr;
+    ObjectHandle ZoneObjectList_SelectedObject = NullObjectHandle;
 
     //Content func for property panel
     PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
@@ -90,7 +91,7 @@ public:
         CustomStatusMessage = "";
     }
 
-    void SetSelectedZoneObject(ZoneObjectNode36* object)
+    void SetSelectedZoneObject(ObjectHandle object)
     {
         SelectedObject = object;
     }

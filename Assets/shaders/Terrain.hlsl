@@ -151,21 +151,21 @@ float4 CalcTerrainNormalOld(VS_OUTPUT input, float4 blendWeights)
     return finalNormal;
 }
 
-float4 TriplanarSample(VS_OUTPUT input, Texture2D tex, sampler texSampler, float3 blend, float2 uvScale)
+float4 TriplanarSample(VS_OUTPUT input, Texture2D tex, sampler texSampler, float3 blend, float4 uvScaleTranslate)
 {
     //Sample texture from 3 directions & blend the results
-    float4 xaxis = tex.Sample(texSampler, input.PosWorld.zy * uvScale);
-    float4 yaxis = tex.Sample(texSampler, input.PosWorld.xz * uvScale);
-    float4 zaxis = tex.Sample(texSampler, input.PosWorld.yx * uvScale);
+    float4 xaxis = tex.Sample(texSampler, input.PosWorld.zy * uvScaleTranslate.xy + uvScaleTranslate.zw);
+    float4 yaxis = tex.Sample(texSampler, input.PosWorld.xz * uvScaleTranslate.xy + uvScaleTranslate.zw);
+    float4 zaxis = tex.Sample(texSampler, input.PosWorld.yx * uvScaleTranslate.xy + uvScaleTranslate.zw);
     float4 finalTex = xaxis * blend.x + yaxis * blend.y + zaxis * blend.z;
     return finalTex;
 }
 
 //Per material scaling to reduce tiling. Only used by triplanar mapping functions. Otherwise the ones in the vertex shader are used.
-static float2 material0Scale = float2(0.25f, 0.25f);
-static float2 material1Scale = float2(0.25f, 0.25f);
-static float2 material2Scale = float2(0.1f, 0.1f);
-static float2 material3Scale = float2(0.1f, 0.1f);
+static float4 material0ScaleTranslate = float4(0.15f.xx, 0.25f.xx);
+static float4 material1ScaleTranslate = float4(0.1f.xx, 0.0f.xx);
+static float4 material2ScaleTranslate = float4(0.20f.xx, 0.3f.xx);
+static float4 material3ScaleTranslate = float4(0.05f.xx, 0.0f.xx);
 
 float4 CalcTerrainColorTriplanar(VS_OUTPUT input, float4 blendWeights)
 {
@@ -181,10 +181,10 @@ float4 CalcTerrainColorTriplanar(VS_OUTPUT input, float4 blendWeights)
     blend /= (blend.x + blend.y + blend.z);
 
     //Sample textures using triplanar mapping
-    float4 color0 = TriplanarSample(input, Texture2, Sampler2, blend, material0Scale);
-    float4 color1 = TriplanarSample(input, Texture4, Sampler4, blend, material1Scale);
-    float4 color2 = TriplanarSample(input, Texture6, Sampler6, blend, material2Scale);
-    float4 color3 = TriplanarSample(input, Texture8, Sampler8, blend, material3Scale);
+    float4 color0 = TriplanarSample(input, Texture2, Sampler2, blend, material0ScaleTranslate);
+    float4 color1 = TriplanarSample(input, Texture4, Sampler4, blend, material1ScaleTranslate);
+    float4 color2 = TriplanarSample(input, Texture6, Sampler6, blend, material2ScaleTranslate);
+    float4 color3 = TriplanarSample(input, Texture8, Sampler8, blend, material3ScaleTranslate);
 
     //Calculate final diffuse color with blend weights
     float4 finalColor = color0 + combColor;
@@ -204,10 +204,10 @@ float4 CalcTerrainNormalTriplanar(VS_OUTPUT input, float4 blendWeights)
     blend /= (blend.x + blend.y + blend.z);
 
     //Sample textures using triplanar mapping
-    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, blend, material0Scale) * 2.0 - 1.0);
-    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, blend, material1Scale) * 2.0 - 1.0);
-    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, blend, material2Scale) * 2.0 - 1.0);
-    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, blend, material3Scale) * 2.0 - 1.0);
+    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, blend, material0ScaleTranslate) * 2.0 - 1.0);
+    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, blend, material1ScaleTranslate) * 2.0 - 1.0);
+    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, blend, material2ScaleTranslate) * 2.0 - 1.0);
+    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, blend, material3ScaleTranslate) * 2.0 - 1.0);
 
     //Calculate final normal
     float4 finalNormal = float4(input.Normal, 1.0f) + normal0;
@@ -239,7 +239,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     }
 
     //Sun direction for diffuse lighting
-    float3 sunDir = float3(0.0f, -1.0f, -1.0f);
+    float3 sunDir = float3(0.3f, -1.0f, -1.0f);
 
     //Ambient
     float ambientIntensity = 0.1f;

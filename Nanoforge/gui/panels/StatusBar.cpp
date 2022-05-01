@@ -1,6 +1,7 @@
 #include "StatusBar.h"
 #include "gui/GuiState.h"
 #include "util/TaskScheduler.h"
+#include "render/imgui/imgui_ext.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include <stdexcept>
 
@@ -54,14 +55,16 @@ void StatusBar::Update(GuiState* state, bool* open)
     ImGui::PopStyleColor();
     ImVec2 startPos = ImGui::GetCursorPos();
 
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 5.0f);
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 6.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
     if (ImGui::Button("Tasks"))
         ImGui::OpenPopup("##TaskListPopup");
-
+    ImGui::PopStyleVar();
     ImGui::PopStyleVar(2);
 
     //If custom message is empty, use the default ones
     ImGui::SameLine();
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 1.0f); //TODO: Calculate this based on status bar height
     if (state->CustomStatusMessage == "")
     {
         switch (state->Status)
@@ -85,12 +88,15 @@ void StatusBar::Update(GuiState* state, bool* open)
     }
 
     //Get task list
-    ImVec2 taskListSize = { 300.0f, 300.0f };
     std::vector<Handle<Task>>& threadTasks = TaskScheduler::threadTasks_;
     u32 numTasksRunning = (u32)std::ranges::count_if(threadTasks, [](Handle<Task> task) { return task != nullptr; });
 
     //Draw task list toggle button
+    static ImVec2 taskListSizeLastFrame = { 0.0f, 0.0f };
+    ImVec2 taskListSize = { 300.0f, 300.0f };
+    ImVec2 taskListPos = { pos.x + 10.0f, pos.y - 10.0f - taskListSizeLastFrame.y };
     ImGui::SetNextWindowSizeConstraints({ taskListSize.x, 0.0f }, taskListSize);
+    ImGui::SetNextWindowPos(taskListPos, ImGuiCond_Always);
     if (ImGui::BeginPopup("##TaskListPopup", ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (numTasksRunning == 0)
@@ -108,21 +114,22 @@ void StatusBar::Update(GuiState* state, bool* open)
 
             for (u32 i = 0; i < threadTasks.size(); i++)
             {
-                auto& task = threadTasks[i];
+                Handle<Task> task = threadTasks[i];
                 if (!task)
                     continue;
 
-                //Draw simple spinner
+                //Task spinner showing that it's in progress
                 ImVec2 cursorPos = ImGui::GetCursorPos();
-                ImGui::Text("%c", "|/-\\"[(int)(ImGui::GetTime() / 0.1f) & 3]);
+                ImGui::Spinner(fmt::format("##{}", (u64)task.get()).c_str(), 7.0f, 3.0f, gui::SecondaryTextColor);
                 ImGui::SameLine();
 
-                //Draw task name. X pos is adjusted manually so it doesn't constantly move as the spinner size changes
-                ImGui::SetCursorPosX(cursorPos.x + 10.0f);
+                //Draw task name to the right of the spinner
+                ImGui::SetCursorPosX(cursorPos.x + 20.0f);
                 ImGui::Text(task->Name.c_str());
             }
         }
 
+        taskListSizeLastFrame = ImGui::GetWindowSize();
         ImGui::EndPopup();
     }
 

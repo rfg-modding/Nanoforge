@@ -60,13 +60,19 @@ add_custom_command(TARGET Nanoforge POST_BUILD
 target_link_libraries(Nanoforge PRIVATE NanoforgeDependencies)
 target_link_libraries(Nanoforge PRIVATE Winmm.dll) # Needed for timeBeginPeriod in Application.cpp
 target_link_libraries(Nanoforge PRIVATE RfgTools++)
+target_link_libraries(Nanoforge PRIVATE dbghelp.dll) # For crash dumps
 
-target_compile_options(Nanoforge PRIVATE /EHsc /W3 ${EXTRA_OPTIONS})
+target_compile_options(Nanoforge PRIVATE /EHsc /W3 /Zi ${EXTRA_OPTIONS})
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_link_options(Nanoforge PRIVATE /DEBUG:FULL /OPT:REF /OPT:ICF)
+    endif()
+endif()
 
 # Enable VS edit and continue if using MSVC, in a debug build and ASAN and the profiler are disabled. ASAN and tracy don't support edit and continue.
 if(ENABLE_EDIT_AND_CONTINUE AND NOT ENABLE_ASAN AND NOT ENABLE_PROFILER)
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-        if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
             target_compile_options(Nanoforge PRIVATE "/ZI")
             target_link_options(Nanoforge PRIVATE "/SAFESEH:NO")
         endif()

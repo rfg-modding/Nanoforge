@@ -20,6 +20,9 @@ add_library(NanoforgeDependencies
     # tinyxml2 files
     ${CMAKE_SOURCE_DIR}/dependencies/tinyxml2/tinyxml2.cpp
 
+    # Pugixml files - Note: Trying this library out. May incrementally replace tinyxml2 with this if it works well. I like it's API more and it's supposedly much faster.
+    ${CMAKE_SOURCE_DIR}/dependencies/pugixml/src/pugixml.cpp
+
     # imnodes files
     ${CMAKE_SOURCE_DIR}/dependencies/imnodes/imnodes.cpp
 
@@ -46,6 +49,7 @@ target_include_directories(NanoforgeDependencies PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/nativefiledialog/src/include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui_markdown/
     ${CMAKE_SOURCE_DIR}/Dependencies/tracy/
+    ${CMAKE_SOURCE_DIR}/Dependencies/pugixml/
 )
 
 target_link_libraries(NanoforgeDependencies PRIVATE Common)

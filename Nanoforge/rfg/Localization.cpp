@@ -35,14 +35,14 @@ void Localization::LoadLocalizationData()
     LoadLocalizationClass("locatexts_de_de.rfglocatext", "German (Germany)", Locale::DE_DE);
     LoadLocalizationClass("locatexts_en_us.rfglocatext", "English (United States)", Locale::EN_US);
     LoadLocalizationClass("locatexts_es_es.rfglocatext", "Spanish (Spain)", Locale::ES_ES);
-    //LoadLocalizationClass("locatexts_es_mx.rfglocatext", "Spanish (Mexico)", Locale::ES_MX);
+    //LoadLocalizationClass("locatexts_es_mx.rfglocatext", "Spanish (Mexico)", Locale::ES_MX); //Note: Not yet supported by vanilla game. Rfglocatext file is filled with english strings.
     LoadLocalizationClass("locatexts_fr_fr.rfglocatext", "French (France)", Locale::FR_FR);
     LoadLocalizationClass("locatexts_it_it.rfglocatext", "Italian (Italy)", Locale::IT_IT);
     //LoadLocalizationClass("locatexts_ja_jp.rfglocatext", "Japanese (Japan)", Locale::JA_JP);
     //LoadLocalizationClass("locatexts_ko_kr.rfglocatext", "Korean (Korea)", Locale::KO_KR);
     LoadLocalizationClass("locatexts_pl_pl.rfglocatext", "Polish (Poland)", Locale::PL_PL);
-    //LoadLocalizationClass("locatexts_pt_br.rfglocatext", "Portuguese (Brazil)", Locale::PT_BR);
-    //LoadLocalizationClass("locatexts_ru_ru.rfglocatext", "Russian (Russia)", Locale::RU_RU);
+    //LoadLocalizationClass("locatexts_pt_br.rfglocatext", "Portuguese (Brazil)", Locale::PT_BR); //Note: Not yet supported by vanilla game. Rfglocatext file is filled with english strings.
+    LoadLocalizationClass("locatexts_ru_ru.rfglocatext", "Russian (Russia)", Locale::RU_RU);
     //LoadLocalizationClass("locatexts_zh_cn.rfglocatext", "Chinese (China)", Locale::ZH_CN);
 
     ready_ = true;

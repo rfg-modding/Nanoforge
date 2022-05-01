@@ -9,6 +9,7 @@
 #include "render/resources/Scene.h"
 #include "application/Config.h"
 #include "render/imgui/ImGuiFontManager.h"
+#include <RfgTools++/hashes/HashGuesser.h>
 #include <imgui.h>
 
 CVar CVar_DisableHighQualityTerrain("Disable high quality terrain", ConfigType::Bool,
@@ -137,7 +138,7 @@ void TerritoryDocument::Update(GuiState* state)
     }
     //Update debug draw regardless of focus state since we'll never be focused when using the other panels which control debug draw
     state->CurrentTerritoryUpdateDebugDraw = true; //Now set to true permanently to support time based coloring. Quick hack, probably should remove this variable later.
-    if (Territory.ZoneFiles.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && Territory.Ready())
+    if (Territory.Zones.size() != 0 && state->CurrentTerritoryUpdateDebugDraw && Territory.Ready())
     {
         UpdateDebugDraw(state);
         PrimitivesNeedRedraw = false;
@@ -284,6 +285,10 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
                 terrainVisiblityUpdateNeeded_ = true;
             }
         }
+
+        ImGui::SliderFloat("Zone object distance", &zoneObjDistance_, 0.0f, 10000.0f);
+        ImGui::SameLine();
+        gui::HelpMarker("Zone object bounding boxes and meshes aren't drawn beyond this distance from the camera.", ImGui::GetIO().FontDefault);
 
         ImGui::EndPopup();
     }
@@ -465,20 +470,32 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
     //Reset primitives first to ensure old primitives get cleared
     Scene->ResetPrimitives();
 
-    //Draw bounding boxes
-    for (const auto& zone : Territory.ZoneFiles)
+    //Update zone visibility based on distance from camera
+    for (ObjectHandle zone : Territory.Zones)
     {
-        if (!zone.RenderBoundingBoxes)
+        if (zone.Property("ActivityLayer").Get<bool>() || zone.Property("MissionLayer").Get<bool>())
+            continue; //Activity and mission visibility is manually controlled
+
+        Vec2 subzonePos = zone.Property("Position").Get<Vec3>().XZ();
+        Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
+        f32 distanceFromCamera = subzonePos.Distance(cameraPos);
+        zone.Property("RenderBoundingBoxes").Set<bool>(distanceFromCamera <= zoneObjDistance_);
+    }
+
+    //Draw bounding boxes
+    for (ObjectHandle zone : Territory.Zones)
+    {
+        if (!zone.Property("RenderBoundingBoxes").Get<bool>())
             continue;
 
-        for (const auto& object : zone.Zone.Objects)
+        for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         {
-            auto objectClass = Territory.GetObjectClass(object.ClassnameHash);
+            auto objectClass = Territory.GetObjectClass(object.Property("ClassnameHash").Get<u32>());
             if (!objectClass.Show)
                 continue;
 
             //If object is selected in zone object list panel use different drawing method for visibilty
-            bool selectedInZoneObjectList = &object == state->ZoneObjectList_SelectedObject;
+            bool selectedInZoneObjectList = (object == state->ZoneObjectList_SelectedObject);
             if (selectedInZoneObjectList)
             {
                 //Calculate color that changes with time
@@ -500,21 +517,31 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                     color.z = std::max(color.z, colorMin);
                 }
 
+                Vec3 bmin = object.Property("Bmin").Get<Vec3>();
+                Vec3 bmax = object.Property("Bmax").Get<Vec3>();
+
                 //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
                 Vec3 lineStart;
-                lineStart.x = (object.Bmin.x + object.Bmax.x) / 2.0f;
-                lineStart.y = object.Bmin.y;
-                lineStart.z = (object.Bmin.z + object.Bmax.z) / 2.0f;
+                lineStart.x = (bmin.x + bmax.x) / 2.0f;
+                lineStart.y = bmin.y;
+                lineStart.z = (bmin.z + bmax.z) / 2.0f;
                 Vec3 lineEnd = lineStart;
                 lineEnd.y += 300.0f;
 
                 //Draw object bounding box and line from it's bottom into the sky
-                Scene->DrawBox(object.Bmin, object.Bmax, color);
+                if (objectClass.DrawSolid)
+                    Scene->DrawBoxLit(bmin, bmax, color);
+                else
+                    Scene->DrawBox(bmin, bmax, color);
+
                 Scene->DrawLine(lineStart, lineEnd, color);
             }
             else //If not selected just draw bounding box with static color
             {
-                Scene->DrawBox(object.Bmin, object.Bmax, objectClass.Color);
+                if (objectClass.DrawSolid)
+                    Scene->DrawBoxLit(object.Property("Bmin").Get<Vec3>(), object.Property("Bmax").Get<Vec3>(), objectClass.Color);
+                else
+                    Scene->DrawBox(object.Property("Bmin").Get<Vec3>(), object.Property("Bmax").Get<Vec3>(), objectClass.Color);
             }
         }
     }

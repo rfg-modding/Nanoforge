@@ -6,6 +6,57 @@
 #include "RfgTools++/formats/packfiles/Packfile3.h"
 #include "render/imgui/ImGuiFontManager.h"
 #include "rfg/PackfileVFS.h"
+#include "application/Registry.h"
+
+//Todo: Move conversion to/from RFG formats and the editor format into Importer/Exporter classes or namespaces
+ObjectHandle AsmFile5ToObject(AsmFile5& asmFile)
+{
+    Registry& registry = Registry::Get();
+
+    //Create editor object for asm_pc file
+    ObjectHandle object = registry.CreateObject(asmFile.Name, "AsmFile");
+    object.Property("Name").Set(asmFile.Name);
+    object.Property("Signature").Set(asmFile.Signature);
+    object.Property("Version").Set(asmFile.Version);
+    object.Property("Containers").SetObjectList();
+
+    //Set containers
+    for (AsmContainer& asmContainer : asmFile.Containers)
+    {
+        ObjectHandle container = registry.CreateObject(asmContainer.Name, "AsmContainer");
+        container.Property("Name").Set(asmContainer.Name);
+        container.Property("TypeNum").Set((u8)asmContainer.Type);
+        container.Property("Flags").Set((u16)asmContainer.Flags);
+        container.Property("DataOffset").Set(asmContainer.DataOffset);
+        container.Property("CompressedSize").Set(asmContainer.CompressedSize);
+        container.Property("Primitives").SetObjectList({});
+
+        //Add container asm files list
+        object.Property("Containers").GetObjectList().push_back(container);
+
+        //Set container primitives
+        size_t i = 0;
+        for (AsmPrimitive& asmPrimitive : asmContainer.Primitives)
+        {
+            //TODO: Add to container primitives list, however lists are determined to work
+            ObjectHandle primitive = registry.CreateObject(asmPrimitive.Name, "AsmPrimitive");
+            primitive.Property("Name").Set(asmPrimitive.Name);
+            primitive.Property("TypeNum").Set((u8)asmPrimitive.Type);
+            primitive.Property("Allocator").Set((u8)asmPrimitive.Allocator);
+            primitive.Property("Flags").Set((u8)asmPrimitive.Flags);
+            primitive.Property("SplitExtIndex").Set(asmPrimitive.SplitExtIndex);
+            primitive.Property("TotalSize").Set(asmContainer.PrimitiveSizes[i]);
+            primitive.Property("HeaderSize").Set(asmPrimitive.HeaderSize);
+            primitive.Property("DataSize").Set(asmPrimitive.DataSize);
+            i++;
+
+            //Add primitive to containers list
+            container.Property("Primitives").GetObjectList().push_back(primitive);
+        }
+    }
+
+    return object;
+}
 
 AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string_view parentName, std::string_view vppName, bool inContainer)
     : filename_(filename), parentName_(parentName), vppName_(vppName), inContainer_(inContainer)
@@ -16,7 +67,11 @@ AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string
     //Find asm_pc file in parent packfile
     for (auto& asmFile : vpp->AsmFiles)
         if (String::EqualIgnoreCase(asmFile.Name, filename))
+        {
             asmFile_ = &asmFile;
+            _asmFileObject = AsmFile5ToObject(asmFile);
+            break;
+        }
 
     //Report error if asm_pc file isn't found
     if (!asmFile_)
@@ -43,6 +98,14 @@ void AsmDocument::Update(GuiState* state)
     ImGui::Text(fmt::format("{} {}", ICON_FA_DATABASE, Title.c_str()));
     state->FontManager->FontMedium.Pop();
     ImGui::Separator();
+
+    //Draw UI from asmfile registry object
+    {
+        for (PropertyHandle prop : _asmFileObject.Properties())
+        {
+
+        }
+    }
 
     //Header data
     ImGui::Indent(indent);

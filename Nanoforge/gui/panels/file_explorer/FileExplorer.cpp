@@ -21,6 +21,7 @@
 FileExplorer::FileExplorer()
 {
     searchTask_ = Task::Create("Regenerating file tree...");
+    Title = "File explorer";
 }
 
 FileExplorer::~FileExplorer()
@@ -31,7 +32,7 @@ FileExplorer::~FileExplorer()
 void FileExplorer::Update(GuiState* state, bool* open)
 {
     PROFILER_FUNCTION();
-    if (!ImGui::Begin("File explorer", open))
+    if (!ImGui::Begin(Title.c_str(), open))
     {
         ImGui::End();
         return;
@@ -50,15 +51,38 @@ void FileExplorer::Update(GuiState* state, bool* open)
     if (FileTreeNeedsRegen)
         GenerateFileTree(state);
 
-    //Options
-    if (ImGui::CollapsingHeader("Options"))
+    //Search options
     {
-        if (ImGui::Checkbox("Hide unsupported formats", &HideUnsupportedFormats))
+        const char* hideUnsupportedFormatsIcon = HideUnsupportedFormats ? ICON_VS_EYE_CLOSED : ICON_VS_EYE;
+        ImVec2 toggleButtonSize = { 32.0f, 24.0f };
+        state->FontManager->FontMedium.Push();
+        if (ImGui::ToggleButton(hideUnsupportedFormatsIcon, &HideUnsupportedFormats, toggleButtonSize))
+        {
             SearchChanged = true;
-        if (ImGui::Checkbox("Regex", &RegexSearch))
+        }
+        state->FontManager->FontMedium.Pop();
+        gui::TooltipOnPrevious("Hide file formats that Nanoforge doesn't support yet");
+
+        ImGui::SameLine();
+        state->FontManager->FontMedium.Push();
+        if (ImGui::ToggleButton(ICON_VS_REGEX, &RegexSearch, toggleButtonSize))
+        {
             SearchChanged = true;
-        if (ImGui::Checkbox("Case sensitive", &CaseSensitive))
-            SearchChanged = true;
+        }
+        state->FontManager->FontMedium.Pop();
+        gui::TooltipOnPrevious("Regular expression search");
+
+        if (!RegexSearch)
+        {
+            ImGui::SameLine();
+            state->FontManager->FontMedium.Push();
+            if (ImGui::ToggleButton(ICON_VS_CASE_SENSITIVE, &CaseSensitive, toggleButtonSize))
+            {
+                SearchChanged = true;
+            }
+            state->FontManager->FontMedium.Pop();
+            gui::TooltipOnPrevious("Case sensitive search");
+        }
     }
 
     //Search bar
@@ -69,6 +93,13 @@ void FileExplorer::Update(GuiState* state, bool* open)
         ImGui::End();
         return;
     }
+
+    //Set custom file highlight colors
+    ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
+    ImVec4 highlightColor = { selectedColor.x * 1.1f, selectedColor.y * 1.1f, selectedColor.z * 1.1f, 1.0f };
+    ImGui::PushStyleColor(ImGuiCol_Header, selectedColor);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, highlightColor);
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, highlightColor);
 
     //Draw nodes
     if (ImGui::BeginChild("FileExplorerList"))
@@ -82,6 +113,7 @@ void FileExplorer::Update(GuiState* state, bool* open)
         ImGui::PopStyleVar();
         ImGui::EndChild();
     }
+    ImGui::PopStyleColor(3);
 
     ImGui::End();
 }
@@ -89,18 +121,22 @@ void FileExplorer::Update(GuiState* state, bool* open)
 void FileExplorer::UpdateSearchBar(GuiState* state)
 {
     PROFILER_FUNCTION();
-    if (ImGui::InputText("Search", &SearchTerm))
+    f32 originalX = ImGui::GetCursorPosX();
+    if (RegexSearch && HadRegexError) ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.79f, 0.0f, 0.0f, 1.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - 2.0f * ImGui::GetStyle().WindowPadding.x);
+    if (ImGui::InputTextWithHint("##FileExplorerSearch", "Search files", SearchTerm))
     {
         SearchChanged = true;
         searchChangeTimer_.Reset();
     }
-    //Show error icon with regex error in tooltip if using regex search and it's invalid
+    ImGui::PopStyleVar();
+    if (RegexSearch && HadRegexError) ImGui::PopStyleColor();
+
+    //Show regex tooltip if error occurred and regex search is still enabled
     if (RegexSearch && HadRegexError)
     {
         ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.79f, 0.0f, 0.0f, 1.0f));
-        ImGui::Text(ICON_FA_EXCLAMATION_TRIANGLE);
-        ImGui::PopStyleColor();
         gui::TooltipOnPrevious(LastRegexError, state->FontManager->FontDefault.GetFont());
     }
     ImGui::Separator();
@@ -258,7 +294,7 @@ void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
     if (!node.MatchesSearchTerm && !node.AnyChildNodeMatchesSearchTerm)
         return;
 
-    //Draw node texxt
+    //Draw node text
     f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
     node.Open = ImGui::TreeNodeEx(node.Text.c_str(),
         //Make full node width clickable

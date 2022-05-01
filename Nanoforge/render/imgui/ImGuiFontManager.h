@@ -4,6 +4,7 @@
 #include "ImGuiConfig.h"
 #include "application/Config.h"
 #include <IconsFontAwesome5_c.h>
+#include "VsCodeIconFont.h"
 #include <imgui.h>
 
 extern CVar CVar_UIScale;
@@ -20,13 +21,14 @@ public:
     void Pop() const { ImGui::PopFont(); }
     void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges)
     {
-        Config* config = Config::Get();
-
-        size_ *= CVar_UIScale.Get<f32>();
         //Load normal font
-        io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_);
+        io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_, nullptr, glyph_ranges);
         //Load FontAwesome image font and merge with normal font
         ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::FontAwesomePath.c_str(), size_, font_cfg_template, glyph_ranges);
+        //Load VSCode icons and merge
+        ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::VsCodeIconsPath.c_str(), size_, font_cfg_template, glyph_ranges);
+        //Load japanese font and merge
+        //ptr_ = io.Fonts->AddFontFromFileTTF(BuildConfig::JapaneseFontPath.c_str(), size_, font_cfg_template, glyph_ranges);
     }
 
 private:
@@ -39,9 +41,9 @@ class ImGuiFontManager
 public:
     void RegisterFonts();
 
-    ImGuiFont FontSmall{ 11.0f };
-    ImGuiFont FontDefault{ 13.0f };
-    ImGuiFont FontMedium{ 16.0f };
-    ImGuiFont FontL{ 24.0f };
-    ImGuiFont FontXL{ 31.5f };
+    ImGuiFont FontSmall{ 13.0f };
+    ImGuiFont FontDefault{ 15.0f };
+    ImGuiFont FontMedium{ 18.0f };
+    ImGuiFont FontL{ 26.0f };
+    ImGuiFont FontXL{ 33.5f };
 };

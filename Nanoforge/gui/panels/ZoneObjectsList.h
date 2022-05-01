@@ -1,9 +1,8 @@
 #pragma once
 #include "gui/IGuiPanel.h"
+#include "application/Registry.h"
 
 class GuiState;
-struct ZoneData;
-class ZoneObjectNode36;
 
 class ZoneObjectsList : public IGuiPanel
 {
@@ -15,12 +14,13 @@ public:
 
 private:
     //Draw tree node for zone object and recursively draw child objects
-    void DrawObjectNode(GuiState* state, ZoneObjectNode36& object);
+    void DrawObjectNode(GuiState* state, ObjectHandle object);
     //Returns true if any objects in the zone are visible
-    bool ZoneAnyChildObjectsVisible(GuiState* state, ZoneData& zone);
+    bool ZoneAnyChildObjectsVisible(GuiState* state, ObjectHandle zone);
     //Returns true if the object or any of it's children are visible
-    bool ShowObjectOrChildren(GuiState* state, ZoneObjectNode36& object);
+    bool ShowObjectOrChildren(GuiState* state, ObjectHandle object);
 
     string searchTerm_ = "";
-    u32 objectIndex_ = 0;
+    //If true zones outside the territory viewing distance are hidden. Configurable via the buttons in the top left of the territory viewer.
+    bool onlyShowNearZones_ = true;
 };

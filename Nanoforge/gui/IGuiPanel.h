@@ -10,6 +10,7 @@ public:
 
     bool Open = true;
     string MenuPos; //String representing position in main menu bar
+    string Title;
     bool FirstDraw = true;
 
 protected:

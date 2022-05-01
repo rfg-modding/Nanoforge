@@ -13,6 +13,8 @@
 
 Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to make RFG modding easier and less error prone, and to provide tooling for all of its file formats. See [releases](https://github.com/Moneyl/Nanoforge/releases) to download the most recent version. See the [RF wiki](https://www.redfactionwiki.com/wiki/RF:G_Editing_Main_Page#Tutorials) for Nanoforge and RFG modding tutorials.
 
+Note: The master branch contains the latest code which may unstable or WIP. See the [v0.19.x branch](https://github.com/Moneyl/Nanoforge/tree/v0.19.x) for code from the last stable release. This way master has the latest code and is free to make significant changes and bugfixes can be made on the last stable release without introducing new features.
+
 ## Features
 - Map viewing. Loads terrain and object data for a map. Draws object bounding boxes.
 - Mesh viewing and export for some RFG mesh formats. Auto locates textures.

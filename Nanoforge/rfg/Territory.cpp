@@ -11,12 +11,14 @@
 #include "util/MeshUtil.h"
 #include "gui/documents/PegHelpers.h"
 #include "rfg/TextureIndex.h"
-#include <RfgTools++\formats\zones\properties\primitive\StringProperty.h>
 #include <synchapi.h> //For Sleep()
 #include <ranges>
 #include <RfgTools++/formats/packfiles/Packfile3.h>
 #include "rfg/PackfileVFS.h"
 #include "render/resources/Scene.h"
+#include "application/Registry.h"
+#include "rfg/Importers.h"
+#include <RfgTools++\formats\zones\ZoneFile.h>
 
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
@@ -95,7 +97,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
 
     //Reserve enough space for all possible zones
     size_t maxZoneCount = packfile->Entries.size() + missionLayerFiles.size() + activityLayerFiles.size();
-    ZoneFiles.reserve(maxZoneCount);
+    Zones.reserve(maxZoneCount);
     TerrainInstances.reserve(maxZoneCount);
 
     //Spawn a thread for each zone
@@ -120,21 +122,16 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         PROFILER_SCOPED("Load mission layers");
         for (FileHandle& layerFile : missionLayerFiles)
         {
-            std::vector<u8> fileBuffer = layerFile.Get();
-            BinaryReader reader(fileBuffer);
-
-            ZoneFilesLock.lock();
-            ZoneData& zoneFile = ZoneFiles.emplace_back();
-            ZoneFilesLock.unlock();
-            zoneFile.Name = Path::GetFileNameNoExtension(layerFile.ContainerName()) + " - " + Path::GetFileNameNoExtension(layerFile.Filename()).substr(7);
-            zoneFile.Zone.SetName(zoneFile.Name);
-            zoneFile.Zone.Read(reader);
-            zoneFile.Zone.GenerateObjectHierarchy();
-            zoneFile.MissionLayer = true;
-            zoneFile.ActivityLayer = false;
-            SetZoneShortName(zoneFile);
-            if (String::StartsWith(zoneFile.Name, "p_"))
-                zoneFile.Persistent = true;
+            ObjectHandle zone = Importers::ImportZoneFile(layerFile.Get(), layerFile.Filename(), territoryFilename_);
+            if (zone.Valid())
+            {
+                ZoneFilesLock.lock();
+                Zones.push_back(zone);
+                ZoneFilesLock.unlock();
+                SetZoneShortName(zone);
+                zone.Property("MissionLayer").Set<bool>(true);
+                zone.Property("RenderBoundingBoxes").Set<bool>(false);
+            }
         }
     }
 
@@ -144,21 +141,16 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         PROFILER_SCOPED("Load activity layers");
         for (FileHandle& layerFile : activityLayerFiles)
         {
-            std::vector<u8> fileBuffer = layerFile.Get();
-            BinaryReader reader(fileBuffer);
-
-            ZoneFilesLock.lock();
-            ZoneData& zoneFile = ZoneFiles.emplace_back();
-            ZoneFilesLock.unlock();
-            zoneFile.Name = Path::GetFileNameNoExtension(layerFile.ContainerName()) + " - " + Path::GetFileNameNoExtension(layerFile.Filename()).substr(7);
-            zoneFile.Zone.SetName(zoneFile.Name);
-            zoneFile.Zone.Read(reader);
-            zoneFile.Zone.GenerateObjectHierarchy();
-            zoneFile.MissionLayer = false;
-            zoneFile.ActivityLayer = true;
-            SetZoneShortName(zoneFile);
-            if (String::StartsWith(zoneFile.Name, "p_"))
-                zoneFile.Persistent = true;
+            ObjectHandle zone = Importers::ImportZoneFile(layerFile.Get(), layerFile.Filename(), territoryFilename_);
+            if (zone.Valid())
+            {
+                ZoneFilesLock.lock();
+                Zones.push_back(zone);
+                ZoneFilesLock.unlock();
+                SetZoneShortName(zone);
+                zone.Property("ActivityLayer").Set<bool>(true);
+                zone.Property("RenderBoundingBoxes").Set<bool>(false);
+            }
         }
     }
 
@@ -171,35 +163,24 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
 
     EarlyStopCheck();
     //Sort vector by object count for convenience
-    std::sort(ZoneFiles.begin(), ZoneFiles.end(),
-    [](const ZoneData& zoneA, const ZoneData& zoneB)
+    std::sort(Zones.begin(), Zones.end(),
+    [](ObjectHandle zoneA, ObjectHandle zoneB)
     {
-        return zoneA.Zone.Header.NumObjects > zoneB.Zone.Header.NumObjects;
+        return zoneA.Property("NumObjects").Get<u32>() > zoneB.Property("NumObjects").Get<u32>();
     });
 
     //Get zone name with most characters for UI purposes
     u32 longest = 0;
-    for (auto& zone : ZoneFiles)
-    {
-        if (zone.ShortName.length() > longest)
-            longest = (u32)zone.ShortName.length();
-    }
+    for (ObjectHandle zone : Zones)
+        if (size_t len = zone.Property("ShortName").Get<string>().length(); len > longest)
+            longest = (u32)len;
     LongestZoneName = longest;
-
-    //Draw bounding boxes for zone with the most objects
-    if (ZoneFiles.size() > 0 && ZoneFiles[0].Zone.Objects.size() > 0)
-    {
-        ZoneFiles[0].RenderBoundingBoxes = true;
-    }
 
     //Init object class data used for filtering and labelling
     EarlyStopCheck();
     InitObjectClassData();
 
-    //Clear texture cache so only render objects that use them hold references to them
-    textureCache_.clear();
-
-    Log->info("Done loading {}. Took {} seconds", territoryFilename_, LoadThreadTimer.ElapsedSecondsPrecise());
+    Log->info("Done loading {}. Took {} seconds. {} objects in registry", territoryFilename_, LoadThreadTimer.ElapsedSecondsPrecise(), Registry::Get().NumObjects());
     state->ClearStatus();
     loadThreadRunning_ = false;
     ready_ = true;
@@ -210,52 +191,43 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     SubThreadEarlyStopCheck();
     PROFILER_FUNCTION();
 
-    //Load zone data
-    ZoneFilesLock.lock();
-    ZoneData& zoneFile = ZoneFiles.emplace_back();
-    ZoneFilesLock.unlock();
+    //Load zone
+    Registry& registry = Registry::Get();
+    ObjectHandle zone = NullObjectHandle; // zoneBytes.has_value() ? Importers::ImportZoneFile(zoneBytes.value(), zoneFilename, territoryFilename_) : NullObjectHandle;
+    std::optional<std::vector<u8>> zoneBytes = packfile->ExtractSingleFile(zoneFilename);
+    if (zoneBytes.has_value())
     {
         PROFILER_SCOPED("Load zone");
-        std::optional<std::vector<u8>> fileBuffer = packfile->ExtractSingleFile(zoneFilename);
-        if (!fileBuffer)
+        zone = Importers::ImportZoneFile(zoneBytes.value(), zoneFilename, territoryFilename_);
+        if (zone.Valid())
         {
-            LOG_ERROR("Failed to extract zone file \"{}\" from \"{}\".", Path::GetFileName(string(zoneFilename)), territoryFilename_);
-            return;
+            ZoneFilesLock.lock();
+            Zones.push_back(zone);
+            ZoneFilesLock.unlock();
+            SetZoneShortName(zone);
         }
-
-        BinaryReader reader(fileBuffer.value());
-        zoneFile.Name = Path::GetFileName(std::filesystem::path(zoneFilename));
-        zoneFile.Zone.SetName(zoneFile.Name);
-        zoneFile.Zone.Read(reader);
-        zoneFile.Zone.GenerateObjectHierarchy();
-        SetZoneShortName(zoneFile);
-        if (String::StartsWith(zoneFile.Name, "p_"))
-            zoneFile.Persistent = true;
     }
 
-    //Check if the zone has terrain by looking for an obj_zone object with terrain_file_name property
-    SubThreadEarlyStopCheck();
-    auto* objZoneObject = zoneFile.Zone.GetSingleObject("obj_zone");
-    if (!objZoneObject)
+    //Get terrain filename from obj_zone object
+    ObjectHandle objZone = GetZoneObject(zone, "obj_zone");
+    PropertyHandle terrainFilenameProperty = objZone ? GetZoneProperty(objZone, "terrain_file_name") : NullPropertyHandle;
+
+    //Determine zone position
+    if (!objZone || !terrainFilenameProperty)
         return; //No terrain
 
-    auto* terrainFilenameProperty = objZoneObject->GetProperty<StringProperty>("terrain_file_name");
-    if (!terrainFilenameProperty)
-        return; //No terrain
-
-    //Remove extra null terminators if present
-    string terrainName = terrainFilenameProperty->Data;
+    string terrainName = terrainFilenameProperty.Get<string>();
     if (terrainName.ends_with('\0'))
-        terrainName.pop_back();
+        terrainName.pop_back(); //Remove extra null terminators
 
     //Create new terrain instance
     TerrainLock.lock();
     TerrainInstance& terrain = TerrainInstances.emplace_back();
     TerrainLock.unlock();
     terrain.Name = terrainName;
-    terrain.Position = objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
-    SubThreadEarlyStopCheck();
+    terrain.Position = zone.Property("Position").Get<Vec3>(); //objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
 
+    SubThreadEarlyStopCheck();
     {
         PROFILER_SCOPED("Load low lod terrain")
         std::vector<MeshInstanceData> lowLodMeshes = { };
@@ -267,7 +239,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
         auto lowLodTerrainCpuFileHandles = state->PackfileVFS->GetFiles(lowLodTerrainName, true, true);
         if (lowLodTerrainCpuFileHandles.size() == 0)
         {
-            Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zoneFile.Name);
+            Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zone.Property("Name").Get<string>());
             return;
         }
         FileHandle terrainMesh = lowLodTerrainCpuFileHandles[0];
@@ -333,7 +305,7 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     }
 
     SubThreadEarlyStopCheck();
-    if(useHighLodTerrain_)
+    if (useHighLodTerrain_)
     {
         PROFILER_SCOPED("Load high lod terrain");
         std::vector<MeshInstanceData> highLodMeshes = { };
@@ -627,17 +599,16 @@ void Territory::UpdateObjectClassInstanceCounts()
         objectClass.NumInstances = 0;
 
     //Update instance count for each object class in visible zones
-    for (auto& zoneFile : ZoneFiles)
+    for (ObjectHandle zone : Zones)
     {
-        if (!zoneFile.RenderBoundingBoxes)
+        if (!zone.Property("RenderBoundingBoxes").Get<bool>())
             continue;
 
-        auto& zone = zoneFile.Zone;
-        for (auto& object : zone.Objects)
+        for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         {
             for (auto& objectClass : ZoneObjectClasses)
             {
-                if (objectClass.Hash == object.ClassnameHash)
+                if (objectClass.Hash == object.Property("ClassnameHash").Get<u32>())
                 {
                     objectClass.NumInstances++;
                     break;
@@ -658,64 +629,62 @@ void Territory::InitObjectClassData()
 {
     ZoneObjectClasses =
     {
-        {"rfg_mover",                      2898847573, 0, Vec3{ 0.923f, 0.648f, 0.0f }, true ,   false, ICON_FA_HOME " "},
+        {"rfg_mover",                      2898847573, 0, Vec3{ 0.819f, 0.819f, 0.819f }, true ,   false, ICON_FA_HOME " ", true },
         {"cover_node",                     3322951465, 0, Vec3{ 1.0f, 0.0f, 0.0f },     false,   false, ICON_FA_SHIELD_ALT " "},
         {"navpoint",                       4055578105, 0, Vec3{ 1.0f, 0.968f, 0.0f },   false,   false, ICON_FA_LOCATION_ARROW " "},
-        {"general_mover",                  1435016567, 0, Vec3{ 0.738f, 0.0f, 0.0f },   true ,   false, ICON_FA_CUBES  " "},
+        {"general_mover",                  1435016567, 0, Vec3{ 0.861f, 0.248f, 0.248f },   true ,   false, ICON_FA_CUBES  " "},
         {"player_start",                   1794022917, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_STREET_VIEW " "},
         {"multi_object_marker",            1332551546, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_MAP_MARKER " "},
         {"weapon",                         2760055731, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_CROSSHAIRS " "},
-        {"object_action_node",             2017715543, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_RUNNING " "},
-        {"object_squad_spawn_node",        311451949,  0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_USERS " "},
-        {"object_npc_spawn_node",          2305434277, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_USER " "},
-        {"object_guard_node",              968050919,  0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_SHIELD_ALT " "},
-        {"object_path_road",               3007680500, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_ROAD " "},
+        {"object_action_node",             2017715543, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_RUNNING " "},
+        {"object_squad_spawn_node",        311451949,  0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_USERS " "},
+        {"object_npc_spawn_node",          2305434277, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_USER " "},
+        {"object_guard_node",              968050919,  0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_SHIELD_ALT " "},
+        {"object_path_road",               3007680500, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_ROAD " "},
         {"shape_cutter",                   753322256,  0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_CUT " "},
-        {"item",                           27482413,   0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_TOOLS " "},
-        {"object_vehicle_spawn_node",      3057427650, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_CAR_SIDE " "},
+        {"item",                           27482413,   0, Vec3{ 0.719f, 0.494f, 0.982f },     true ,   false, ICON_FA_TOOLS " "},
+        {"object_vehicle_spawn_node",      3057427650, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_CAR_SIDE " "},
         {"ladder",                         1620465961, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_LEVEL_UP_ALT " "},
-        {"constraint",                     1798059225, 0, Vec3{ 0.958f, 0.0f, 1.0f },   true ,   false, ICON_FA_LOCK " "},
-        {"object_effect",                  2663183315, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_FIRE " "},
-        //Todo: Want a better icon for this one
+        {"constraint",                     1798059225, 0, Vec3{ 0.975f, 0.407f, 1.0f },   true ,   false, ICON_FA_LOCK " "},
+        {"object_effect",                  2663183315, 0, Vec3{ 1.0f, 0.45f, 0.0f },     true ,   false, ICON_FA_FIRE " "},
         {"trigger_region",                 2367895008, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BORDER_STYLE " "},
         {"object_bftp_node",               3005715123, 0, Vec3{ 1.0f, 1.0f, 1.0f },     false,   false, ICON_FA_BOMB " "},
         {"object_bounding_box",            2575178582, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BORDER_NONE " "},
-        {"object_turret_spawn_node",       96035668,   0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_CROSSHAIRS " "},
-        //Todo: Want a better icon for this one
+        {"object_turret_spawn_node",       96035668,   0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_CROSSHAIRS " "},
         {"obj_zone",                       3740226015, 0, Vec3{ 0.935f, 0.0f, 1.0f },     true ,   false, ICON_FA_SEARCH_LOCATION " "},
         {"object_patrol",                  3656745166, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BINOCULARS " "},
         {"object_dummy",                   2671133140, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_MEH_BLANK " "},
-        {"object_raid_node",               3006762854, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_CAR_CRASH " "},
-        {"object_delivery_node",           1315235117, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_SHIPPING_FAST " "},
+        {"object_raid_node",               3006762854, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_CAR_CRASH " "},
+        {"object_delivery_node",           1315235117, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_SHIPPING_FAST " "},
         {"marauder_ambush_region",         1783727054, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_USER_NINJA " "},
         {"unknown",                        0, 0,          Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_QUESTION_CIRCLE " "},
         {"object_activity_spawn",          2219327965, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_SCROLL " "},
-        {"object_mission_start_node",      1536827764, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_MAP_MARKED " "},
-        {"object_demolitions_master_node", 3497250449, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_BOMB " "},
+        {"object_mission_start_node",      1536827764, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_MAP_MARKED " "},
+        {"object_demolitions_master_node", 3497250449, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_BOMB " "},
         {"object_restricted_area",         3157693713, 0, Vec3{ 1.0f, 0.0f, 0.0f },     true ,   true,  ICON_FA_USER_SLASH " "},
-        {"effect_streaming_node",          1742767984, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   true,  ICON_FA_SPINNER " "},
-        {"object_house_arrest_node",       227226529,  0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_USER_LOCK " "},
-        {"object_area_defense_node",       2107155776, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_USER_SHIELD " "},
+        {"effect_streaming_node",          1742767984, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   true,  ICON_FA_SPINNER " "},
+        {"object_house_arrest_node",       227226529,  0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_USER_LOCK " "},
+        {"object_area_defense_node",       2107155776, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_USER_SHIELD " "},
         {"object_safehouse",               3291687510, 0, Vec3{ 0.0f, 0.905f, 1.0f },     true ,   false, ICON_FA_FIST_RAISED " "},
         {"object_convoy_end_point",        1466427822, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_TRUCK_MOVING " "},
         {"object_courier_end_point",       3654824104, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_FLAG_CHECKERED " "},
-        {"object_riding_shotgun_node",     1227520137, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_TRUCK_MONSTER " "},
-        {"object_upgrade_node",            2502352132, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   false, ICON_FA_ARROW_UP " "},
+        {"object_riding_shotgun_node",     1227520137, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_TRUCK_MONSTER " "},
+        {"object_upgrade_node",            2502352132, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_ARROW_UP " "},
         {"object_ambient_behavior_region", 2407660945, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_TREE " "},
-        {"object_roadblock_node",          2100364527, 0, Vec3{ 0.25f, 0.177f, 1.0f },  false,   true,  ICON_FA_HAND_PAPER " "},
+        {"object_roadblock_node",          2100364527, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   true,  ICON_FA_HAND_PAPER " "},
         {"object_spawn_region",            1854373986, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   true,  ICON_FA_USER_PLUS " "},
         {"obj_light",                      2915886275, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   true,  ICON_FA_LIGHTBULB " "}
     };
 
-    for (auto& zone : ZoneFiles)
+    for (ObjectHandle zone : Zones)
     {
-        for (auto& object : zone.Zone.Objects)
+        for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         {
             u32 outIndex = InvalidZoneIndex;
-            if (!ObjectClassRegistered(object.ClassnameHash, outIndex))
+            if (!ObjectClassRegistered(object.Property("ClassnameHash").Get<u32>(), outIndex))
             {
-                ZoneObjectClasses.push_back({ object.Classname, object.ClassnameHash, 0, Vec3{ 1.0f, 1.0f, 1.0f }, true });
-                Log->warn("Found unknown object class with hash {} and name \"{}\"", object.ClassnameHash, object.Classname);
+                ZoneObjectClasses.push_back({ object.Property("Type").Get<string>(), object.Property("ClassnameHash").Get<u32>(), 0, Vec3{ 1.0f, 1.0f, 1.0f }, true });
+                Log->warn("Found unknown object class with hash {} and name \"{}\"", object.Property("ClassnameHash").Get<u32>(), object.Property("Type").Get<string>());
             }
         }
     }
@@ -733,13 +702,13 @@ ZoneObjectClass& Territory::GetObjectClass(u32 classnameHash)
     THROW_EXCEPTION("Failed to find object class with classname hash {}", classnameHash);
 }
 
-void Territory::SetZoneShortName(ZoneData& zone)
+void Territory::SetZoneShortName(ObjectHandle zone)
 {
-    const string& fullName = zone.Name;
-    zone.ShortName = fullName; //Set shortname to fullname by default in case of failure
+    const string& fullName = zone.Property("Name").Get<string>();
+    zone.Property("ShortName").Set<string>(fullName); //Set shortname to fullname by default in case of failure
     const string expectedPostfix0 = ".rfgzone_pc";
     const string expectedPostfix1 = ".layer_pc";
-    const string expectedPrefix = zone.Persistent ? "p_" + territoryShortname_ + "_" : territoryShortname_ + "_";
+    const string expectedPrefix = zone.Property("Persistent").Get<bool>() ? "p_" + territoryShortname_ + "_" : territoryShortname_ + "_";
 
     //Try to find location of rfgzone_pc or layer_pc extension. If neither is found return
     size_t postfixIndex0 = fullName.find(expectedPostfix0, 0);
@@ -759,14 +728,14 @@ void Territory::SetZoneShortName(ZoneData& zone)
     //For some files there is nothing between the prefix and postfix. We preserve the prefix in this case so something remains
     if (finalPostfixIndex == expectedPrefix.length())
     {
-        zone.ShortName = fullName.substr(0, finalPostfixIndex); //Remove the postfix, keep the rest
+        zone.Property("ShortName").Set<string>(fullName.substr(0, finalPostfixIndex)); //Remove the postfix, keep the rest
     }
     else //Otherwise we strip the prefix and postfix and use the remaining string as our shortname
     {
-        zone.ShortName = fullName.substr(expectedPrefix.length(), finalPostfixIndex - expectedPrefix.length()); //Keep string between prefix and postfix
+        zone.Property("ShortName").Set<string>(fullName.substr(expectedPrefix.length(), finalPostfixIndex - expectedPrefix.length())); //Keep string between prefix and postfix
     }
 
     //Add p_ prefix back onto persistent files
-    if (zone.Persistent)
-        zone.ShortName = "p_" + zone.ShortName;
+    if (zone.Property("Persistent").Get<bool>())
+        zone.Property("ShortName").Set<string>("p_" + zone.Property("ShortName").Get<string>());
 }

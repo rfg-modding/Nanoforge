@@ -13,6 +13,7 @@
 #include "util/TaskScheduler.h"
 #include "rfg/xtbl/IXtblNode.h"
 #include "rfg/xtbl/Xtbl.h"
+#include "application/Registry.h"
 #include <ranges>
 
 Project::Project()
@@ -63,7 +64,9 @@ bool Project::Save()
     project.InsertFirstChild(projectBlock);
     project.SaveFile((Path + "\\" + ProjectFilename).c_str());
 
-    return true;
+    Path::CreatePath(Path + "\\Registry\\");
+    Registry& registry = Registry::Get();
+    return registry.Save(Path + "\\Registry\\");
 }
 
 void Project::Close()
@@ -127,7 +130,7 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     auto* author = projectBlock->FirstChildElement("Author");
     auto* edits = projectBlock->FirstChildElement("Edits");
     auto* customOutputPath = projectBlock->FirstChildElement("CustomOutputPath");
-    if(!name)
+    if (!name)
     {
         Log->info("<Name> block not found in project file \"{}\"", projectFilePath);
         return false;
@@ -147,10 +150,13 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
         Log->info("<Edits> block not found in project file \"{}\"", projectFilePath);
         return false;
     }
-    Name = name->GetText();
-    Description = description->GetText();
-    Author = author->GetText();
-    if (customOutputPath)
+    const char* nameText = name->GetText();
+    const char* descriptionText = description->GetText();
+    const char* authorText = author->GetText();
+    Name = nameText ? nameText : "";
+    Description = descriptionText ? descriptionText : "";
+    Author = authorText ? authorText : "";
+    if (customOutputPath && customOutputPath->GetText())
     {
         UseCustomOutputPath = true;
         CustomOutputPath = customOutputPath->GetText();
@@ -162,12 +168,12 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     {
         auto* editType = edit->FirstChildElement("Type");
         auto* editPath = edit->FirstChildElement("Path");
-        if (!editType)
+        if (!editType || !editType->GetText())
         {
             Log->info("<Type> block not found in <Edit> block of project file \"{}\"", projectFilePath);
             return false;
         }
-        if (!editPath)
+        if (!editPath || !editPath->GetText())
         {
             Log->info("<Path> block not found in <Edit> block of project file \"{}\"", projectFilePath);
             return false;
@@ -177,7 +183,8 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
         edit = edit->NextSiblingElement("Edit");
     }
 
-    return true;
+    Registry& registry = Registry::Get();
+    return registry.Load(Path + "\\Registry\\");
 }
 
 void Project::PackageModThread(Handle<Task> task, std::string outputPath, PackfileVFS* vfs, XtblManager* xtblManager)
@@ -187,6 +194,10 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
     WorkerPercentage = 0.0f;
     PackagingCancelled = false;
 
+    //Ensure custom path ends with '\' or '/' so filesystem functions treat it as a folder
+    if (!String::EndsWith(CustomOutputPath, "\\") && !String::EndsWith(CustomOutputPath, "/"))
+        CustomOutputPath += "\\";
+
     //Stop early if the cancel button was pressed
 #define ThreadEarlyStopCheck() if (PackagingCancelled) { WorkerRunning = false; return; }
 
@@ -195,7 +206,7 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
     std::filesystem::copy_options copyOptions = std::filesystem::copy_options::overwrite_existing;
 
     //Delete files and folders from previous runs
-    for(auto& path : std::filesystem::directory_iterator(outputPath))
+    for (auto& path : std::filesystem::directory_iterator(outputPath))
         std::filesystem::remove_all(path);
 
     //Create modinfo.xml and fill out basic info
@@ -357,7 +368,7 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
     //Copy mod to custom output folder if that option is enabled
     if (UseCustomOutputPath)
     {
-        std::filesystem::copy(outputPath, CustomOutputPath);
+        std::filesystem::copy(outputPath, CustomOutputPath, std::filesystem::copy_options::overwrite_existing);
     }
 
     WorkerPercentage = 1.0f;
@@ -435,7 +446,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
         edit->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(xtbl->VppName), xtbl->Name).c_str());
 
         //Determine how the mod manager should identify each entry. Category is only used if the node has one set.
-        if(hasCategory)
+        if (hasCategory)
             edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name,_Editor\\Category");
         else
             edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name");

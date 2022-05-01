@@ -156,14 +156,19 @@ void DrawModPackagingPopup(bool* open, GuiState* state)
                 {
                     std::optional<string> outPath = OpenFolder();
                     if (outPath)
+                    {
                         project->CustomOutputPath = outPath.value();
+                        //Ensure custom path ends with '\' or '/' so filesystem functions treat it as a folder
+                        if (!String::EndsWith(project->CustomOutputPath, "\\") && !String::EndsWith(project->CustomOutputPath, "/"))
+                            project->CustomOutputPath += "\\";
+                    }
                 }
             }
 
             if (ImGui::Button("Start packaging"))
             {
                 state->SetStatus("Packing mod...", GuiStatus::Working);
-                project->PackageMod(project->Path + "\\output\\", state->PackfileVFS, state->Xtbls);
+                project->PackageMod(project->Path + "output\\", state->PackfileVFS, state->Xtbls);
                 state->ClearStatus();
             }
             ImGui::SameLine();
