@@ -20,9 +20,6 @@ public:
     void Pop() const { ImGui::PopFont(); }
     void Load(const ImGuiIO& io, const ImFontConfig* font_cfg_template, const ImWchar* glyph_ranges)
     {
-        Config* config = Config::Get();
-
-        size_ *= CVar_UIScale.Get<f32>();
         //Load normal font
         io.Fonts->AddFontFromFileTTF(BuildConfig::MainFontPath.c_str(), size_);
         //Load FontAwesome image font and merge with normal font
