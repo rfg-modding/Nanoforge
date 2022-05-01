@@ -119,7 +119,7 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     auto* description = projectBlock->FirstChildElement("Description");
     auto* author = projectBlock->FirstChildElement("Author");
     auto* edits = projectBlock->FirstChildElement("Edits");
-    if(!name)
+    if (!name)
     {
         Log->info("<Name> block not found in project file \"{}\"", projectFilePath);
         return false;
@@ -139,9 +139,12 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
         Log->info("<Edits> block not found in project file \"{}\"", projectFilePath);
         return false;
     }
-    Name = name->GetText();
-    Description = description->GetText();
-    Author = author->GetText();
+    const char* nameText = name->GetText();
+    const char* descriptionText = description->GetText();
+    const char* authorText = author->GetText();
+    Name = nameText ? nameText : "";
+    Description = descriptionText ? descriptionText : "";
+    Author = authorText ? authorText : "";
 
     //Get edits list
     auto* edit = edits->FirstChildElement("Edit");
@@ -149,12 +152,12 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     {
         auto* editType = edit->FirstChildElement("Type");
         auto* editPath = edit->FirstChildElement("Path");
-        if (!editType)
+        if (!editType || !editType->GetText())
         {
             Log->info("<Type> block not found in <Edit> block of project file \"{}\"", projectFilePath);
             return false;
         }
-        if (!editPath)
+        if (!editPath || !editPath->GetText())
         {
             Log->info("<Path> block not found in <Edit> block of project file \"{}\"", projectFilePath);
             return false;
@@ -182,7 +185,7 @@ void Project::PackageModThread(Handle<Task> task, std::string outputPath, Packfi
     std::filesystem::copy_options copyOptions = std::filesystem::copy_options::overwrite_existing;
 
     //Delete files and folders from previous runs
-    for(auto& path : std::filesystem::directory_iterator(outputPath))
+    for (auto& path : std::filesystem::directory_iterator(outputPath))
         std::filesystem::remove_all(path);
 
     //Create modinfo.xml and fill out basic info
@@ -416,7 +419,7 @@ bool Project::PackageXtblEdits(tinyxml2::XMLElement* changes, PackfileVFS* vfs, 
         edit->SetAttribute("File", fmt::format("data\\{}.vpp\\{}", Path::GetFileNameNoExtension(xtbl->VppName), xtbl->Name).c_str());
 
         //Determine how the mod manager should identify each entry. Category is only used if the node has one set.
-        if(hasCategory)
+        if (hasCategory)
             edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name,_Editor\\Category");
         else
             edit->SetAttribute("LIST_ACTION", "COMBINE_BY_FIELD:Name");
