@@ -130,11 +130,10 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
 
     //Determine zone position
     ObjectHandle objZone = GetZoneObject(zone, "obj_zone");
-    PropertyHandle pos = objZone ? GetZoneProperty(objZone, "Position") : NullPropertyHandle;
-    if (objZone && pos)
+    if (objZone.Has("Position"))
     {
         //Use obj_zone position if available. They're always at the center of the zone
-        zone.Property("Position").Set<Vec3>(pos.Get<Vec3>());
+        zone.Property("Position").Set(objZone.Property("Position").Get<Vec3>());
     }
     else
     {
@@ -143,10 +142,9 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         size_t numPositions = 0;
         for (ObjectHandle obj : zone.Property("Objects").GetObjectList())
         {
-            PropertyHandle pos2 = GetZoneProperty(obj, "Position");
-            if (pos2)
+            if (obj.Has("Position"))
             {
-                averagePosition += pos2.Get<Vec3>();
+                averagePosition += obj.Property("Position").Get<Vec3>();
                 numPositions++;
             }
         }
@@ -314,7 +312,18 @@ void InitZonePropertyLoaders()
         [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             Vec3* data = (Vec3*)prop->Data();
-            zoneObject.Property(propertyName).Set<Vec3>(*data);
+            if (propertyName == "just_pos")
+            {
+#ifdef DEBUG_BUILD
+                if (zoneObject.Has("Position"))
+                    Log->warn("Found just_pos in a zone object that already has a position set!"); //RFG zone objects should have either op (other prop that sets Position) or just_pos, not both.
+#endif
+                zoneObject.Property("Position").Set<Vec3>(*data); //Game uses multiple properties for position. Nanoforge only stores in Position
+            }
+            else
+            {
+                zoneObject.Property(propertyName).Set<Vec3>(*data);
+            }
             return true;
         }
     );
@@ -347,8 +356,8 @@ void InitZonePropertyLoaders()
         {
             struct bb { Vec3 bmin; Vec3 bmax; };
             bb* data = (bb*)prop->Data();
-            zoneObject.Property("Bmin").Set<Vec3>(data->bmin);
-            zoneObject.Property("Bmax").Set<Vec3>(data->bmax);
+            zoneObject.Property("BBmin").Set<Vec3>(data->bmin);
+            zoneObject.Property("BBmax").Set<Vec3>(data->bmax);
             return true;
         }
     );

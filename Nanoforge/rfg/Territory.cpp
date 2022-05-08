@@ -17,7 +17,7 @@
 #include "rfg/PackfileVFS.h"
 #include "render/resources/Scene.h"
 #include "application/Registry.h"
-#include "rfg/Importers.h"
+#include "rfg/import/Importers.h"
 #include <RfgTools++\formats\zones\ZoneFile.h>
 
 //Todo: Separate gui specific code into a different file or class
@@ -220,12 +220,16 @@ void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiStat
     if (terrainName.ends_with('\0'))
         terrainName.pop_back(); //Remove extra null terminators
 
+    Vec3 objZoneBmin = objZone.Property("Bmin").Get<Vec3>();
+    Vec3 objZoneBmax = objZone.Property("Bmax").Get<Vec3>();
+    Vec3 objZoneBbCenter = objZoneBmin + (objZoneBmax - objZoneBmin);
+
     //Create new terrain instance
     TerrainLock.lock();
     TerrainInstance& terrain = TerrainInstances.emplace_back();
     TerrainLock.unlock();
     terrain.Name = terrainName;
-    terrain.Position = zone.Property("Position").Get<Vec3>(); //objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
+    terrain.Position = objZoneBbCenter;//zone.Property("Position").Get<Vec3>(); //objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
 
     SubThreadEarlyStopCheck();
     {

@@ -494,6 +494,10 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
             if (!objectClass.Show)
                 continue;
 
+            Vec3 bmin = object.Property("Bmin").Get<Vec3>();
+            Vec3 bmax = object.Property("Bmax").Get<Vec3>();
+            Vec3 pos = object.Has("Position") ? object.Property("Position").Get<Vec3>() : Vec3{ 0.0f, 0.0f, 0.0f };
+
             //If object is selected in zone object list panel use different drawing method for visibilty
             bool selectedInZoneObjectList = (object == state->ZoneObjectList_SelectedObject);
             if (selectedInZoneObjectList)
@@ -517,9 +521,6 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                     color.z = std::max(color.z, colorMin);
                 }
 
-                Vec3 bmin = object.Property("Bmin").Get<Vec3>();
-                Vec3 bmax = object.Property("Bmax").Get<Vec3>();
-
                 //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
                 Vec3 lineStart;
                 lineStart.x = (bmin.x + bmax.x) / 2.0f;
@@ -539,9 +540,9 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
             else //If not selected just draw bounding box with static color
             {
                 if (objectClass.DrawSolid)
-                    Scene->DrawBoxLit(object.Property("Bmin").Get<Vec3>(), object.Property("Bmax").Get<Vec3>(), objectClass.Color);
+                    Scene->DrawBoxLit(bmin, bmax, objectClass.Color);
                 else
-                    Scene->DrawBox(object.Property("Bmin").Get<Vec3>(), object.Property("Bmax").Get<Vec3>(), objectClass.Color);
+                    Scene->DrawBox(bmin, bmax, objectClass.Color);
             }
         }
     }
