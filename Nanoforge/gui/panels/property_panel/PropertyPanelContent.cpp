@@ -116,17 +116,35 @@ void PropertyPanel_ZoneObject(GuiState* state)
             if (ImGui::CollapsingHeader(prop.Name().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Indent(indent);
-                if (prop.IsType<string>())
+                if (prop.IsType<i32>())
                 {
-                    string data = prop.Get<string>();
-                    if (ImGui::InputText("String", &data))
-                        prop.Set<string>(data);
+                    i32 data = prop.Get<i32>();
+                    if (ImGui::InputScalar("Number(i32)", ImGuiDataType_S32, &data))
+                        prop.Set<i32>(data);
                 }
-                else if (prop.IsType<bool>())
+                else if (prop.IsType<u64>())
                 {
-                    bool data = prop.Get<bool>();
-                    if (ImGui::Checkbox("Bool", &data))
-                        prop.Set<bool>(data);
+                    u64 data = prop.Get<u64>();
+                    if (ImGui::InputScalar("Number(u64)", ImGuiDataType_U64, &data))
+                        prop.Set<u64>(data);
+                }
+                else if (prop.IsType<u32>())
+                {
+                    u32 data = prop.Get<u32>();
+                    if (ImGui::InputScalar("Number(u32)", ImGuiDataType_U32, &data))
+                        prop.Set<u32>(data);
+                }
+                else if (prop.IsType<u16>())
+                {
+                    u16 data = prop.Get<u16>();
+                    if (ImGui::InputScalar("Number(u16)", ImGuiDataType_U16, &data))
+                        prop.Set<u16>(data);
+                }
+                else if (prop.IsType<u8>())
+                {
+                    u8 data = prop.Get<u8>();
+                    if (ImGui::InputScalar("Number(u8)", ImGuiDataType_U8, &data))
+                        prop.Set<u8>(data);
                 }
                 else if (prop.IsType<f32>())
                 {
@@ -134,21 +152,32 @@ void PropertyPanel_ZoneObject(GuiState* state)
                     if (ImGui::InputFloat("Float", &data))
                         prop.Set<f32>(data);
                 }
-                else if (prop.IsType<u32>())
+                else if (prop.IsType<bool>())
                 {
-                    u32 data = prop.Get<u32>();
-                    if (ImGui::InputScalar("Number", ImGuiDataType_U32, &data))
-                        prop.Set<u32>(data);
+                    bool data = prop.Get<bool>();
+                    if (ImGui::Checkbox("Bool", &data))
+                        prop.Set<bool>(data);
                 }
-                //else if (typeName == "BoundingBox")
-                //{
-                //    Vec3 bmin = prop.Property("Bmin").Get<Vec3>();
-                //    Vec3 bmax = prop.Property("Bmax").Get<Vec3>();
-                //    if (ImGui::InputFloat3("Min", (f32*)&bmin))
-                //        prop.Property("Bmin").Set<Vec3>(bmin);
-                //    if (ImGui::InputFloat3("Max", (f32*)&bmax))
-                //        prop.Property("Bmax").Set<Vec3>(bmax);
-                //}
+                else if (prop.IsType<string>())
+                {
+                    string data = prop.Get<string>();
+                    if (ImGui::InputText("String", &data))
+                        prop.Set<string>(data);
+                }
+                else if (prop.IsType<std::vector<ObjectHandle>>())
+                {
+                    const std::vector<ObjectHandle>& handles = prop.Get<std::vector<ObjectHandle>>();
+                    for (ObjectHandle handle : handles)
+                    {
+                        string name = "";
+                        if (handle.Has("Name"))
+                            name += handle.Property("Name").Get<string>() + ", ";
+
+                        ImGui::Bullet();
+                        ImGui::SameLine();
+                        ImGui::Text(fmt::format("Object({}, {})", name, handle.UID()));
+                    }
+                }
                 else if (prop.IsType<Vec3>())
                 {
                     Vec3 data = prop.Get<Vec3>();
@@ -165,72 +194,24 @@ void PropertyPanel_ZoneObject(GuiState* state)
                     if (ImGui::InputFloat3("Forward", (f32*)&data.fvec))
                         prop.Set<Mat3>(data);
                 }
-                //else if (typeName == "Op")
-                //{
-                //    ImGui::Text("Orientation:");
-                //    Mat3 orient = prop.Property("Orient").Get<Mat3>();
-                //    if (ImGui::InputFloat3("Right", (f32*)&orient.rvec))
-                //        prop.Property("Orient").Set<Mat3>(orient);
-                //    if (ImGui::InputFloat3("Up", (f32*)&orient.uvec))
-                //        prop.Property("Orient").Set<Mat3>(orient);
-                //    if (ImGui::InputFloat3("Forward", (f32*)&orient.fvec))
-                //        prop.Property("Orient").Set<Mat3>(orient);
+                else if (prop.IsType<ObjectHandle>())
+                {
+                    ObjectHandle handle = prop.Get<ObjectHandle>();
+                    string name = "";
+                    if (handle.Has("Name"))
+                        name += handle.Property("Name").Get<string>() + ", ";
 
-                //    ImGui::Text("Position:");
-                //    Vec3 pos = prop.Property("Position").Get<Vec3>();
-                //    if (ImGui::InputFloat3("Position", (f32*)&pos))
-                //        prop.Property("Position").Set<Vec3>(pos);
-                //}
-                //else if (typeName == "DistrictFlags")
-                //{
-                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
-                //    //auto* districtFlagsProp = static_cast<DistrictFlagsProperty*>(prop);
-                //    //u32 flags = (u32)districtFlagsProp->Data;
+                    ImGui::Text(fmt::format("Object({}, {})", name, handle.UID()));
+                }
+                else if (prop.IsType<BufferHandle>())
+                {
+                    BufferHandle handle = prop.Get<BufferHandle>();
+                    string name = "";
+                    if (handle.Name() != "")
+                        name += handle.Name() + ", ";
 
-                //    //bool allowCough = ((flags & (u32)DistrictFlags::AllowCough) != 0);
-                //    //bool allowAmbEdfCivilianDump = ((flags & (u32)DistrictFlags::AllowAmbEdfCivilianDump) != 0);
-                //    //bool playCapstoneUnlockedLines = ((flags & (u32)DistrictFlags::PlayCapstoneUnlockedLines) != 0);
-                //    //bool disableMoraleChange = ((flags & (u32)DistrictFlags::DisableMoraleChange) != 0);
-                //    //bool disableControlChange = ((flags & (u32)DistrictFlags::DisableControlChange) != 0);
-
-                //    ////Draws checkbox for flag and updates bitflags stored in flags
-                //    //#define DrawDistrictFlagsCheckbox(text, value, flagEnum) \
-                //    //    if (ImGui::Checkbox(text, &value)) \
-                //    //    { \
-                //    //        if (value) \
-                //    //            flags |= (u32)flagEnum; \
-                //    //        else \
-                //    //            flags &= (~(u32)flagEnum); \
-                //    //    } \
-
-                //    //DrawDistrictFlagsCheckbox("Allow cough", allowCough, DistrictFlags::AllowCough);
-                //    //DrawDistrictFlagsCheckbox("Allow edf civilian dump", allowAmbEdfCivilianDump, DistrictFlags::AllowAmbEdfCivilianDump);
-                //    //DrawDistrictFlagsCheckbox("Play capstone unlocked lines", playCapstoneUnlockedLines, DistrictFlags::PlayCapstoneUnlockedLines);
-                //    //DrawDistrictFlagsCheckbox("Disable morale change", disableMoraleChange, DistrictFlags::DisableMoraleChange);
-                //    //DrawDistrictFlagsCheckbox("Disable control change", disableControlChange, DistrictFlags::DisableControlChange);
-
-                //    //districtFlagsProp->Data = (DistrictFlags)flags;
-                //}
-                //else if (typeName == "List")
-                //{
-                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
-                //}
-                //else if (typeName == "NavpointData")
-                //{
-                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
-                //    //auto* propNavpointData = static_cast<NavpointDataProperty*>(prop);
-                //    //ImGui::InputScalar("Type", ImGuiDataType_U32, &propNavpointData->NavpointType);
-                //    //ImGui::InputScalar("Unknown0", ImGuiDataType_U32, &propNavpointData->UnkFlag1); //Note: This might actually be type
-                //    //ImGui::InputFloat("Radius", &propNavpointData->Radius);
-                //    //ImGui::InputFloat("Speed", &propNavpointData->Speed);
-                //    //ImGui::InputScalar("Unknown1", ImGuiDataType_U32, &propNavpointData->UnkFlag2);
-                //    //ImGui::InputScalar("Unknown2", ImGuiDataType_U32, &propNavpointData->UnkFlag3);
-                //    //ImGui::InputScalar("Unknown3", ImGuiDataType_U32, &propNavpointData->UnkVar1);
-                //}
-                //else if (typeName == "Constraint")
-                //{
-                //    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
-                //}
+                    ImGui::Text(fmt::format("Buffer({}, {})", name, handle.UID()));
+                }
                 else
                 {
                     ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
