@@ -31,7 +31,7 @@ ObjectHandle Registry::CreateObject(std::string_view objectName, std::string_vie
 ObjectHandle Registry::CreateObjectInternal(u64 uid, u64 parentUID, std::string_view objectName, std::string_view typeName)
 {
     if (_objects.contains(uid))
-        return nullptr;
+        return { nullptr };
 
     _objectCreationLock.lock();
     _objects[uid] = Object(uid, parentUID, objectName);
@@ -49,6 +49,27 @@ ObjectHandle Registry::GetObjectHandleByUID(u64 uid)
         THROW_EXCEPTION("Failed to find object with uid '{}'", uid);
 
     return { &_objects[uid] };
+}
+
+BufferHandle Registry::CreateBuffer(std::span<u8> bytes, std::string_view name)
+{
+    _bufferCreationLock.lock();
+    const u64 uid = _nextBufferUID++;
+    _buffers[uid] = RegistryBuffer(uid, name, bytes.size_bytes());
+    _buffers[uid].Save(bytes);
+    _bufferCreationLock.unlock();
+    return BufferHandle{ &_buffers[uid] };
+}
+
+BufferHandle Registry::CreateBufferInternal(u64 uid, std::string_view name, size_t size)
+{
+    if (_buffers.contains(uid))
+        return { nullptr };
+
+    _bufferCreationLock.lock();
+    _buffers[uid] = RegistryBuffer(uid, name, size);
+    _bufferCreationLock.unlock();
+    return BufferHandle{ &_buffers[uid] };
 }
 
 u64 Registry::NumObjects() const
@@ -98,30 +119,10 @@ std::vector<std::string_view> SplitTextArray(std::string_view str)
     return values;
 }
 
-ObjectHandle Registry::LoadEntry(const std::vector<std::string_view>& lines, size_t entryLineStart)
+ObjectHandle Registry::LoadObject(const std::vector<std::string_view>& lines, size_t entryLineStart)
 {
-    //Find object start
-    size_t i = 0;
-    bool foundObjectStart = false;
-    while (i < lines.size())
-    {
-        if (String::StartsWith(lines[i], "Object("))
-        {
-            foundObjectStart = true;
-            break;
-        }
-        else
-        {
-            i++;
-            continue;
-        }
-    }
-    if (!foundObjectStart)
-    {
-        return NullObjectHandle;
-    }
-
     //Parse object header. E.g. Object(1812312921321):
+    size_t i = 0;
     std::vector<std::string_view> objectSplit = String::SplitString(lines[i], "Object(");
     if (objectSplit.size() != 1)
     {
@@ -258,6 +259,11 @@ ObjectHandle Registry::LoadEntry(const std::vector<std::string_view>& lines, siz
             u64 handleUid = ConvertStringView<u64>(value);
             object.Property(name).Set<ObjectHandle>((Object*)handleUid);
         }
+        else if (type == "BufferHandle")
+        {
+            u64 handleUid = ConvertStringView<u64>(value);
+            object.Property(name).Set<BufferHandle>((RegistryBuffer*)handleUid);
+        }
         else
         {
             Log->error("Invalid registry object property. Unsupported type '{}'. Skipping property...", type);
@@ -271,6 +277,32 @@ ObjectHandle Registry::LoadEntry(const std::vector<std::string_view>& lines, siz
     return object;
 }
 
+BufferHandle Registry::LoadBuffer(const std::vector<std::string_view>& lines, size_t entryLineStart)
+{
+    //Remove front and back from buffer def
+    std::string_view bufferDef = lines[0]; //Buffer definitions are 1 line only currently
+    bufferDef.remove_prefix(strlen("Buffer("));
+    bufferDef.remove_suffix(strlen(")"));
+
+    //Split out buffer definition arguments
+    std::vector<std::string_view> split = String::SplitString(bufferDef, ",");
+    if (split.size() != 3)
+    {
+        Log->error("Registry buffer definition had {} arguments. Expected 3. Skipping. Definition: '{}'", split.size(), bufferDef);
+        return NullBufferHandle;
+    }
+
+    //Parse arguments
+    u64 uid = ConvertStringView<u64>(split[0]);
+    size_t size = ConvertStringView<u64>(split[2]);
+    std::string_view nameArg = split[1];
+    nameArg.remove_prefix(1); //Remove front qoutation mark
+    nameArg.remove_suffix(1); //Remove back qoutation mark
+    std::string_view name = nameArg;
+
+    return CreateBufferInternal(uid, name, size);
+}
+
 bool Registry::Load(const string& inFolderPath)
 {
 #ifdef DEBUG_BUILD
@@ -279,7 +311,9 @@ bool Registry::Load(const string& inFolderPath)
 #endif
     //Clear existing state
     _objects.clear();
+    _buffers.clear();
 
+    _folderPath = inFolderPath;
     string registryFilePath = inFolderPath + "\\Registry.registry";
     if (!std::filesystem::exists(registryFilePath))
         return true;
@@ -289,16 +323,54 @@ bool Registry::Load(const string& inFolderPath)
 
     //Load objects
     u64 highestUID = 0;
+    u64 highestBufferUID = 0;
     size_t entryLineStart = 0;
     for (std::string_view entryText : entries)
     {
+        bool parseError = false;
         std::vector<std::string_view> lines = String::SplitString(entryText, "\r\n"); //Get view on each line
-        ObjectHandle object = LoadEntry(lines, entryLineStart);
-        entryLineStart += lines.size();
-        if (object && object.UID() > highestUID)
-            highestUID = object.UID();
+        for (size_t i = 0; i < lines.size(); i++)
+        {
+            //Skip empty lines
+            std::string_view lineTrimmed = String::TrimWhitespace(lines[i]);
+            if (lineTrimmed.empty())
+            {
+                continue;
+            }
+            else if (String::StartsWith(lineTrimmed, "Object("))
+            {
+                lines = { lines.begin() + i, lines.end() }; //Discard empty lines
+                ObjectHandle object = LoadObject(lines, entryLineStart + i);
+                entryLineStart += lines.size();
+                u64 uid = (u64)object._object; //Can't use ::UID() since the handle isn't fully valid until load stage 2
+                if (uid != NullUID && uid > highestUID)
+                    highestUID = uid;
+
+                break;
+            }
+            else if (String::StartsWith(lineTrimmed, "Buffer("))
+            {
+                lines = { lines.begin() + i, lines.end() }; //Discard empty lines
+                BufferHandle buffer = LoadBuffer(lines, entryLineStart + i);
+                u64 uid = (u64)buffer._buffer;
+                if (uid != NullUID && uid > highestBufferUID)
+                    highestBufferUID = uid;
+
+                break;
+            }
+            else
+            {
+                Log->error("Unknown/unsupported entry in registry file '{}'", lineTrimmed);
+                parseError = true;
+                break;
+            }
+
+        }
+        if (!parseError)
+            entryLineStart += lines.size();
     }
     _nextUID = highestUID + 1;
+    _nextBufferUID = highestBufferUID + 1;
 
     //Patch ObjectHandle internal pointers
     auto patchObjectHandle = [](ObjectHandle& handle)
@@ -307,6 +379,13 @@ bool Registry::Load(const string& inFolderPath)
         u64 uid = (u64)handle._object; //Stage one stores uid in handle._object since all objects aren't loaded yet
         Object* object = &registry._objects[uid];
         handle._object = object; //By stage two all objects are loaded, so we get the actual Object* and patch it
+    };
+    auto patchBufferHandle = [](BufferHandle& handle)
+    {
+        Registry& registry = Registry::Get();
+        u64 uid = (u64)handle._buffer;
+        RegistryBuffer* buffer = &registry._buffers[uid];
+        handle._buffer = buffer;
     };
     for (auto& kv : _objects)
     {
@@ -317,6 +396,10 @@ bool Registry::Load(const string& inFolderPath)
             if (std::holds_alternative<ObjectHandle>(prop.Value))
             {
                 patchObjectHandle(std::get<ObjectHandle>(prop.Value));
+            }
+            else if (std::holds_alternative<BufferHandle>(prop.Value))
+            {
+                patchBufferHandle(std::get<BufferHandle>(prop.Value));
             }
             else if (std::holds_alternative<std::vector<ObjectHandle>>(prop.Value))
             {
@@ -433,6 +516,11 @@ bool Registry::Save(const string& outFolderPath)
                 propType = "ObjectHandle";
                 propValue = std::to_string(std::get<ObjectHandle>(prop.Value).UID());
             }
+            else if (std::holds_alternative<BufferHandle>(prop.Value))
+            {
+                propType = "BufferHandle";
+                propValue = std::to_string(std::get<BufferHandle>(prop.Value).UID());
+            }
             else
             {
                 Log->error("Unsupported PropertyValue type for property '{}', object uid = {}", prop.Name, object.UID);
@@ -454,8 +542,10 @@ bool Registry::Save(const string& outFolderPath)
     }
 
     //Write buffers
+    for (auto& kv : _buffers)
     {
-        //Buffers not yet implemented
+        RegistryBuffer& buffer = kv.second;
+        fileBuffer += fmt::format("Buffer({}, \"{}\", {});\n", buffer.UID, buffer.Name, buffer.Size);
     }
 
     string outPath = outFolderPath + "\\Registry.registry";
@@ -465,6 +555,43 @@ bool Registry::Save(const string& outFolderPath)
     Log->info("Saving Registry took {}s", timer.ElapsedSecondsPrecise());
 #endif
     return true;
+}
+
+string Registry::Path() const
+{
+    return _folderPath;
+}
+
+std::vector<ObjectHandle> Registry::FindObjects(std::string_view name, std::string_view type)
+{
+    std::vector<ObjectHandle> results = {};
+    for (auto& kv : _objects)
+    {
+        Object& object = kv.second;
+        bool match = false;
+        if (name != "" && object.Has("Name") && std::get<string>(object.Property("Name").Value) == name)
+            match = true;
+        if (type != "" && object.Has("Type") && std::get<string>(object.Property("Type").Value) == type)
+            match = true;
+
+        if (match)
+            results.push_back({ &object });
+    }
+    return results;
+}
+
+ObjectHandle Registry::FindObject(std::string_view name, std::string_view type)
+{
+    for (auto& kv : _objects)
+    {
+        Object& object = kv.second;
+        bool match = false;
+        if (name != "" && object.Has("Name") && std::get<string>(object.Property("Name").Value) == name)
+            return { &object };
+        if (type != "" && object.Has("Type") && std::get<string>(object.Property("Type").Value) == type)
+            return { &object };
+    }
+    return NullObjectHandle;
 }
 
 Object& Registry::GetObjectByUID(u64 uid)
@@ -564,4 +691,75 @@ bool Object::Has(std::string_view propertyName)
             return true;
 
     return false;
+}
+
+std::optional<std::vector<u8>> RegistryBuffer::Load()
+{
+    std::lock_guard<std::mutex> lock(*Mutex.get());
+    string filePath = fmt::format("{}\\{}.{}.buffer", Registry::Get().Path(), Name, UID);
+    if (!std::filesystem::exists(filePath))
+        return {};
+
+    return File::ReadAllBytes(filePath);
+}
+
+bool RegistryBuffer::Save(std::span<u8> bytes)
+{
+    std::lock_guard<std::mutex> lock(*Mutex.get());
+    string filePath = fmt::format("{}\\{}.{}.buffer", Registry::Get().Path(), Name, UID);
+    File::WriteToFile(filePath, bytes);
+    Size = bytes.size_bytes();
+    return true;
+}
+
+std::optional<std::vector<u8>> BufferHandle::Load()
+{
+    if (!_buffer)
+        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::Load()");
+
+    return _buffer->Load();
+}
+
+bool BufferHandle::Save(std::span<u8> bytes)
+{
+    if (!_buffer)
+        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::Save()");
+
+    return _buffer->Save(bytes);
+}
+
+string BufferHandle::Name()
+{
+    if (!_buffer)
+        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::Name()");
+
+    std::lock_guard<std::mutex> lock(*_buffer->Mutex.get());
+    return _buffer->Name;
+}
+
+void BufferHandle::SetName(const string& name)
+{
+    if (!_buffer)
+        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::SetName()");
+
+    std::lock_guard<std::mutex> lock(*_buffer->Mutex.get());
+    _buffer->Name = name;
+}
+
+u64 BufferHandle::UID() const
+{
+    if (!_buffer)
+        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::UID()");
+
+    return _buffer->UID;
+}
+
+bool BufferHandle::Valid() const
+{
+    return _buffer && _buffer->UID != NullUID;
+}
+
+BufferHandle::operator bool() const
+{
+    return Valid();
 }

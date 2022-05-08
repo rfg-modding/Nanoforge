@@ -3,7 +3,7 @@
 #include "common/String.h"
 #include <RfgTools++/types/Vec3.h>
 #include <RfgTools++/types/Mat3.h>
-#include <unordered_map>
+#include <map>
 #include "util/Hash.h"
 #include <stdexcept>
 #include <optional>
@@ -13,10 +13,12 @@
 #include "Log.h"
 #include <span>
 
-class Property;
 class Object;
-class PropertyHandle;
 class ObjectHandle;
+class RegistryBuffer;
+class BufferHandle;
+class Property;
+class PropertyHandle;
 
 static const u64 NullUID = std::numeric_limits<u64>::max();
 
@@ -31,21 +33,34 @@ public:
     //Create registry object. Returns a handle to the object if it succeeds, or InvalidHandle if it fails.
     ObjectHandle CreateObject(std::string_view objectName = "", std::string_view typeName = "");
     ObjectHandle GetObjectHandleByUID(u64 uid);
+    BufferHandle CreateBuffer(std::span<u8> bytes = {}, std::string_view name = "");
     u64 NumObjects() const;
     bool ObjectExists(u64 uid) const;
     //Load registry from folder
     bool Load(const string& inFolderPath);
     //Save registry to folder
     bool Save(const string& outFolderPath);
+    //Filesystem location the registry is serialized to
+    string Path() const;
+    //Find objects with given name + type. Object must have Name & Type properties to check
+    std::vector<ObjectHandle> FindObjects(std::string_view name, std::string_view type = "");
+    //Same as ::FindObjects() but only returns the first result
+    ObjectHandle FindObject(std::string_view name, std::string_view type = "");
 private:
-    ObjectHandle LoadEntry(const std::vector<std::string_view>& lines, size_t entryLineStart); //Load object from lines of serialized registry. Returns null handle if it fails.
+    ObjectHandle LoadObject(const std::vector<std::string_view>& lines, size_t entryLineStart); //Load object from lines of serialized registry. Returns null handle if it fails.
+    BufferHandle LoadBuffer(const std::vector<std::string_view>& lines, size_t entryLineStart); //Same as ::LoadObject() but for buffers
     ObjectHandle CreateObjectInternal(u64 uid, u64 parentUID = NullUID, std::string_view objectName = "", std::string_view typeName = ""); //For internal use by Registry::Load() only
+    BufferHandle CreateBufferInternal(u64 uid, std::string_view name, size_t size);
     //Registry objects mapped to their UIDs
     //Note: If the container type is changed ObjectHandle and PropertyHandle likely won't be able to hold pointers anymore.
-    //      They rely on the fact that pointers to std::unordered_map values are stable.
-    std::unordered_map<u64, Object> _objects = {};
+    //      They rely on the fact that pointers to std::map values are stable.
+    std::map<u64, Object> _objects = {};
+    std::map<u64, RegistryBuffer> _buffers = {};
     u64 _nextUID = 0;
+    u64 _nextBufferUID = 0;
     std::mutex _objectCreationLock;
+    std::mutex _bufferCreationLock;
+    string _folderPath;
 
     Object& GetObjectByUID(u64 uid);
 
@@ -74,8 +89,30 @@ private:
     friend class Registry;
 };
 
+class BufferHandle
+{
+public:
+    std::optional<std::vector<u8>> Load();
+    bool Save(std::span<u8> bytes);
+    string Name();
+    void SetName(const string& name);
+    u64 UID() const;
+    bool Valid() const;
+    explicit operator bool() const; //Used to check if handle is valid
+
+    BufferHandle(RegistryBuffer* buffer) : _buffer(buffer)
+    {
+
+    }
+
+private:
+    RegistryBuffer* _buffer;
+
+    friend class Registry;
+};
+
 //Value storage for Property
-using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, std::vector<ObjectHandle>, Vec3, Mat3, ObjectHandle>;
+using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, std::vector<ObjectHandle>, Vec3, Mat3, ObjectHandle, BufferHandle>;
 
 class RegistryProperty
 {
@@ -148,7 +185,28 @@ private:
     u32 _index; //Index of property in Object::Properties
 };
 
+
+//Binary blob of data managed by the registry. Useful for bulk binary data such as textures and meshes. Serialized as binary, unlike objects.
+class RegistryBuffer
+{
+public:
+    u64 UID; //Buffer UIDs are separate from object UIDs
+    string Name;
+    size_t Size; //Size in bytes
+    //Stupid shortcut for thread safety. Will be fixed after first iteration of registry fully tested out in the map editor. No point in making it highly optimized before requirements are understood.
+    std::unique_ptr<std::mutex> Mutex = std::make_unique<std::mutex>();
+
+    RegistryBuffer() : UID(NullUID) { }
+    RegistryBuffer(u64 uid, std::string_view name = "", size_t size = 0) : UID(uid), Name(name), Size(size)
+    {
+
+    }
+    std::optional<std::vector<u8>> Load();
+    bool Save(std::span<u8> bytes);
+};
+
 static const ObjectHandle NullObjectHandle = { nullptr };
+static const BufferHandle NullBufferHandle = { nullptr };
 static const PropertyHandle NullPropertyHandle = { nullptr, std::numeric_limits<u32>::max() };
 
 template<typename T>
@@ -167,6 +225,7 @@ T PropertyHandle::Get()
         std::is_same<T, Vec3>() ||
         std::is_same<T, Mat3>() ||
         std::is_same<T, ObjectHandle>() ||
+        std::is_same<T, BufferHandle>() ||
         std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by RegistryProperty::Get<T>()");
 
     if (!_object)
@@ -193,6 +252,7 @@ void PropertyHandle::Set(T value)
         std::is_same<T, Vec3>() ||
         std::is_same<T, Mat3>() ||
         std::is_same<T, ObjectHandle>() ||
+        std::is_same<T, BufferHandle>() ||
         std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by RegistryProperty::Set<T>()");
 
     if (!_object)
