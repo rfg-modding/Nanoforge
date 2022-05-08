@@ -171,11 +171,21 @@ void PropertyPanel_ZoneObject(GuiState* state)
                     {
                         string name = "";
                         if (handle.Has("Name"))
-                            name += handle.Property("Name").Get<string>() + ", ";
+                        {
+                            name = handle.Property("Name").Get<string>();
+                            if (name != "")
+                                name += ", ";
+                        }
+
+                        string uid;
+                        if (handle.UID() == NullUID)
+                            uid = "Null";
+                        else
+                            uid = std::to_string(handle.UID());
 
                         ImGui::Bullet();
                         ImGui::SameLine();
-                        ImGui::Text(fmt::format("Object({}, {})", name, handle.UID()));
+                        ImGui::Text(fmt::format("Object({}{})", name, uid));
                     }
                 }
                 else if (prop.IsType<Vec3>())
@@ -199,9 +209,19 @@ void PropertyPanel_ZoneObject(GuiState* state)
                     ObjectHandle handle = prop.Get<ObjectHandle>();
                     string name = "";
                     if (handle.Has("Name"))
-                        name += handle.Property("Name").Get<string>() + ", ";
+                    {
+                        name = handle.Property("Name").Get<string>();
+                        if (name != "")
+                            name += ", ";
+                    }
 
-                    ImGui::Text(fmt::format("Object({}, {})", name, handle.UID()));
+                    string uid;
+                    if (handle.UID() == NullUID)
+                        uid = "Null";
+                    else
+                        uid = std::to_string(handle.UID());
+
+                    ImGui::Text(fmt::format("Object({}{})", name, uid));
                 }
                 else if (prop.IsType<BufferHandle>())
                 {
@@ -210,7 +230,13 @@ void PropertyPanel_ZoneObject(GuiState* state)
                     if (handle.Name() != "")
                         name += handle.Name() + ", ";
 
-                    ImGui::Text(fmt::format("Buffer({}, {})", name, handle.UID()));
+                    string uid;
+                    if (handle.UID() == NullUID)
+                        uid = "Null";
+                    else
+                        uid = std::to_string(handle.UID());
+
+                    ImGui::Text(fmt::format("Buffer({}{})", name, uid));
                 }
                 else
                 {
