@@ -115,8 +115,11 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     //Wait for all workers to finish
     {
         PROFILER_SCOPED("Wait for territory load worker threads");
-        for (auto& loadTask : zoneLoadTasks)
-            loadTask->Wait();
+        while (!std::ranges::all_of(zoneLoadTasks, [](Handle<Task> task) { return task->Completed(); }))
+        {
+            for (Handle<Task> loadTask : zoneLoadTasks)
+                loadTask->Wait();
+        }
     }
 
     //Get zone name with most characters for UI purposes

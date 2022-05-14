@@ -59,8 +59,11 @@ ObjectHandle Importers::ImportTerritory(std::string_view territoryFilename, Pack
         //Wait for zones to finish loading
         {
             PROFILER_SCOPED("Wait for zone load worker threads");
-            for (auto& loadTask : zoneLoadTasks)
-                loadTask->Wait();
+            while (!std::ranges::all_of(zoneLoadTasks, [](Handle<Task> task) { return task->Completed(); }))
+            {
+                for (Handle<Task> loadTask : zoneLoadTasks)
+                    loadTask->Wait();
+            }
         }
         EarlyStopCheck();
         Log->info("Done loading zones for {}. Sorting...", territoryFilename);
@@ -88,8 +91,11 @@ ObjectHandle Importers::ImportTerritory(std::string_view territoryFilename, Pack
         //Wait for terrain to finish loading
         {
             PROFILER_SCOPED("Wait for terrain load worker threads");
-            for (auto& loadTask : terrainLoadTasks)
-                loadTask->Wait();
+            while (!std::ranges::all_of(terrainLoadTasks, [](Handle<Task> task) { return task->Completed(); }))
+            {
+                for (Handle<Task> loadTask : terrainLoadTasks)
+                    loadTask->Wait();
+            }
         }
     }
 
@@ -139,7 +145,11 @@ void LoadTerrain(ObjectHandle zone, ObjectHandle territory, PackfileVFS* packfil
     //Holds terrain info for a single zone (low + high lod terrain stored in sub-objects)
     ObjectHandle zoneTerrain = Importers::ImportTerrain(terrainName, objZoneBbCenter, packfileVFS, textureIndex, stopSignal);
     if (zoneTerrain)
+    {
+        ZoneFilesLock.lock();
         zone.Property("Terrain").Set(zoneTerrain);
+        ZoneFilesLock.unlock();
+    }
     else
         LOG_ERROR("Failed to import terrain for {}", zone.Property("Name").Get<string>());
 }
