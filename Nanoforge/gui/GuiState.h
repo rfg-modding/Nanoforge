@@ -73,6 +73,7 @@ public:
 
     //The last node that was clicked in the file explorer
     FileExplorerNode* FileExplorer_SelectedNode = nullptr;
+    bool MainWindowFocused = true;
 
     //Set status message and enum
     void SetStatus(std::string_view message, GuiStatus status = None)

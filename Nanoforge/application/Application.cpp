@@ -211,13 +211,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         return 0;
     case WM_ACTIVATE:
-        if (LOWORD(wParam) == WA_INACTIVE)
+        if (LOWORD(wParam) == WA_ACTIVE || LOWORD(wParam) == WA_CLICKACTIVE)
         {
-            appInstance->Paused = true;
+            appInstance->MainWindowFocused = true;
+            appInstance->gui_.State.MainWindowFocused = true;
         }
         else
         {
-            appInstance->Paused = false;
+            appInstance->MainWindowFocused = false;
+            appInstance->gui_.State.MainWindowFocused = false;
             appInstance->FrameTimer.Reset();
         }
         return 0;

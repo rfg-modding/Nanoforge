@@ -82,11 +82,14 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         Object = Importers::ImportTerritory(territoryFilename_, state->PackfileVFS, state->TextureSearchIndex, &loadThreadShouldStop_);
         if (!Object)
         {
-            ToastNotification(fmt::format("Failed to import {}. Check logs.", territoryShortname_), "Map import error");
+            if (!state->MainWindowFocused)
+                ToastNotification(fmt::format("Failed to import {}. Check logs.", territoryShortname_), "Map import error");
+
             LOG_ERROR("Failed to load territory. Check logs.");
             return;
         }
-        ToastNotification(fmt::format("Finished importing {}", territoryShortname_), "Map import complete");
+        if (!state->MainWindowFocused)
+            ToastNotification(fmt::format("Finished importing {}", territoryShortname_), "Map import complete");
 
         for (ObjectHandle zone : Object.GetObjectList("Zones"))
             SetZoneShortName(zone); //Set shorthand names for each zone (used in UI to save space). E.g. terr01_04_07.rfgzone_pc -> 04_07 (xz coords)

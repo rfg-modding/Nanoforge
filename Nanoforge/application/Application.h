@@ -26,7 +26,7 @@ public:
     void HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     bool Exit = false;
-    bool Paused = false;
+    bool MainWindowFocused = false;
     Timer FrameTimer;
     MainGui gui_;
     DX11Renderer renderer_;
