@@ -32,6 +32,9 @@ add_library(NanoforgeDependencies
 
     # Tracy client files
     ${CMAKE_SOURCE_DIR}/dependencies/tracy/TracyClient.cpp
+
+    # WinToast
+    ${CMAKE_SOURCE_DIR}/dependencies/WinToast/src/wintoastlib.cpp
 )
 
 #TOOD: See if these can be removed here and just exist in nanoforge project
@@ -50,6 +53,7 @@ target_include_directories(NanoforgeDependencies PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui_markdown/
     ${CMAKE_SOURCE_DIR}/Dependencies/tracy/
     ${CMAKE_SOURCE_DIR}/Dependencies/pugixml/
+    ${CMAKE_SOURCE_DIR}/Dependencies/WinToast/src/
 )
 
 target_link_libraries(NanoforgeDependencies PRIVATE Common)

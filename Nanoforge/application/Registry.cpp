@@ -20,8 +20,8 @@ ObjectHandle Registry::CreateObject(std::string_view objectName, std::string_vie
     _objectCreationLock.lock();
     const u64 uid = _nextUID++;
     _objects[uid] = Object(uid, NullUID, objectName);
-    _objectCreationLock.unlock();
     ObjectHandle handle = { &_objects[uid] };
+    _objectCreationLock.unlock();
     if (typeName != "")
         handle.Property("Type").Set(string(typeName));
 
@@ -30,12 +30,22 @@ ObjectHandle Registry::CreateObject(std::string_view objectName, std::string_vie
 
 ObjectHandle Registry::CreateObjectInternal(u64 uid, u64 parentUID, std::string_view objectName, std::string_view typeName)
 {
+    //Don't allow duplicate UIDs
+    _objectCreationLock.lock_shared(); //Allow other threads to read while checking for existing uid
     if (_objects.contains(uid))
+    {
+        _objectCreationLock.unlock_shared();
         return { nullptr };
+    }
+    _objectCreationLock.unlock_shared();
 
-    _objectCreationLock.lock();
+    //Create object
+    _objectCreationLock.lock();//Block other threads from accessing _objects during write
     _objects[uid] = Object(uid, parentUID, objectName);
     _objectCreationLock.unlock();
+
+    //Setup type if provided
+    std::shared_lock<std::shared_mutex> lock(_objectCreationLock);
     ObjectHandle handle = { &_objects[uid] };
     if (typeName != "")
         handle.Property("Type").Set(string(typeName));
@@ -45,6 +55,7 @@ ObjectHandle Registry::CreateObjectInternal(u64 uid, u64 parentUID, std::string_
 
 ObjectHandle Registry::GetObjectHandleByUID(u64 uid)
 {
+    std::shared_lock<std::shared_mutex> lock(_objectCreationLock); //Shared locks used during reads
     if (!_objects.contains(uid))
         THROW_EXCEPTION("Failed to find object with uid '{}'", uid);
 
@@ -56,20 +67,28 @@ BufferHandle Registry::CreateBuffer(std::span<u8> bytes, std::string_view name)
     _bufferCreationLock.lock();
     const u64 uid = _nextBufferUID++;
     _buffers[uid] = RegistryBuffer(uid, name, bytes.size_bytes());
-    _buffers[uid].Save(bytes);
+    BufferHandle handle = { &_buffers[uid] };
     _bufferCreationLock.unlock();
-    return BufferHandle{ &_buffers[uid] };
+
+    handle.Save(bytes);
+    return handle;
 }
 
 BufferHandle Registry::CreateBufferInternal(u64 uid, std::string_view name, size_t size)
 {
+    //Don't allow duplicate UIDs
+    _bufferCreationLock.lock_shared(); //Allow other threads to read while checking for existing uid
     if (_buffers.contains(uid))
+    {
+        _bufferCreationLock.unlock_shared();
         return { nullptr };
+    }
+    _bufferCreationLock.unlock_shared();
 
-    _bufferCreationLock.lock();
+    std::lock_guard<std::shared_mutex> lock(_bufferCreationLock); //Block other threads from reading/writing _buffers during write
     _buffers[uid] = RegistryBuffer(uid, name, size);
-    _bufferCreationLock.unlock();
-    return BufferHandle{ &_buffers[uid] };
+    BufferHandle handle = { &_buffers[uid] };
+    return handle;
 }
 
 u64 Registry::NumObjects() const
@@ -77,8 +96,9 @@ u64 Registry::NumObjects() const
     return _objects.size();
 }
 
-bool Registry::ObjectExists(u64 uid) const
+bool Registry::ObjectExists(u64 uid)
 {
+    std::shared_lock<std::shared_mutex> lock(_objectCreationLock);
     auto find = _objects.find(uid);
     return find != _objects.end();
 }
@@ -121,7 +141,7 @@ std::vector<std::string_view> SplitTextArray(std::string_view str)
 
 ObjectHandle Registry::LoadObject(const std::vector<std::string_view>& lines, size_t entryLineStart)
 {
-    //Parse object header. E.g. Object(1812312921321):
+    //Parse buffer header. E.g. Object(1812312921321):
     size_t i = 0;
     std::vector<std::string_view> objectSplit = String::SplitString(lines[i], "Object(");
     if (objectSplit.size() != 1)
@@ -133,7 +153,7 @@ ObjectHandle Registry::LoadObject(const std::vector<std::string_view>& lines, si
     uidStrView.remove_suffix(2); //Remove "):" from end
     u64 uid = ConvertStringView<u64>(uidStrView, NullUID); //uid string to u64
 
-    //Create object in memory
+    //Create buffer in memory
     ObjectHandle object = CreateObjectInternal(uid);
     if (!object)
     {
@@ -169,6 +189,10 @@ ObjectHandle Registry::LoadObject(const std::vector<std::string_view>& lines, si
                 u64 subObjectUid = ConvertStringView<u64>(String::TrimWhitespace(handle));
                 object.SubObjects().push_back({ (Object*)subObjectUid });
             }
+        }
+        else if (type == "empty")
+        {
+            object.Property(name).Set<std::monostate>({});
         }
         else if (type == "i32")
         {
@@ -214,6 +238,19 @@ ObjectHandle Registry::LoadObject(const std::vector<std::string_view>& lines, si
                 //Fill handle list
                 u64 handleUid = ConvertStringView<u64>(String::TrimWhitespace(handle));
                 object.Property(name).GetObjectList().push_back(ObjectHandle{ (Object*)handleUid });
+            }
+        }
+        else if (type == "StringList")
+        {
+            object.Property(name).SetStringList({});
+            std::vector<std::string_view> strings = SplitTextArray(value); //Extract handles from array
+            for (std::string_view str : strings)
+            {
+                //Remove quotes from front and back
+                str.remove_prefix(1);
+                str.remove_suffix(1);
+
+                object.Property(name).GetStringList().push_back(string(str));
             }
         }
         else if (type == "Vec3")
@@ -293,9 +330,9 @@ BufferHandle Registry::LoadBuffer(const std::vector<std::string_view>& lines, si
     }
 
     //Parse arguments
-    u64 uid = ConvertStringView<u64>(split[0]);
-    size_t size = ConvertStringView<u64>(split[2]);
-    std::string_view nameArg = split[1];
+    u64 uid = ConvertStringView<u64>(String::TrimWhitespace(split[0]));
+    size_t size = ConvertStringView<u64>(String::TrimWhitespace(split[2]));
+    std::string_view nameArg = String::TrimWhitespace(split[1]);
     nameArg.remove_prefix(1); //Remove front qoutation mark
     nameArg.remove_suffix(1); //Remove back qoutation mark
     std::string_view name = nameArg;
@@ -409,7 +446,7 @@ bool Registry::Load(const string& inFolderPath)
             }
         }
 
-        //Patch sub object handles
+        //Patch sub buffer handles
         for (ObjectHandle& handle : object.SubObjects)
         {
             patchObjectHandle(handle);
@@ -431,7 +468,7 @@ bool Registry::Save(const string& outFolderPath)
     Path::CreatePath(outFolderPath);
 
     string fileBuffer; //Generate file in memory then write all at once
-    fileBuffer.reserve(_objects.size() * 1200); //Rough guess of 1000 characters per object in text form. Prevents a bunch of reallocations during generation
+    fileBuffer.reserve(_objects.size() * 1200); //Rough guess of 1000 characters per buffer in text form. Prevents a bunch of reallocations during generation
 
     //Write objects
     for (auto& kv : _objects)
@@ -444,7 +481,12 @@ bool Registry::Save(const string& outFolderPath)
         {
             string propType = "";
             string propValue = "";
-            if (std::holds_alternative<i32>(prop.Value))
+            if (std::holds_alternative<std::monostate>(prop.Value)) //Default state of std::variant used to store properties. Has no value
+            {
+                propType = "empty";
+                propValue = "{{}}";
+            }
+            else if (std::holds_alternative<i32>(prop.Value))
             {
                 propType = "i32";
                 propValue = std::to_string(std::get<i32>(prop.Value));
@@ -497,6 +539,20 @@ bool Registry::Save(const string& outFolderPath)
                 }
                 propValue += "}";
             }
+            else if (std::holds_alternative<std::vector<string>>(prop.Value))
+            {
+                propType = "StringList";
+                std::vector<string>& strings = std::get<std::vector<string>>(prop.Value);
+                propValue = "{";
+                for (size_t i = 0; i < strings.size(); i++)
+                {
+                    const string& str = strings[i];
+                    propValue += fmt::format("\"{}\"", str);
+                    if (i < strings.size() - 1)
+                        propValue += ", ";
+                }
+                propValue += "}";
+            }
             else if (std::holds_alternative<Vec3>(prop.Value))
             {
                 propType = "Vec3";
@@ -538,7 +594,7 @@ bool Registry::Save(const string& outFolderPath)
                 fileBuffer += ", ";
         }
         fileBuffer += "}\n";
-        fileBuffer += ";\n\n"; //End of object + a few empty lines for spacing
+        fileBuffer += ";\n\n"; //End of buffer + a few empty lines for spacing
     }
 
     //Write buffers
@@ -564,34 +620,81 @@ string Registry::Path() const
 
 std::vector<ObjectHandle> Registry::FindObjects(std::string_view name, std::string_view type)
 {
+    if (name == "" && type == "")
+        return {};
+
     std::vector<ObjectHandle> results = {};
     for (auto& kv : _objects)
     {
         Object& object = kv.second;
         bool match = false;
-        if (name != "" && object.Has("Name") && std::get<string>(object.Property("Name").Value) == name)
-            match = true;
-        if (type != "" && object.Has("Type") && std::get<string>(object.Property("Type").Value) == type)
-            match = true;
-
+        if (name != "")
+        {
+            if (object.Has("Name") && std::get<string>(object.Property("Name").Value) == name)
+                match == true;
+            else
+                continue;
+        }
+        if (type != "")
+        {
+            if (object.Has("Type") && std::get<string>(object.Property("Type").Value) == type)
+                match = true;
+            else
+                continue;
+        }
         if (match)
             results.push_back({ &object });
     }
     return results;
 }
 
-ObjectHandle Registry::FindObject(std::string_view name, std::string_view type)
+ObjectHandle Registry::FindObject(std::string_view name, std::string_view type, const bool locking)
 {
+    if (locking) _objectCreationLock.lock();
     for (auto& kv : _objects)
     {
         Object& object = kv.second;
         bool match = false;
-        if (name != "" && object.Has("Name") && std::get<string>(object.Property("Name").Value) == name)
-            return { &object };
-        if (type != "" && object.Has("Type") && std::get<string>(object.Property("Type").Value) == type)
-            return { &object };
+        if (name != "")
+        {
+            if (object.Has("Name") && std::get<string>(object.Property("Name").Value) == name)
+                match == true;
+            else
+                continue;
+        }
+        if (type != "")
+        {
+            if (object.Has("Type") && std::get<string>(object.Property("Type").Value) == type)
+                match = true;
+            else
+                continue;
+        }
+
+        if (match)
+        {
+            if (locking) _objectCreationLock.unlock();
+            return ObjectHandle{ &object };
+        }
     }
+
+    if (locking) _objectCreationLock.unlock();
     return NullObjectHandle;
+}
+
+BufferHandle Registry::FindBuffer(std::string_view name, const bool locking)
+{
+    if (locking) _bufferCreationLock.lock();
+    for (auto& kv : _buffers)
+    {
+        RegistryBuffer& buffer = kv.second;
+        if (buffer.Name == name)
+        {
+            if (locking) _bufferCreationLock.unlock();
+            return { &buffer };
+        }
+    }
+    if (locking) _bufferCreationLock.unlock();
+    return NullBufferHandle;
 }
 
 Object& Registry::GetObjectByUID(u64 uid)
@@ -641,7 +744,7 @@ PropertyHandle ObjectHandle::Property(std::string_view name)
         if (_object->Properties[i].Name == name)
             return { _object, (u32)i }; //Property found
 
-    //Property not found. Add it to the object and return its handle
+    //Property not found. Add it to the buffer and return its handle
     RegistryProperty& prop = _object->Properties.emplace_back();
     prop.Name = string(name);
     return { _object, (u32)(_object->Properties.size() - 1) };
@@ -671,6 +774,26 @@ bool ObjectHandle::operator==(ObjectHandle other)
     return _object == other._object;
 }
 
+std::vector<ObjectHandle>& ObjectHandle::GetObjectList(std::string_view propertyName)
+{
+    return Property(propertyName).GetObjectList();
+}
+
+std::vector<string>& ObjectHandle::GetStringList(std::string_view propertyName)
+{
+    return Property(propertyName).GetStringList();
+}
+
+void ObjectHandle::SetObjectList(std::string_view propertyName, const std::vector<ObjectHandle>& value)
+{
+    Property(propertyName).SetObjectList(value);
+}
+
+void ObjectHandle::SetStringList(std::string_view propertyName, const std::vector<string>& value)
+{
+    Property(propertyName).SetStringList(value);
+}
+
 RegistryProperty& Object::Property(std::string_view name)
 {
     //Search for property
@@ -678,7 +801,7 @@ RegistryProperty& Object::Property(std::string_view name)
         if (prop.Name == name)
             return prop;
 
-    //Property not found. Add it to the object
+    //Property not found. Add it to the buffer
     RegistryProperty& prop = Properties.emplace_back();
     prop.Name = string(name);
     return prop;
@@ -696,7 +819,7 @@ bool Object::Has(std::string_view propertyName)
 std::optional<std::vector<u8>> RegistryBuffer::Load()
 {
     std::lock_guard<std::mutex> lock(*Mutex.get());
-    string filePath = fmt::format("{}\\{}.{}.buffer", Registry::Get().Path(), Name, UID);
+    string filePath = fmt::format("{}\\Buffers\\{}.{}.buffer", Registry::Get().Path(), Name, UID);
     if (!std::filesystem::exists(filePath))
         return {};
 
@@ -706,7 +829,12 @@ std::optional<std::vector<u8>> RegistryBuffer::Load()
 bool RegistryBuffer::Save(std::span<u8> bytes)
 {
     std::lock_guard<std::mutex> lock(*Mutex.get());
-    string filePath = fmt::format("{}\\{}.{}.buffer", Registry::Get().Path(), Name, UID);
+    //Ensure buffers folder exists
+    string buffersPath = fmt::format("{}\\Buffers\\", Registry::Get().Path());
+    Path::CreatePath(buffersPath);
+
+    //Save buffer to file
+    string filePath = fmt::format("{}{}.{}.buffer", buffersPath, Name, UID);
     File::WriteToFile(filePath, bytes);
     Size = bytes.size_bytes();
     return true;

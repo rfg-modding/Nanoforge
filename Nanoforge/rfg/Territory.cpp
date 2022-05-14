@@ -18,6 +18,7 @@
 #include "render/resources/Scene.h"
 #include "application/Registry.h"
 #include "rfg/import/Importers.h"
+#include "gui/util/WinUtil.h"
 #include <RfgTools++\formats\zones\ZoneFile.h>
 
 //Todo: Separate gui specific code into a different file or class
@@ -56,6 +57,11 @@ Handle<Task> Territory::LoadAsync(Handle<Scene> scene, GuiState* state)
     return; \
 } \
 
+ObjectHandle FindTerritory(std::string_view territoryFilename)
+{
+    return Registry::Get().FindObject(territoryFilename, "Territory");
+}
+
 void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state)
 {
     PROFILER_FUNCTION();
@@ -63,95 +69,47 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     {
         Sleep(50);
     }
-
     EarlyStopCheck();
     LoadThreadTimer.Reset();
+
+    //Ensure territory is imported
+    Object = FindTerritory(territoryFilename_);
+    if (!Object)
+    {
+        //Not found. Import territory
+        Timer timer(true);
+        state->SetStatus(ICON_FA_SYNC " Importing " + territoryShortname_ + ". This might take a while. Subsequent loads will be much quicker...", Working);
+        Object = Importers::ImportTerritory(territoryFilename_, state->PackfileVFS, state->TextureSearchIndex, &loadThreadShouldStop_);
+        if (!Object)
+        {
+            ToastNotification(fmt::format("Failed to import {}. Check logs.", territoryShortname_), "Map import error");
+            LOG_ERROR("Failed to load territory. Check logs.");
+            return;
+        }
+        ToastNotification(fmt::format("Finished importing {}", territoryShortname_), "Map import complete");
+
+        for (ObjectHandle zone : Object.GetObjectList("Zones"))
+            SetZoneShortName(zone); //Set shorthand names for each zone (used in UI to save space). E.g. terr01_04_07.rfgzone_pc -> 04_07 (xz coords)
+
+        Log->info("Imported {} in {}s", territoryShortname_, timer.ElapsedSecondsPrecise());
+    }
+    EarlyStopCheck();
+
     state->SetStatus(ICON_FA_SYNC " Loading " + territoryShortname_ + "...", Working);
 
-    //Get packfile with zone files
-    Log->info("Loading territory data for {}...", territoryFilename_);
-    Handle<Packfile3> packfile = packfileVFS_->GetPackfile(territoryFilename_);
-    if (!packfile)
-    {
-        LOG_ERROR("Could not find territory file {} in data folder. Required to load the territory.", territoryFilename_);
-        return;
-    }
+    //Create terrain instance for each zone
+    for (ObjectHandle zone : Object.GetObjectList("Zones"))
+        TerrainInstances.push_back({});
 
-    //Get mission and activity zones (layer_pc files) if territory has any
-    std::vector<FileHandle> missionLayerFiles = {};
-    std::vector<FileHandle> activityLayerFiles = {};
-    {
-        PROFILER_SCOPED("Find mission and activity zones");
-        if (String::Contains(territoryFilename_, "terr01"))
-        {
-            missionLayerFiles = packfileVFS_->GetFiles("missions.vpp_pc", "*.layer_pc", true, false);
-            activityLayerFiles = packfileVFS_->GetFiles("activities.vpp_pc", "*.layer_pc", true, false);
-        }
-        else if (String::Contains(territoryFilename_, "dlc01"))
-        {
-            missionLayerFiles = packfileVFS_->GetFiles("dlcp01_missions.vpp_pc", "*.layer_pc", true, false);
-            activityLayerFiles = packfileVFS_->GetFiles("dlcp01_activities.vpp_pc", "*.layer_pc", true, false);
-        }
-    }
-    EarlyStopCheck();
-
-    //Reserve enough space for all possible zones
-    size_t maxZoneCount = packfile->Entries.size() + missionLayerFiles.size() + activityLayerFiles.size();
-    Zones.reserve(maxZoneCount);
-    TerrainInstances.reserve(maxZoneCount);
-
-    //Spawn a thread for each zone
+    //Already imported. Queue tasks to load each zone
     std::vector<Handle<Task>> zoneLoadTasks;
-    for (u32 i = 0; i < packfile->Entries.size(); i++)
+    size_t i = 0;
+    for (ObjectHandle zone : Object.GetObjectList("Zones"))
     {
-        const char* filename = packfile->EntryNames[i];
-        string extension = Path::GetExtension(filename);
-        if (extension != ".rfgzone_pc")
-            continue;
-
-        //Queue task to load this zone
-        Handle<Task> zoneLoadTask = Task::Create(fmt::format("Loading {}...", filename));
-        TaskScheduler::QueueTask(zoneLoadTask, std::bind(&Territory::LoadWorkerThread, this, zoneLoadTask, scene, state, packfile, filename));
+        Handle<Task> zoneLoadTask = Task::Create(fmt::format("Loading {}...", zone.Get<string>("Name")));
+        TaskScheduler::QueueTask(zoneLoadTask, std::bind(&Territory::LoadZoneWorkerThread, this, zoneLoadTask, scene, zone, i, state));
         zoneLoadTasks.push_back(zoneLoadTask);
-    }
-    EarlyStopCheck();
-
-    //Load mission zones
-    EarlyStopCheck();
-    {
-        PROFILER_SCOPED("Load mission layers");
-        for (FileHandle& layerFile : missionLayerFiles)
-        {
-            ObjectHandle zone = Importers::ImportZoneFile(layerFile.Get(), layerFile.Filename(), territoryFilename_);
-            if (zone.Valid())
-            {
-                ZoneFilesLock.lock();
-                Zones.push_back(zone);
-                ZoneFilesLock.unlock();
-                SetZoneShortName(zone);
-                zone.Property("MissionLayer").Set<bool>(true);
-                zone.Property("RenderBoundingBoxes").Set<bool>(false);
-            }
-        }
-    }
-
-    //Load activity zones
-    EarlyStopCheck();
-    {
-        PROFILER_SCOPED("Load activity layers");
-        for (FileHandle& layerFile : activityLayerFiles)
-        {
-            ObjectHandle zone = Importers::ImportZoneFile(layerFile.Get(), layerFile.Filename(), territoryFilename_);
-            if (zone.Valid())
-            {
-                ZoneFilesLock.lock();
-                Zones.push_back(zone);
-                ZoneFilesLock.unlock();
-                SetZoneShortName(zone);
-                zone.Property("ActivityLayer").Set<bool>(true);
-                zone.Property("RenderBoundingBoxes").Set<bool>(false);
-            }
-        }
+        i++;
     }
 
     //Wait for all workers to finish
@@ -161,20 +119,15 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
             loadTask->Wait();
     }
 
-    EarlyStopCheck();
-    //Sort vector by object count for convenience
-    std::sort(Zones.begin(), Zones.end(),
-    [](ObjectHandle zoneA, ObjectHandle zoneB)
-    {
-        return zoneA.Property("NumObjects").Get<u32>() > zoneB.Property("NumObjects").Get<u32>();
-    });
-
     //Get zone name with most characters for UI purposes
     u32 longest = 0;
-    for (ObjectHandle zone : Zones)
+    for (ObjectHandle zone : Object.GetObjectList("Zones"))
         if (size_t len = zone.Property("ShortName").Get<string>().length(); len > longest)
             longest = (u32)len;
     LongestZoneName = longest;
+
+    for (ObjectHandle zone : Object.GetObjectList("Zones"))
+        Zones.push_back(zone);
 
     //Init object class data used for filtering and labelling
     EarlyStopCheck();
@@ -186,388 +139,258 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     ready_ = true;
 }
 
-void Territory::LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Handle<Packfile3> packfile, const char* zoneFilename)
+void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, ObjectHandle zone, size_t terrainIndex, GuiState* state)
 {
     SubThreadEarlyStopCheck();
     PROFILER_FUNCTION();
-
-    //Load zone
     Registry& registry = Registry::Get();
-    ObjectHandle zone = NullObjectHandle; // zoneBytes.has_value() ? Importers::ImportZoneFile(zoneBytes.value(), zoneFilename, territoryFilename_) : NullObjectHandle;
-    std::optional<std::vector<u8>> zoneBytes = packfile->ExtractSingleFile(zoneFilename);
-    if (zoneBytes.has_value())
+    if (!zone.Has("Terrain") || !zone.IsType<ObjectHandle>("Terrain"))
+        return;
+
+    ObjectHandle terrain = zone.Get<ObjectHandle>("Terrain");
+    TerrainInstance& terrainInstance = TerrainInstances[terrainIndex];
+    terrainInstance.Name = terrain.Get<string>("Name");
+    terrainInstance.Position = terrain.Get<Vec3>("Position");
+
+    //Load low lod terrain
     {
-        PROFILER_SCOPED("Load zone");
-        zone = Importers::ImportZoneFile(zoneBytes.value(), zoneFilename, territoryFilename_);
-        if (zone.Valid())
+        PROFILER_SCOPED("Load low lod terrain");
+        ObjectHandle lowLodTerrain = terrain.Get<ObjectHandle>("LowLod");
+        std::optional<Texture2D> texture0 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, lowLodTerrain.Get<ObjectHandle>("CombTexture"));
+        std::optional<Texture2D> texture1 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, lowLodTerrain.Get<ObjectHandle>("OvlTexture"));
+        if (!texture0 || !texture1)
         {
-            ZoneFilesLock.lock();
-            Zones.push_back(zone);
-            ZoneFilesLock.unlock();
-            SetZoneShortName(zone);
-        }
-    }
-
-    //Get terrain filename from obj_zone object
-    ObjectHandle objZone = GetZoneObject(zone, "obj_zone");
-    PropertyHandle terrainFilenameProperty = objZone ? GetZoneProperty(objZone, "terrain_file_name") : NullPropertyHandle;
-
-    //Determine zone position
-    if (!objZone || !terrainFilenameProperty)
-        return; //No terrain
-
-    string terrainName = terrainFilenameProperty.Get<string>();
-    if (terrainName.ends_with('\0'))
-        terrainName.pop_back(); //Remove extra null terminators
-
-    Vec3 objZoneBmin = objZone.Property("Bmin").Get<Vec3>();
-    Vec3 objZoneBmax = objZone.Property("Bmax").Get<Vec3>();
-    Vec3 objZoneBbCenter = objZoneBmin + (objZoneBmax - objZoneBmin);
-
-    //Create new terrain instance
-    TerrainLock.lock();
-    TerrainInstance& terrain = TerrainInstances.emplace_back();
-    TerrainLock.unlock();
-    terrain.Name = terrainName;
-    terrain.Position = objZoneBbCenter;//zone.Property("Position").Get<Vec3>(); //objZoneObject->Bmin + ((objZoneObject->Bmax - objZoneObject->Bmin) / 2.0f);
-
-    SubThreadEarlyStopCheck();
-    {
-        PROFILER_SCOPED("Load low lod terrain")
-        std::vector<MeshInstanceData> lowLodMeshes = { };
-
-        std::optional<Texture2D> texture0 = {};
-        std::optional<Texture2D> texture1 = {};
-
-        string lowLodTerrainName = terrainName + ".cterrain_pc";
-        auto lowLodTerrainCpuFileHandles = state->PackfileVFS->GetFiles(lowLodTerrainName, true, true);
-        if (lowLodTerrainCpuFileHandles.size() == 0)
-        {
-            Log->info("Low lod terrain files not found for {}. Halting loading for that zone.", zone.Property("Name").Get<string>());
-            return;
-        }
-        FileHandle terrainMesh = lowLodTerrainCpuFileHandles[0];
-
-        //Get packfile that holds terrain meshes
-        Handle<Packfile3> container = terrainMesh.GetContainer();
-        if (!container)
-        {
-            LOG_ERROR("Failed to extract container for a low lod terrain mesh \"{}\"", lowLodTerrainName);
+            LOG_ERROR("Failed to load textures for low lod terrain of zone '{}'", zone.Get<string>("Name"));
             return;
         }
 
-        //Extract mesh file
-        std::optional<std::vector<u8>> cpuFileBytes = container->ExtractSingleFile(terrainMesh.Filename(), true);
-        std::optional<std::vector<u8>> gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc", true);
-        if (!cpuFileBytes)
-        {
-            LOG_ERROR("Failed to extract low lod terrain mesh cpu file \"{}\"", terrainMesh.Filename());
-            return;
-        }
-        if (!gpuFileBytes)
-        {
-            LOG_ERROR("Failed to extract lod lod terrain mesh gpu file \"{}\"", Path::GetFileNameNoExtension(terrainMesh.Filename()) + ".gterrain_pc");
-            return;
-        }
-
-        //Parse mesh
-        BinaryReader cpuFile(cpuFileBytes.value());
-        BinaryReader gpuFile(gpuFileBytes.value());
-        terrain.DataLowLod.Read(cpuFile, terrainMesh.Filename());
-
-        //Get vertex data. Each terrain file is made up of 9 meshes which are stitched together
-        for (u32 i = 0; i < 9; i++)
+        for (ObjectHandle mesh : lowLodTerrain.GetObjectList("Meshes"))
         {
             SubThreadEarlyStopCheck();
-            std::optional<MeshInstanceData> meshData = terrain.DataLowLod.ReadMeshData(gpuFile, i);
-            if (!meshData.has_value())
-            {
-                LOG_ERROR("Failed to read submesh {} from {}.", i, terrainMesh.Filename());
+            //TODO: Change renderer so it can accept registry meshes directly
+            std::optional<MeshInstanceData> meshData = LoadRegistryMesh(mesh);
+            if (!meshData)
                 continue;
-            }
 
-            lowLodMeshes.push_back(meshData.value());
-        }
-
-        //Load comb and ovl textures, used to color and light low lod terrain, respectively.
-        SubThreadEarlyStopCheck();
-        texture0 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "comb.tga");
-        texture1 = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_ovl.tga");
-
-        //Initialize low lod terrain
-        for (u32 i = 0; i < lowLodMeshes.size(); i++)
-        {
-            Handle<RenderObject> renderObject = scene->CreateRenderObject("TerrainLowLod", Mesh{ scene->d3d11Device_, lowLodMeshes[i] }, terrain.Position);
-            TerrainLock.lock();
-            terrain.LowLodMeshes.push_back(renderObject);
-            TerrainLock.unlock();
+            Handle<RenderObject> renderObject = scene->CreateRenderObject("TerrainLowLod", Mesh{ scene->d3d11Device_, meshData.value() }, terrain.Get<Vec3>("Position"));
             renderObject->Visible = !useHighLodTerrain_;
             renderObject->UseTextures = texture0.has_value() || texture1.has_value();
-            renderObject->Textures[0] = texture0;
-            renderObject->Textures[1] = texture1;
+            renderObject->Textures[0] = texture0.value();
+            renderObject->Textures[1] = texture1.value();
+            TerrainLock.lock();
+            terrainInstance.LowLodMeshes.push_back(renderObject);
+            TerrainLock.unlock();
         }
-    }
 
+        terrainInstance.DataLowLod = lowLodTerrain;
+    }
     SubThreadEarlyStopCheck();
-    if (useHighLodTerrain_)
+
+    //Load high lod terrain
+    for (size_t subzoneIndex = 0; subzoneIndex < terrain.GetObjectList("HighLod").size(); subzoneIndex++)
     {
-        PROFILER_SCOPED("Load high lod terrain");
-        std::vector<MeshInstanceData> highLodMeshes = { };
-        std::vector<std::tuple<u32, MeshInstanceData>> stitchMeshes = { }; //First part of tuple is subzone index, since not all of them have stitches
-        std::vector<std::tuple<u32, u32, MeshInstanceData>> roadMeshes = { }; //(submesh index, road mesh index, mesh data)
-
-        std::optional<Texture2D> blendTexture = {}; //Used to blend up to 4 other textures on high lod terrain
-        std::optional<Texture2D> combTexture = {}; //Used to adjust terrain colors
-        std::array<std::optional<Texture2D>, 8> materialTextures; //Up to 4 materials, each with one diffuse and normal map
-
-        //Search for high lod terrain mesh files. Should be 9 of them per zone.
-        u32 curSubzoneIndex = 0;
-        std::vector<FileHandle> highLodSearchResult = state->PackfileVFS->GetFiles(terrainName + "_*", true);
-        for (FileHandle& file : highLodSearchResult)
-        {
-            SubThreadEarlyStopCheck();
-            if (Path::GetExtension(file.Filename()) != ".ctmesh_pc")
-                continue;
-
-            //Valid high lod terrain file found. Load and parse it
-            PROFILER_SCOPED("Load .ctmesh_pc file");
-            Handle<Packfile3> container = file.GetContainer();
-            if (!container)
-            {
-                LOG_ERROR("Failed to get container pointer for a high lod terrain mesh {}\\{}", file.ContainerName(), file.Filename());
-                continue;
-            }
-
-            //Extract high lod mesh
-            std::optional<std::vector<u8>> cpuFileBytes = container->ExtractSingleFile(file.Filename(), true);
-            std::optional<std::vector<u8>> gpuFileBytes = container->ExtractSingleFile(Path::GetFileNameNoExtension(file.Filename()) + ".gtmesh_pc", true);
-            if (!cpuFileBytes)
-            {
-                LOG_ERROR("Failed to extract high lod terrain mesh cpu file from {}/{}", file.ContainerName(), file.Filename());
-                continue;
-            }
-            if (!gpuFileBytes)
-            {
-                LOG_ERROR("Failed to extract high lod terrain mesh gpu file from {}/{}", file.ContainerName(), file.Filename());
-                continue;
-            }
-
-            //Parse high lod mesh
-            BinaryReader cpuFile(cpuFileBytes.value());
-            BinaryReader gpuFile(gpuFileBytes.value());
-            Terrain& subzone = terrain.Subzones.emplace_back();
-            subzone.Read(cpuFile, file.Filename());
-
-            //Read terrain mesh data
-            std::optional<MeshInstanceData> meshData = subzone.ReadTerrainMeshData(gpuFile);
-            if (!meshData)
-            {
-                LOG_ERROR("Failed to read terrain mesh data for {}. Halting loading of subzone.", file.Filename());
-                continue;
-            }
-            highLodMeshes.push_back(meshData.value());
-
-            //Load stitch meshes
-            std::optional<MeshInstanceData> stitchMeshData = subzone.ReadStitchMeshData(gpuFile);
-            if (stitchMeshData)
-                stitchMeshes.push_back({ curSubzoneIndex, stitchMeshData.value() });
-
-            //Load road meshes
-            std::optional<std::vector<MeshInstanceData>> roadMeshData = subzone.ReadRoadMeshData(gpuFile);
-            if (roadMeshData)
-            {
-                for (u32 j = 0; j < roadMeshData.value().size(); j++)
-                {
-                    auto& roadMesh = roadMeshData.value()[j];
-                    roadMeshes.push_back({ curSubzoneIndex, j, roadMesh });
-                }
-            }
-            curSubzoneIndex++;
-        }
         SubThreadEarlyStopCheck();
+        ObjectHandle highLodTerrain = terrain.GetObjectList("HighLod")[subzoneIndex];
+        terrainInstance.Subzones.push_back(highLodTerrain);
 
-        //Load blend texture
-        blendTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "_alpha00.tga");
-        combTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, terrainName + "comb.tga");
-
-        //Locate and load high lod terrain textures
-        u32 terrainTextureIndex = 0;
-        u32 numTerrainTextures = 0;
-        std::vector<string>& terrainTextureNames = terrain.DataLowLod.TerrainMaterialNames;
-        while (terrainTextureIndex < terrainTextureNames.size() - 1 && numTerrainTextures < 4)
+        bool anyTextureValid = false;
+        std::array<std::optional<Texture2D>, 10> textures;
+        for (size_t i = 0; i < 10; i++)
         {
-            PROFILER_SCOPED("Find high lod texture");
-            SubThreadEarlyStopCheck();
-            string current = terrainTextureNames[terrainTextureIndex];
-            string next = terrainTextureNames[terrainTextureIndex + 1];
-
-            //Ignored texture, skip. Likely used by game as a holdin when terrain has < 4 materials
-            if (String::EqualIgnoreCase(current, "misc-white.tga"))
-            {
-                terrainTextureIndex += 2; //Skip 2 since it's always followed by flat-normalmap.tga, which is also ignored
-                continue;
-            }
-            //These are ignored since we already load them by default
-            if (String::Contains(current, "alpha00.tga") || String::Contains(current, "comb.tga"))
-            {
-                terrainTextureIndex++;
-                continue;
-            }
-
-            //If current is a normal texture try to find the matching diffuse texture
-            if (String::Contains(String::ToLower(current), "_n.tga"))
-            {
-                next = current;
-                current = String::Replace(current, "_n", "_d");
-            }
-            else if (!String::Contains(String::ToLower(current), "_d.tga") || !String::Contains(String::ToLower(next), "_n.tga"))
-            {
-                //Isn't a diffuse or normal texture. Ignore
-                terrainTextureIndex++;
-                continue;
-            }
-
-            //Load textures
-            materialTextures[numTerrainTextures * 2] = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, current);
-            materialTextures[numTerrainTextures * 2 + 1] = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, next);
-
-            numTerrainTextures++;
-            terrainTextureIndex += 2;
+            ObjectHandle textureObject = highLodTerrain.Get<ObjectHandle>(fmt::format("Texture{}", i));
+            std::optional<Texture2D> texture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, textureObject);
+            textures[i] = texture;
+            if (texture)
+                anyTextureValid = true;
         }
 
-        //Initialize high lod terrain
-        for (u32 i = 0; i < 9; i++)
+        //Load terrain mesh
         {
-            PROFILER_SCOPED("Construct high lod mesh")
-            SubThreadEarlyStopCheck();
-            auto& subzone = terrain.Subzones[i];
-            Handle<RenderObject> renderObject = scene->CreateRenderObject("Terrain", Mesh{scene->d3d11Device_, highLodMeshes[i]}, subzone.Subzone.Position);
+            ObjectHandle mesh = highLodTerrain.Get<ObjectHandle>("Mesh");
+            std::optional<MeshInstanceData> meshData = LoadRegistryMesh(mesh);
+            if (!meshData)
+                continue;
+
+            Handle<RenderObject> renderObject = scene->CreateRenderObject("Terrain", Mesh{ scene->d3d11Device_, meshData.value() }, highLodTerrain.Get<Vec3>("Position"));
+            renderObject->Visible = useHighLodTerrain_;
+            renderObject->UseTextures = anyTextureValid;
+            for (size_t i = 0; i < 10; i++)
+                renderObject->Textures[i] = textures[i];
+
             TerrainLock.lock();
-            terrain.HighLodMeshes.push_back(renderObject);
+            terrainInstance.HighLodMeshes.push_back(renderObject);
             TerrainLock.unlock();
-
-            //Set textures
-            bool anyTextures = std::ranges::any_of(materialTextures, [](std::optional<Texture2D>& tex) { return tex.has_value(); });
-            renderObject->UseTextures = anyTextures || blendTexture.has_value() || combTexture.has_value();
-            renderObject->Textures[0] = blendTexture;
-            renderObject->Textures[1] = combTexture;
-            for (u32 j = 0; j < materialTextures.size(); j++)
-                renderObject->Textures[j + 2] = materialTextures[j];
-
-            scene->NeedsRedraw = true; //Redraw scene when new terrain meshes are added
         }
 
-        //Initialize stitch meshes
-        for (auto& stitch : stitchMeshes)
+        //Load stitch meshes if this instance has any
+        if (highLodTerrain.Has("StitchMesh") && highLodTerrain.GetObjectList("StitchInstances").size() > 0)
         {
-            PROFILER_SCOPED("Create stitch mesh");
-            SubThreadEarlyStopCheck();
-            u32 subzoneIndex = std::get<0>(stitch);
-            MeshInstanceData instanceData = std::get<1>(stitch);
-            Terrain& subzone = terrain.Subzones[subzoneIndex];
-            TerrainStitchInstance& roadStitch = subzone.StitchInstances.back(); //Final instance is for road stitch meshes
-            Handle<RenderObject> stitchObject = scene->CreateRenderObject("TerrainStitch", Mesh{ scene->d3d11Device_, instanceData }, roadStitch.Position);
+            ObjectHandle stitchMesh = highLodTerrain.Get<ObjectHandle>("StitchMesh");
+            std::optional<MeshInstanceData> stitchMeshData = LoadRegistryMesh(stitchMesh);
+            if (!stitchMeshData)
+                continue;
+
+            //Todo: Load other stitch meshes (a bunch of rocks). Currently only loads road stitch meshes since the rocks are stored in separate files.
+            Vec3 stitchPos = highLodTerrain.GetObjectList("StitchInstances").back().Get<Vec3>("Position");
+            Handle<RenderObject> stitchObject = scene->CreateRenderObject("TerrainStitch", Mesh{ scene->d3d11Device_, stitchMeshData.value() }, stitchPos);
+            stitchObject->Visible = useHighLodTerrain_;
+            stitchObject->UseTextures = anyTextureValid;
+            for (size_t i = 0; i < 10; i++)
+                stitchObject->Textures[i] = textures[i];
 
             TerrainLock.lock();
-            terrain.StitchMeshes.push_back(StitchMesh{.Mesh = stitchObject, .SubzoneIndex = subzoneIndex });
+            terrainInstance.StitchMeshes.push_back(StitchMesh{ .Mesh = stitchObject, .SubzoneIndex = (u32)subzoneIndex });
             TerrainLock.unlock();
-
-            //Set textures
-            bool anyTextures = std::ranges::any_of(materialTextures, [](std::optional<Texture2D>& tex) { return tex.has_value(); });
-            stitchObject->UseTextures = anyTextures || blendTexture.has_value() || combTexture.has_value();
-            stitchObject->Textures[0] = blendTexture;
-            stitchObject->Textures[1] = combTexture;
-            for (u32 i = 0; i < materialTextures.size(); i++)
-                stitchObject->Textures[i + 2] = materialTextures[i];
+        }
+        else if (highLodTerrain.Has("StitchMesh"))
+        {
+            Log->warn("Couldn't load stitch meshes for {}. Necessary data not found.", highLodTerrain.Get<string>("Name"));
+            continue;
         }
 
-        //Initialize road meshes
-        for (auto& road : roadMeshes)
+        //Load road meshes
+        for (ObjectHandle roadMesh : highLodTerrain.GetObjectList("RoadMeshes"))
         {
-            PROFILER_SCOPED("Create road mesh");
-            SubThreadEarlyStopCheck();
-            u32 subzoneIndex = std::get<0>(road);
-            u32 roadIndex = std::get<1>(road);
-            MeshInstanceData instanceData = std::get<2>(road);
-            Terrain& subzone = terrain.Subzones[subzoneIndex];
-            RoadMeshData& roadData = subzone.RoadMeshDatas[roadIndex];
-            Handle<RenderObject> roadObject = scene->CreateRenderObject("TerrainRoad", Mesh{ scene->d3d11Device_, instanceData }, roadData.Position);
+            std::optional<MeshInstanceData> meshData = LoadRegistryMesh(roadMesh);
+            if (!meshData)
+                continue;
 
-            TerrainLock.lock();
-            terrain.RoadMeshes.push_back(RoadMesh{ .Mesh = roadObject, .SubzoneIndex = subzoneIndex });
-            TerrainLock.unlock();
-
-            //Locate and load road textures
-            std::array<std::optional<Texture2D>, 8> roadTextures; //Up to 4 materials, each with one diffuse and normal map
-            u32 roadTextureIndex = 0;
-            u32 numRoadTextures = 0;
-            std::vector<string>& roadTextureNames = subzone.RoadTextures[roadIndex];
-            while (roadTextureIndex < roadTextureNames.size() - 1 && numRoadTextures < 4)
+            bool anyRoadTextureValid = false;
+            std::array<std::optional<Texture2D>, 10> roadTextures;
+            for (size_t i = 0; i < 10; i++)
             {
-                PROFILER_SCOPED("Find road texture");
-                string current = roadTextureNames[roadTextureIndex];
-                string next = roadTextureNames[roadTextureIndex + 1];
-
-                //Ignored texture, skip. Likely used by game as a holdin when terrain has < 4 materials
-                if (String::EqualIgnoreCase(current, "misc-white.tga"))
-                {
-                    roadTextureIndex += 2; //Skip 2 since it's always followed by flat-normalmap.tga, which is also ignored
-                    continue;
-                }
-                //These are ignored since we already load them by default
-                if (String::Contains(current, "alpha00.tga") || String::Contains(current, "comb.tga"))
-                {
-                    roadTextureIndex++;
-                    continue;
-                }
-
-                //If current is a normal texture try to find the matching diffuse texture
-                if (String::Contains(String::ToLower(current), "_n.tga"))
-                {
-                    next = current;
-                    current = String::Replace(current, "_n", "_d");
-                }
-                else if (!String::Contains(String::ToLower(current), "_d.tga") || !String::Contains(String::ToLower(next), "_n.tga"))
-                {
-                    //Isn't a diffuse or normal texture. Ignore
-                    roadTextureIndex++;
-                    continue;
-                }
-
-                //Load textures
-                roadTextures[numRoadTextures * 2] = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, current);
-                roadTextures[numRoadTextures * 2 + 1] = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, next);
-
-                numRoadTextures++;
-                roadTextureIndex += 2;
+                ObjectHandle textureObject = roadMesh.Get<ObjectHandle>(fmt::format("Texture{}", i));
+                std::optional<Texture2D> texture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, textureObject);
+                roadTextures[i] = texture;
+                if (texture)
+                    anyRoadTextureValid = true;
             }
 
-            //Set textures
-            bool anyRoadTextures = std::ranges::any_of(roadTextures, [](std::optional<Texture2D>& tex) { return tex.has_value(); });
-            roadObject->UseTextures = anyRoadTextures || blendTexture.has_value() || combTexture.has_value();
-            roadObject->Textures[0] = blendTexture;
-            roadObject->Textures[1] = combTexture;
-            for (u32 i = 0; i < roadTextures.size(); i++)
-                roadObject->Textures[i + 2] = roadTextures[i];
+            //Todo: Load other stitch meshes (a bunch of rocks). Currently only loads road stitch meshes since the rocks are stored in separate files.
+            Handle<RenderObject> renderObject = scene->CreateRenderObject("TerrainRoad", Mesh{ scene->d3d11Device_, meshData.value() }, roadMesh.Get<Vec3>("Position"));
+            renderObject->Visible = useHighLodTerrain_;
+            renderObject->UseTextures = anyRoadTextureValid;
+            for (size_t i = 0; i < 10; i++)
+                renderObject->Textures[i] = roadTextures[i];
+
+            TerrainLock.lock();
+            terrainInstance.RoadMeshes.push_back(RoadMesh{ .Mesh = renderObject, .SubzoneIndex = (u32)subzoneIndex });
+            TerrainLock.unlock();
         }
     }
+
+    terrainInstance.Loaded = true;
 }
 
-std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, const string& textureName)
+std::optional<MeshInstanceData> Territory::LoadRegistryMesh(ObjectHandle mesh)
+{
+    MeshInstanceData data;
+    BufferHandle indexBuffer = mesh.Get<BufferHandle>("Indices");
+    BufferHandle vertexBuffer = mesh.Get<BufferHandle>("Vertices");
+    if (!indexBuffer || !vertexBuffer)
+    {
+        LOG_ERROR("Failed to load registry mesh '{}'. Null buffer handle. UIDs: {}, {}", mesh.Get<string>("Name"), indexBuffer.UID(), vertexBuffer.UID());
+        return {};
+    }
+
+    std::optional<std::vector<u8>> indices = indexBuffer.Load();
+    std::optional<std::vector<u8>> vertices = vertexBuffer.Load();
+    if (!indices || !vertices)
+    {
+        //TODO: Add option to reload the mesh from packfiles. Would allow people to delete buffers or exclude them from git repos (saves of 644MB on main map)
+        LOG_ERROR("Failed to load registry mesh '{}'. Failed to locate meshes. UIDs: {}, {}", mesh.Get<string>("Name"), indexBuffer.UID(), vertexBuffer.UID());
+        return {};
+    }
+    data.IndexBuffer = indices.value();
+    data.VertexBuffer = vertices.value();
+
+    MeshDataBlock& header = data.Info;
+    header.Version = mesh.Get<u32>("Version");
+    header.VerificationHash = mesh.Get<u32>("VerificationHash");
+    header.CpuDataSize = mesh.Get<u32>("CpuDataSize");
+    header.GpuDataSize = mesh.Get<u32>("GpuDataSize");
+    header.NumSubmeshes = mesh.Get<u32>("NumSubmeshes");
+    header.SubmeshesOffset = mesh.Get<u32>("SubmeshesOffset");
+    header.NumVertices = mesh.Get<u32>("NumVertices");
+    header.VertexStride0 = mesh.Get<u8>("VertexStride0");
+    header.VertFormat = (VertexFormat)mesh.Get<u8>("VertexFormat");
+    header.NumUvChannels = mesh.Get<u8>("NumUvChannels");
+    header.VertexStride1 = mesh.Get<u8>("VertexStride1");
+    header.VertexOffset = mesh.Get<u32>("VertexOffset");
+    header.NumIndices = mesh.Get<u32>("NumIndices");
+    header.IndicesOffset = mesh.Get<u32>("IndicesOffset");
+    header.IndexSize = mesh.Get<u8>("IndexSize");
+    header.PrimitiveType = (PrimitiveTopology)mesh.Get<u8>("PrimitiveType");
+    header.NumRenderBlocks = mesh.Get<u16>("NumRenderBlocks");
+
+    for (ObjectHandle submeshObj : mesh.GetObjectList("Submeshes"))
+    {
+        SubmeshData& submesh = header.Submeshes.emplace_back();
+        submesh.NumRenderBlocks = submeshObj.Get<u32>("NumRenderBlocks");
+        submesh.Offset = submeshObj.Get<Vec3>("Offset");
+        submesh.Bmin = submeshObj.Get<Vec3>("Bmin");
+        submesh.Bmax = submeshObj.Get<Vec3>("Bmax");
+        submesh.RenderBlocksOffset = submeshObj.Get<u32>("RenderBlocksOffset");
+    }
+
+    for (ObjectHandle blockObj : mesh.GetObjectList("RenderBlocks"))
+    {
+        RenderBlock& renderBlock = header.RenderBlocks.emplace_back();
+        renderBlock.MaterialMapIndex = blockObj.Get<u16>("MaterialMapIndex");
+        renderBlock.StartIndex = blockObj.Get<u32>("StartIndex");
+        renderBlock.NumIndices = blockObj.Get<u32>("NumIndices");
+        renderBlock.MinIndex = blockObj.Get<u32>("MinIndex");
+        renderBlock.MaxIndex = blockObj.Get<u32>("MaxIndex");
+    }
+
+    return data;
+}
+
+std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, ObjectHandle texture)
 {
     PROFILER_FUNCTION();
+    if (!texture)
+        return {};
 
-    //Check if the texture was already loaded
-    auto cacheSearch = textureCache_.find(String::ToLower(textureName));
+    std::lock_guard<std::mutex> lock(textureCacheLock_);
+
+    //Check cache first
+    auto cacheSearch = textureCache_.find(texture.Get<string>("Name"));
     if (cacheSearch != textureCache_.end())
         return cacheSearch->second;
 
-    //Load texture
-    std::optional<Texture2D> texture = textureSearchIndex->GetRenderTexture(textureName, d3d11Device);
-    if (texture.has_value()) //Cache texture if successful
-        textureCache_[String::ToLower(textureName)] = texture.value();
+    //Not cached yet, load it
+    {
+        PROFILER_SCOPED(fmt::format("Loading {}", texture.Get<string>("Name")).c_str());
+        BufferHandle pixelBuffer = texture.Get<BufferHandle>("Pixels");
+        if (!pixelBuffer)
+        {
+            LOG_ERROR("Failed to load registry texture '{}'. Null buffer handle. UID: {}", texture.Get<string>("Name"), pixelBuffer.UID());
+            return {};
+        }
+        std::optional<std::vector<u8>> pixels = pixelBuffer.Load();
+        if (!pixels)
+        {
+            LOG_ERROR("Failed to load registry texture '{}'. Empty. UID: {}", texture.Get<string>("Name"), pixelBuffer.UID());
+            return {};
+        }
 
-    return texture;
+        //One subresource data per mip level
+        DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat((PegFormat)texture.Get<u16>("Format"), texture.Get<u16>("Flags"));
+        std::vector<D3D11_SUBRESOURCE_DATA> textureData = PegHelpers::CalcSubresourceData(texture, pixels.value());
+        D3D11_SUBRESOURCE_DATA* subresourceData = textureData.size() > 0 ? textureData.data() : nullptr;
+
+        //Create renderer texture
+        Texture2D texture2d;
+        texture2d.Name = texture.Get<string>("Name");
+        texture2d.Create(d3d11Device, texture.Get<u16>("Width"), texture.Get<u16>("Height"), format, D3D11_BIND_SHADER_RESOURCE, subresourceData, texture.Get<u8>("MipLevels"));
+        texture2d.CreateShaderResourceView(); //Need shader resource view to use it in shader
+        texture2d.CreateSampler(); //Need sampler too
+
+        //Cache for future loads
+        textureCache_[texture.Get<string>("Name")] = texture2d;
+        return texture2d;
+    }
 }
 
 bool Territory::ShouldShowObjectClass(u32 classnameHash)
@@ -603,7 +426,7 @@ void Territory::UpdateObjectClassInstanceCounts()
         objectClass.NumInstances = 0;
 
     //Update instance count for each object class in visible zones
-    for (ObjectHandle zone : Zones)
+    for (ObjectHandle zone : Object.GetObjectList("Zones"))
     {
         if (!zone.Property("RenderBoundingBoxes").Get<bool>())
             continue;
@@ -680,7 +503,7 @@ void Territory::InitObjectClassData()
         {"obj_light",                      2915886275, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   true,  ICON_FA_LIGHTBULB " "}
     };
 
-    for (ObjectHandle zone : Zones)
+    for (ObjectHandle zone : Object.GetObjectList("Zones"))
     {
         for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         {

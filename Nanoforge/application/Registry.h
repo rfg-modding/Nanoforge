@@ -5,6 +5,7 @@
 #include <RfgTools++/types/Mat3.h>
 #include <map>
 #include "util/Hash.h"
+#include <shared_mutex>
 #include <stdexcept>
 #include <optional>
 #include <vector>
@@ -35,7 +36,7 @@ public:
     ObjectHandle GetObjectHandleByUID(u64 uid);
     BufferHandle CreateBuffer(std::span<u8> bytes = {}, std::string_view name = "");
     u64 NumObjects() const;
-    bool ObjectExists(u64 uid) const;
+    bool ObjectExists(u64 uid);
     //Load registry from folder
     bool Load(const string& inFolderPath);
     //Save registry to folder
@@ -45,7 +46,9 @@ public:
     //Find objects with given name + type. Object must have Name & Type properties to check
     std::vector<ObjectHandle> FindObjects(std::string_view name, std::string_view type = "");
     //Same as ::FindObjects() but only returns the first result
-    ObjectHandle FindObject(std::string_view name, std::string_view type = "");
+    ObjectHandle FindObject(std::string_view name, std::string_view type = "", const bool locking = false);
+    //Find first buffer with provided name. If locking == true it stops new buffers from being created during the search
+    BufferHandle FindBuffer(std::string_view name, const bool locking = false);
 private:
     ObjectHandle LoadObject(const std::vector<std::string_view>& lines, size_t entryLineStart); //Load object from lines of serialized registry. Returns null handle if it fails.
     BufferHandle LoadBuffer(const std::vector<std::string_view>& lines, size_t entryLineStart); //Same as ::LoadObject() but for buffers
@@ -58,8 +61,9 @@ private:
     std::map<u64, RegistryBuffer> _buffers = {};
     u64 _nextUID = 0;
     u64 _nextBufferUID = 0;
-    std::mutex _objectCreationLock;
-    std::mutex _bufferCreationLock;
+    //This type of mutex allows multiple readers or one writer. It's fine for multiple threads to read from _objects or _buffers at once, but writing must block access to them to prevent data races
+    std::shared_mutex _objectCreationLock;
+    std::shared_mutex _bufferCreationLock;
     string _folderPath;
 
     Object& GetObjectByUID(u64 uid);
@@ -72,6 +76,7 @@ private:
 class ObjectHandle
 {
 public:
+    ObjectHandle() { _object = nullptr; }
     ObjectHandle(Object* object);
     u64 UID() const;
     bool Valid() const;
@@ -82,6 +87,15 @@ public:
     bool Has(std::string_view propertyName);
     std::vector<PropertyHandle> Properties();
     bool operator==(ObjectHandle other);
+
+    //Shortcuts for property access instead of doing object.Property("propertyName").Get<T>(). Property will be created if it doesn't exist for Get<T>/Set<T>. IsType<T> returns false if the prop doesn't exist.
+    template<typename T> T Get(std::string_view propertyName);
+    template<typename T> void Set(std::string_view propertyName, T value);
+    template<typename T> bool IsType(std::string_view propertyName);
+    std::vector<ObjectHandle>& GetObjectList(std::string_view propertyName);
+    std::vector<string>& GetStringList(std::string_view propertyName);
+    void SetObjectList(std::string_view propertyName, const std::vector<ObjectHandle>& value);
+    void SetStringList(std::string_view propertyName, const std::vector<string>& value);
 
 private:
     Object* _object;
@@ -112,7 +126,7 @@ private:
 };
 
 //Value storage for Property
-using PropertyValue = std::variant<i32, u64, u32, u16, u8, f32, bool, string, std::vector<ObjectHandle>, Vec3, Mat3, ObjectHandle, BufferHandle>;
+using PropertyValue = std::variant<std::monostate, i32, u64, u32, u16, u8, f32, bool, string, std::vector<ObjectHandle>, std::vector<string>, Vec3, Mat3, ObjectHandle, BufferHandle>;
 
 class RegistryProperty
 {
@@ -167,14 +181,32 @@ public:
     template<typename T> void Set(T value);
     template<typename T> bool IsType();
 
-    //Special cases of Get<T>() and Set<T>() for object lists. For convenience to avoid using Get<std::vector<ObjectHandle>>()
+    //Special cases of Get<T>() and Set<T>() for lists. For convenience to avoid using Get<std::vector<ObjectHandle>>()
     std::vector<ObjectHandle>& GetObjectList()
     {
         RegistryProperty& prop = _object->Properties[_index];
+        if (std::holds_alternative<std::monostate>(prop.Value)) //Set to empty list if no type is set
+            prop.Value = std::vector<ObjectHandle>();
+
         return std::get<std::vector<ObjectHandle>>(prop.Value);
     }
 
     void SetObjectList(const std::vector<ObjectHandle>& newList = {})
+    {
+        RegistryProperty& prop = _object->Properties[_index];
+        prop.Value = newList; //Replaces existing list
+    }
+
+    std::vector<string>& GetStringList()
+    {
+        RegistryProperty& prop = _object->Properties[_index];
+        if (std::holds_alternative<std::monostate>(prop.Value)) //Set to empty list if no type is set
+            prop.Value = std::vector<string>();
+
+        return std::get<std::vector<string>>(prop.Value);
+    }
+
+    void SetStringList(const std::vector<string>& newList = {})
     {
         RegistryProperty& prop = _object->Properties[_index];
         prop.Value = newList; //Replaces existing list
@@ -224,8 +256,10 @@ T PropertyHandle::Get()
         std::is_same<T, string>() ||
         std::is_same<T, Vec3>() ||
         std::is_same<T, Mat3>() ||
+        std::is_same<T, std::monostate>() ||
         std::is_same<T, ObjectHandle>() ||
         std::is_same<T, BufferHandle>() ||
+        std::is_same<T, std::vector<string>>() ||
         std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by RegistryProperty::Get<T>()");
 
     if (!_object)
@@ -253,6 +287,8 @@ void PropertyHandle::Set(T value)
         std::is_same<T, Mat3>() ||
         std::is_same<T, ObjectHandle>() ||
         std::is_same<T, BufferHandle>() ||
+        std::is_same<T, std::monostate>() ||
+        std::is_same<T, std::vector<string>>() ||
         std::is_same<T, std::vector<ObjectHandle>>(), "Unsupported type used by RegistryProperty::Set<T>()");
 
     if (!_object)
@@ -272,4 +308,22 @@ bool PropertyHandle::IsType()
     std::lock_guard<std::mutex> lock(*_object->Mutex.get());
     RegistryProperty& prop = _object->Properties[_index];
     return std::holds_alternative<T>(prop.Value);
+}
+
+template<typename T>
+T ObjectHandle::Get(std::string_view propertyName)
+{
+    return Property(propertyName).Get<T>();
+}
+
+template<typename T>
+void ObjectHandle::Set(std::string_view propertyName, T value)
+{
+    Property(propertyName).Set<T>(value);
+}
+
+template<typename T>
+bool ObjectHandle::IsType(std::string_view propertyName)
+{
+    return Has(propertyName) && Property(propertyName).IsType<T>();
 }

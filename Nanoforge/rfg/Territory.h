@@ -6,7 +6,7 @@
 #include "render/resources/Texture2D.h"
 #include "application/Registry.h"
 #include <unordered_map>
-#include <mutex>
+#include <shared_mutex>
 
 class Task;
 class Scene;
@@ -35,20 +35,22 @@ public:
     void InitObjectClassData(); //Initialize object class data. Used for identification and filtering.
     ZoneObjectClass& GetObjectClass(u32 classnameHash);
 
+    ObjectHandle Object = NullObjectHandle;
     std::vector<ObjectHandle> Zones = {};
     std::vector<ZoneObjectClass> ZoneObjectClasses = {};
-    std::mutex ZoneFilesLock;
     std::vector<TerrainInstance> TerrainInstances = {};
-    std::mutex TerrainLock;
+    std::shared_mutex ZoneFilesLock;
+    std::shared_mutex TerrainLock;
 
     u32 LongestZoneName = 0;
     Timer LoadThreadTimer;
 
 private:
-    void LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state); //Top level loading thread
-    void LoadWorkerThread(Handle<Task> task, Handle<Scene> scene, GuiState* state, Handle<Packfile3> packfile, const char* zoneFilename); //Loads a single zone and its assets
+    void LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state); //Top level loading thread. Imports territory on first load
+    void LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, ObjectHandle zone, size_t terrainIndex, GuiState* state); //Loads a single zone and its assets
+    std::optional<MeshInstanceData> LoadRegistryMesh(ObjectHandle mesh); //Load mesh stored in registry as a renderer ready format
     //Load texture (xxx.tga) and create a render texture from it. Textures are cached to prevent repeat loads
-    std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, const string& textureName);
+    std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, ObjectHandle texture);
 
     void SetZoneShortName(ObjectHandle zone); //Attempts to shorten zone name. E.g. terr01_07_02.rfgzone_pc -> 07_02
 
@@ -59,6 +61,7 @@ private:
     bool loadThreadShouldStop_ = false;
     bool loadThreadRunning_ = false;
     bool useHighLodTerrain_ = true;
+    std::mutex textureCacheLock_;
     std::unordered_map<string, Texture2D> textureCache_; //Textures loaded during territory load are cached to prevent repeat loads. Cleared once territory is done loading.
 };
 

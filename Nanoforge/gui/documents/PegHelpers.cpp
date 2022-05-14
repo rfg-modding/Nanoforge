@@ -215,7 +215,7 @@ namespace PegHelpers
     std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(PegEntry10& entry, std::span<u8> pixels)
     {
         std::vector<D3D11_SUBRESOURCE_DATA> subresourceDatas = {};
-        DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, (u32)entry.Flags);
+        const DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(entry.BitmapFormat, (u32)entry.Flags);
 
         //Generate D3D11_SUBRESOURCE_DATA for each mip level
         u64 dataOffset = 0;
@@ -234,6 +234,38 @@ namespace PegHelpers
             if (entry.BitmapFormat == PegFormat::PC_DXT3)
                 dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
             if (entry.BitmapFormat == PegFormat::PC_DXT5)
+                dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
+
+            width /= 2;
+            height /= 2;
+        }
+
+        return subresourceDatas;
+    }
+
+    std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(ObjectHandle entry, std::span<u8> pixels)
+    {
+        std::vector<D3D11_SUBRESOURCE_DATA> subresourceDatas = {};
+        const PegFormat pegFormat = (PegFormat)entry.Get<u16>("Format");
+        const DXGI_FORMAT format = PegHelpers::PegFormatToDxgiFormat(pegFormat, entry.Get<u16>("Flags"));
+
+        //Generate D3D11_SUBRESOURCE_DATA for each mip level
+        u64 dataOffset = 0;
+        u32 width = entry.Get<u16>("Width");
+        u32 height = entry.Get<u16>("Height");
+        for (u32 i = 0; i < entry.Get<u8>("MipLevels"); i++)
+        {
+            D3D11_SUBRESOURCE_DATA& textureSubresourceData = subresourceDatas.emplace_back();
+            textureSubresourceData.pSysMem = pixels.data() + dataOffset;
+            textureSubresourceData.SysMemSlicePitch = 0;
+            textureSubresourceData.SysMemPitch = PegHelpers::CalcRowPitch(format, width);
+
+            //Note: Only other texture format known to be used by the game is PC_8888, which so far doesn't ever have multiple mip levels
+            if (pegFormat == PegFormat::PC_DXT1)
+                dataOffset += 8 * (width * height / (4 * 4)); //8 bytes per 4x4 pixel block
+            if (pegFormat == PegFormat::PC_DXT3)
+                dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
+            if (pegFormat == PegFormat::PC_DXT5)
                 dataOffset += 16 * (width * height / (4 * 4)); //16 bytes per 4x4 pixel block
 
             width /= 2;

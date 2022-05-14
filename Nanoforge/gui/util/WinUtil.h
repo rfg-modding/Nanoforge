@@ -11,3 +11,4 @@ std::optional<string> OpenFile(const char* filter = nullptr);
 std::optional<string> OpenFolder();
 std::optional<string> SaveFile(const char* filter = nullptr);
 void ShowMessageBox(const string& text, const string& caption, u32 type = 0);
+void ToastNotification(const string& text, const string& title = "");

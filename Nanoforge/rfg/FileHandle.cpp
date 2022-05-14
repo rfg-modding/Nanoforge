@@ -1,5 +1,7 @@
 #include "FileHandle.h"
 #include <RfgTools++/formats/packfiles/Packfile3.h>
+#include "common/filesystem/Path.h"
+#include "util/RfgUtil.h"
 #include "PackfileVFS.h"
 #include "Log.h"
 
@@ -45,6 +47,28 @@ std::vector<u8> FileHandle::Get()
     }
 }
 
+std::optional<FilePair> FileHandle::GetPair()
+{
+    Handle<Packfile3> container = GetContainer();
+    if (!container)
+        return {};
+
+    string cpuFilename = fileName_;
+    string gpuFilename = RfgUtil::CpuFilenameToGpuFilename(cpuFilename);
+    if (gpuFilename == cpuFilename)
+        return {};
+
+    //Extract high lod mesh
+    std::optional<std::vector<u8>> cpuFileBytes = container->ExtractSingleFile(cpuFilename, true);
+    std::optional<std::vector<u8>> gpuFileBytes = container->ExtractSingleFile(gpuFilename, true);
+    if (!cpuFileBytes || !gpuFileBytes)
+        return {};
+
+    return FilePair { cpuFileBytes.value(), gpuFileBytes.value() };
+}
+
+
+
 Handle<Packfile3> FileHandle::GetPackfile()
 {
     return packfile_;
@@ -63,4 +87,9 @@ Handle<Packfile3> FileHandle::GetContainer()
     container->SetName(containerName_);
 
     return container;
+}
+
+string FileHandle::Extension()
+{
+    return Path::GetExtension(fileName_);
 }

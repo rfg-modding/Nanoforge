@@ -37,7 +37,7 @@ private:
     f32 highLodTerrainDistance_ = 1200.0f; //Low lod terrain will be used past this distance
     bool highLodTerrainEnabled_ = true;
     bool terrainVisiblityUpdateNeeded_ = true;
-    u32 numTerrainInstances_ = 0;
+    u32 numLoadedTerrainInstances_ = 0;
     bool useHighLodTerrain_ = true;
 
     //Zone object visibility range

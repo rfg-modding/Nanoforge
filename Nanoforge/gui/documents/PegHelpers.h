@@ -1,6 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "common/String.h"
+#include "application/Registry.h"
 #include <dxgiformat.h>
 #include <d3d11.h>
 #include <vector>
@@ -30,4 +31,5 @@ namespace PegHelpers
     u32 CalcRowPitch(DXGI_FORMAT format, u32 numPixels);
     //Calculate D3D11_SUBRESOURCE_DATA for each mip level of a peg subtexture
     std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(PegEntry10& entry, std::span<u8> pixels);
+    std::vector<D3D11_SUBRESOURCE_DATA> CalcSubresourceData(ObjectHandle entry, std::span<u8> pixels);
 }

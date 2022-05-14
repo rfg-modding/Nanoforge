@@ -27,21 +27,17 @@ void InitZonePropertyLoaders();
 bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject);
 
 //Load zone file and convert it to the editor data format
-ObjectHandle Importers::ImportZoneFile(const std::vector<u8>& zoneBytes, const std::string& filename, const std::string& territoryName)
+ObjectHandle Importers::ImportZoneFile(const std::vector<u8>& zoneBytes, std::string_view filename, std::string_view territoryName)
 {
     //Convert zone file to editor data format
-    ObjectHandle zone = NullObjectHandle;
-    if (auto result = ZoneFile::Read(std::span<u8>{(u8*)zoneBytes.data(), zoneBytes.size()}, filename); result.has_value())
+    std::optional<ZoneFile> parseResult = ZoneFile::Read(std::span<u8>{(u8*)zoneBytes.data(), zoneBytes.size()}, string(filename));
+    if (!parseResult.has_value())
     {
-        ZoneFile& zoneFile = result.value();
-        zone = Importers::ImportZoneFile(zoneFile);
-        return zone;
-    }
-    else
-    {
-        LOG_ERROR("Failed to parse zone file \"{}\" from \"{}\".", Path::GetFileName(filename), territoryName);
+        LOG_ERROR("Failed to parse zone file '{}' in '{}'", filename, territoryName);
         return NullObjectHandle;
     }
+
+    return Importers::ImportZoneFile(parseResult.value());
 }
 
 //Convert rfg zone file to a set of registry objects
@@ -51,7 +47,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     if (firstRun)
     {
         ZonePropertyTypesMutex.lock();
-        if (firstRun)
+        if (firstRun) //Second check needed in case another thread handled init while this one was waiting for lock
         {
             InitZonePropertyLoaders();
             firstRun = false;
@@ -71,7 +67,6 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     zone.Property("DistrictFlags").Set<u32>(zoneFile.Header.DistrictFlags);
     zone.Property("DistrictName").Set<string>(zoneFile.DistrictName());
     zone.Property("Name").Set<string>(zoneFile.Name);
-    zone.Property("Objects").SetObjectList({});
     zone.Property("Persistent").Set<bool>(String::StartsWith(zoneFile.Name, "p_"));
     zone.Property("ActivityLayer").Set<bool>(false);
     zone.Property("MissionLayer").Set<bool>(false);
@@ -137,18 +132,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     }
     else
     {
-        //Otherwise take the average of all object positions
-        Vec3 averagePosition;
-        size_t numPositions = 0;
-        for (ObjectHandle obj : zone.Property("Objects").GetObjectList())
-        {
-            if (obj.Has("Position"))
-            {
-                averagePosition += obj.Property("Position").Get<Vec3>();
-                numPositions++;
-            }
-        }
-        zone.Property("Position").Set<Vec3>(averagePosition / (f32)numPositions);
+        zone.Property("Position").Set<Vec3>({0.0f, 0.0f, 0.0f});
     }
 
     std::vector<ObjectHandle> objects = zone.Property("Objects").GetObjectList();

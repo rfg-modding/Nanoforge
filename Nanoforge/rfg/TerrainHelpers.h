@@ -1,6 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "common/Handle.h"
+#include "application/Registry.h"
 #include <RfgTools++/formats/meshes/TerrainLowLod.h>
 #include <RfgTools++/formats/meshes/Terrain.h>
 #include <vector>
@@ -39,9 +40,11 @@ struct RoadMesh
 //Data for a single zones terrain. Made up of 9 smaller meshes which are stitched together
 struct TerrainInstance
 {
+    TerrainInstance() { }
+
     string Name;
-    TerrainLowLod DataLowLod;
-    std::vector<Terrain> Subzones = {};
+    ObjectHandle DataLowLod = NullObjectHandle;
+    std::vector<ObjectHandle> Subzones = {};
     bool Visible = true;
     Vec3 Position;
 
@@ -52,4 +55,6 @@ struct TerrainInstance
     std::vector<Handle<RenderObject>> HighLodMeshes;
     std::vector<StitchMesh> StitchMeshes;
     std::vector<RoadMesh> RoadMeshes;
+
+    bool Loaded = false;
 };

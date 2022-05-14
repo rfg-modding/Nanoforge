@@ -48,6 +48,7 @@ target_include_directories(Nanoforge PRIVATE
     ${CMAKE_SOURCE_DIR}/Dependencies/nativefiledialog/src/include/
     ${CMAKE_SOURCE_DIR}/Dependencies/imgui_markdown/
     ${CMAKE_SOURCE_DIR}/Dependencies/tracy/
+    ${CMAKE_SOURCE_DIR}/Dependencies/WinToast/src/
 )
 
 # Copy assets directory to binary dir after builds

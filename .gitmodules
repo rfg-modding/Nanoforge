@@ -34,3 +34,6 @@
 [submodule "Dependencies/pugixml"]
 	path = Dependencies/pugixml
 	url = https://github.com/zeux/pugixml.git
+[submodule "Dependencies/WinToast"]
+	path = Dependencies/WinToast
+	url = https://github.com/mohabouje/WinToast.git
