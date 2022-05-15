@@ -8,7 +8,7 @@
   <a href="#build-instructions">Build instructions</a>
 </h3>
 
-<p align="center"><img src="https://camo.githubusercontent.com/7a6cd157cb680303b3ccb8edab74734d6c3a24060de4e5ce2b7500c4839cc73f/68747470733a2f2f692e696d6775722e636f6d2f465458665641422e6a7067" width="100%"/>
+<p align="center"><img src="https://user-images.githubusercontent.com/8206401/168496531-fc52d441-dacd-468c-b03d-cdcdde5a9ae6.jpg" width="100%"/>
 </p>
 
 Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to make RFG modding easier and less error prone, and to provide tooling for all of its file formats. See [releases](https://github.com/Moneyl/Nanoforge/releases) to download the most recent version. See the [RF wiki](https://www.redfactionwiki.com/wiki/RF:G_Editing_Main_Page#Tutorials) for Nanoforge and RFG modding tutorials.
