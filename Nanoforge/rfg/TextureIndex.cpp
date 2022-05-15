@@ -263,8 +263,11 @@ void TextureIndex::TextureIndexGenerationTask(Handle<Task> task)
     }
 
     //Wait for subtasks to finish
-    for (Handle<Task> subtask : subTasks)
-        subtask->Wait();
+    while (!std::ranges::all_of(subTasks, [](Handle<Task> task) { return task->Completed(); }))
+    {
+        for (Handle<Task> subtask : subTasks)
+            subtask->Wait();
+    }
 
     //Calculate texture stats
     TextureIndexGenTaskStatus = "Calculating texture stats...";
@@ -374,9 +377,6 @@ void TextureIndex::TextureIndexGenerationSubtask(Handle<Task> task, Handle<Packf
 
         //Store peg data
         textureData->push_back({ pegPath, pegNameHash, tgaNameHashes });
-
-        if (deletePeg)
-            delete[] pegBytes.data();
     };
 
     //Loop through subfiles
