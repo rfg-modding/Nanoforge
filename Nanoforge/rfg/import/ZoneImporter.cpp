@@ -155,7 +155,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         if (parent)
         {
             object.Property("Parent").Set<ObjectHandle>(parent);
-            parent.SubObjects().push_back(object);
+            parent.GetObjectList("SubObjects").push_back(object);
         }
         else
         {

@@ -81,7 +81,6 @@ public:
     u64 UID() const;
     bool Valid() const;
     explicit operator bool() const; //Used to check if handle is valid
-    std::vector<ObjectHandle>& SubObjects();
     //Get object property. Adds the property to the object if it doesn't already exist. Use ::Has() to check for the property first to avoid adding it.
     PropertyHandle Property(std::string_view name);
     bool Has(std::string_view propertyName);
@@ -140,7 +139,6 @@ class Object
 public:
     u64 UID;
     std::vector<RegistryProperty> Properties;
-    std::vector<ObjectHandle> SubObjects;
     RegistryProperty& Property(std::string_view name); //Note: Returned property is for short term use in Registry.cpp only. It isn't stable like the PropertyHandle returned by ObjectHandle::Property()
     bool Has(std::string_view propertyName);
     //Locked when editing properties. Temporary bandaid. The current design is going to be tested on the map editor first.

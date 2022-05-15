@@ -180,17 +180,7 @@ ObjectHandle Registry::LoadObject(const std::vector<std::string_view>& lines, si
         std::string_view value = String::TrimWhitespace(split[1]);
 
         //Parse value
-        if (type == "" && name == "SubObjects") //Special case
-        {
-            std::vector<std::string_view> handles = SplitTextArray(value); //Extract handles from array
-            for (std::string_view handle : handles)
-            {
-                //Fill handle list
-                u64 subObjectUid = ConvertStringView<u64>(String::TrimWhitespace(handle));
-                object.SubObjects().push_back({ (Object*)subObjectUid });
-            }
-        }
-        else if (type == "empty")
+        if (type == "empty")
         {
             object.Property(name).Set<std::monostate>({});
         }
@@ -445,12 +435,6 @@ bool Registry::Load(const string& inFolderPath)
                     patchObjectHandle(handle);
             }
         }
-
-        //Patch sub buffer handles
-        for (ObjectHandle& handle : object.SubObjects)
-        {
-            patchObjectHandle(handle);
-        }
     }
 
 #ifdef DEBUG_BUILD
@@ -586,15 +570,7 @@ bool Registry::Save(const string& outFolderPath)
             fileBuffer += fmt::format("\t{} : {} = {}\n", prop.Name, propType, propValue);
         }
 
-        fileBuffer += "\tSubObjects := {";
-        for (size_t i = 0; i < object.SubObjects.size(); i++)
-        {
-            fileBuffer += std::to_string(object.SubObjects[i].UID());
-            if (i < object.SubObjects.size() - 1)
-                fileBuffer += ", ";
-        }
-        fileBuffer += "}\n";
-        fileBuffer += ";\n\n"; //End of buffer + a few empty lines for spacing
+        fileBuffer += ";\n\n"; //End of object + a few empty lines for spacing
     }
 
     //Write buffers
@@ -724,14 +700,6 @@ bool ObjectHandle::Valid() const
 ObjectHandle::operator bool() const
 {
     return Valid();
-}
-
-std::vector<ObjectHandle>& ObjectHandle::SubObjects()
-{
-    if (_object)
-        return _object->SubObjects;
-    else
-        THROW_EXCEPTION("Attempted to get SubObjects from null object handle.")
 }
 
 PropertyHandle ObjectHandle::Property(std::string_view name)
