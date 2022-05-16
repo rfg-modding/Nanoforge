@@ -188,6 +188,10 @@ ObjectHandle Registry::LoadObject(const std::vector<std::string_view>& lines, si
         {
             object.Property(name).Set<i32>(ConvertStringView<i32>(value));
         }
+        else if (type == "i8")
+        {
+            object.Property(name).Set<i8>(ConvertStringView<i8>(value));
+        }
         else if (type == "u64")
         {
             object.Property(name).Set<u64>(ConvertStringView<u64>(value));
@@ -475,6 +479,11 @@ bool Registry::Save(const string& outFolderPath)
                 propType = "i32";
                 propValue = std::to_string(std::get<i32>(prop.Value));
             }
+            else if (std::holds_alternative<i8>(prop.Value))
+            {
+                propType = "i8";
+                propValue = std::to_string(std::get<i8>(prop.Value));
+            }
             else if (std::holds_alternative<u64>(prop.Value))
             {
                 propType = "u64";
@@ -708,6 +717,7 @@ PropertyHandle ObjectHandle::Property(std::string_view name)
         THROW_EXCEPTION("Attempted to get property from a null object.");
 
     //Search for property
+    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
     for (size_t i = 0; i < _object->Properties.size(); i++)
         if (_object->Properties[i].Name == name)
             return { _object, (u32)i }; //Property found
@@ -720,16 +730,20 @@ PropertyHandle ObjectHandle::Property(std::string_view name)
 
 bool ObjectHandle::Has(std::string_view propertyName)
 {
-    if (_object)
-        for (size_t i = 0; i < _object->Properties.size(); i++)
-            if (_object->Properties[i].Name == propertyName)
-                return true;
+    if (!_object)
+        return false;
+
+    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    for (size_t i = 0; i < _object->Properties.size(); i++)
+        if (_object->Properties[i].Name == propertyName)
+            return true;
 
     return false;
 }
 
 std::vector<PropertyHandle> ObjectHandle::Properties()
 {
+    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
     std::vector<PropertyHandle> properties = {};
     for (u32 i = 0; i < _object->Properties.size(); i++)
         properties.emplace_back(_object, i);
@@ -762,8 +776,27 @@ void ObjectHandle::SetStringList(std::string_view propertyName, const std::vecto
     Property(propertyName).SetStringList(value);
 }
 
+bool ObjectHandle::Remove(std::string_view propertyName)
+{
+    if (!_object)
+        THROW_EXCEPTION("Attempted to use null object handle");
+
+    //Search for property
+    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    for (size_t i = 0; i < _object->Properties.size(); i++)
+        if (_object->Properties[i].Name == propertyName)
+        {
+            _object->Properties.erase(_object->Properties.begin() + i);
+            return true;
+        }
+
+    return false;
+}
+
 RegistryProperty& Object::Property(std::string_view name)
 {
+    std::lock_guard<std::mutex> lock(*Mutex.get());
+
     //Search for property
     for (RegistryProperty& prop : Properties)
         if (prop.Name == name)
@@ -777,6 +810,7 @@ RegistryProperty& Object::Property(std::string_view name)
 
 bool Object::Has(std::string_view propertyName)
 {
+    std::lock_guard<std::mutex> lock(*Mutex.get());
     for (RegistryProperty& prop : Properties)
         if (prop.Name == propertyName)
             return true;
@@ -853,6 +887,11 @@ u64 BufferHandle::UID() const
 bool BufferHandle::Valid() const
 {
     return _buffer && _buffer->UID != NullUID;
+}
+
+size_t BufferHandle::Size() const
+{
+    return _buffer->Size;
 }
 
 BufferHandle::operator bool() const

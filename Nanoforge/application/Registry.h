@@ -95,6 +95,7 @@ public:
     std::vector<string>& GetStringList(std::string_view propertyName);
     void SetObjectList(std::string_view propertyName, const std::vector<ObjectHandle>& value);
     void SetStringList(std::string_view propertyName, const std::vector<string>& value);
+    bool Remove(std::string_view propertyName); //Remove property. Returns true if it's removed. Returns false if it's not removed or doesn't exist.
 
 private:
     Object* _object;
@@ -111,6 +112,7 @@ public:
     void SetName(const string& name);
     u64 UID() const;
     bool Valid() const;
+    size_t Size() const;
     explicit operator bool() const; //Used to check if handle is valid
 
     BufferHandle(RegistryBuffer* buffer) : _buffer(buffer)
@@ -125,7 +127,7 @@ private:
 };
 
 //Value storage for Property
-using PropertyValue = std::variant<std::monostate, i32, u64, u32, u16, u8, f32, bool, string, std::vector<ObjectHandle>, std::vector<string>, Vec3, Mat3, ObjectHandle, BufferHandle>;
+using PropertyValue = std::variant<std::monostate, i32, i8, u64, u32, u16, u8, f32, bool, string, std::vector<ObjectHandle>, std::vector<string>, Vec3, Mat3, ObjectHandle, BufferHandle>;
 
 class RegistryProperty
 {
@@ -245,6 +247,7 @@ T PropertyHandle::Get()
     //Comptime check that T is supported
     static_assert(
         std::is_same<T, i32>() ||
+        std::is_same<T, i8>() ||
         std::is_same<T, u64>() ||
         std::is_same<T, u32>() ||
         std::is_same<T, u16>() ||
@@ -274,6 +277,7 @@ void PropertyHandle::Set(T value)
     //Comptime check that T is supported
     static_assert(
         std::is_same<T, i32>() ||
+        std::is_same<T, i8>() ||
         std::is_same<T, u64>() ||
         std::is_same<T, u32>() ||
         std::is_same<T, u16>() ||

@@ -181,7 +181,7 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
     ImGui::PushID(object.UID()); //Push unique ID for the UI element
     f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
     bool nodeOpen = ImGui::TreeNodeEx(objectLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
-        (object.GetObjectList("SubObjects").size() == 0 ? ImGuiTreeNodeFlags_Leaf : 0) | (selected ? ImGuiTreeNodeFlags_Selected : 0));
+        (object.GetObjectList("Children").size() == 0 ? ImGuiTreeNodeFlags_Leaf : 0) | (selected ? ImGuiTreeNodeFlags_Selected : 0));
     if (ImGui::IsItemClicked())
         state->ZoneObjectList_SelectedObject = object;
 
@@ -219,7 +219,7 @@ void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
     Registry& registry = Registry::Get();
     if (nodeOpen)
     {
-        for (ObjectHandle child : object.GetObjectList("SubObjects"))
+        for (ObjectHandle child : object.GetObjectList("Children"))
             if (child)
                 DrawObjectNode(state, child);
         ImGui::TreePop();
@@ -243,7 +243,7 @@ bool ZoneObjectsList::ShowObjectOrChildren(GuiState* state, ObjectHandle object)
         return true;
 
     Registry& registry = Registry::Get();
-    for (ObjectHandle child : object.GetObjectList("SubObjects"))
+    for (ObjectHandle child : object.GetObjectList("Children"))
         if (child.Valid() && ShowObjectOrChildren(state, child))
             return true;
 

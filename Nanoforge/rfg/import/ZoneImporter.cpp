@@ -2,6 +2,7 @@
 #include "common/string/String.h"
 #include "common/filesystem/Path.h"
 #include <RfgTools++/formats/zones/ZoneFile.h>
+#include <RfgTools++/formats/zones/ZoneProperties.h>
 #include <RfgTools++/hashes/HashGuesser.h>
 #include <RfgTools++/hashes/Hash.h>
 #include <vector>
@@ -82,7 +83,6 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         ObjectHandle zoneObject = registry.CreateObject(classname);
         zone.Property("Objects").GetObjectList().push_back(zoneObject);
         //TODO: Strip properties not needed by the editor
-        //TODO: Replace parent/child/sibling properties with ObjectHandle variables on Object
         zoneObject.Property("ClassnameHash").Set<u32>(current->ClassnameHash);
         zoneObject.Property("Handle").Set<u32>(current->Handle);
         zoneObject.Property("Bmin").Set<Vec3>(current->Bmin);
@@ -107,12 +107,9 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         while (currentProp && i < current->NumProps)
         {
             //Attempt to load property
-            auto maybeName = currentProp->Name();
-            string name = maybeName.has_value() ? maybeName.value() : "UnknownPropertyType";
-            PropertyHandle prop0 = zoneObject.Property(name);
             if (!ImportZoneObjectProperty(currentProp, zoneObject))
             {
-                //Todo: Add some kind of error handling here. Waiting until edit tracking + undo/redo is implemented since that'll make it simple.
+                Log->warn("Failed to import zone property {} in object {} of {}", i, j, zoneFile.Name);
             }
 
             currentProp = current->NextProperty(currentProp);
@@ -135,7 +132,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         zone.Property("Position").Set<Vec3>({0.0f, 0.0f, 0.0f});
     }
 
-    std::vector<ObjectHandle> objects = zone.Property("Objects").GetObjectList();
+    std::vector<ObjectHandle>& objects = zone.Property("Objects").GetObjectList();
     auto getObject = [&](u32 handle) -> ObjectHandle
     {
         for (ObjectHandle object : objects)
@@ -155,7 +152,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         if (parent)
         {
             object.Property("Parent").Set<ObjectHandle>(parent);
-            parent.GetObjectList("SubObjects").push_back(object);
+            parent.GetObjectList("Children").push_back(object);
         }
         else
         {
@@ -176,6 +173,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
             siblingHandle = current.Property("SiblingHandle").Get<u32>();
         }
     }
+    //TODO: Remove ParentHandle, SiblingHandle, and ChildHandle properties here. They're replaced by the Parent, Sibling, and SubObject properties (which use ObjectHandle instead of u32)
 
     //Set custom object names based on properties
     const std::vector<string> customNameProperties =
@@ -234,7 +232,7 @@ void InitZonePropertyLoaders()
         "Bool",
         std::vector<std::string_view>
         {
-            "respawn", "respawns", "checkpoint_respawns", "initial_spawn", "activity_respawn", "special_npc", "safehouse_vip", "special_vehicle", "hands_off_raid_squad",
+            "respawn", "respawns", "checkpoint_respawn", "initial_spawn", "activity_respawn", "special_npc", "safehouse_vip", "special_vehicle", "hands_off_raid_squad",
             "radio_operator", "squad_vehicle", "miner_persona", "raid_spawn", "no_reassignment", "disable_ambient_parking", "player_vehicle_respawn", "no_defensive_combat",
             "preplaced", "enabled", "indoor", "no_stub", "autostart", "high_priority", "run_to", "infinite_duration", "no_check_in", "combat_ready", "looping_patrol",
             "marauder_raid", "ASD_truck_partol" /*Note: Typo also in game. Keeping for compatibility sake.*/, "courier_patrol", "override_patrol", "allow_ambient_peds",
@@ -364,9 +362,228 @@ void InitZonePropertyLoaders()
         }
     );
 
-    //TODO: Implement DistrictFlags property
-    //TODO: Implement list properties
-    //TODO: Implement constraint properties
+    ZonePropertyTypes.emplace_back
+    (
+        "DistrictFlags",
+        std::vector<std::string_view>
+        {
+            "district_flags"
+        },
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        {
+            u32 data = (u32)*(DistrictFlags*)prop->Data();
+            zoneObject.Set<bool>("AllowCough", (data & (u32)DistrictFlags::AllowCough) != 0);
+            zoneObject.Set<bool>("AllowAmbEdfCivilianDump", (data& (u32)DistrictFlags::AllowAmbEdfCivilianDump) != 0);
+            zoneObject.Set<bool>("PlayCapstoneUnlockedLines", (data& (u32)DistrictFlags::PlayCapstoneUnlockedLines) != 0);
+            zoneObject.Set<bool>("DisableMoraleChange", (data& (u32)DistrictFlags::DisableMoraleChange) != 0);
+            zoneObject.Set<bool>("DisableControlChange", (data& (u32)DistrictFlags::DisableControlChange) != 0);
+            return true;
+        }
+    );
+
+    //Buffer properties
+    ZonePropertyTypes.emplace_back
+    (
+        "Buffer",
+        std::vector<std::string_view>
+        {
+            "obj_links", "world_anchors", "dynamic_links", "path_road_data", "yellow_triangles", "warning_triangles", 
+            "yellow_polygon", "warning_polygon"
+        },
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        {
+#ifdef DEBUG_BUILD
+            if (propertyName == "navpoint_data" && prop->Size != 28) 
+                Log->warn("Found navpoint_data property with size != 28 bytes");
+#endif
+            BufferHandle buffer = Registry::Get().CreateBuffer({ prop->Data(), prop->Size }, fmt::format("{}_{}", propertyName, zoneObject.UID()));
+            zoneObject.Set<BufferHandle>(propertyName, buffer);
+            return true;
+        }
+    );
+
+    ZonePropertyTypes.emplace_back
+    (
+        "PathRoadStruct",
+        std::vector<std::string_view>
+        {
+            "path_road_struct"
+        },
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        {
+            if (prop->Size != 16)
+            {
+                Log->error("path_road_struct property is {} bytes. Should be 16 bytes.", prop->Size);
+                return false;
+            }
+
+            RoadSplineHeader* roadSplineHeader = (RoadSplineHeader*)prop->Data();
+            zoneObject.Set<i32>("NumPoints", roadSplineHeader->NumPoints);
+            zoneObject.Set<u32>("PointsOffset", roadSplineHeader->PointsOffset);
+            zoneObject.Set<i32>("NumConnections", roadSplineHeader->NumConnections);
+            zoneObject.Set<u32>("ConnectionsOffset", roadSplineHeader->ConnectionsOffset);
+            return true;
+        }
+    );
+
+    ZonePropertyTypes.emplace_back
+    (
+        "CovernodeData",
+        std::vector<std::string_view>
+        {
+            "covernode_data"
+        },
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        {
+            if (prop->Size != 16)
+            {
+                Log->error("covernode_data property is {} bytes. Should be 16 bytes.", prop->Size);
+                return false;
+            }
+
+            CovernodeData* data = (CovernodeData*)prop->Data();
+            zoneObject.Set<i32>("Version", data->Version);
+            zoneObject.Set<f32>("Heading", data->Heading);
+            zoneObject.Set<i8>("DefaultAngleLeft", data->DefaultAngleLeft);
+            zoneObject.Set<i8>("DefaultAngleRight", data->DefaultAngleRight);
+            zoneObject.Set<i8>("AngleLeft", data->AngleLeft);
+            zoneObject.Set<i8>("AngleRight", data->AngleRight);
+            zoneObject.Set<u16>("Flags", data->Flags);
+            return true;
+        }
+    );
+
+
+    ZonePropertyTypes.emplace_back
+    (
+        "NavpointData",
+        std::vector<std::string_view>
+        {
+            "navpoint_data"
+        },
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        {
+            if (prop->Size != 28)
+            {
+                Log->error("navpoint_data property is {} bytes. Should be 28 bytes.", prop->Size);
+                return false;
+            }
+
+            NavpointData* data = (NavpointData*)prop->Data();
+            zoneObject.Set<i32>("Version", data->Version);
+            zoneObject.Set<i32>("NavpointType", data->Type);
+            zoneObject.Set<bool>("DontFollowRoad", data->DontFollowRoad);
+            zoneObject.Set<f32>("Radius", data->Radius);
+            zoneObject.Set<f32>("SpeedLimit", data->SpeedLimit);
+            zoneObject.Set<bool>("IgnoreLanes", data->IgnoreLanes);
+            if (data->BranchType == NavpointBranchType::None)
+                zoneObject.Set<string>("BranchType", "None");
+            else if (data->BranchType == NavpointBranchType::Start)
+                zoneObject.Set<string>("BranchType", "Start");
+            else if (data->BranchType == NavpointBranchType::Bridge)
+                zoneObject.Set<string>("BranchType", "Bridge");
+            else if (data->BranchType == NavpointBranchType::End)
+                zoneObject.Set<string>("BranchType", "End");
+            else
+            {
+                zoneObject.Set<string>("BranchType", "Unknown");
+                Log->warn("Unknown navpoint branch type '{}'", data->BranchType);
+            }
+
+            return true;
+        }
+    );
+
+    //Physics constraints
+    ZonePropertyTypes.emplace_back
+    (
+        "Constraint",
+        std::vector<std::string_view>
+        {
+            "template"
+        },
+        [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
+        {
+            if (prop->Size != 156)
+            {
+                Log->error("Constraint template property is {} bytes. Should be 156 bytes.", prop->Size);
+                return false;
+            }
+
+            ConstraintTemplate& data = *(ConstraintTemplate*)prop->Data();
+            ObjectHandle constraint = Registry::Get().CreateObject("", "Constraint");
+
+            if (data.Type == ConstraintType::Point)
+            {
+                PointConstraintData& point = data.Data.Point;
+                constraint.Set<string>("ConstraintType", "PointConstraint");
+                constraint.Set<i32>("PointConstraintType", point.Type);
+                constraint.Set<f32>("xLimitMin", point.xLimitMin);
+                constraint.Set<f32>("xLimitMax", point.xLimitMax);
+                constraint.Set<f32>("yLimitMin", point.yLimitMin);
+                constraint.Set<f32>("yLimitMax", point.yLimitMax);
+                constraint.Set<f32>("zLimitMin", point.zLimitMin);
+                constraint.Set<f32>("zLimitMax", point.zLimitMax);
+                constraint.Set<f32>("StiffSpringLength", point.StiffSpringLength);
+            }
+            else if (data.Type == ConstraintType::Hinge)
+            {
+                HingeConstraintData& hinge = data.Data.Hinge;
+                constraint.Set<string>("ConstraintType", "HingeConstraint");
+                constraint.Set<i32>("Limited", hinge.Limited); //TODO: Figure out if this is really a bool
+                constraint.Set<f32>("LimitMinAngle", hinge.LimitMinAngle);
+                constraint.Set<f32>("LimitMaxAngle", hinge.LimitMaxAngle);
+                constraint.Set<f32>("LimitFriction", hinge.LimitFriction);
+            }
+            else if (data.Type == ConstraintType::Prismatic)
+            {
+                PrismaticConstraintData& prismatic = data.Data.Prismatic;
+                constraint.Set<string>("ConstraintType", "PrismaticConstraint");
+                constraint.Set<i32>("Limited", prismatic.Limited); //TODO: Figure out if this is really a bool
+                constraint.Set<f32>("LimitMinAngle", prismatic.LimitMinAngle);
+                constraint.Set<f32>("LimitMaxAngle", prismatic.LimitMaxAngle);
+                constraint.Set<f32>("LimitFriction", prismatic.LimitFriction);
+
+            }
+            else if (data.Type == ConstraintType::Ragdoll)
+            {
+                RagdollConstraintData& ragdoll = data.Data.Ragdoll;
+                constraint.Set<string>("ConstraintType", "RagdollConstraint");
+                constraint.Set<f32>("TwistMin", ragdoll.TwistMin);
+                constraint.Set<f32>("TwistMax", ragdoll.TwistMax);
+                constraint.Set<f32>("ConeMin", ragdoll.ConeMin);
+                constraint.Set<f32>("ConeMax", ragdoll.ConeMax);
+                constraint.Set<f32>("PlaneMin", ragdoll.PlaneMin);
+                constraint.Set<f32>("PlaneMax", ragdoll.PlaneMax);
+
+            }
+            else if (data.Type == ConstraintType::Motor)
+            {
+                MotorConstraintData& motor = data.Data.Motor;
+                constraint.Set<string>("ConstraintType", "MotorConstraint");
+                constraint.Set<f32>("AngularSpeed", motor.AngularSpeed);
+                constraint.Set<f32>("Gain", motor.Gain);
+                constraint.Set<i32>("Axis", motor.Axis);
+                constraint.Set<f32>("AxisInBodySpaceX", motor.AxisInBodySpaceX);
+                constraint.Set<f32>("AxisInBodySpaceY", motor.AxisInBodySpaceY);
+                constraint.Set<f32>("AxisInBodySpaceZ", motor.AxisInBodySpaceZ);
+
+            }
+            else if (data.Type == ConstraintType::Fake)
+            {
+                FakeConstraintData& fake = data.Data.Fake;
+                constraint.Set<string>("ConstraintType", "FakeConstraint");
+            }
+            else
+            {
+                Log->error("Failed to import constraint zone object property. Unsupported constraint type.");
+                return false;
+            }
+
+            zoneObject.Set<ObjectHandle>("Constraint", constraint);
+            return true;
+        }
+    );
 }
 
 //Convert a zone object property to a registry
@@ -374,7 +591,10 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject)
 {
     auto maybeName = prop->Name();
     if (!maybeName.has_value())
+    {
+        Log->warn("Failed to import zone object property. NameHash: {}", prop->NameHash);
         return false;
+    }
 
     string name = maybeName.value();
     for (ZonePropertyType& propType : ZonePropertyTypes)
@@ -384,6 +604,7 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject)
                 return propType.Loader(prop, zoneObject, name);
             }
 
+    Log->warn("Failed to import zone object property. Name: {}", name);
     return false;
 }
 

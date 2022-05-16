@@ -166,26 +166,33 @@ void PropertyPanel_ZoneObject(GuiState* state)
                 }
                 else if (prop.IsType<std::vector<ObjectHandle>>())
                 {
-                    const std::vector<ObjectHandle>& handles = prop.Get<std::vector<ObjectHandle>>();
-                    for (ObjectHandle handle : handles)
+                    std::vector<ObjectHandle> handles = prop.Get<std::vector<ObjectHandle>>();
+                    if (handles.size() > 0)
                     {
-                        string name = "";
-                        if (handle.Has("Name"))
+                        for (ObjectHandle handle : handles)
                         {
-                            name = handle.Property("Name").Get<string>();
-                            if (name != "")
-                                name += ", ";
+                            string name = "";
+                            if (handle.Has("Name"))
+                            {
+                                name = handle.Property("Name").Get<string>();
+                                if (name != "")
+                                    name += ", ";
+                            }
+
+                            string uid;
+                            if (handle.UID() == NullUID)
+                                uid = "Null";
+                            else
+                                uid = std::to_string(handle.UID());
+
+                            ImGui::Bullet();
+                            ImGui::SameLine();
+                            ImGui::Text(fmt::format("Object({}{})", name, uid));
                         }
-
-                        string uid;
-                        if (handle.UID() == NullUID)
-                            uid = "Null";
-                        else
-                            uid = std::to_string(handle.UID());
-
-                        ImGui::Bullet();
-                        ImGui::SameLine();
-                        ImGui::Text(fmt::format("Object({}{})", name, uid));
+                    }
+                    else
+                    {
+                        ImGui::Text("Empty");
                     }
                 }
                 else if (prop.IsType<Vec3>())
@@ -236,7 +243,7 @@ void PropertyPanel_ZoneObject(GuiState* state)
                     else
                         uid = std::to_string(handle.UID());
 
-                    ImGui::Text(fmt::format("Buffer({}{})", name, uid));
+                    ImGui::Text(fmt::format("Buffer({}{}, {} bytes)", name, uid, handle.Size()));
                 }
                 else
                 {
