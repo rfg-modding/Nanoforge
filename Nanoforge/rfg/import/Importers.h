@@ -1,5 +1,6 @@
 #pragma once
 #include "application/Registry.h"
+#include <span>
 
 class ZoneFile;
 class PackfileVFS;
@@ -11,8 +12,8 @@ class PegFile10;
 namespace Importers
 {
 	ObjectHandle ImportTerritory(std::string_view territoryFilename, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal);
-	ObjectHandle ImportZoneFile(const std::vector<u8>& zoneBytes, std::string_view filename, std::string_view territoryName);
-	ObjectHandle ImportZoneFile(ZoneFile& zoneFile);
+	ObjectHandle ImportZoneFile(std::span<u8> zoneBytes, std::span<u8> persistentZoneBytes, std::string_view filename, std::string_view territoryName);
+	ObjectHandle ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZoneFile);
 	//Imports both low and high lod terrain files for the given zone. They're tightly linked so it usually doesn't make sense to load them separately.
 	ObjectHandle ImportTerrain(std::string_view terrainName, const Vec3& position, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal);
 	//Imports common header used by all RFG meshes. Doesn't load index and vertex buffers. Those are handled by specific mesh importers (terrain, static, etc) since it's format specific.

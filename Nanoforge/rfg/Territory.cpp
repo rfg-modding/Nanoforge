@@ -15,6 +15,7 @@
 #include <ranges>
 #include <RfgTools++/formats/packfiles/Packfile3.h>
 #include "rfg/PackfileVFS.h"
+#include "application/project/Project.h"
 #include "render/resources/Scene.h"
 #include "application/Registry.h"
 #include "rfg/import/Importers.h"
@@ -80,7 +81,12 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         Timer timer(true);
         state->SetStatus(ICON_FA_SYNC " Importing " + territoryShortname_ + ". This might take a while. Subsequent loads will be much quicker...", Working);
         Object = Importers::ImportTerritory(territoryFilename_, state->PackfileVFS, state->TextureSearchIndex, &loadThreadShouldStop_);
-        if (!Object)
+        if (Object)
+        {
+            if (state->CurrentProject)
+                state->CurrentProject->Save();
+        }
+        else
         {
             if (!state->MainWindowFocused)
                 ToastNotification(fmt::format("Failed to import {}. Check logs.", territoryShortname_), "Map import error");
@@ -541,7 +547,7 @@ void Territory::SetZoneShortName(ObjectHandle zone)
     zone.Property("ShortName").Set<string>(fullName); //Set shortname to fullname by default in case of failure
     const string expectedPostfix0 = ".rfgzone_pc";
     const string expectedPostfix1 = ".layer_pc";
-    const string expectedPrefix = zone.Property("Persistent").Get<bool>() ? "p_" + territoryShortname_ + "_" : territoryShortname_ + "_";
+    const string expectedPrefix = territoryShortname_ + "_";
 
     //Try to find location of rfgzone_pc or layer_pc extension. If neither is found return
     size_t postfixIndex0 = fullName.find(expectedPostfix0, 0);

@@ -45,13 +45,13 @@ ObjectHandle Importers::ImportTerritory(std::string_view territoryFilename, Pack
         std::vector<Handle<Task>> zoneLoadTasks = {};
         for (u32 i = 0; i < packfile->Entries.size(); i++)
         {
-            const char* filename = packfile->EntryNames[i];
+            std::string_view filename = packfile->EntryNames[i];
             string extension = Path::GetExtension(filename);
-            if (extension != ".rfgzone_pc")
+            if (extension != ".rfgzone_pc" || String::StartsWith(Path::GetFileName(filename), "p_"))
                 continue;
 
             Handle<Task> zoneLoadTask = Task::Create(fmt::format("Importing {}...", filename));
-            TaskScheduler::QueueTask(zoneLoadTask, std::bind(LoadZone, std::string_view(filename), territory, packfile, stopSignal));
+            TaskScheduler::QueueTask(zoneLoadTask, std::bind(LoadZone, filename, territory, packfile, stopSignal));
             zoneLoadTasks.push_back(zoneLoadTask);
         }
         EarlyStopCheck();
@@ -106,11 +106,12 @@ void LoadZone(std::string_view zoneFilename, ObjectHandle territory, Handle<Pack
 {
     ObjectHandle zone = NullObjectHandle;
     std::optional<std::vector<u8>> zoneBytes = packfile->ExtractSingleFile(zoneFilename);
-    if (zoneBytes.has_value())
+    std::optional<std::vector<u8>> persistentZoneBytes = packfile->ExtractSingleFile(fmt::format("p_{}", zoneFilename));
+    if (zoneBytes.has_value() && persistentZoneBytes.has_value())
     {
         PROFILER_SCOPED("Import zone");
         string territoryFilename = territory.Property("Name").Get<string>();
-        zone = Importers::ImportZoneFile(zoneBytes.value(), zoneFilename, territoryFilename);
+        zone = Importers::ImportZoneFile(zoneBytes.value(), persistentZoneBytes.value(), zoneFilename, territoryFilename);
         if (zone)
         {
             ZoneFilesLock.lock();
@@ -121,6 +122,10 @@ void LoadZone(std::string_view zoneFilename, ObjectHandle territory, Handle<Pack
         {
             LOG_ERROR("Failed to load zone {} in {}", zoneFilename, territoryFilename);
         }
+    }
+    else
+    {
+        LOG_ERROR("Failed to extract zone files. State: [{}, {}]", zoneBytes.has_value(), persistentZoneBytes.has_value());
     }
 }
 

@@ -32,57 +32,7 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
     }
     else
     {
-        //Zone object filters
-        if (ImGui::CollapsingHeader(ICON_FA_FILTER " Filters##CollapsingHeader"))
-        {
-            if (ImGui::Button("Show all types"))
-            {
-                for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
-                {
-                    objectClass.Show = true;
-                }
-                state->CurrentTerritoryUpdateDebugDraw = true;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Hide all types"))
-            {
-                for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
-                {
-                    objectClass.Show = false;
-                }
-                state->CurrentTerritoryUpdateDebugDraw = true;
-            }
-            ImGui::Checkbox("Hide distant objects", &onlyShowNearZones_);
-            gui::HelpMarker("If checked then objects outside of the viewing range are hidden. The viewing range is configurable through the buttons in the top left corner of the map viewer.", ImGui::GetIO().FontDefault);
-
-            //Draw object filters sub-window
-            if (ImGui::BeginChild("##Zone object filters list", ImVec2(0, 200.0f), true))
-            {
-                ImGui::Text(" " ICON_FA_EYE "     " ICON_FA_BOX);
-                gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class. The second checkbox toggles between wireframe and solid bounding boxes.", nullptr);
-
-                for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
-                {
-                    if (ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show))
-                        state->CurrentTerritoryUpdateDebugDraw = true;
-                    ImGui::SameLine();
-                    if (ImGui::Checkbox((string("##solidBB") + objectClass.Name).c_str(), &objectClass.DrawSolid))
-                        state->CurrentTerritoryUpdateDebugDraw = true;
-
-                    ImGui::SameLine();
-                    ImGui::Text(objectClass.Name);
-                    ImGui::SameLine();
-                    ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
-                    ImGui::SameLine();
-
-                    //Todo: Use a proper string formatting lib here
-                    if (ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel))
-                        state->CurrentTerritoryUpdateDebugDraw = true;
-                }
-                ImGui::EndChild();
-            }
-            ImGui::Separator();
-        }
+        DrawFilters(state);
 
         //Zone object table
         if (state->CurrentTerritory->Ready())
@@ -149,6 +99,63 @@ void ZoneObjectsList::Update(GuiState* state, bool* open)
     }
 
     ImGui::End();
+}
+
+void ZoneObjectsList::DrawFilters(GuiState* state)
+{
+    //Zone object filters
+    if (ImGui::CollapsingHeader(ICON_FA_FILTER " Filters##CollapsingHeader"))
+    {
+        if (ImGui::Button("Show all types"))
+        {
+            for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
+            {
+                objectClass.Show = true;
+            }
+            state->CurrentTerritoryUpdateDebugDraw = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Hide all types"))
+        {
+            for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
+            {
+                objectClass.Show = false;
+            }
+            state->CurrentTerritoryUpdateDebugDraw = true;
+        }
+        ImGui::Checkbox("Hide distant objects", &onlyShowNearZones_);
+        ImGui::SameLine();
+        gui::HelpMarker("If checked then objects outside of the viewing range are hidden. The viewing range is configurable through the buttons in the top left corner of the map viewer.", ImGui::GetIO().FontDefault);
+        ImGui::Checkbox("Only show persistent", &onlyShowPersistentObjects_);
+
+        //Draw object filters sub-window
+        if (ImGui::BeginChild("##Zone object filters list", ImVec2(0, 150.0f), true))
+        {
+            ImGui::Text(" " ICON_FA_EYE "     " ICON_FA_BOX);
+            gui::TooltipOnPrevious("Toggles whether bounding boxes are drawn for the object class. The second checkbox toggles between wireframe and solid bounding boxes.", nullptr);
+
+            for (auto& objectClass : state->CurrentTerritory->ZoneObjectClasses)
+            {
+                if (ImGui::Checkbox((string("##showBB") + objectClass.Name).c_str(), &objectClass.Show))
+                    state->CurrentTerritoryUpdateDebugDraw = true;
+                ImGui::SameLine();
+                if (ImGui::Checkbox((string("##solidBB") + objectClass.Name).c_str(), &objectClass.DrawSolid))
+                    state->CurrentTerritoryUpdateDebugDraw = true;
+
+                ImGui::SameLine();
+                ImGui::Text(objectClass.Name);
+                ImGui::SameLine();
+                ImGui::TextColored(gui::SecondaryTextColor, "|  %d objects", objectClass.NumInstances);
+                ImGui::SameLine();
+
+                //Todo: Use a proper string formatting lib here
+                if (ImGui::ColorEdit3(string("##" + objectClass.Name).c_str(), (f32*)&objectClass.Color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel))
+                    state->CurrentTerritoryUpdateDebugDraw = true;
+            }
+            ImGui::EndChild();
+        }
+        ImGui::Separator();
+    }
 }
 
 void ZoneObjectsList::DrawObjectNode(GuiState* state, ObjectHandle object)
@@ -240,11 +247,16 @@ bool ZoneObjectsList::ShowObjectOrChildren(GuiState* state, ObjectHandle object)
 {
     auto& objectClass = state->CurrentTerritory->GetObjectClass(object.Property("ClassnameHash").Get<u32>());
     if (objectClass.Show)
-        return true;
+    {
+        if (onlyShowPersistentObjects_)
+            return object.Get<bool>("Persistent");
+        else
+            return true;
+    }
 
     Registry& registry = Registry::Get();
     for (ObjectHandle child : object.GetObjectList("Children"))
-        if (child.Valid() && ShowObjectOrChildren(state, child))
+        if (child && ShowObjectOrChildren(state, child))
             return true;
 
     return false;

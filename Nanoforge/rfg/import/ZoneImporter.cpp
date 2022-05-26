@@ -28,21 +28,30 @@ void InitZonePropertyLoaders();
 bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject);
 
 //Load zone file and convert it to the editor data format
-ObjectHandle Importers::ImportZoneFile(const std::vector<u8>& zoneBytes, std::string_view filename, std::string_view territoryName)
+ObjectHandle Importers::ImportZoneFile(std::span<u8> zoneBytes, std::span<u8> persistentZoneBytes, std::string_view filename, std::string_view territoryName)
 {
-    //Convert zone file to editor data format
-    std::optional<ZoneFile> parseResult = ZoneFile::Read(std::span<u8>{(u8*)zoneBytes.data(), zoneBytes.size()}, string(filename));
+    //Load zone file
+    std::optional<ZoneFile> parseResult = ZoneFile::Read(zoneBytes, string(filename));
     if (!parseResult.has_value())
     {
         LOG_ERROR("Failed to parse zone file '{}' in '{}'", filename, territoryName);
         return NullObjectHandle;
     }
 
-    return Importers::ImportZoneFile(parseResult.value());
+    //Load persistent zone file
+    std::optional<ZoneFile> persistentParseResult = ZoneFile::Read(persistentZoneBytes, string(filename));
+    if (!persistentParseResult.has_value())
+    {
+        LOG_ERROR("Failed to parse zone file '{}' in '{}'", filename, territoryName);
+        return NullObjectHandle;
+    }
+
+    //Convert zone file to editor data format
+    return Importers::ImportZoneFile(parseResult.value(), persistentParseResult.value());
 }
 
 //Convert rfg zone file to a set of registry objects
-ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
+ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZoneFile)
 {
     static bool firstRun = true;
     if (firstRun)
@@ -68,10 +77,10 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
     zone.Property("DistrictFlags").Set<u32>(zoneFile.Header.DistrictFlags);
     zone.Property("DistrictName").Set<string>(zoneFile.DistrictName());
     zone.Property("Name").Set<string>(zoneFile.Name);
-    zone.Property("Persistent").Set<bool>(String::StartsWith(zoneFile.Name, "p_"));
     zone.Property("ActivityLayer").Set<bool>(false);
     zone.Property("MissionLayer").Set<bool>(false);
     zone.Property("RenderBoundingBoxes").Set<bool>(true);
+    zone.Set<string>("ShortName", zoneFile.Name);
 
     //Convert zone object
     ZoneObject* current = zoneFile.Objects;
@@ -100,6 +109,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
         zoneObject.Property("Parent").Set<ObjectHandle>(NullObjectHandle);
         zoneObject.Property("Child").Set<ObjectHandle>(NullObjectHandle);
         zoneObject.Property("Sibling").Set<ObjectHandle>(NullObjectHandle);
+        zoneObject.Set<bool>("Persistent", false);
 
         //Load zone object properties
         ZoneObjectProperty* currentProp = current->Properties();
@@ -109,7 +119,8 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
             //Attempt to load property
             if (!ImportZoneObjectProperty(currentProp, zoneObject))
             {
-                Log->warn("Failed to import zone property {} in object {} of {}", i, j, zoneFile.Name);
+                Log->warn("Failed to import zone property {} in object {} of {}. Zone import cancelled!", i, j, zoneFile.Name);
+                return NullObjectHandle;
             }
 
             currentProp = current->NextProperty(currentProp);
@@ -118,6 +129,35 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile)
 
         current = zoneFile.NextObject(current);
         j++;
+    }
+
+    //Mark persistent objects by finding match objects in persistent file (same zone filename with the p_ prefix)
+    {
+        current = persistentZoneFile.Objects;
+        while (current)
+        {
+            const u32 classnameHash = current->ClassnameHash;
+            const u32 handle = current->Handle;
+            const u32 num = current->Num;
+
+            for (ObjectHandle obj : zone.GetObjectList("Objects"))
+            {
+                if (obj.Get<u32>("Handle") == handle && obj.Get<u32>("Num") == num)
+                {
+                    if (obj.Get<u32>("ClassnameHash") == classnameHash)
+                    {
+                        obj.Set<bool>("Persistent", true);
+                    }
+                    else
+                    {
+                        Log->warn("Object type mismatch between primary and persistent zone files. ZoneFile: {}, Handle: {}, Num: {}, Classname hashes: {}, {}", 
+                                  zone.Get<string>("Name"), handle, num, obj.Get<u32>("ClassnameHash"), classnameHash);
+                    }
+                }
+            }
+
+            current = persistentZoneFile.NextObject(current);
+        }
     }
 
     //Determine zone position
@@ -442,13 +482,13 @@ void InitZonePropertyLoaders()
             }
 
             CovernodeData* data = (CovernodeData*)prop->Data();
-            zoneObject.Set<i32>("Version", data->Version);
+            zoneObject.Set<i32>("CovernodeVersion", data->Version);
             zoneObject.Set<f32>("Heading", data->Heading);
             zoneObject.Set<i8>("DefaultAngleLeft", data->DefaultAngleLeft);
             zoneObject.Set<i8>("DefaultAngleRight", data->DefaultAngleRight);
             zoneObject.Set<i8>("AngleLeft", data->AngleLeft);
             zoneObject.Set<i8>("AngleRight", data->AngleRight);
-            zoneObject.Set<u16>("Flags", data->Flags);
+            zoneObject.Set<u16>("CovernodeFlags", data->Flags);
             return true;
         }
     );
@@ -470,10 +510,10 @@ void InitZonePropertyLoaders()
             }
 
             NavpointData* data = (NavpointData*)prop->Data();
-            zoneObject.Set<i32>("Version", data->Version);
+            zoneObject.Set<i32>("NavpointVersion", data->Version);
             zoneObject.Set<i32>("NavpointType", data->Type);
             zoneObject.Set<bool>("DontFollowRoad", data->DontFollowRoad);
-            zoneObject.Set<f32>("Radius", data->Radius);
+            zoneObject.Set<f32>("NavpointRadius", data->Radius);
             zoneObject.Set<f32>("SpeedLimit", data->SpeedLimit);
             zoneObject.Set<bool>("IgnoreLanes", data->IgnoreLanes);
             if (data->BranchType == NavpointBranchType::None)
@@ -499,9 +539,9 @@ void InitZonePropertyLoaders()
     (
         "Constraint",
         std::vector<std::string_view>
-        {
-            "template"
-        },
+    {
+        "template"
+    },
         [](ZoneObjectProperty* prop, ObjectHandle zoneObject, std::string_view propertyName) -> bool
         {
             if (prop->Size != 156)
@@ -513,6 +553,13 @@ void InitZonePropertyLoaders()
             ConstraintTemplate& data = *(ConstraintTemplate*)prop->Data();
             ObjectHandle constraint = Registry::Get().CreateObject("", "Constraint");
 
+            constraint.Set<u32>("Body1Index", data.Body1Index);
+            constraint.Set<Mat3>("Body1Orient", data.Body1Orient);
+            constraint.Set<Vec3>("Body1Pos", data.Body1Pos);
+            constraint.Set<u32>("Body2Index", data.Body2Index);
+            constraint.Set<Mat3>("Body2Orient", data.Body2Orient);
+            constraint.Set<Vec3>("Body2Pos", data.Body2Pos);
+            constraint.Set<f32>("Threshold", data.Threshold);
             if (data.Type == ConstraintType::Point)
             {
                 PointConstraintData& point = data.Data.Point;
@@ -595,6 +642,11 @@ bool ImportZoneObjectProperty(ZoneObjectProperty* prop, ObjectHandle zoneObject)
         Log->warn("Failed to import zone object property. NameHash: {}", prop->NameHash);
         return false;
     }
+
+    //Todo: See how much space these take up. Maybe have a global string array for these and store the indices instead
+    //Store original property names to make exporter code simpler. Mainly since RFG properties don't have one-one mapping with Nanoforge properties.
+    //It'd be complicated to determine what RFG properties created a set of Nanoforge properties.
+    zoneObject.GetStringList("RfgPropertyNames").push_back(maybeName.value());
 
     string name = maybeName.value();
     for (ZonePropertyType& propType : ZonePropertyTypes)

@@ -98,10 +98,11 @@ void PropertyPanel_ZoneObject(GuiState* state)
         u32 handle = selected.Property("Handle").Get<u32>();
         u32 num = selected.Property("Num").Get<u32>();
         u32 flags = selected.Property("Flags").Get<u16>();
-        ImGui::InputScalar("Handle", ImGuiDataType_U32, &handle);
-        ImGui::InputScalar("Num", ImGuiDataType_U32, &num);
-        ImGui::InputScalar("Flags", ImGuiDataType_U16, &flags);
-        if (ImGui::Button("Copy scriptx ref to clipboard"))
+        gui::LabelAndValue("Type:", selected.Get<string>("Type"));
+        gui::LabelAndValue("Handle:", std::to_string(handle));
+        gui::LabelAndValue("Num:", std::to_string(num));
+        gui::LabelAndValue("Flags:", std::to_string(flags));
+        if (ImGui::Button("Copy scriptx reference"))
         {
             ImGui::LogToClipboard();
             ImGui::LogText("<object>%X\n", handle);
@@ -109,148 +110,223 @@ void PropertyPanel_ZoneObject(GuiState* state)
             ImGui::LogText("</object>");
             ImGui::LogFinish();
         }
-
+        
+        static std::vector<string> HiddenProperties = //These ones aren't drawn
+        {
+            "Handle", "Num", "Flags", "ClassnameHash", "RfgPropertyNames", "BlockSize", "ParentHandle", "SiblingHandle", "ChildHandle",
+            "NumProps", "PropBlockSize", "Type"
+        };
         for (PropertyHandle prop : selected.Properties())
         {
+            if (std::ranges::find(HiddenProperties, prop.Name()) != HiddenProperties.end())
+                continue; //Skip hidden properties
+
+            bool propertyEdited = false;
             const f32 indent = 15.0f;
-            if (ImGui::CollapsingHeader(prop.Name().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+            ImGui::PushID(fmt::format("{}_{}", selected.UID(), prop.Index()).c_str());
+            if (prop.IsType<i32>())
             {
+                i32 data = prop.Get<i32>();
+                if (ImGui::InputScalar(prop.Name().c_str(), ImGuiDataType_S32, &data))
+                {
+                    prop.Set<i32>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<u64>())
+            {
+                u64 data = prop.Get<u64>();
+                if (ImGui::InputScalar(prop.Name().c_str(), ImGuiDataType_U64, &data))
+                {
+                    prop.Set<u64>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<u32>())
+            {
+                u32 data = prop.Get<u32>();
+                if (ImGui::InputScalar(prop.Name().c_str(), ImGuiDataType_U32, &data))
+                {
+                    prop.Set<u32>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<u16>())
+            {
+                u16 data = prop.Get<u16>();
+                if (ImGui::InputScalar(prop.Name().c_str(), ImGuiDataType_U16, &data))
+                {
+                    prop.Set<u16>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<u8>())
+            {
+                u8 data = prop.Get<u8>();
+                if (ImGui::InputScalar(prop.Name().c_str(), ImGuiDataType_U8, &data))
+                {
+                    prop.Set<u8>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<f32>())
+            {
+                f32 data = prop.Get<f32>();
+                if (ImGui::InputFloat(prop.Name().c_str(), &data))
+                {
+                    prop.Set<f32>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<bool>())
+            {
+                bool data = prop.Get<bool>();
+                if (ImGui::Checkbox(prop.Name().c_str(), &data))
+                {
+                    prop.Set<bool>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<string>())
+            {
+                string data = prop.Get<string>();
+                if (ImGui::InputText(prop.Name().c_str(), &data))
+                {
+                    prop.Set<string>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<std::vector<ObjectHandle>>())
+            {
+                ImGui::Text(prop.Name() + ":");
                 ImGui::Indent(indent);
-                if (prop.IsType<i32>())
+
+                std::vector<ObjectHandle> handles = prop.Get<std::vector<ObjectHandle>>();
+                if (handles.size() > 0)
                 {
-                    i32 data = prop.Get<i32>();
-                    if (ImGui::InputScalar("Number(i32)", ImGuiDataType_S32, &data))
-                        prop.Set<i32>(data);
-                }
-                else if (prop.IsType<u64>())
-                {
-                    u64 data = prop.Get<u64>();
-                    if (ImGui::InputScalar("Number(u64)", ImGuiDataType_U64, &data))
-                        prop.Set<u64>(data);
-                }
-                else if (prop.IsType<u32>())
-                {
-                    u32 data = prop.Get<u32>();
-                    if (ImGui::InputScalar("Number(u32)", ImGuiDataType_U32, &data))
-                        prop.Set<u32>(data);
-                }
-                else if (prop.IsType<u16>())
-                {
-                    u16 data = prop.Get<u16>();
-                    if (ImGui::InputScalar("Number(u16)", ImGuiDataType_U16, &data))
-                        prop.Set<u16>(data);
-                }
-                else if (prop.IsType<u8>())
-                {
-                    u8 data = prop.Get<u8>();
-                    if (ImGui::InputScalar("Number(u8)", ImGuiDataType_U8, &data))
-                        prop.Set<u8>(data);
-                }
-                else if (prop.IsType<f32>())
-                {
-                    f32 data = prop.Get<f32>();
-                    if (ImGui::InputFloat("Float", &data))
-                        prop.Set<f32>(data);
-                }
-                else if (prop.IsType<bool>())
-                {
-                    bool data = prop.Get<bool>();
-                    if (ImGui::Checkbox("Bool", &data))
-                        prop.Set<bool>(data);
-                }
-                else if (prop.IsType<string>())
-                {
-                    string data = prop.Get<string>();
-                    if (ImGui::InputText("String", &data))
-                        prop.Set<string>(data);
-                }
-                else if (prop.IsType<std::vector<ObjectHandle>>())
-                {
-                    std::vector<ObjectHandle> handles = prop.Get<std::vector<ObjectHandle>>();
-                    if (handles.size() > 0)
+                    for (ObjectHandle handle : handles)
                     {
-                        for (ObjectHandle handle : handles)
+                        string name = "";
+                        if (handle.Has("Name"))
                         {
-                            string name = "";
-                            if (handle.Has("Name"))
-                            {
-                                name = handle.Property("Name").Get<string>();
-                                if (name != "")
-                                    name += ", ";
-                            }
-
-                            string uid;
-                            if (handle.UID() == NullUID)
-                                uid = "Null";
-                            else
-                                uid = std::to_string(handle.UID());
-
-                            ImGui::Bullet();
-                            ImGui::SameLine();
-                            ImGui::Text(fmt::format("Object({}{})", name, uid));
+                            name = handle.Property("Name").Get<string>();
+                            if (name != "")
+                                name += ", ";
                         }
+
+                        string uid;
+                        if (handle.UID() == NullUID)
+                            uid = "Null";
+                        else
+                            uid = std::to_string(handle.UID());
+
+                        ImGui::Bullet();
+                        ImGui::SameLine();
+                        ImGui::Text(fmt::format("Object({}{})", name, uid));
                     }
-                    else
-                    {
-                        ImGui::Text("Empty");
-                    }
-                }
-                else if (prop.IsType<Vec3>())
-                {
-                    Vec3 data = prop.Get<Vec3>();
-                    if (ImGui::InputFloat3("Vector", (f32*)&data))
-                        prop.Set<Vec3>(data);
-                }
-                else if (prop.IsType<Mat3>())
-                {
-                    Mat3 data = prop.Get<Mat3>();
-                    if (ImGui::InputFloat3("Right", (f32*)&data.rvec))
-                        prop.Set<Mat3>(data);
-                    if (ImGui::InputFloat3("Up", (f32*)&data.uvec))
-                        prop.Set<Mat3>(data);
-                    if (ImGui::InputFloat3("Forward", (f32*)&data.fvec))
-                        prop.Set<Mat3>(data);
-                }
-                else if (prop.IsType<ObjectHandle>())
-                {
-                    ObjectHandle handle = prop.Get<ObjectHandle>();
-                    string name = "";
-                    if (handle.Has("Name"))
-                    {
-                        name = handle.Property("Name").Get<string>();
-                        if (name != "")
-                            name += ", ";
-                    }
-
-                    string uid;
-                    if (handle.UID() == NullUID)
-                        uid = "Null";
-                    else
-                        uid = std::to_string(handle.UID());
-
-                    ImGui::Text(fmt::format("Object({}{})", name, uid));
-                }
-                else if (prop.IsType<BufferHandle>())
-                {
-                    BufferHandle handle = prop.Get<BufferHandle>();
-                    string name = "";
-                    if (handle.Name() != "")
-                        name += handle.Name() + ", ";
-
-                    string uid;
-                    if (handle.UID() == NullUID)
-                        uid = "Null";
-                    else
-                        uid = std::to_string(handle.UID());
-
-                    ImGui::Text(fmt::format("Buffer({}{}, {} bytes)", name, uid, handle.Size()));
                 }
                 else
                 {
-                    ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+                    ImGui::Text("Empty");
+                }
+                ImGui::Unindent(indent);
+            }
+            else if (prop.IsType<std::vector<string>>())
+            {
+                ImGui::Text(prop.Name() + ":");
+                ImGui::Indent(indent);
+
+                std::vector<string> strings = prop.Get<std::vector<string>>();
+                if (strings.size() > 0)
+                {
+                    for (string str : strings)
+                    {
+                        ImGui::Bullet();
+                        ImGui::SameLine();
+                        ImGui::Text(str);
+                    }
+                }
+                else
+                {
+                    ImGui::Text("Empty");
+                }
+                ImGui::Unindent(indent);
+            }
+            else if (prop.IsType<Vec3>())
+            {
+                Vec3 data = prop.Get<Vec3>();
+                if (ImGui::InputFloat3(prop.Name().c_str(), (f32*)&data))
+                {
+                    prop.Set<Vec3>(data);
+                    propertyEdited = true;
+                }
+            }
+            else if (prop.IsType<Mat3>())
+            {
+                ImGui::Text(prop.Name() + ":");
+                ImGui::Indent(indent);
+
+                Mat3 data = prop.Get<Mat3>();
+                if (ImGui::InputFloat3("Right", (f32*)&data.rvec))
+                {
+                    prop.Set<Mat3>(data);
+                    propertyEdited = true;
+                }
+                if (ImGui::InputFloat3("Up", (f32*)&data.uvec))
+                {
+                    prop.Set<Mat3>(data);
+                    propertyEdited = true;
+                }
+                if (ImGui::InputFloat3("Forward", (f32*)&data.fvec))
+                {
+                    prop.Set<Mat3>(data);
+                    propertyEdited = true;
+                }
+                ImGui::Unindent(indent);
+            }
+            else if (prop.IsType<ObjectHandle>())
+            {
+                ObjectHandle handle = prop.Get<ObjectHandle>();
+                string name = "";
+                if (handle.Has("Name"))
+                {
+                    name = handle.Property("Name").Get<string>();
+                    if (name != "")
+                        name += ", ";
                 }
 
-                ImGui::Unindent(indent);
+                string uid;
+                if (handle.UID() == NullUID)
+                    uid = "Null";
+                else
+                    uid = std::to_string(handle.UID());
+
+                gui::LabelAndValue(prop.Name() + ":", fmt::format("Object({}{})", name, uid));
+            }
+            else if (prop.IsType<BufferHandle>())
+            {
+                BufferHandle handle = prop.Get<BufferHandle>();
+                string name = "";
+                if (handle.Name() != "")
+                    name += handle.Name() + ", ";
+
+                string uid;
+                if (handle.UID() == NullUID)
+                    uid = "Null";
+                else
+                    uid = std::to_string(handle.UID());
+
+                gui::LabelAndValue(prop.Name() + ":", fmt::format("Buffer({}{}, {} bytes)", name, uid, handle.Size()));
+            }
+            else
+            {
+                ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+            }
+            ImGui::PopID();
+
+            if (propertyEdited)
+            {
+                state->CurrentTerritoryUpdateDebugDraw = true; //Update in case value related to debug draw is changed
             }
         }
     }

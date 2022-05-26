@@ -13,6 +13,7 @@ public:
     void Update(GuiState* state, bool* open) override;
 
 private:
+    void DrawFilters(GuiState* state);
     //Draw tree node for zone object and recursively draw child objects
     void DrawObjectNode(GuiState* state, ObjectHandle object);
     //Returns true if any objects in the zone are visible
@@ -23,4 +24,5 @@ private:
     string searchTerm_ = "";
     //If true zones outside the territory viewing distance are hidden. Configurable via the buttons in the top left of the territory viewer.
     bool onlyShowNearZones_ = true;
+    bool onlyShowPersistentObjects_ = false;
 };

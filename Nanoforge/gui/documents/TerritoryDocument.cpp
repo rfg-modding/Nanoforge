@@ -9,7 +9,11 @@
 #include "render/resources/Scene.h"
 #include "application/Config.h"
 #include "render/imgui/ImGuiFontManager.h"
+#include "render/imgui/imgui_ext.h"
+#include "rfg/export/Exporters.h"
+#include "gui/util/WinUtil.h"
 #include <RfgTools++/hashes/HashGuesser.h>
+#include <imgui_internal.h>
 #include <imgui.h>
 
 CVar CVar_DisableHighQualityTerrain("Disable high quality terrain", ConfigType::Bool,
@@ -293,6 +297,61 @@ void TerritoryDocument::DrawOverlayButtons(GuiState* state)
         ImGui::SliderFloat("Zone object distance", &zoneObjDistance_, 0.0f, 10000.0f);
         ImGui::SameLine();
         gui::HelpMarker("Zone object bounding boxes and meshes aren't drawn beyond this distance from the camera.", ImGui::GetIO().FontDefault);
+
+        ImGui::EndPopup();
+    }
+
+    ImGui::SameLine();
+    state->FontManager->FontL.Push();
+    if (ImGui::Button(ICON_FA_FILE_EXPORT))
+        ImGui::OpenPopup("##MapExportPopup");
+    state->FontManager->FontL.Pop();
+
+    if (ImGui::BeginPopup("##MapExportPopup"))
+    {
+        state->FontManager->FontL.Push();
+        ImGui::Text("Export map");
+        state->FontManager->FontL.Pop();
+        ImGui::Separator();
+
+        static string ExportPath = "C:/Users/moneyl/Desktop/_RFGR_MapExportTest/";
+        //ImGui::InputText("Export path", &ExportPath);
+        //ImGui::SameLine();
+        //if (ImGui::Button("..."))
+        //{
+        //    auto result = OpenFolder();
+        //    if (!result)
+        //        return;
+
+        //    ExportPath = result.value();
+        //}
+
+        if (!Territory.Ready())
+            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Still loading map.");
+        else if (!Territory.Object)
+            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Map data failed to load");
+
+        //Disable mesh export button if export is disabled
+        const bool canExport = Territory.Ready() && Territory.Object;
+        if (!canExport)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        if (ImGui::Button("Export"))
+        {
+            if (!Exporters::ExportTerritory(Territory.Object, ExportPath))
+            {
+                LOG_ERROR("Failed to export territory '{}'", Territory.Object.Get<string>("Name"))
+            }
+        }
+        if (!canExport)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+            gui::TooltipOnPrevious("You must wait for the map to be fully loaded to export it. See the tasks button at the bottom left of the screen.", state->FontManager->FontDefault.GetFont());
+        }
+        
 
         ImGui::EndPopup();
     }

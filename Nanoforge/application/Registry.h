@@ -212,6 +212,8 @@ public:
         prop.Value = newList; //Replaces existing list
     }
 
+    u32 Index() { return _index; }
+
 private:
     Object* _object;
     u32 _index; //Index of property in Object::Properties
