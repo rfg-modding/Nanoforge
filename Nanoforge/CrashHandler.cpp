@@ -51,9 +51,9 @@ LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptions)
     string errorMessage = fmt::format("A fatal error has occurred! Nanoforge will crash once you press \"OK\". Please wait for the window to close so the crash dump can save. After that send MasterLog.log and the most recent CrashDump file to moneyl on the RF discord. If you're not on the RF discord you can join it by making a discord account and going to RFChat.com. Exception code: {}. Continuable: {}", errorCodeString, continuable);
 
     //Log crash data, generate minidump, and notify user via message box
-    LOG_ERROR(errorMessage);
-    ShowMessageBox(errorMessage, "Unhandled exception encountered!", MB_OK);
     GenerateMinidump(exceptions);
+    ShowMessageBox(errorMessage, "Unhandled exception encountered!", MB_OK);
+    LOG_ERROR(errorMessage);
     return EXCEPTION_CONTINUE_SEARCH; //Crash regardless of continuability. In testing I found it'd endlessly call the crash handler when continuing after some continuable exceptions
 }
 

@@ -26,27 +26,17 @@ void operator delete(void* ptr) noexcept
 #pragma warning(disable:4100) //Ignore unused arguments warning
 int WINAPI main(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
-    //Catches unhandled SEH exceptions
+    //Catches unhandled SEH exceptions. Attempts to create minidump file.
     SetupCrashHandler();
 
-    //Catches unhandled c++ exceptions
-    try
+    if (GetArgc(lpCmdLine) == 1) //Run normal gui app if no args passed
     {
-        if (GetArgc(lpCmdLine) == 1)
-        {
-            Application app(hInstance);
-            app.Run();
-        }
-        else
-        {
-            ProcessCommandLine(lpCmdLine);
-        }
+        Application app(hInstance);
+        app.Run();
     }
-    catch(std::exception ex)
+    else //If > 1 args passed, run CLI
     {
-        string errorMessage = fmt::format("A fatal error has occurred! Nanoforge will crash once you press \"OK\". After that send MasterLog.log to moneyl on the RF discord. If you're not on the RF discord you can join it by making a discord account and going to RFChat.com. Error message: \"{}\"", ex.what());
-        LOG_ERROR(errorMessage);
-        ShowMessageBox(errorMessage, "Fatal error encountered!", MB_OK);
+        ProcessCommandLine(lpCmdLine);
     }
 
     return 0;
