@@ -39,10 +39,11 @@ ObjectHandle Importers::ImportZoneFile(std::span<u8> zoneBytes, std::span<u8> pe
     }
 
     //Load persistent zone file
-    std::optional<ZoneFile> persistentParseResult = ZoneFile::Read(persistentZoneBytes, string(filename));
+    string persistentZoneFilename = "p_" + string(filename);
+    std::optional<ZoneFile> persistentParseResult = ZoneFile::Read(persistentZoneBytes, persistentZoneFilename);
     if (!persistentParseResult.has_value())
     {
-        LOG_ERROR("Failed to parse zone file '{}' in '{}'", filename, territoryName);
+        LOG_ERROR("Failed to parse zone file '{}' in '{}'", persistentZoneFilename, territoryName);
         return NullObjectHandle;
     }
 
@@ -136,10 +137,11 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
         current = persistentZoneFile.Objects;
         while (current)
         {
-            const u32 classnameHash = current->ClassnameHash;
-            const u32 handle = current->Handle;
-            const u32 num = current->Num;
+            u32 classnameHash = current->ClassnameHash;
+            u32 handle = current->Handle;
+            u32 num = current->Num;
 
+            bool found = false;
             for (ObjectHandle obj : zone.GetObjectList("Objects"))
             {
                 if (obj.Get<u32>("Handle") == handle && obj.Get<u32>("Num") == num)
@@ -147,6 +149,8 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
                     if (obj.Get<u32>("ClassnameHash") == classnameHash)
                     {
                         obj.Set<bool>("Persistent", true);
+                        found = true;
+                        break;
                     }
                     else
                     {
@@ -155,6 +159,9 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
                     }
                 }
             }
+
+            if (!found)
+                Log->warn("Failed to find matching object for p_{}", zone.Get<string>("Name"));
 
             current = persistentZoneFile.NextObject(current);
         }

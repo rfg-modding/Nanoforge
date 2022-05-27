@@ -45,9 +45,9 @@ bool Exporters::ExportZone(ObjectHandle zone, std::string_view outputPath, bool 
 
     u32 numObjects = 0;
     if (persistent)
-        numObjects = zone.Get<u32>("NumObjects");
-    else
         numObjects = (u32)std::ranges::count_if(zone.GetObjectList("Objects"), [](ObjectHandle obj) { return obj.Get<bool>("Persistent"); });
+    else
+        numObjects = zone.Get<u32>("NumObjects");
 
 	//Write header
 	writer.WriteFixedLengthString("ZONE");
