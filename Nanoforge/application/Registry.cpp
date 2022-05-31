@@ -336,6 +336,7 @@ BufferHandle Registry::LoadBuffer(const std::vector<std::string_view>& lines, si
 
 bool Registry::Load(const string& inFolderPath)
 {
+    _ready = false;
 #ifdef DEBUG_BUILD
     Timer timer;
     timer.Start();
@@ -444,6 +445,7 @@ bool Registry::Load(const string& inFolderPath)
 #ifdef DEBUG_BUILD
     Log->info("Loading Registry took {}s", timer.ElapsedSecondsPrecise());
 #endif
+    _ready = true;
     return true;
 }
 
@@ -680,6 +682,52 @@ BufferHandle Registry::FindBuffer(std::string_view name, const bool locking)
     }
     if (locking) _bufferCreationLock.unlock();
     return NullBufferHandle;
+}
+
+std::vector<ObjectHandle> Registry::Objects()
+{
+    std::vector<ObjectHandle> handles = {};
+    for (auto& kv : _objects)
+        handles.push_back(ObjectHandle(&kv.second));
+
+    return handles;
+}
+
+void Registry::DeleteObject(ObjectHandle obj)
+{
+    //TODO: Somehow do this better. Maybe have ObjectHandle reference a handle table in Registry. That way that data can be edited once to invalidate all handles
+    //Invalidate any references to this object
+    _objectCreationLock.lock();
+    for (auto& kv : _objects)
+    {
+        ObjectHandle obj2 = { &kv.second };
+        if (obj2 == obj)
+            continue;
+
+        for (PropertyHandle prop : obj2.Properties())
+        {
+            if (prop.IsType<ObjectHandle>())
+            {
+                if (prop.Get<ObjectHandle>() == obj)
+                    prop.Set<ObjectHandle>(NullObjectHandle);
+            }
+            else if (prop.IsType<std::vector<ObjectHandle>>())
+            {
+                std::vector<ObjectHandle> handles = prop.Get<std::vector<ObjectHandle>>();
+                for (size_t i = 0; i < handles.size(); i++)
+                    if (handles[i] == obj)
+                        handles[i] = NullObjectHandle;
+            }
+        }
+    }
+
+    _objects.erase(obj.UID());
+    _objectCreationLock.unlock();
+}
+
+bool Registry::Ready()
+{
+    return _ready;
 }
 
 Object& Registry::GetObjectByUID(u64 uid)

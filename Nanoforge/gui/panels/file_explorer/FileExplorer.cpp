@@ -1,5 +1,4 @@
 #include "FileExplorer.h"
-#include "gui/panels/property_panel/PropertyPanelContent.h"
 #include "gui/documents/TextureDocument.h"
 #include "gui/documents/StaticMeshDocument.h"
 #include "gui/documents/XtblDocument.h"
@@ -220,7 +219,6 @@ void FileExplorer::GenerateFileTree(GuiState* state)
 {
     //Clear current tree and selected node
     FileTree.clear();
-    state->FileExplorer_SelectedNode = nullptr;
 
     //Empty space for node icons
     const string nodeIconSpacing = "      ";
@@ -302,13 +300,13 @@ void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
         //If the node has no children make it a leaf node (a node which can't be expanded)
         | (node.Children.size() == 0 || !node.AnyChildNodeMatchesSearchTerm ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_None)
         //Highlight the node if it's the currently selected node (the last node that was clicked)
-        | (&node == state->FileExplorer_SelectedNode ? ImGuiTreeNodeFlags_Selected : 0));
+        | (&node == selectedNode_ ? ImGuiTreeNodeFlags_Selected : 0));
 
     //Check if the node was clicked and detect double clicks
     if (ImGui::IsItemClicked())
     {
         //Behavior for double clicking a file
-        if (state->FileExplorer_SelectedNode == &node)
+        if (selectedNode_ == &node)
         {
             //If time between clicks less than maxDoubleClickTime then a double click occurred
             if (clickTimer.ElapsedMilliseconds() < maxDoubleClickTime)
@@ -316,10 +314,13 @@ void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
 
             clickTimer.Reset();
         }
+        else
+        {
+            //Set FileExplorer_SelectedNode to most recently selected node
+            selectedNode_ = &node;
+            SingleClickedFile(state, node);
+        }
 
-        //Set FileExplorer_SelectedNode to most recently selected node
-        state->FileExplorer_SelectedNode = &node;
-        SingleClickedFile(state, node);
         clickTimer.Reset();
     }
 
@@ -352,22 +353,7 @@ void FileExplorer::DrawFileNode(GuiState* state, FileExplorerNode& node)
 void FileExplorer::SingleClickedFile(GuiState* state, FileExplorerNode& node)
 {
     string extension = Path::GetExtension(node.Filename);
-    if (node.Type == Packfile)
-    {
-        state->PropertyPanelContentFuncPtr = &PropertyPanel_VppContent;
-    }
-    else if (node.Type == Container)
-    {
-        state->PropertyPanelContentFuncPtr = &PropertyPanel_Str2Content;
-    }
-    else if (node.Type == Primitive)
-    {
-        state->PropertyPanelContentFuncPtr = nullptr;
-    }
-    else
-    {
-        state->PropertyPanelContentFuncPtr = nullptr;
-    }
+    //TODO: Add custom inspector support to IGuiPanel like what IDocument has, and display info about the currently selected file
 }
 
 void FileExplorer::DoubleClickedFile(GuiState* state, FileExplorerNode& node)

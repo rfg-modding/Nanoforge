@@ -87,8 +87,6 @@ void Scene::Draw(f32 deltaTime)
             d3d11Context_->Map(lineVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
             memcpy(mappedResource.pData, lineVertices_.data(), lineVertices_.size() * sizeof(ColoredVertex));
             d3d11Context_->Unmap(lineVertexBuffer_.Get(), 0);
-            numLineVertices_ = (u32)lineVertices_.size();
-            lineVertices_.clear();
         }
 
         //Update triangle list vertex buffer
@@ -99,8 +97,6 @@ void Scene::Draw(f32 deltaTime)
             d3d11Context_->Map(triangleListVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
             memcpy(mappedResource.pData, triangleListVertices_.data(), triangleListVertices_.size() * sizeof(ColoredVertex));
             d3d11Context_->Unmap(triangleListVertexBuffer_.Get(), 0);
-            numTriangleListVertices_ = (u32)triangleListVertices_.size();
-            triangleListVertices_.clear();
         }
 
         //Update lit triangle list vertex buffer
@@ -111,8 +107,6 @@ void Scene::Draw(f32 deltaTime)
             d3d11Context_->Map(litTriangleListVertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
             memcpy(mappedResource.pData, litTriangleListVertices_.data(), litTriangleListVertices_.size() * sizeof(ColoredVertexLit));
             d3d11Context_->Unmap(litTriangleListVertexBuffer_.Get(), 0);
-            numLitTriangleListVertices_ = (u32)litTriangleListVertices_.size();
-            litTriangleListVertices_.clear();
         }
 
         primitiveBufferNeedsUpdate_ = false;
@@ -141,21 +135,25 @@ void Scene::Draw(f32 deltaTime)
     linelistMaterial_->Use(d3d11Context_);
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
     d3d11Context_->IASetVertexBuffers(0, 1, lineVertexBuffer_.GetAddressOf(), &strideColoredVertex, &offset);
-    d3d11Context_->Draw(numLineVertices_, 0);
+    d3d11Context_->Draw(lineVertices_.size(), 0);
 
     //Draw unlit triangle list primitives
     d3d11Context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     offset = 0;
     trianglelistMaterial_->Use(d3d11Context_);
     d3d11Context_->IASetVertexBuffers(0, 1, triangleListVertexBuffer_.GetAddressOf(), &strideColoredVertex, &offset);
-    d3d11Context_->Draw(numTriangleListVertices_, 0);
+    d3d11Context_->Draw(triangleListVertices_.size(), 0);
 
     //Draw lit triangle list primitives
     offset = 0;
     u32 strideLit = sizeof(ColoredVertexLit);
     litTrianglelistMaterial_->Use(d3d11Context_);
     d3d11Context_->IASetVertexBuffers(0, 1, litTriangleListVertexBuffer_.GetAddressOf(), &strideLit, &offset);
-    d3d11Context_->Draw(numLitTriangleListVertices_, 0);
+    d3d11Context_->Draw(litTriangleListVertices_.size(), 0);
+
+    lineVertices_.clear();
+    triangleListVertices_.clear();
+    litTriangleListVertices_.clear();
 }
 
 void Scene::HandleResize(u32 windowWidth, u32 windowHeight)

@@ -18,6 +18,8 @@ class TextureIndex;
 class IGuiPanel;
 using ImGuiID = unsigned int;
 
+#define ToolbarEnabled false //Currently disabled since there's no use for it yet. It has undo/redo buttons but support for that hasn't been added yet
+
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
 {
@@ -25,10 +27,11 @@ public:
     void Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Localization* localization, TextureIndex* textureSearchIndex);
     void Update();
     void SaveFocusedDocument();
+    void SetPanelVisibility(const std::string& title, bool visible);
 
     GuiState State; //Global gui state provided to each panel and document
     f32 mainMenuHeight = 8.0f;
-    f32 toolbarHeight = 16.0f;
+    f32 toolbarHeight = 32.0f;
     bool Shutdown = false;
 
 private:
@@ -37,7 +40,7 @@ private:
     void DrawDockspace();
     void GenerateMenus();
     MenuItem* GetMenu(std::string_view text);
-    void SetPanelVisibility(const std::string& title, bool visible);
+    void DrawOutlinerAndInspector();
 
     std::vector<Handle<IGuiPanel>> panels_ = {};
     std::vector<MenuItem> menuItems_ = {}; //Main menu bar items
@@ -56,5 +59,7 @@ private:
     bool imguiDemoWindowOpen_ = true;
     string openRecentProjectRequestData_;
 
+    bool outlinerOpen_ = false;
+    bool inspectorOpen_ = false;
     Handle<IDocument> currentDocument_ = nullptr;
 };

@@ -123,19 +123,16 @@ private:
     Material* linelistMaterial_ = nullptr;
     std::vector<ColoredVertex> lineVertices_;
     Buffer lineVertexBuffer_;
-    u32 numLineVertices_ = 0;
 
     //Data for drawing solid shaded triangle list primitives
     Material* trianglelistMaterial_ = nullptr;
     std::vector<ColoredVertex> triangleListVertices_;
     Buffer triangleListVertexBuffer_;
-    u32 numTriangleListVertices_ = 0;
 
     //Data for drawing triangle list primitives with basic lighting
     Material* litTrianglelistMaterial_ = nullptr;
     std::vector<ColoredVertexLit> litTriangleListVertices_;
     Buffer litTriangleListVertexBuffer_;
-    u32 numLitTriangleListVertices_ = 0;
 
     bool errorOccurred_ = false;
 };

@@ -49,6 +49,9 @@ public:
     ObjectHandle FindObject(std::string_view name, std::string_view type = "", const bool locking = false);
     //Find first buffer with provided name. If locking == true it stops new buffers from being created during the search
     BufferHandle FindBuffer(std::string_view name, const bool locking = false);
+    std::vector<ObjectHandle> Objects();
+    void DeleteObject(ObjectHandle obj);
+    bool Ready();
 private:
     ObjectHandle LoadObject(const std::vector<std::string_view>& lines, size_t entryLineStart); //Load object from lines of serialized registry. Returns null handle if it fails.
     BufferHandle LoadBuffer(const std::vector<std::string_view>& lines, size_t entryLineStart); //Same as ::LoadObject() but for buffers
@@ -65,6 +68,7 @@ private:
     std::shared_mutex _objectCreationLock;
     std::shared_mutex _bufferCreationLock;
     string _folderPath;
+    bool _ready = false;
 
     Object& GetObjectByUID(u64 uid);
 

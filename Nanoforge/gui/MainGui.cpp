@@ -7,9 +7,6 @@
 #include "gui/panels/scriptx_editor/ScriptxEditor.h"
 #include "gui/panels/StatusBar.h"
 #include "gui/panels/StartPanel.h"
-#include "gui/panels/ZoneList.h"
-#include "gui/panels/ZoneObjectsList.h"
-#include "gui/panels/property_panel/PropertyPanel.h"
 #include "gui/panels/LogPanel.h"
 #include "application/project/Project.h"
 #include "gui/documents/TerritoryDocument.h"
@@ -99,6 +96,10 @@ std::vector<const char*> TerritoryList =
     "wcdlc9"
 };
 
+//Titles for outliner and inspector windows. Used when drawing the windows, but also needed when setting their default docking positions
+const char* OutlinerIdentifier = ICON_FA_LIST " Outliner";
+const char* InspectorIdentifier = ICON_FA_WRENCH " Inspector";
+
 void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11Renderer* renderer, Project* project, XtblManager* xtblManager, Localization* localization, TextureIndex* textureSearchIndex)
 {
     TRACE();
@@ -107,12 +108,15 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     //Create all gui panels
     AddMenuItem("", true, CreateHandle<StatusBar>());
     AddMenuItem("View/Start page", true, CreateHandle<StartPanel>());
-    AddMenuItem("View/Properties", false, CreateHandle<PropertyPanel>());
     AddMenuItem("View/Log", false, CreateHandle<LogPanel> ());
-    AddMenuItem("View/Zone objects", false, CreateHandle<ZoneObjectsList>());
-    AddMenuItem("View/Zone list", false, CreateHandle<ZoneList>());
     AddMenuItem("View/File explorer", true, CreateHandle<FileExplorer>());
     AddMenuItem("View/Scriptx viewer (WIP)", false, CreateHandle<ScriptxEditor>(&State));
+
+    //Not added to the menu. Only available through key shortcut so people don't go messing with the registry unless they know what they're doing
+    //auto registryExplorer = CreateHandle<RegistryExplorer>();
+    //registryExplorer->MenuPos = "";
+    //registryExplorer->Open = false;
+    //panels_.emplace_back(registryExplorer);
 
     GenerateMenus();
 
@@ -163,6 +167,7 @@ void MainGui::Update()
         panel->Update(&State, &panel->Open);
         panel->FirstDraw = false;
     }
+    DrawOutlinerAndInspector();
 
     //Move newly created documents into main vector. Done this way to avoid iterator invalidation when documents are created by other documents
     for (auto& doc : State.NewDocuments)
@@ -182,8 +187,14 @@ void MainGui::Update()
             if (document->NoWindowPadding)
                 ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
 
+            //Determine doc window flags
+            ImGuiWindowFlags flags = document->UnsavedChanges ? ImGuiWindowFlags_UnsavedDocument : 0;
+            if (document->HasMenuBar)
+                flags |= ImGuiWindowFlags_MenuBar;
+
+            //Draw document
             ImGui::SetNextWindowDockID(dockspaceCentralNodeId, ImGuiCond_Appearing);
-            ImGui::Begin(document->Title.c_str(), &document->Open, document->UnsavedChanges ? ImGuiWindowFlags_UnsavedDocument : 0);
+            ImGui::Begin(document->Title.c_str(), &document->Open, flags);
             if (ImGui::IsWindowFocused())
                 currentDocument_ = document;
 
@@ -458,20 +469,18 @@ void MainGui::DrawMainMenuBar()
                 {
                     //Todo: Give panels and documents separate identifiers so their titles can change without breaking everything
                     SetPanelVisibility("Start page", true);
-                    SetPanelVisibility(ICON_FA_WRENCH " Properties", false);
+                    outlinerOpen_ = false;
+                    inspectorOpen_ = false;
                     SetPanelVisibility("Log", false);
-                    SetPanelVisibility(ICON_FA_BOXES " Zone objects", false);
-                    SetPanelVisibility(ICON_FA_MAP " Zones", false);
                     SetPanelVisibility("File explorer", true);
                     SetPanelVisibility("Scriptx viewer", false);
                 }
                 if (ImGui::MenuItem("Level editing"))
                 {
                     SetPanelVisibility("Start page", false);
-                    SetPanelVisibility(ICON_FA_WRENCH " Properties", true);
+                    outlinerOpen_ = true;
+                    inspectorOpen_ = true;
                     SetPanelVisibility("Log", false);
-                    SetPanelVisibility(ICON_FA_BOXES " Zone objects", true);
-                    SetPanelVisibility(ICON_FA_MAP " Zones", false);
                     SetPanelVisibility("File explorer", true);
                     SetPanelVisibility("Scriptx viewer", false);
                 }
@@ -486,10 +495,16 @@ void MainGui::DrawMainMenuBar()
             ImGui::EndMenu();
         }
 
-        //Draw menu item for each panel (e.g. file explorer, properties, log, etc)
+        //Draw menu item for each panel (e.g. file explorer, properties, log, etc) so user can toggle visibility
         for (auto& menuItem : menuItems_)
         {
             menuItem.Draw();
+        }
+        if (ImGui::BeginMenu("View"))
+        {
+            ImGui::MenuItem(OutlinerIdentifier, "", &outlinerOpen_);
+            ImGui::MenuItem(InspectorIdentifier, "", &inspectorOpen_);
+            ImGui::EndMenu();
         }
 
         //Draw tools menu
@@ -501,9 +516,13 @@ void MainGui::DrawMainMenuBar()
                 {
                     if (ImGui::MenuItem(territory))
                     {
-                        string territoryName = string(territory);
-                        State.SetTerritory(territoryName);
-                        State.CreateDocument(territoryName, CreateHandle<TerritoryDocument>(&State, State.CurrentTerritoryName, State.CurrentTerritoryShortname));
+                        string territoryShortname = string(territory);
+                        string territoryFilename = territoryShortname;
+                        if (territoryFilename == "terr01") territoryFilename = "zonescript_terr01";
+                        else if (territoryFilename == "dlc01") territoryFilename = "zonescript_dlc01";
+                        territoryFilename += ".vpp_pc";
+
+                        State.CreateDocument(territoryShortname, CreateHandle<TerritoryDocument>(&State, territoryFilename, territoryShortname));
                     }
                 }
                 ImGui::EndMenu();
@@ -657,11 +676,11 @@ void MainGui::DrawMainMenuBar()
         ImGui::EndMainMenuBar();
     }
 
+#if ToolbarEnabled
     //Draw toolbar
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImVec2 toolbarPos = viewport->WorkPos;
-    ImVec2 toolbarSize = { viewport->WorkSize.x, 32.0f };
-    toolbarHeight = toolbarSize.y;
+    ImVec2 toolbarSize = { viewport->WorkSize.x, toolbarHeight };
     ImGui::SetNextWindowPos(toolbarPos);
     ImGui::SetNextWindowSize(toolbarSize, ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
@@ -691,6 +710,7 @@ void MainGui::DrawMainMenuBar()
     }
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
+#endif
 }
 
 void MainGui::DrawDockspace()
@@ -704,10 +724,12 @@ void MainGui::DrawDockspace()
                                     | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImVec2 dockspacePos = viewport->WorkPos;
-    dockspacePos.y += toolbarHeight;
+//#if ToolbarEnabled
+//    dockspacePos.y += toolbarHeight;
+//#endif
     ImVec2 dockspaceSize = viewport->WorkSize;
     dockspaceSize.y -= State.StatusBarHeight;
-    dockspaceSize.y -= toolbarHeight;
+    //dockspaceSize.y -= toolbarHeight;
     dockspaceSize.y += 1; //Cover up a 1 pixel wide line separating the dockspace and status bar
     ImGui::SetNextWindowPos(dockspacePos);
     ImGui::SetNextWindowSize(dockspaceSize);
@@ -743,8 +765,8 @@ void MainGui::DrawDockspace()
     if (firstDraw)
     {
         ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
-        ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.25f, nullptr, &dockspaceId);
-        ImGuiID dockRightUp = ImGui::DockBuilderSplitNode(dockRightId, ImGuiDir_Up, 0.3f, nullptr, &dockRightId);
+        ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.28f, nullptr, &dockspaceId);
+        ImGuiID dockRightUp = ImGui::DockBuilderSplitNode(dockRightId, ImGuiDir_Up, 0.35f, nullptr, &dockRightId);
         dockspaceCentralNodeId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
         ImGuiID dockCentralDownSplitId = ImGui::DockBuilderSplitNode(dockspaceCentralNodeId, ImGuiDir_Down, 0.20f, nullptr, &dockspaceCentralNodeId);
 
@@ -752,9 +774,8 @@ void MainGui::DrawDockspace()
         ImGui::DockBuilderDockWindow("Start page", dockspaceCentralNodeId);
         ImGui::DockBuilderDockWindow("File explorer", dockLeftId);
         ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
-        ImGui::DockBuilderDockWindow(ICON_FA_MAP " Zones", dockLeftId);
-        ImGui::DockBuilderDockWindow(ICON_FA_BOXES " Zone objects", dockRightUp);
-        ImGui::DockBuilderDockWindow(ICON_FA_WRENCH " Properties", dockRightId);
+        ImGui::DockBuilderDockWindow(OutlinerIdentifier, dockRightUp);
+        ImGui::DockBuilderDockWindow(InspectorIdentifier, dockRightId);
         ImGui::DockBuilderDockWindow("Render settings", dockRightId);
         ImGui::DockBuilderDockWindow("Scriptx viewer", dockspaceCentralNodeId);
         ImGui::DockBuilderDockWindow("Log", dockCentralDownSplitId);
@@ -826,5 +847,45 @@ void MainGui::SetPanelVisibility(const std::string& title, bool visible)
             panel->Open = visible;
             return;
         }
+    }
+}
+
+void MainGui::DrawOutlinerAndInspector()
+{
+    PROFILER_FUNCTION();
+    bool useCustom = currentDocument_ && currentDocument_->HasCustomOutlinerAndInspector;
+
+    //Draw outliner
+    if (outlinerOpen_)
+    {
+        if (!ImGui::Begin(OutlinerIdentifier, &outlinerOpen_))
+        {
+            ImGui::End();
+            return;
+        }
+
+        if (useCustom)
+        {
+            currentDocument_->Outliner(&State);
+        }
+
+        ImGui::End();
+    }
+
+    //Draw inspector
+    if (inspectorOpen_)
+    {
+        if (!ImGui::Begin(InspectorIdentifier, &outlinerOpen_))
+        {
+            ImGui::End();
+            return;
+        }
+
+        if (useCustom)
+        {
+            currentDocument_->Inspector(&State);
+        }
+
+        ImGui::End();
     }
 }

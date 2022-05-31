@@ -20,6 +20,7 @@
 #include <variant>
 #include <ext/WindowsWrapper.h>
 #include <timeapi.h>
+#include "render/imgui/imgui_ext.h"
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
@@ -182,10 +183,12 @@ void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    static bool registryExplorerVisible = false;
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
         return true;
 
     appInstance->HandleCameraInput(hwnd, msg, wParam, lParam);
+
     switch (msg)
     {
     case WM_CLOSE:
@@ -207,6 +210,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             appInstance->gui_.SaveFocusedDocument();
         }
         return 0;
+    case WM_KEYUP:
+        if (wParam == VK_F2)
+        {
+            registryExplorerVisible = !registryExplorerVisible;
+            appInstance->gui_.SetPanelVisibility("Registry explorer", registryExplorerVisible);
+        }
     case WM_DESTROY: //Exit if window close button pressed
         PostQuitMessage(0);
         return 0;

@@ -144,6 +144,7 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
     //Init object class data used for filtering and labelling
     EarlyStopCheck();
     InitObjectClassData();
+    UpdateObjectClassInstanceCounts();
 
     Log->info("Done loading {}. Took {} seconds. {} objects in registry", territoryFilename_, LoadThreadTimer.ElapsedSecondsPrecise(), Registry::Get().NumObjects());
     state->ClearStatus();
@@ -433,6 +434,9 @@ bool Territory::ObjectClassRegistered(u32 classnameHash, u32& outIndex)
 
 void Territory::UpdateObjectClassInstanceCounts()
 {
+    if (!Object)
+        return;
+
     //Zero instance counts for each object class
     for (auto& objectClass : ZoneObjectClasses)
         objectClass.NumInstances = 0;
@@ -440,9 +444,6 @@ void Territory::UpdateObjectClassInstanceCounts()
     //Update instance count for each object class in visible zones
     for (ObjectHandle zone : Object.GetObjectList("Zones"))
     {
-        if (!zone.Property("RenderBoundingBoxes").Get<bool>())
-            continue;
-
         for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         {
             for (auto& objectClass : ZoneObjectClasses)
@@ -468,51 +469,51 @@ void Territory::InitObjectClassData()
 {
     ZoneObjectClasses =
     {
-        {"rfg_mover",                      2898847573, 0, Vec3{ 0.819f, 0.819f, 0.819f }, true ,   false, ICON_FA_HOME " ", true },
-        {"cover_node",                     3322951465, 0, Vec3{ 1.0f, 0.0f, 0.0f },     false,   false, ICON_FA_SHIELD_ALT " "},
-        {"navpoint",                       4055578105, 0, Vec3{ 1.0f, 0.968f, 0.0f },   false,   false, ICON_FA_LOCATION_ARROW " "},
-        {"general_mover",                  1435016567, 0, Vec3{ 0.861f, 0.248f, 0.248f },   true ,   false, ICON_FA_CUBES  " "},
-        {"player_start",                   1794022917, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_STREET_VIEW " "},
-        {"multi_object_marker",            1332551546, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_MAP_MARKER " "},
-        {"weapon",                         2760055731, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_CROSSHAIRS " "},
-        {"object_action_node",             2017715543, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_RUNNING " "},
-        {"object_squad_spawn_node",        311451949,  0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_USERS " "},
-        {"object_npc_spawn_node",          2305434277, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_USER " "},
-        {"object_guard_node",              968050919,  0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_SHIELD_ALT " "},
-        {"object_path_road",               3007680500, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_ROAD " "},
-        {"shape_cutter",                   753322256,  0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_CUT " "},
-        {"item",                           27482413,   0, Vec3{ 0.719f, 0.494f, 0.982f },     true ,   false, ICON_FA_TOOLS " "},
-        {"object_vehicle_spawn_node",      3057427650, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_CAR_SIDE " "},
-        {"ladder",                         1620465961, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_LEVEL_UP_ALT " "},
-        {"constraint",                     1798059225, 0, Vec3{ 0.975f, 0.407f, 1.0f },   true ,   false, ICON_FA_LOCK " "},
-        {"object_effect",                  2663183315, 0, Vec3{ 1.0f, 0.45f, 0.0f },     true ,   false, ICON_FA_FIRE " "},
-        {"trigger_region",                 2367895008, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BORDER_STYLE " "},
-        {"object_bftp_node",               3005715123, 0, Vec3{ 1.0f, 1.0f, 1.0f },     false,   false, ICON_FA_BOMB " "},
-        {"object_bounding_box",            2575178582, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BORDER_NONE " "},
-        {"object_turret_spawn_node",       96035668,   0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_CROSSHAIRS " "},
-        {"obj_zone",                       3740226015, 0, Vec3{ 0.935f, 0.0f, 1.0f },     true ,   false, ICON_FA_SEARCH_LOCATION " "},
-        {"object_patrol",                  3656745166, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_BINOCULARS " "},
-        {"object_dummy",                   2671133140, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_MEH_BLANK " "},
-        {"object_raid_node",               3006762854, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_CAR_CRASH " "},
-        {"object_delivery_node",           1315235117, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_SHIPPING_FAST " "},
-        {"marauder_ambush_region",         1783727054, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_USER_NINJA " "},
-        {"unknown",                        0, 0,          Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_QUESTION_CIRCLE " "},
-        {"object_activity_spawn",          2219327965, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_SCROLL " "},
-        {"object_mission_start_node",      1536827764, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_MAP_MARKED " "},
-        {"object_demolitions_master_node", 3497250449, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_BOMB " "},
-        {"object_restricted_area",         3157693713, 0, Vec3{ 1.0f, 0.0f, 0.0f },     true ,   true,  ICON_FA_USER_SLASH " "},
-        {"effect_streaming_node",          1742767984, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   true,  ICON_FA_SPINNER " "},
-        {"object_house_arrest_node",       227226529,  0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_USER_LOCK " "},
-        {"object_area_defense_node",       2107155776, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_USER_SHIELD " "},
-        {"object_safehouse",               3291687510, 0, Vec3{ 0.0f, 0.905f, 1.0f },     true ,   false, ICON_FA_FIST_RAISED " "},
-        {"object_convoy_end_point",        1466427822, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_TRUCK_MOVING " "},
-        {"object_courier_end_point",       3654824104, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_FLAG_CHECKERED " "},
-        {"object_riding_shotgun_node",     1227520137, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_TRUCK_MONSTER " "},
-        {"object_upgrade_node",            2502352132, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   false, ICON_FA_ARROW_UP " "},
-        {"object_ambient_behavior_region", 2407660945, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   false, ICON_FA_TREE " "},
-        {"object_roadblock_node",          2100364527, 0, Vec3{ 0.719f, 0.494f, 0.982f },  false,   true,  ICON_FA_HAND_PAPER " "},
-        {"object_spawn_region",            1854373986, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   true,  ICON_FA_USER_PLUS " "},
-        {"obj_light",                      2915886275, 0, Vec3{ 1.0f, 1.0f, 1.0f },     true ,   true,  ICON_FA_LIGHTBULB " "}
+        { "rfg_mover",                      2898847573, 0, Vec3{ 0.819f, 0.819f, 0.819f }, true , false, ICON_FA_HOME " ",            true  },
+        { "cover_node",                     3322951465, 0, Vec3{ 1.0f, 0.0f, 0.0f       }, false, false, ICON_FA_SHIELD_ALT " ",      false },
+        { "navpoint",                       4055578105, 0, Vec3{ 1.0f, 0.968f, 0.0f     }, false, false, ICON_FA_LOCATION_ARROW " ",  false },
+        { "general_mover",                  1435016567, 0, Vec3{ 0.861f, 0.248f, 0.248f }, true , false, ICON_FA_CUBES  " ",          false },
+        { "player_start",                   1794022917, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_STREET_VIEW " ",     false },
+        { "multi_object_marker",            1332551546, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_MAP_MARKER " ",      false },
+        { "weapon",                         2760055731, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_CROSSHAIRS " ",      false },
+        { "object_action_node",             2017715543, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_RUNNING " ",         false },
+        { "object_squad_spawn_node",        311451949,  0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_USERS " ",           false },
+        { "object_npc_spawn_node",          2305434277, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_USER " ",            false },
+        { "object_guard_node",              968050919,  0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_SHIELD_ALT " ",      false },
+        { "object_path_road",               3007680500, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_ROAD " ",            false },
+        { "shape_cutter",                   753322256,  0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_CUT " ",             false },
+        { "item",                           27482413,   0, Vec3{ 0.719f, 0.494f, 0.982f }, true , false, ICON_FA_TOOLS " ",           false },
+        { "object_vehicle_spawn_node",      3057427650, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_CAR_SIDE " ",        false },
+        { "ladder",                         1620465961, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_LEVEL_UP_ALT " ",    false },
+        { "constraint",                     1798059225, 0, Vec3{ 0.975f, 0.407f, 1.0f   }, true , false, ICON_FA_LOCK " ",            false },
+        { "object_effect",                  2663183315, 0, Vec3{ 1.0f, 0.45f, 0.0f      }, true , false, ICON_FA_FIRE " ",            false },
+        { "trigger_region",                 2367895008, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_BORDER_STYLE " ",    false },
+        { "object_bftp_node",               3005715123, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, false, false, ICON_FA_BOMB " ",            false },
+        { "object_bounding_box",            2575178582, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_BORDER_NONE " ",     false },
+        { "object_turret_spawn_node",       96035668,   0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_CROSSHAIRS " ",      false },
+        { "obj_zone",                       3740226015, 0, Vec3{ 0.935f, 0.0f, 1.0f     }, true , false, ICON_FA_SEARCH_LOCATION " ", false },
+        { "object_patrol",                  3656745166, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_BINOCULARS " ",      false },
+        { "object_dummy",                   2671133140, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_MEH_BLANK " ",       false },
+        { "object_raid_node",               3006762854, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_CAR_CRASH " ",       false },
+        { "object_delivery_node",           1315235117, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_SHIPPING_FAST " ",   false },
+        { "marauder_ambush_region",         1783727054, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_USER_NINJA " ",      false },
+        { "object_activity_spawn",          2219327965, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_SCROLL " ",          false },
+        { "object_mission_start_node",      1536827764, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_MAP_MARKED " ",      false },
+        { "object_demolitions_master_node", 3497250449, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_BOMB " ",            false },
+        { "object_restricted_area",         3157693713, 0, Vec3{ 1.0f, 0.0f, 0.0f       }, true , true,  ICON_FA_USER_SLASH " ",      false },
+        { "effect_streaming_node",          1742767984, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, true,  ICON_FA_SPINNER " ",         false },
+        { "object_house_arrest_node",       227226529,  0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_USER_LOCK " ",       false },
+        { "object_area_defense_node",       2107155776, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_USER_SHIELD " ",     false },
+        { "object_safehouse",               3291687510, 0, Vec3{ 0.0f, 0.905f, 1.0f     }, true , false, ICON_FA_FIST_RAISED " ",     false },
+        { "object_convoy_end_point",        1466427822, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_TRUCK_MOVING " ",    false },
+        { "object_courier_end_point",       3654824104, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_FLAG_CHECKERED " ",  false },
+        { "object_riding_shotgun_node",     1227520137, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_TRUCK_MONSTER " ",   false },
+        { "object_upgrade_node",            2502352132, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, false, ICON_FA_ARROW_UP " ",        false },
+        { "object_ambient_behavior_region", 2407660945, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_TREE " ",            false },
+        { "object_roadblock_node",          2100364527, 0, Vec3{ 0.719f, 0.494f, 0.982f }, false, true,  ICON_FA_HAND_PAPER " ",      false },
+        { "object_spawn_region",            1854373986, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , true,  ICON_FA_USER_PLUS " ",       false },
+        { "obj_light",                      2915886275, 0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , true,  ICON_FA_LIGHTBULB " ",       false },
+        { "unknown",                        0,          0, Vec3{ 1.0f, 1.0f, 1.0f       }, true , false, ICON_FA_QUESTION_CIRCLE " ", false },
     };
 
     for (ObjectHandle zone : Object.GetObjectList("Zones"))

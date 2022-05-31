@@ -41,19 +41,21 @@ bool Exporters::ExportZone(ObjectHandle zone, std::string_view outputPath, bool 
 		ZoneWriterTypesMutex.unlock();
 	}
 
-	BinaryWriter writer(outputPath);
-
     u32 numObjects = 0;
-    if (persistent)
-        numObjects = (u32)std::ranges::count_if(zone.GetObjectList("Objects"), [](ObjectHandle obj) { return obj.Get<bool>("Persistent"); });
-    else
-        numObjects = zone.Get<u32>("NumObjects");
+    for (ObjectHandle object : zone.GetObjectList("Objects"))
+    {
+        if (persistent && !object.Get<bool>("Persistent"))
+            continue;
+        if (object.Has("Deleted") && object.Get<bool>("Deleted"))
+            continue;
+
+        numObjects++;
+    }
 
 	//Write header
+	BinaryWriter writer(outputPath);
 	writer.WriteFixedLengthString("ZONE");
 	writer.WriteUint32(RFG_ZONE_VERSION);
-    //TODO: Must recount objects once object duplication/addition/removal is added
-    //TODO: Change this to i32. That's what the game uses here.
 	writer.WriteUint32(numObjects);
 	writer.WriteUint32(zone.Get<u32>("NumHandles"));
 	writer.WriteUint32(zone.Get<u32>("DistrictHash"));
@@ -72,29 +74,54 @@ bool Exporters::ExportZone(ObjectHandle zone, std::string_view outputPath, bool 
 	{
         if (persistent && !object.Get<bool>("Persistent"))
             continue;
+        if (object.Has("Deleted") && object.Get<bool>("Deleted"))
+            continue;
 
-		writer.Write(object.Get<u32>("ClassnameHash"));
-		writer.Write(object.Get<u32>("Handle"));
-		writer.Write(object.Get<Vec3>("Bmin"));
-		writer.Write(object.Get<Vec3>("Bmax"));
-		writer.Write(object.Get<u16>("Flags"));
-		writer.Write(object.Get<u16>("BlockSize"));
-		writer.Write(object.Get<u32>("ParentHandle"));
-		writer.Write(object.Get<u32>("SiblingHandle"));
-		writer.Write(object.Get<u32>("ChildHandle"));
-		writer.Write(object.Get<u32>("Num"));
-		writer.Write(object.Get<u16>("NumProps"));
-		writer.Write(object.Get<u16>("PropBlockSize"));
+        //Store position of object header. We won't have some of this info until after writing the properties so first we write null bytes for the header.
+        const size_t objectStartPos = writer.Position();
+        writer.WriteNullBytes(56);
+        size_t numProps = 0;
 
 		//Write object properties
 		for (const string& propertyName : object.GetStringList("RfgPropertyNames"))
 		{
-            if (!WriteZoneObjectProperty(writer, object, propertyName))
+            if (WriteZoneObjectProperty(writer, object, propertyName))
+            {
+                numProps++;
+            }
+            else
             {
                 LOG_ERROR("Failed to write zone object property '{}' in '{}', object uid {}", propertyName, zone.Get<string>("Name"), object.UID());
             }
 			writer.Align(4); //Align after each property
 		}
+
+        //Calculate size of object block and prop block + make sure they're within allowed limits
+        const size_t objectEndPos = writer.Position();
+        const u16 ObjectHeaderSize = 56;
+        const size_t blockSize = objectEndPos - objectStartPos;
+        const size_t propBlockSize = blockSize - ObjectHeaderSize;
+        if (blockSize > std::numeric_limits<u16>::max() || propBlockSize > std::numeric_limits<u16>::max() || numProps > std::numeric_limits<u16>::max())
+        {
+            Log->error("Zone export error. Object {} exceeded a size limit. block size = {}, prop block size = {}, num props = {}", object.UID(), blockSize, propBlockSize, numProps);
+            return false;
+        }
+
+        //Write object header
+        writer.SeekBeg(objectStartPos);
+        writer.Write(object.Get<u32>("ClassnameHash"));
+        writer.Write(object.Get<u32>("Handle"));
+        writer.Write(object.Get<Vec3>("Bmin"));
+        writer.Write(object.Get<Vec3>("Bmax"));
+        writer.Write(object.Get<u16>("Flags"));
+        writer.Write<u16>((u16)blockSize);
+        writer.Write(object.Get<u32>("ParentHandle"));
+        writer.Write(object.Get<u32>("SiblingHandle"));
+        writer.Write(object.Get<u32>("ChildHandle"));
+        writer.Write(object.Get<u32>("Num"));
+        writer.Write<u16>((u16)numProps);
+        writer.Write<u16>((u16)propBlockSize);
+        writer.SeekBeg(objectEndPos); //Jump to end of object data so next object can be written
 	}
 
 	return true;

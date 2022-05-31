@@ -108,9 +108,9 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
         if (classname != "Unknown")
             zoneObject.Property("Type").Set<string>(classname);
         zoneObject.Property("Parent").Set<ObjectHandle>(NullObjectHandle);
-        zoneObject.Property("Child").Set<ObjectHandle>(NullObjectHandle);
         zoneObject.Property("Sibling").Set<ObjectHandle>(NullObjectHandle);
         zoneObject.Set<bool>("Persistent", false);
+        zoneObject.Set<ObjectHandle>("Zone", zone);
 
         //Load zone object properties
         ZoneObjectProperty* currentProp = current->Properties();
@@ -193,7 +193,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
     const u32 InvalidHandle = 0xFFFFFFFF;
     for (ObjectHandle object : objects)
     {
-        //Set parent references + add references child references to parent
+        //Set parent references + child references
         u32 parentHandle = object.Property("ParentHandle").Get<u32>();
         ObjectHandle parent = getObject(parentHandle);
         if (parent)
@@ -221,6 +221,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
         }
     }
     //TODO: Remove ParentHandle, SiblingHandle, and ChildHandle properties here. They're replaced by the Parent, Sibling, and SubObject properties (which use ObjectHandle instead of u32)
+    //TODO:     Will need to regenerate the sibling handle linked list on export
 
     //Set custom object names based on properties
     const std::vector<string> customNameProperties =

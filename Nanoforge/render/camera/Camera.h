@@ -94,6 +94,7 @@ private:
     f32 lastMouseYDelta = 0;
     bool rightMouseButtonDown = false;
     bool shiftDown = false;
+    bool ctrlDown = false;
 
     //Todo: Make an InputManager class that tracks this for us. This works for now since there are so few input sinks
     bool wDown = false;

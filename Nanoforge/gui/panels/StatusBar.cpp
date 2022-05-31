@@ -57,7 +57,7 @@ void StatusBar::Update(GuiState* state, bool* open)
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 6.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
-    if (ImGui::Button("Tasks"))
+    if (ImGui::Button("Tasks", {0, size.y}))
         ImGui::OpenPopup("##TaskListPopup");
     ImGui::PopStyleVar();
     ImGui::PopStyleVar(2);

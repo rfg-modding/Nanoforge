@@ -78,4 +78,5 @@ private:
     Timer searchChangeTimer_ { true };
     std::mutex searchThreadMutex_;
     Handle<Task> searchTask_;
+    FileExplorerNode* selectedNode_ = nullptr;
 };

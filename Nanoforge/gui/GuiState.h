@@ -41,29 +41,9 @@ public:
     Localization* Localization = nullptr;
     TextureIndex* TextureSearchIndex = nullptr;
 
-    //Most recently selected territory. If you have multiple territories open this is the most recently selected window
-    Territory* CurrentTerritory = nullptr;
-    bool CurrentTerritoryUpdateDebugDraw = true;
-
-    //Todo: This would be better handled via an event system
-    //Used to trigger camera position changes in the focused territory
-    bool CurrentTerritoryCamPosNeedsUpdate = false;
-    Vec3 CurrentTerritoryNewCamPos;
-
     GuiStatus Status = Ready;
     string CustomStatusMessage = "";
     f32 StatusBarHeight = 30.0f;
-
-    ObjectHandle SelectedObject = nullptr;
-
-    //Used to trigger and reload and load a different territory
-    string CurrentTerritoryName = "terr01";
-    string CurrentTerritoryShortname = "zonescript_terr01.vpp_pc";
-
-    ObjectHandle ZoneObjectList_SelectedObject = NullObjectHandle;
-
-    //Content func for property panel
-    PropertyPanelContentFunc* PropertyPanelContentFuncPtr = nullptr;
 
     //Documents that are currently open
     std::vector<Handle<IDocument>> Documents = {};
@@ -71,8 +51,6 @@ public:
     //Moved to main vector next frame so creating a document during gui update doesn't invalidate the iterator at MainGui::Update()
     std::vector<Handle<IDocument>> NewDocuments = {};
 
-    //The last node that was clicked in the file explorer
-    FileExplorerNode* FileExplorer_SelectedNode = nullptr;
     bool MainWindowFocused = true;
 
     //Set status message and enum
@@ -90,25 +68,6 @@ public:
     {
         Status = Ready;
         CustomStatusMessage = "";
-    }
-
-    void SetSelectedZoneObject(ObjectHandle object)
-    {
-        SelectedObject = object;
-    }
-
-    void SetTerritory(const string& newTerritory)
-    {
-        string terr = newTerritory;
-        if (terr == "terr01")
-            terr = "zonescript_terr01";
-        if (terr == "dlc01")
-            terr = "zonescript_dlc01";
-
-        terr += ".vpp_pc";
-
-        CurrentTerritoryName = terr;
-        CurrentTerritoryShortname = newTerritory;
     }
 
     //Create and init a document
