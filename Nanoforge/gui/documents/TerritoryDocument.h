@@ -34,6 +34,7 @@ private:
     void CopyScriptxReference(ObjectHandle object);
     void RemoveWorldAnchors(ObjectHandle object);
     void RemoveDynamicLinks(ObjectHandle object);
+    u32 GetNewObjectHandle(); //Get unused object handle for a new object
 
     //Outliner functions
     void Outliner_DrawFilters(GuiState* state);
@@ -51,6 +52,9 @@ private:
     bool Inspector_DrawMat3Editor(PropertyHandle prop);
     bool Inspector_DrawStringEditor(PropertyHandle prop);
     bool Inspector_DrawBoolEditor(PropertyHandle prop);
+
+    void ExportTask(GuiState* state);
+    bool ExportMap(GuiState* state);
 
     string TerritoryName;
     string TerritoryShortname;
@@ -75,8 +79,12 @@ private:
     //Object creation popup data
     bool showObjectCreationPopup_ = false;
     string objectCreationType_ = "";
-
+    
     bool updateDebugDraw_ = true;
-
     GuiState* state_ = nullptr;
+
+    //Export thread data
+    Handle<Task> exportTask_ = nullptr;
+    string exportStatus_ = "";
+    f32 exportPercentage_ = 0.0f;
 };

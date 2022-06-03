@@ -8,6 +8,7 @@
 #include "gui/panels/StatusBar.h"
 #include "gui/panels/StartPanel.h"
 #include "gui/panels/LogPanel.h"
+#include "gui/panels/RegistryExplorer.h"
 #include "application/project/Project.h"
 #include "gui/documents/TerritoryDocument.h"
 #include "Log.h"
@@ -510,7 +511,8 @@ void MainGui::DrawMainMenuBar()
         //Draw tools menu
         if (ImGui::BeginMenu("Tools"))
         {
-            if (ImGui::BeginMenu("Open territory"))
+            bool canOpenTerritory = State.CurrentProject && State.CurrentProject->Loaded();
+            if (ImGui::BeginMenu("Open territory", canOpenTerritory))
             {
                 for (const char* territory : TerritoryList)
                 {

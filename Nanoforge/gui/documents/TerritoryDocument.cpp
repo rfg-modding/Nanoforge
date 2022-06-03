@@ -12,7 +12,11 @@
 #include "render/imgui/imgui_ext.h"
 #include "rfg/export/Exporters.h"
 #include "gui/util/WinUtil.h"
+#include "application/project/Project.h"
+#include "common/filesystem/Path.h"
+#include "rfg/PackfileVFS.h"
 #include <RfgTools++/hashes/HashGuesser.h>
+#include <RfgTools++/formats/packfiles/Packfile3.h>
 #include <WinUser.h>
 #include <imgui_internal.h>
 #include <imgui.h>
@@ -28,6 +32,13 @@ CVar CVar_DrawObjectOrientLines("Draw object orientation lines", ConfigType::Boo
     "Draw lines indicating the orientation of the currently selected object in the map editor. Red = right, green = up, blue = forward",
     ConfigValue(true),
     true,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
+CVar CVar_MapExportPath("Map export path", ConfigType::String,
+    "Current map export folder path",
+    ConfigValue(""),
+    false,  //ShowInSettings
     false, //IsFolderPath
     false //IsFilePath
 );
@@ -173,6 +184,15 @@ void TerritoryDocument::Update(GuiState* state)
 
     DrawMenuBar(state);
     Keybinds(state);
+
+    //Draw export status bar if one is in progress
+    bool exportInProgressOrCompleted = exportTask_ && (exportTask_->Running() || exportTask_->Completed());
+    if (exportInProgressOrCompleted)
+    {
+        ImGui::ProgressBar(exportPercentage_, ImVec2(230.0f, ImGui::GetFontSize() * 1.1f));
+        ImGui::SameLine();
+        ImGui::Text(exportStatus_.c_str());
+    }
 }
 
 #pragma warning(disable:4100)
@@ -190,7 +210,8 @@ static std::vector<string> UnsupportedObjectCreatorTypes =
     "object_turret_spawn_node", "obj_zone", "object_patrol", "object_dummy", "object_raid_node", "object_delivery_node", "marauder_ambush_region",
     "object_activity_spawn", "object_mission_start_node", "object_demolitions_master_node", "object_restricted_area", "object_house_arrest_node",
     "object_area_defense_node", "object_safehouse", "object_convoy_end_point", "object_courier_end_point", "object_riding_shotgun_node", "object_upgrade_node", 
-    "object_ambient_behavior_region", "object_roadblock_node", "object_spawn_region", "object_bounding_box", "obj_light"
+    "object_ambient_behavior_region", "object_roadblock_node", "object_spawn_region", "object_bounding_box", "obj_light", "effect_streaming_node",
+    "object_effect"
 };
 
 void TerritoryDocument::DrawMenuBar(GuiState* state)
@@ -222,25 +243,26 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             {
                 CloneObject(selectedObject_);
             }
-            if (ImGui::BeginMenu("Create"))
-            {
-                for (ZoneObjectClass& objectClass : Territory.ZoneObjectClasses)
-                {
-                    if (objectClass.Name == "Unknown")
-                        continue;
+            //Note: Temporarily disabled in order to get first version of map editor out ASAP. First want the bare minimum map editor
+            //if (ImGui::BeginMenu("Create"))
+            //{
+            //    for (ZoneObjectClass& objectClass : Territory.ZoneObjectClasses)
+            //    {
+            //        if (String::EqualIgnoreCase(objectClass.Name, "Unknown"))
+            //            continue;
 
-                    bool classSupportedByCreator = (std::ranges::find(UnsupportedObjectCreatorTypes, objectClass.Name) == UnsupportedObjectCreatorTypes.end());
-                    if (ImGui::MenuItem(objectClass.Name.c_str(), classSupportedByCreator ? "" : "Not yet supported", nullptr, classSupportedByCreator))
-                    {
-                        showObjectCreationPopup_ = true;
-                        objectCreationType_ = objectClass.Name;
-                    }
-                    if (!classSupportedByCreator)
-                        gui::TooltipOnPrevious("Type not yet supported by object creator");
-                }
+            //        bool classSupportedByCreator = (std::ranges::find(UnsupportedObjectCreatorTypes, objectClass.Name) == UnsupportedObjectCreatorTypes.end());
+            //        if (ImGui::MenuItem(objectClass.Name.c_str(), classSupportedByCreator ? "" : "Not supported yet", nullptr, classSupportedByCreator))
+            //        {
+            //            showObjectCreationPopup_ = true;
+            //            objectCreationType_ = objectClass.Name;
+            //        }
+            //        if (!classSupportedByCreator)
+            //            gui::TooltipOnPrevious("Type not yet supported by object creator");
+            //    }
 
-                ImGui::EndMenu();
-            }
+            //    ImGui::EndMenu();
+            //}
             if (ImGui::MenuItem("Delete", "Delete", nullptr, canDelete))
             {
                 DeleteObject(selectedObject_);
@@ -384,46 +406,60 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
     if (ImGui::BeginPopup("##MapExportPopup"))
     {
         state->FontManager->FontL.Push();
-        ImGui::Text("Export map");
+        ImGui::Text(ICON_FA_MOUNTAIN " Export map");
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
-        static string ExportPath = "H:/_RFGR_MapExportTest/";
-        //ImGui::InputText("Export path", &ExportPath);
-        //ImGui::SameLine();
-        //if (ImGui::Button("..."))
-        //{
-        //    auto result = OpenFolder();
-        //    if (!result)
-        //        return;
-
-        //    ExportPath = result.value();
-        //}
-
-        if (!Territory.Ready())
-            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Still loading map.");
+        if (!Territory.Ready() || !Territory.Object)
+            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Still loading map...");
         else if (!Territory.Object)
-            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Map data failed to load");
-
-        //Disable mesh export button if export is disabled
-        const bool canExport = Territory.Ready() && Territory.Object;
-        if (!canExport)
+            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Map data failed to load.");
+        else if (!state->CurrentProject || !state->CurrentProject->Loaded())
+            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "No project open. Must have one open to export maps.");
+        else if (exportTask_ && (exportTask_->Running() || !exportTask_->Completed()))
+            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Export in progress. Please wait...");
+        else if (string mapName = Territory.Object.Get<string>("Name"); mapName == "zonescript_terr01.vpp_pc" || mapName == "zonescript_dlc01.vpp_pc")
+            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Export only supports MP and WC maps currently.");
+        else
         {
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-        }
-        if (ImGui::Button("Export"))
-        {
-            if (!Exporters::ExportTerritory(Territory.Object, ExportPath))
+            //Select export folder path
+            string exportPath = CVar_MapExportPath.Get<string>();
+            string initialPath = exportPath;
+            ImGui::InputText("Export path", &exportPath);
+            ImGui::SameLine();
+            if (ImGui::Button("..."))
             {
-                LOG_ERROR("Failed to export territory '{}'", Territory.Object.Get<string>("Name"))
+                std::optional<string> newPath = OpenFolder();
+                if (newPath)
+                    exportPath = newPath.value();
             }
-        }
-        if (!canExport)
-        {
-            ImGui::PopItemFlag();
-            ImGui::PopStyleVar();
-            gui::TooltipOnPrevious("You must wait for the map to be fully loaded to export it. See the tasks button at the bottom left of the screen.", state->FontManager->FontDefault.GetFont());
+            CVar_MapExportPath.Get<string>() = exportPath;
+            if (initialPath != exportPath)
+                Config::Get()->Save();
+
+            //Disable mesh export button if export is disabled
+            static string resultString = "";
+            const bool canExport = Territory.Ready() && Territory.Object;
+            if (!canExport)
+            {
+                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+            }
+            if (ImGui::Button("Export"))
+            {
+                exportTask_ = Task::Create("Export map");
+                TaskScheduler::QueueTask(exportTask_, std::bind(&TerritoryDocument::ExportTask, this, state));
+                ImGui::CloseCurrentPopup();
+            }
+            if (!canExport)
+            {
+                ImGui::PopItemFlag();
+                ImGui::PopStyleVar();
+                gui::TooltipOnPrevious("You must wait for the map to be fully loaded to export it. See the tasks button at the bottom left of the screen.", state->FontManager->FontDefault.GetFont());
+            }
+
+            ImGui::SameLine();
+            ImGui::TextColored(gui::SecondaryTextColor, resultString);
         }
 
         ImGui::EndPopup();
@@ -572,12 +608,57 @@ void TerritoryDocument::DrawObjectCreationPopup(GuiState* state)
         ImGui::OpenPopup("Create object");
     if (ImGui::BeginPopupModal("Create object", nullptr, ImGuiWindowFlags_NoCollapse))
     {
+        static bool persistent = false;
+        //Todo: Split each creator into separate functions. Starting simple to bootstrap the map editor. This won't scale to the 20+ object types the game has though.
+
+        //player_start fields
+        static bool playerStart_Respawn = true;
+        static bool playerStart_Indoor = false;
+        static bool playerStart_InitialSpawn = false;
+        static string playerStart_MpTeam = "EDF";
+        //Todo: Implement selectors for these when SP support is added to map editor
+        //static bool playerStart_ChekpointRespawn = false;
+        //static bool playerStart_ActivityRespawn = false;
+        //static string playerStart_MissionInfo;
+
+        //multi_object_marker fields
+
+
+        //weapon fields
+
+
+        //trigger_region fields
+
+
+        //item fields
+
+
+        bool notImplemented = false;
+        state->FontManager->FontMedium.Push();
+        ImGui::Text("Creating %s", objectCreationType_.c_str());
+        state->FontManager->FontMedium.Pop();
+
+        ImGui::Checkbox("Persistent", &persistent);
+
         //Content
-        //Todo: Implement creators: player_start, multi_object_marker, weapon, trigger_region, item (for bagman flags), [effect_streaming_node | object_effect] (dunno which I want, or both?)
-        gui::LabelAndValue("objectCreationType_:", objectCreationType_);
         if (objectCreationType_ == "player_start")
         {
-
+            static std::vector<string> playerTeamOptions = { "EDF", "Guerilla" /*Mispelled because the game mispelled it*/, "Neutral" };
+            if (ImGui::BeginCombo("MP team", playerStart_MpTeam.c_str()))
+            {
+                for (const string& str : playerTeamOptions)
+                {
+                    bool selected = (str == playerStart_MpTeam);
+                    if (ImGui::Selectable(str.c_str(), &selected))
+                    {
+                        playerStart_MpTeam = str;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::Checkbox("Respawn", &playerStart_Respawn);
+            ImGui::Checkbox("Indoor", &playerStart_Indoor);
+            ImGui::Checkbox("Initial spawn", &playerStart_InitialSpawn);
         }
         else if (objectCreationType_ == "multi_object_marker")
         {
@@ -595,28 +676,78 @@ void TerritoryDocument::DrawObjectCreationPopup(GuiState* state)
         {
             //Todo: Consider having separate creator option/shortcut for bagman flags
         }
-        else if (objectCreationType_ == "effect_streaming_node")
+        else
         {
-
-        }
-        else if (objectCreationType_ == "object_effect")
-        {
-
+            notImplemented = true;
+            ImGui::Text("Creator not implemented for this type...");
         }
 
-        //Buttons
-        if (ImGui::Button("Create"))
+        //Create/cancel buttons
+        if (!notImplemented && ImGui::Button("Create"))
         {
-            //Todo: Create registry object with selected options
-                //TODO: Give it a new unique handle
-                //TODO: Add to Zone.Objects
-                //TODO: Set parent zone handle property
+            //Don't bother creating a new object if there isn't an unused handle available.
+            u32 newHandle = GetNewObjectHandle();
+            if (newHandle == 0xFFFFFFFF)
+            {
+                LOG_ERROR("Failed to create new object. Couldn't find unused object handle. Please report this to a developer. This shouldn't really ever happen.");
+                return;
+            }
+
+            ObjectHandle newObject = Registry::Get().CreateObject("", objectCreationType_);
+            newObject.Set<u32>("Handle", newHandle);
+            newObject.Set<u32>("Num", 0);
+            newObject.Set<Vec3>("Bmin", { 0.0f, 0.0f, 0.0f });
+            newObject.Set<Vec3>("Bmin", { 5.0f, 5.0f, 5.0f }); //TODO: Come up with a better way of generating default bbox
+
+            if (objectCreationType_ == "player_start")
+            {
+                u16 flags = 65280;
+                if (persistent) flags += 1;
+
+                //Create new object and give it a unique handle
+                newObject.Set<string>("Name", playerStart_MpTeam + " player start");
+                newObject.Set<u32>("ClassnameHash", 1794022917);
+                newObject.Set<u16>("Flags", flags);
+                newObject.Set<u16>("BlockSize", 0);
+                newObject.Set<u16>("NumProps", 0);
+                newObject.Set<u16>("PropBlockSize", 0);
+                newObject.Set<u32>("ParentHandle", 0xFFFFFFFF);
+                newObject.Set<u32>("SiblingHandle", 0xFFFFFFFF);
+                newObject.Set<u32>("ChildHandle", 0xFFFFFFFF);
+                newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
+                newObject.Set<ObjectHandle>("Sibling", NullObjectHandle);
+                newObject.SetObjectList("Children", {});
+                newObject.Set<bool>("Persistent", persistent);
+
+                //Add object to zone and select it
+                ObjectHandle zone = Territory.Object.GetObjectList("Zones")[0];
+                zone.GetObjectList("Objects").push_back(newObject);
+                newObject.Set<ObjectHandle>("Zone", zone);
+                selectedObject_ = newObject;
+            }
+            else if (objectCreationType_ == "multi_object_marker")
+            {
+
+            }
+            else if (objectCreationType_ == "weapon")
+            {
+
+            }
+            else if (objectCreationType_ == "trigger_region")
+            {
+
+            }
+            else if (objectCreationType_ == "item")
+            {
+                //Todo: Consider having separate creator option/shortcut for bagman flags
+            }
+
             showObjectCreationPopup_ = false;
             ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
             return;
         }
-        ImGui::SameLine();
+        if (!notImplemented) ImGui::SameLine();
         if (ImGui::Button("Cancel"))
         {
             //TODO: Delete temporary object if one is used for this
@@ -631,6 +762,14 @@ void TerritoryDocument::DrawObjectCreationPopup(GuiState* state)
 
 void TerritoryDocument::CloneObject(ObjectHandle object)
 {
+    //Don't bother creating a new object if there isn't an unused handle available.
+    u32 newHandle = GetNewObjectHandle();
+    if (newHandle == 0xFFFFFFFF)
+    {
+        LOG_ERROR("Failed to clone object {}. Couldn't find unused object handle. Please report this to a developer. This shouldn't really ever happen.", object.UID());
+        return;
+    }
+
     ObjectHandle newObject = Registry::Get().CreateObject();
     if (object.Get<string>("Name") != "")
         newObject.Set<string>("Name", object.Get<string>("Name"));
@@ -658,20 +797,7 @@ void TerritoryDocument::CloneObject(ObjectHandle object)
         COPY_PROPERTY(ObjectHandle);
         COPY_PROPERTY(BufferHandle);
     }
-
-    //Give new object a unique handle
-    u32 largestHandle = 0;
-    for (ObjectHandle zone : Territory.Object.GetObjectList("Zones"))
-    {
-        for (ObjectHandle obj : zone.GetObjectList("Objects"))
-        {
-            if (obj.Get<u32>("Handle") > largestHandle)
-                largestHandle = obj.Get<u32>("Handle");
-        }
-    }
-    //TODO: See if we can start at 0 instead. All vanilla game handles are very large but they might've be generated them with a hash or something
-    //TODO: See if we can discard handle + num completely and regenerate them on export. One problem is that changes to one zone might require regenerating all zones on the SP map (assuming there's cross zone object relations)
-    newObject.Set<u32>("Handle", largestHandle + 1);
+    newObject.Set<u32>("Handle", newHandle);
 
     ObjectHandle zone = newObject.Get<ObjectHandle>("Zone");
     zone.GetObjectList("Objects").push_back(newObject);
@@ -727,7 +853,10 @@ void TerritoryDocument::RemoveWorldAnchors(ObjectHandle object)
         std::vector<string> propertyNames = object.GetStringList("RfgPropertyNames");
         auto find = std::ranges::find(propertyNames, "world_anchors");
         if (find != propertyNames.end())
+        {
             propertyNames.erase(find);
+            object.SetStringList("RfgPropertyNames", propertyNames);
+        }
     }
 }
 
@@ -745,8 +874,36 @@ void TerritoryDocument::RemoveDynamicLinks(ObjectHandle object)
         std::vector<string> propertyNames = object.GetStringList("RfgPropertyNames");
         auto find = std::ranges::find(propertyNames, "dynamic_links");
         if (find != propertyNames.end())
+        {
             propertyNames.erase(find);
+            object.SetStringList("RfgPropertyNames", propertyNames);
+        }
     }
+}
+
+u32 TerritoryDocument::GetNewObjectHandle()
+{
+    //Give new object a unique handle
+    u32 largestHandle = 0;
+    for (ObjectHandle zone : Territory.Object.GetObjectList("Zones"))
+    {
+        for (ObjectHandle obj : zone.GetObjectList("Objects"))
+        {
+            if (obj.Get<u32>("Handle") > largestHandle)
+                largestHandle = obj.Get<u32>("Handle");
+        }
+    }
+
+    //Error if handle is out of valid range
+    if (largestHandle >= std::numeric_limits<u32>::max() - 1)
+    {
+        LOG_ERROR("Failed to find unused object handle. Returning 0xFFFFFFFF.");
+        return 0xFFFFFFFF;
+    }
+
+    //TODO: See if we can start at 0 instead. All vanilla game handles are very large but they might've be generated them with a hash or something
+    //TODO: See if we can discard handle + num completely and regenerate them on export. One problem is that changes to one zone might require regenerating all zones on the SP map (assuming there's cross zone object relations)
+    return largestHandle + 1;
 }
 
 void TerritoryDocument::Outliner(GuiState* state)
@@ -832,17 +989,21 @@ void TerritoryDocument::Inspector(GuiState* state)
     if (name == "")
         name = selectedObject_.Property("Type").Get<string>();
 
-    //Object name, handle, num
-    u32 handle = selectedObject_.Property("Handle").Get<u32>();
-    u32 num = selectedObject_.Property("Num").Get<u32>();
+    //Name
     state->FontManager->FontMedium.Push();
     ImGui::Text(name);
     state->FontManager->FontMedium.Pop();
 
-    //Object type
+    //Type
     ImGui::PushStyleColor(ImGuiCol_Text, gui::SecondaryTextColor);
-    ImGui::Text(fmt::format("{}, {}, {}", selectedObject_.Property("Type").Get<string>(), handle, num));
+    ImGui::Text(selectedObject_.Property("Type").Get<string>());
     ImGui::PopStyleColor();
+
+    //Handle, num
+    u32 handle = selectedObject_.Property("Handle").Get<u32>();
+    u32 num = selectedObject_.Property("Num").Get<u32>();
+    ImGui::SameLine();
+    ImGui::Text(fmt::format(", {}, {}", handle, num).c_str());
     ImGui::Separator();
 
     //Relative objects
@@ -866,7 +1027,14 @@ void TerritoryDocument::Inspector(GuiState* state)
     }
 
     //Draw name, persistent, position, and orient first so they're easy to find
-    Inspector_DrawBoolEditor(selectedObject_.Property("Persistent"));
+    if (Inspector_DrawBoolEditor(selectedObject_.Property("Persistent")))
+    {
+        u16 flags = selectedObject_.Get<u16>("Flags");
+        if (selectedObject_.Get<bool>("Persistent"))
+            flags |= 1; //Enable persistent flag bit
+        else
+            flags &= ~1; //Disable persistent flag bit
+    }
     Inspector_DrawStringEditor(selectedObject_.Property("Name"));
     Vec3 initialPos = selectedObject_.Get<Vec3>("Position");
     if (Inspector_DrawVec3Editor(selectedObject_.Property("Position")))
@@ -887,7 +1055,7 @@ void TerritoryDocument::Inspector(GuiState* state)
     //Object properties
     static std::vector<string> HiddenProperties = //These ones aren't drawn or have special logic
     {
-        "Handle", "Num", "Flags", "ClassnameHash", "RfgPropertyNames", "BlockSize", "ParentHandle", "SiblingHandle", "ChildHandle",
+        "Handle", "Num", "ClassnameHash", "RfgPropertyNames", "BlockSize", "ParentHandle", "SiblingHandle", "ChildHandle",
         "NumProps", "PropBlockSize", "Type", "Parent", "Child", "Sibling", "Children", "Zone", "Bmin", "Bmax", "BBmin", "BBmax",
         "Position", "Orient", "Name", "Persistent"
     };
@@ -1155,6 +1323,225 @@ bool TerritoryDocument::Inspector_DrawBoolEditor(PropertyHandle prop)
     }
     
     return edited;
+}
+
+void TerritoryDocument::ExportTask(GuiState* state)
+{
+    if (ExportMap(state))
+    {
+        //Get current time
+        std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+        std::time_t startTime = std::chrono::system_clock::to_time_t(now);
+        char timeStrBuffer[128];
+        tm localTime;
+        errno_t err = localtime_s(&localTime, &startTime);
+
+        //Update result string
+        if (std::strftime(timeStrBuffer, sizeof(timeStrBuffer), "%H:%M:%S", &localTime) > 0)
+            exportStatus_ = "Export finished at " + string(timeStrBuffer);
+        else
+            exportStatus_ = "Export finished.";
+    }
+    else
+    {
+        exportStatus_ = "Failed to export map. Check log.";
+    }
+}
+
+void UpdateAsmPc(const string& asmPath);
+bool TerritoryDocument::ExportMap(GuiState* state)
+{
+    string terrPackfileName = Territory.Object.Get<string>("Name");
+    string mapName = Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name"));
+
+    //Steps: Export zones, extract vpp_pc, extract containers, copy zones to containers, repack containers, update asm_pc, repack vpp_pc, cleanup
+    const f32 numSteps = 8.0f;
+    const f32 percentagePerStep = 1.0f / numSteps;
+
+    exportPercentage_ = 0.0f;
+    exportStatus_ = "Exporting zones...";
+
+    //Make sure folder exists for writing temporary files
+    string tempFolderPath = state->CurrentProject->Path + "\\Temp\\";
+    std::filesystem::create_directories(tempFolderPath);
+
+    //Export zone files
+    string exportFolderPath = CVar_MapExportPath.Get<string>();
+    if (!Exporters::ExportTerritory(Territory.Object, tempFolderPath))
+    {
+        LOG_ERROR("Failed to export territory '{}'", mapName);
+        return false;
+    }
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Extracting " + terrPackfileName + "...";
+
+    //Zone file export suceeded. Now repack the str2_pc/vpp_pc files containing the zones + update the asm_pc files
+    //Extract vpp_pc
+    Handle<Packfile3> vppHandle = state->PackfileVFS->GetPackfile(terrPackfileName);
+    if (!vppHandle)
+    {
+        LOG_ERROR("Failed to get map vpp_pc '{}' when repacking zone data.", terrPackfileName);
+        return false;
+    }
+    //Reparse packfile from games data folder. Simplest way to do this for the moment until PackfileVFS is updated to be able to handle reloading packfiles safely
+    //Can't use data in PackfileVFS since the packfile contents would've changed if the user does multiple map exports in a row
+    string packfilePath = vppHandle->Path;
+    Handle<Packfile3> currVpp = CreateHandle<Packfile3>(packfilePath);
+    currVpp->ReadMetadata();
+
+    string packfileOutPath = tempFolderPath + "vpp\\";
+    std::filesystem::create_directories(packfileOutPath);
+    currVpp->ExtractSubfiles(packfileOutPath, false);
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Extracting containers...";
+
+    //Extract any str2_pc files in the vpp_pc
+    for (auto entry : std::filesystem::directory_iterator(packfileOutPath))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".str2_pc")
+            continue;
+
+        string str2OutPath = tempFolderPath + "vpp\\containers\\" + Path::GetFileNameNoExtension(entry.path().filename()) + "\\";
+        Packfile3 str2(entry.path().string());
+        str2.ExtractSubfiles(str2OutPath, true);
+    }
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Copying zones to containers...";
+
+    //Copy zones into vpp_pc and ns_base.str2_pc
+    string zoneFilename = mapName + ".rfgzone_pc";
+    string pZoneFilename = "p_" + zoneFilename;
+    string zonePath = tempFolderPath + "\\" + zoneFilename;
+    string pZonePath = tempFolderPath + "\\" + pZoneFilename;
+    std::filesystem::copy_file(zonePath, packfileOutPath + "\\" + zoneFilename, std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::copy_file(pZonePath, packfileOutPath + "\\" + pZoneFilename, std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::copy_file(zonePath, packfileOutPath + "\\containers\\ns_base\\" + zoneFilename, std::filesystem::copy_options::overwrite_existing);
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Repacking containers...";
+
+    //Repack str2_pc files
+    string nsBaseOutPath = fmt::format("{}\\vpp\\ns_base.str2_pc", tempFolderPath);
+    string minimapOutPath = fmt::format("{}\\vpp\\{}_map.str2_pc", tempFolderPath, mapName);
+    std::filesystem::remove(nsBaseOutPath);
+    std::filesystem::remove(minimapOutPath);
+    Packfile3::Pack(fmt::format("{}\\vpp\\containers\\ns_base\\", tempFolderPath), nsBaseOutPath, true, true);
+    Packfile3::Pack(fmt::format("{}\\vpp\\containers\\{}_map\\", tempFolderPath, mapName), minimapOutPath, true, true);
+    std::filesystem::remove_all(tempFolderPath + "\\vpp\\containers\\"); //Delete containers subfolder. Don't need files after they've been repacked
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Updating asm_pc...";
+
+    //Update asm_pc file
+    UpdateAsmPc(tempFolderPath + "\\vpp\\" + mapName + ".asm_pc");
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Repacking " + terrPackfileName + "...";
+
+    //Repack main vpp_pc
+    Packfile3::Pack(tempFolderPath + "\\vpp\\", tempFolderPath + "\\" + terrPackfileName, false, false);
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Copying vpp_pc to export folder...";
+
+    //Copy vpp_pc to output path + delete temporary files
+    std::filesystem::copy_file(tempFolderPath + "\\" + terrPackfileName, CVar_MapExportPath.Get<string>() + "\\" + terrPackfileName, std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::remove_all(tempFolderPath);
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Done!";
+}
+
+void UpdateAsmPc(const string& asmPath)
+{
+    AsmFile5 asmFile;
+    BinaryReader reader(asmPath);
+    asmFile.Read(reader, Path::GetFileName(asmPath));
+
+    //Update containers
+    for (auto& file : std::filesystem::directory_iterator(Path::GetParentDirectory(asmPath)))
+    {
+        if (!file.is_regular_file() || file.path().extension() != ".str2_pc")
+            continue;
+
+        //Parse container file to get up to date values
+        string packfilePath = file.path().string();
+        if (!std::filesystem::exists(packfilePath))
+            continue;
+
+        Packfile3 packfile(packfilePath);
+        packfile.ReadMetadata();
+
+        for (AsmContainer& container : asmFile.Containers)
+        {
+            struct AsmPrimitiveSizeIndices { size_t HeaderIndex = -1; size_t DataIndex = -1; };
+            std::vector<AsmPrimitiveSizeIndices> sizeIndices = {};
+            size_t curPrimSizeIndex = 0;
+            //Pre-calculate indices of header/data size for each primitive in Container::PrimitiveSizes
+            for (AsmPrimitive& prim : container.Primitives)
+            {
+                AsmPrimitiveSizeIndices& indices = sizeIndices.emplace_back();
+                indices.HeaderIndex = curPrimSizeIndex++;
+                if (prim.DataSize == 0)
+                    indices.DataIndex = -1; //This primitive has no gpu file and so it only has one value in PrimitiveSizes
+                else
+                    indices.DataIndex = curPrimSizeIndex++;
+            }
+            const bool virtualContainer = container.CompressedSize == 0 && container.DataOffset == 0;
+
+            if (!virtualContainer && String::EqualIgnoreCase(Path::GetFileNameNoExtension(packfile.Name()), container.Name))
+            {
+                container.CompressedSize = packfile.Header.CompressedDataSize;
+
+                size_t dataStart = 0;
+                dataStart += 2048; //Header size
+                dataStart += packfile.Entries.size() * 28; //Each entry is 28 bytes
+                dataStart += BinaryWriter::CalcAlign(dataStart, 2048); //Align(2048) after end of entries
+                dataStart += packfile.Header.NameBlockSize; //Filenames list
+                dataStart += BinaryWriter::CalcAlign(dataStart, 2048); //Align(2048) after end of file names
+
+                printf("Setting container offset '%s', packfile name: '%s'\n", container.Name.c_str(), packfile.Name().c_str());
+                container.DataOffset = dataStart;
+            }
+
+            for (size_t entryIndex = 0; entryIndex < packfile.Entries.size(); entryIndex++)
+            {
+                Packfile3Entry& entry = packfile.Entries[entryIndex];
+                for (size_t primitiveIndex = 0; primitiveIndex < container.Primitives.size(); primitiveIndex++)
+                {
+                    AsmPrimitive& primitive = container.Primitives[primitiveIndex];
+                    AsmPrimitiveSizeIndices& indices = sizeIndices[primitiveIndex];
+                    if (String::EqualIgnoreCase(primitive.Name, packfile.EntryNames[entryIndex]))
+                    {
+                        //If DataSize = 0 assume this primitive has no gpu file
+                        if (primitive.DataSize == 0)
+                        {
+                            primitive.HeaderSize = entry.DataSize; //Uncompressed size
+                            if (!virtualContainer)
+                            {
+                                container.PrimitiveSizes[indices.HeaderIndex] = primitive.HeaderSize; //TODO: Just remove PrimitiveSizes from AsmFile and generate it on write
+                            }
+                        }
+                        else //Otherwise assume primitive has cpu and gpu file
+                        {
+                            primitive.HeaderSize = entry.DataSize; //Cpu file uncompressed size
+                            primitive.DataSize = packfile.Entries[entryIndex + 1].DataSize; //Gpu file uncompressed size
+                            if (!virtualContainer)
+                            {
+                                container.PrimitiveSizes[indices.HeaderIndex] = primitive.HeaderSize; //TODO: Just remove PrimitiveSizes from AsmFile and generate it on write
+                                container.PrimitiveSizes[indices.DataIndex] = primitive.DataSize; //TODO: Just remove PrimitiveSizes from AsmFile and generate it on write
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    asmFile.Write(asmPath);
 }
 
 void TerritoryDocument::Outliner_DrawFilters(GuiState* state)

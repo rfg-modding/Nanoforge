@@ -228,11 +228,13 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
     {
         "display_name", "chunk_name", "animation_type", "activity_type", "raid_type", "courier_type",
         "spawn_set", "item_type", "dummy_type", "weapon_type", "region_kill_type", "delivery_type",
-        "squad_def", "mission_info"
+        "squad_def", "mission_info", "marker_type"
     };
     for (ObjectHandle object : objects)
     {
         string name = "";
+        string nameProperty = "";
+        bool foundName = false;
         for (PropertyHandle prop : object.Properties())
         {
             for (const string& propertyName : customNameProperties)
@@ -240,10 +242,19 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
                 if (prop.IsType<string>() && prop.Name() == propertyName)
                 {
                     name = prop.Get<string>();
+                    nameProperty = prop.Name();
+                    foundName = true;
                     break;
                 }
             }
+
+            if (foundName) break;
         }
+
+        //Override mission_info for player_start objects if it equals "none". Try using mp_team instead. This way player_start objects have sensible names in MP maps.
+        if (foundName && nameProperty == "mission_info" && name == "none" && object.Has("mp_team"))
+            name = object.Get<string>("mp_team") + " player start";
+
         object.Property("Name").Set<string>(name);
     }
 
