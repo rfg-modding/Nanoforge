@@ -8,7 +8,6 @@
 #include "gui/panels/StatusBar.h"
 #include "gui/panels/StartPanel.h"
 #include "gui/panels/LogPanel.h"
-#include "gui/panels/RegistryExplorer.h"
 #include "application/project/Project.h"
 #include "gui/documents/TerritoryDocument.h"
 #include "Log.h"
