@@ -28,6 +28,8 @@ public:
     void Update();
     void SaveFocusedDocument();
     void SetPanelVisibility(const std::string& title, bool visible);
+    //Try to close application window. Asks the user if they want to save any unsaved documents first.
+    void RequestAppClose();
 
     GuiState State; //Global gui state provided to each panel and document
     f32 mainMenuHeight = 8.0f;
@@ -56,6 +58,7 @@ private:
     bool openProjectRequested_ = false;
     bool closeProjectRequested_ = false;
     bool openRecentProjectRequested_ = false;
+    bool closeNanoforgeRequested_ = false;
     bool imguiDemoWindowOpen_ = true;
     string openRecentProjectRequestData_;
 

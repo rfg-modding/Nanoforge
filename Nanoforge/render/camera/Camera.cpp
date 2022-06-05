@@ -2,6 +2,7 @@
 #include <DirectXMath.h>
 #include <windowsx.h>
 #include "render/imgui/imgui_ext.h"
+#include <imgui_internal.h>
 
 void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFovDegrees, const DirectX::XMFLOAT2& screenDimensions, f32 nearPlane, f32 farPlane)
 {
@@ -26,21 +27,27 @@ void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFovDegrees, co
 #pragma warning(disable:4100)
 void Camera::DoFrame(f32 deltaTime)
 {
+    //Get key modifiers (ctrl, shift, etc)
+    ImGuiKeyModFlags modifiers = ImGui::GetMergedKeyModFlags();
+    bool ctrlDown = (modifiers & ImGuiKeyModFlags_Ctrl) == ImGuiKeyModFlags_Ctrl;
+    bool shiftDown = (modifiers & ImGuiKeyModFlags_Shift) == ImGuiKeyModFlags_Shift;
+
+    //Update camera movement and rotation
     if (!ctrlDown && InputActive) //Don't move when ctrl is down. Allows editor to use keybinds like Ctrl + D without moving the camera on accident
     {
-        if (wDown) //w
+        if (ImGui::IsKeyDown(0x57)) //w
             Translate(forward, shiftDown);
-        else if (sDown) //s
+        else if (ImGui::IsKeyDown(0x53)) //s
             Translate(backward, shiftDown);
 
-        if (aDown) //a
+        if (ImGui::IsKeyDown(0x41)) //a
             Translate(left, shiftDown);
-        else if (dDown) //d
+        else if (ImGui::IsKeyDown(0x44)) //d
             Translate(right, shiftDown);
 
-        if (qDown) //q
+        if (ImGui::IsKeyDown(0x51)) //q
             Translate(up, shiftDown);
-        else if (eDown) //e
+        else if (ImGui::IsKeyDown(0x45)) //e
             Translate(down, shiftDown);
     }
 }
@@ -58,44 +65,6 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
-    case WM_KEYDOWN: //Key down
-        if (wParam == 0x57) //w
-            wDown = true;
-        if (wParam == 0x41) //a
-            aDown = true;
-        if (wParam == 0x53) //s
-            sDown = true;
-        if (wParam == 0x44) //d
-            dDown = true;
-        if (wParam == 0x51) //q
-            qDown = true;
-        if (wParam == 0x45) //e
-            eDown = true;
-        if (wParam == VK_SHIFT)
-            shiftDown = true;
-        if (wParam == VK_CONTROL)
-            ctrlDown = true;
-
-        break;
-    case WM_KEYUP:
-        if (wParam == 0x57) //w
-            wDown = false;
-        if (wParam == 0x41) //a
-            aDown = false;
-        if (wParam == 0x53) //s
-            sDown = false;
-        if (wParam == 0x44) //d
-            dDown = false;
-        if (wParam == 0x51) //q
-            qDown = false;
-        if (wParam == 0x45) //e
-            eDown = false;
-        if (wParam == VK_SHIFT)
-            shiftDown = false;
-        if (wParam == VK_CONTROL)
-            ctrlDown = false;
-
-        break;
     case WM_RBUTTONDOWN:
         rightMouseButtonDown = true;
         break;
@@ -114,7 +83,6 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_MOUSEMOVE:
-        if (InputActive)
         {
             f32 mouseX = (f32)GET_X_LPARAM(lParam);
             f32 mouseY = (f32)GET_Y_LPARAM(lParam);
@@ -122,7 +90,7 @@ void Camera::HandleInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             lastMouseYDelta = mouseY - lastMouseYPos;
             lastMouseXPos = mouseX;
             lastMouseYPos = mouseY;
-            if (rightMouseButtonDown)
+            if (InputActive && rightMouseButtonDown)
                 UpdateRotationFromMouse((f32)lastMouseXDelta / screenDimensions_.x, (f32)lastMouseYDelta / screenDimensions_.y);
         }
         break;

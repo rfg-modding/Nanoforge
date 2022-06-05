@@ -276,6 +276,13 @@ void MainGui::Update()
                     if (!doc->Open && doc->UnsavedChanges)
                         doc->Open = true;
 
+                //Cancel any current operation that checks for unsaved changes when cancelled
+                showNewProjectWindow_ = false;
+                showOpenProjectWindow_ = false;
+                openProjectRequested_ = false;
+                closeProjectRequested_ = false;
+                openRecentProjectRequested_ = false;
+                closeNanoforgeRequested_ = false;
                 ImGui::CloseCurrentPopup();
             }
 
@@ -319,6 +326,10 @@ void MainGui::Update()
             State.Xtbls->ReloadXtbls();
         }
         openRecentProjectRequested_ = false;
+    }
+    if (closeNanoforgeRequested_ && numUnsavedDocs == 0)
+    {
+        Shutdown = true; //Signal to Application it's ok to close the window (any unsaved changes were saved or cancelled)
     }
 
     //Draw texture search index generation modal
@@ -456,7 +467,10 @@ void MainGui::DrawMainMenuBar()
 
             if (ImGui::MenuItem("Exit"))
             {
-                exit(EXIT_SUCCESS);
+                closeNanoforgeRequested_ = true;
+                //Close all documents so save confirmation modal appears for them
+                for (auto& doc : State.Documents)
+                    doc->Open = false;
             }
             ImGui::EndMenu();
         }
@@ -668,7 +682,7 @@ void MainGui::DrawMainMenuBar()
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32({ 197.0f / 255.0f, 20.0f / 255.0f, 43.0f / 255.0f, 1.0f }));
             if (ImGui::Button(ICON_VS_CHROME_CLOSE, windowButtonSize))
             {
-                Shutdown = true;
+                RequestAppClose();
             }
             ImGui::PopStyleColor();
             ImGui::PopStyleColor(3);
@@ -849,6 +863,17 @@ void MainGui::SetPanelVisibility(const std::string& title, bool visible)
             return;
         }
     }
+}
+
+void MainGui::RequestAppClose()
+{
+    if (closeProjectRequested_)
+        return; //Already requested
+
+    closeNanoforgeRequested_ = true;
+    //Close all documents so save confirmation modal appears for them
+    for (auto& doc : State.Documents)
+        doc->Open = false;
 }
 
 void MainGui::DrawOutlinerAndInspector()

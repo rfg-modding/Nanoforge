@@ -89,16 +89,17 @@ void TerritoryDocument::Update(GuiState* state)
 {
     PROFILER_FUNCTION();
 
+    //Focus the window when right clicking it. Otherwise had to left click the window first after selecting another to control the camera again. Was annoying
+    if (ImGui::IsMouseDown(ImGuiMouseButton_Right) && ImGui::IsWindowHovered())
+    {
+        ImGui::SetWindowFocus();
+    }
+
     //Only redraw scene if window is focused
     Scene->NeedsRedraw = ImGui::IsWindowFocused();
 
-    ImVec2 windowMin = ImGui::GetWindowPos();
-    ImVec2 windowMax = windowMin;
-    windowMax.x += ImGui::GetWindowSize().x;
-    windowMax.y += ImGui::GetWindowSize().y;
-
     //Set current territory to most recently focused territory window
-    if (ImGui::IsWindowFocused() && ImGui::IsMouseHoveringRect(windowMin, windowMax))
+    if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered())
     {
         Scene->Cam.InputActive = true;
     }
@@ -184,6 +185,7 @@ void TerritoryDocument::Update(GuiState* state)
     ImGui::SetCursorPos(adjustedPos);
 
     DrawMenuBar(state);
+    DrawPopups(state);
     Keybinds(state);
 
     //Draw export status bar if one is in progress
@@ -199,7 +201,12 @@ void TerritoryDocument::Update(GuiState* state)
 #pragma warning(disable:4100)
 void TerritoryDocument::Save(GuiState* state)
 {
-
+    if (!state->CurrentProject)
+    {
+        LOG_ERROR("Failed to save map! No project open. This shouldn't be possible...");
+        return;
+    }
+    Registry::Get().Save(state->CurrentProject->Path + "\\Registry\\");
 }
 #pragma warning(default:4100)
 
@@ -505,9 +512,68 @@ void TerritoryDocument::Keybinds(GuiState* state)
             RemoveDynamicLinks(selectedObject_);
         }
     }
-    else if (ImGui::IsKeyPressed(VK_DELETE, false) && selectedObject_)
+    else if (ImGui::IsKeyPressed(VK_DELETE, false) && selectedObject_ && !ImGui::IsAnyItemActive())
     {
         DeleteObject(selectedObject_);
+    }
+}
+
+void TerritoryDocument::DrawPopups(GuiState* state)
+{
+    //Object deletion popup
+    if (PopupResult result = deleteObjectPopup_.Update(state); result == PopupResult::Yes)
+    {
+        if (deleteObjectPopupHandle_ == selectedObject_)
+            selectedObject_ = NullObjectHandle;
+
+        //TODO: Add actual object deletion via registry
+        //Registry::Get().DeleteObject(selected);
+        deleteObjectPopupHandle_.Set<bool>("Deleted", true);
+        UnsavedChanges = true;
+    }
+    else if (result == PopupResult::Cancel)
+    {
+        deleteObjectPopupHandle_ = NullObjectHandle;
+    }
+
+    //World anchors deletion popup
+    if (PopupResult result = removeWorldAnchorPopup_.Update(state); result == PopupResult::Yes)
+    {
+        removeWorldAnchorPopupHandle_.Remove("world_anchors");
+
+        //Remove world_anchors from RfgPropertyNames so it doesn't cause an export error when it's not found
+        std::vector<string> propertyNames = removeWorldAnchorPopupHandle_.GetStringList("RfgPropertyNames");
+        auto find = std::ranges::find(propertyNames, "world_anchors");
+        if (find != propertyNames.end())
+        {
+            propertyNames.erase(find);
+            removeWorldAnchorPopupHandle_.SetStringList("RfgPropertyNames", propertyNames);
+        }
+        UnsavedChanges = true;
+    }
+    else if (result == PopupResult::Cancel)
+    {
+        removeWorldAnchorPopupHandle_ = NullObjectHandle;
+    }
+
+    //Dynamic links deletion popup
+    if (PopupResult result = removeDynamicLinkPopup_.Update(state); result == PopupResult::Yes)
+    {
+        removeDynamicLinkPopupHandle_.Remove("dynamic_links");
+
+        //Remove dynamic_links from RfgPropertyNames so it doesn't cause an export error when it's not found
+        std::vector<string> propertyNames = removeDynamicLinkPopupHandle_.GetStringList("RfgPropertyNames");
+        auto find = std::ranges::find(propertyNames, "dynamic_links");
+        if (find != propertyNames.end())
+        {
+            propertyNames.erase(find);
+            removeDynamicLinkPopupHandle_.SetStringList("RfgPropertyNames", propertyNames);
+        }
+        UnsavedChanges = true;
+    }
+    else if (result == PopupResult::Cancel)
+    {
+        removeDynamicLinkPopupHandle_ = NullObjectHandle;
     }
 }
 
@@ -816,20 +882,16 @@ void TerritoryDocument::CloneObject(ObjectHandle object)
     ObjectHandle zone = newObject.Get<ObjectHandle>("Zone");
     zone.GetObjectList("Objects").push_back(newObject);
     selectedObject_ = newObject;
+    UnsavedChanges = true;
 }
 
 void TerritoryDocument::DeleteObject(ObjectHandle object)
 {
-    int mbResult = MessageBox(NULL, "Are you sure you'd like to delete the object?", "Confirm deletion", MB_YESNO);
-    if (mbResult == IDYES) //Yes button clicked
-    {
-        if (object == selectedObject_)
-            selectedObject_ = NullObjectHandle;
-        //TODO: Add actual object deletion via registry
-        //Registry::Get().DeleteObject(selected);
-        object.Set<bool>("Deleted", true);
+    if (!object || deleteObjectPopup_.IsOpen())
         return;
-    }
+
+    deleteObjectPopup_.Open();
+    deleteObjectPopupHandle_ = object;
 }
 
 void TerritoryDocument::CopyScriptxReference(ObjectHandle object)
@@ -855,44 +917,20 @@ void TerritoryDocument::CopyScriptxReference(ObjectHandle object)
 
 void TerritoryDocument::RemoveWorldAnchors(ObjectHandle object)
 {
-    if (!object || !object.Has("world_anchors"))
+    if (!object || !object.Has("world_anchors") || removeWorldAnchorPopup_.IsOpen())
         return;
 
-    int mbResult = MessageBox(NULL, "Are you sure you'd like to remove the world anchors from this object? You can't undo this.", "Remove world anchors?", MB_YESNO);
-    if (mbResult == IDYES) //Yes button clicked
-    {
-        object.Remove("world_anchors");
-
-        //Remove world_anchors from RfgPropertyNames so it doesn't cause an export error when it's not found
-        std::vector<string> propertyNames = object.GetStringList("RfgPropertyNames");
-        auto find = std::ranges::find(propertyNames, "world_anchors");
-        if (find != propertyNames.end())
-        {
-            propertyNames.erase(find);
-            object.SetStringList("RfgPropertyNames", propertyNames);
-        }
-    }
+    removeWorldAnchorPopup_.Open();
+    removeWorldAnchorPopupHandle_ = object;
 }
 
 void TerritoryDocument::RemoveDynamicLinks(ObjectHandle object)
 {
-    if (!object || !object.Has("dynamic_links"))
+    if (!object || !object.Has("dynamic_links") || removeDynamicLinkPopup_.IsOpen())
         return;
 
-    int mbResult = MessageBox(NULL, "Are you sure you'd like to remove the dynamic links from this object? You can't undo this.", "Remove dynamic links?", MB_YESNO);
-    if (mbResult == IDYES) //Yes button clicked
-    {
-        object.Remove("dynamic_links");
-
-        //Remove dynamic_links from RfgPropertyNames so it doesn't cause an export error when it's not found
-        std::vector<string> propertyNames = object.GetStringList("RfgPropertyNames");
-        auto find = std::ranges::find(propertyNames, "dynamic_links");
-        if (find != propertyNames.end())
-        {
-            propertyNames.erase(find);
-            object.SetStringList("RfgPropertyNames", propertyNames);
-        }
-    }
+    removeDynamicLinkPopup_.Open();
+    removeDynamicLinkPopupHandle_ = object;
 }
 
 u32 TerritoryDocument::GetNewObjectHandle()
@@ -1024,19 +1062,24 @@ void TerritoryDocument::Inspector(GuiState* state)
     if (ImGui::CollapsingHeader("Relations"))
     {
         ImGui::Indent(15.0f);
-        Inspector_DrawObjectHandleEditor(selectedObject_.Property("Zone"));
-        Inspector_DrawObjectHandleEditor(selectedObject_.Property("Parent"));
-        Inspector_DrawObjectHandleEditor(selectedObject_.Property("Sibling"));
-        Inspector_DrawObjectHandleListEditor(selectedObject_.Property("Children"));
+        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Zone"))) UnsavedChanges = true;
+        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Parent"))) UnsavedChanges = true;
+        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Sibling"))) UnsavedChanges = true;
+        if (Inspector_DrawObjectHandleListEditor(selectedObject_.Property("Children"))) UnsavedChanges = true;
         ImGui::Unindent(15.0f);
     }
     if (ImGui::CollapsingHeader("Bounding box"))
     {
         ImGui::Indent(15.0f);
-        Inspector_DrawVec3Editor(selectedObject_.Property("Bmin"));
-        Inspector_DrawVec3Editor(selectedObject_.Property("Bmax"));
-        if (selectedObject_.Has("BBmin")) Inspector_DrawVec3Editor(selectedObject_.Property("BBmin"));
-        if (selectedObject_.Has("BBmax")) Inspector_DrawVec3Editor(selectedObject_.Property("BBmax"));
+        if (Inspector_DrawVec3Editor(selectedObject_.Property("Bmin"))) UnsavedChanges = true;
+        if (Inspector_DrawVec3Editor(selectedObject_.Property("Bmax"))) UnsavedChanges = true;
+        if (selectedObject_.Has("BBmin"))
+            if (Inspector_DrawVec3Editor(selectedObject_.Property("BBmin")))
+                UnsavedChanges = true;
+        if (selectedObject_.Has("BBmax"))
+            if (Inspector_DrawVec3Editor(selectedObject_.Property("BBmax")))
+                UnsavedChanges = true;
+
         ImGui::Unindent(15.0f);
     }
 
@@ -1048,8 +1091,11 @@ void TerritoryDocument::Inspector(GuiState* state)
             flags |= 1; //Enable persistent flag bit
         else
             flags &= ~1; //Disable persistent flag bit
+
+        UnsavedChanges = true;
     }
-    Inspector_DrawStringEditor(selectedObject_.Property("Name"));
+    if (Inspector_DrawStringEditor(selectedObject_.Property("Name"))) UnsavedChanges = true;
+
     Vec3 initialPos = selectedObject_.Get<Vec3>("Position");
     if (Inspector_DrawVec3Editor(selectedObject_.Property("Position")))
     {
@@ -1063,8 +1109,10 @@ void TerritoryDocument::Inspector(GuiState* state)
             selectedObject_.Set<Vec3>("BBmin", selectedObject_.Get<Vec3>("BBmin") + delta);
         if (selectedObject_.Has("BBmax"))
             selectedObject_.Set<Vec3>("BBmax", selectedObject_.Get<Vec3>("BBmax") + delta);
+
+        UnsavedChanges = true;
     }
-    Inspector_DrawMat3Editor(selectedObject_.Property("Orient"));
+    if (Inspector_DrawMat3Editor(selectedObject_.Property("Orient"))) UnsavedChanges = true;
 
     //Object properties
     static std::vector<string> HiddenProperties = //These ones aren't drawn or have special logic
@@ -1210,6 +1258,7 @@ void TerritoryDocument::Inspector(GuiState* state)
         if (propertyEdited)
         {
             updateDebugDraw_ = true; //Update in case value related to debug draw is changed
+            UnsavedChanges = true; //Mark file as edited. Puts * on tab + lets you save changes with Ctrl + S
         }
     }
 }

@@ -184,26 +184,17 @@ void Application::HandleCameraInput(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static bool registryExplorerVisible = false;
+    appInstance->HandleCameraInput(hwnd, msg, wParam, lParam);
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
         return true;
-
-    appInstance->HandleCameraInput(hwnd, msg, wParam, lParam);
 
     switch (msg)
     {
     case WM_CLOSE:
     case WM_QUIT:
-        appInstance->Exit = true;
+        appInstance->gui_.RequestAppClose();
         break;
     case WM_KEYDOWN: //Key down
-        //If escape key pressed display popup box
-        if (wParam == VK_ESCAPE)
-        {
-            if (MessageBox(0, "Are you sure you want to exit?",
-                "Confirm exit", MB_YESNO | MB_ICONQUESTION) == IDYES)
-
-            appInstance->Exit = true;
-        }
         //Ctrl + S - Save focused document
         if (wParam == 0x53 && GetKeyState(VK_CONTROL) & 0x8000)
         {
@@ -211,11 +202,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         return 0;
     case WM_KEYUP:
-        if (wParam == VK_F2)
-        {
-            registryExplorerVisible = !registryExplorerVisible;
-            appInstance->gui_.SetPanelVisibility("Registry explorer", registryExplorerVisible);
-        }
+        //if (wParam == VK_F2)
+        //{
+        //    registryExplorerVisible = !registryExplorerVisible;
+        //    appInstance->gui_.SetPanelVisibility("Registry explorer", registryExplorerVisible);
+        //}
     case WM_DESTROY: //Exit if window close button pressed
         PostQuitMessage(0);
         return 0;

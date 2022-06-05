@@ -3,6 +3,7 @@
 #include "IDocument.h"
 #include "rfg/Territory.h"
 #include "common/timing/Timer.h"
+#include "gui/util/Popup.h"
 #include <future>
 
 class Scene;
@@ -25,6 +26,7 @@ public:
 private:
     void DrawMenuBar(GuiState* state);
     void Keybinds(GuiState* state);
+    void DrawPopups(GuiState* state);
     void UpdateDebugDraw(GuiState* state);
 
     //Object commands
@@ -88,4 +90,12 @@ private:
     Handle<Task> exportTask_ = nullptr;
     string exportStatus_ = "";
     f32 exportPercentage_ = 0.0f;
+
+    //Confirmation popups + relevant object for several operations. Kinda gross but Dear ImGui popups operate in a strange order
+    Popup deleteObjectPopup_ = { "Delete object?", "Are you sure you want to delete the object?", PopupType::YesCancel, true };
+    ObjectHandle deleteObjectPopupHandle_ = NullObjectHandle;
+    Popup removeWorldAnchorPopup_ = { "Remove world anchors?", "Are you sure you'd like to remove the world anchors from this object? You can't undo this.", PopupType::YesCancel, true };
+    ObjectHandle removeWorldAnchorPopupHandle_ = NullObjectHandle;
+    Popup removeDynamicLinkPopup_ = { "Remove dynamic links?", "Are you sure you'd like to remove the dynamic links from this object? You can't undo this.", PopupType::YesCancel, true };
+    ObjectHandle removeDynamicLinkPopupHandle_ = NullObjectHandle;
 };

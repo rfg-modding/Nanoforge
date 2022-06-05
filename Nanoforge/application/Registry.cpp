@@ -375,7 +375,7 @@ bool Registry::Load(const string& inFolderPath)
                 lines = { lines.begin() + i, lines.end() }; //Discard empty lines
                 ObjectHandle object = LoadObject(lines, entryLineStart + i);
                 entryLineStart += lines.size();
-                u64 uid = (u64)object._object; //Can't use ::UID() since the handle isn't fully valid until load stage 2
+                u64 uid = object.UID();
                 if (uid != NullUID && uid > highestUID)
                     highestUID = uid;
 
@@ -385,7 +385,7 @@ bool Registry::Load(const string& inFolderPath)
             {
                 lines = { lines.begin() + i, lines.end() }; //Discard empty lines
                 BufferHandle buffer = LoadBuffer(lines, entryLineStart + i);
-                u64 uid = (u64)buffer._buffer;
+                u64 uid = buffer.UID();
                 if (uid != NullUID && uid > highestBufferUID)
                     highestBufferUID = uid;
 
