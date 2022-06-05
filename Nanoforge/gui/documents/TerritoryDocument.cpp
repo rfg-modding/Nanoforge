@@ -14,6 +14,7 @@
 #include "gui/util/WinUtil.h"
 #include "application/project/Project.h"
 #include "common/filesystem/Path.h"
+#include "common/filesystem/File.h"
 #include "rfg/PackfileVFS.h"
 #include <RfgTools++/hashes/HashGuesser.h>
 #include <RfgTools++/formats/packfiles/Packfile3.h>
@@ -39,7 +40,7 @@ CVar CVar_MapExportPath("Map export path", ConfigType::String,
     "Current map export folder path",
     ConfigValue(""),
     false,  //ShowInSettings
-    false, //IsFolderPath
+    true, //IsFolderPath
     false //IsFilePath
 );
 
@@ -445,12 +446,25 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
                 ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
             }
-            if (ImGui::Button("Export"))
+
+            bool exportPressed = ImGui::Button("Export");
+            bool exportPatchPressed = ImGui::Button("Export patch");
+            ImGui::SameLine();
+            gui::HelpMarker("Writes a patch file, for use with RfgMapPatcher. This results in a much smaller download since it only includes edited files. Only use this for distribution purposes. You should use the other export button when developing your map since it'll automatically generate the vpp_pc for you.", ImGui::GetIO().FontDefault);
+            if (exportPressed || exportPatchPressed)
             {
                 exportTask_ = Task::Create("Export map");
-                TaskScheduler::QueueTask(exportTask_, std::bind(&TerritoryDocument::ExportTask, this, state));
+                if (std::filesystem::exists(CVar_MapExportPath.Get<string>()))
+                {
+                    TaskScheduler::QueueTask(exportTask_, std::bind(&TerritoryDocument::ExportTask, this, state, exportPatchPressed));
+                }
+                else
+                {
+                    exportStatus_ = "Export path doesn't exist. Please select a valid folder.";
+                }
                 ImGui::CloseCurrentPopup();
             }
+
             if (!canExport)
             {
                 ImGui::PopItemFlag();
@@ -1325,9 +1339,10 @@ bool TerritoryDocument::Inspector_DrawBoolEditor(PropertyHandle prop)
     return edited;
 }
 
-void TerritoryDocument::ExportTask(GuiState* state)
+void TerritoryDocument::ExportTask(GuiState* state, bool exportPatch)
 {
-    if (ExportMap(state))
+    bool exportResult = exportPatch ? ExportPatch() : ExportMap(state);
+    if (exportResult)
     {
         //Get current time
         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
@@ -1453,6 +1468,58 @@ bool TerritoryDocument::ExportMap(GuiState* state)
 
     exportPercentage_ += percentagePerStep;
     exportStatus_ = "Done!";
+}
+
+constexpr u32 RFG_PATCHFILE_SIGNATURE = 1330528590; //Equals ASCII string "NANO"
+constexpr u32 RFG_PATCHFILE_VERSION = 1;
+bool TerritoryDocument::ExportPatch()
+{
+    exportPercentage_ = 0.0f;
+
+    //Export zone files
+    string terrPackfileName = Territory.Object.Get<string>("Name"); //Name of the map vpp_pc
+    string mapName = Path::GetFileNameNoExtension(terrPackfileName); //Name of the map
+    string exportFolderPath = CVar_MapExportPath.Get<string>(); //Folder to write final patch file to
+    if (!Exporters::ExportTerritory(Territory.Object, exportFolderPath))
+    {
+        LOG_ERROR("Map patch export failed! Map export failed for '{}'", mapName);
+        return false;
+    }
+
+    string zoneFilePath = fmt::format("{}\\{}.rfgzone_pc", exportFolderPath, mapName);
+    string pZoneFilePath = fmt::format("{}\\p_{}.rfgzone_pc", exportFolderPath, mapName);
+    std::vector<u8> zoneBytes = File::ReadAllBytes(zoneFilePath);
+    std::vector<u8> pZoneBytes = File::ReadAllBytes(pZoneFilePath);
+    if (zoneBytes.size() == 0 || pZoneBytes.size() == 0)
+    {
+        LOG_ERROR("Map patch export failed! More or both exported zone files are empty. Sizes: {}, {}", zoneBytes.size(), pZoneBytes.size());
+        return false;
+    }
+
+    //Merge zone files into single patch file. Meant to be used with the separate RfgMapPatcher tool. Makes the final exports much smaller.
+    //Write patch file header
+    BinaryWriter patch(fmt::format("{}\\{}.RfgPatch", exportFolderPath, mapName));
+    patch.Write<u32>(RFG_PATCHFILE_SIGNATURE);
+    patch.Write<u32>(RFG_PATCHFILE_VERSION);
+    patch.WriteNullTerminatedString(terrPackfileName);
+    patch.Align(4);
+    
+    //Write zone file sizes
+    patch.Write<size_t>(zoneBytes.size());
+    patch.Write<size_t>(pZoneBytes.size());
+
+    //Write zone file data
+    patch.WriteSpan<u8>(zoneBytes);
+    patch.Align(4);
+    patch.WriteSpan<u8>(pZoneBytes);
+    patch.Align(4);
+
+    //Remove zone files. We only care about the final patch file with this option
+    std::filesystem::remove(zoneFilePath);
+    std::filesystem::remove(pZoneFilePath);
+
+    exportPercentage_ = 1.0f;
+    return true;
 }
 
 void UpdateAsmPc(const string& asmPath)

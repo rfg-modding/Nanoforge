@@ -53,8 +53,9 @@ private:
     bool Inspector_DrawStringEditor(PropertyHandle prop);
     bool Inspector_DrawBoolEditor(PropertyHandle prop);
 
-    void ExportTask(GuiState* state);
+    void ExportTask(GuiState* state, bool exportPatch);
     bool ExportMap(GuiState* state);
+    bool ExportPatch();
 
     string TerritoryName;
     string TerritoryShortname;
