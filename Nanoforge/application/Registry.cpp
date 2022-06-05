@@ -346,6 +346,7 @@ bool Registry::Load(const string& inFolderPath)
     _buffers.clear();
 
     _folderPath = inFolderPath;
+    std::filesystem::create_directories(inFolderPath + "Buffers\\");
     string registryFilePath = inFolderPath + "\\Registry.registry";
     if (!std::filesystem::exists(registryFilePath))
         return true;
