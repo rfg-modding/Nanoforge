@@ -93,7 +93,7 @@ void StatusBar::Update(GuiState* state, bool* open)
 
     //Draw task list toggle button
     static ImVec2 taskListSizeLastFrame = { 0.0f, 0.0f };
-    ImVec2 taskListSize = { 300.0f, 300.0f };
+    ImVec2 taskListSize = { 400.0f, 300.0f };
     ImVec2 taskListPos = { pos.x + 10.0f, pos.y - 10.0f - taskListSizeLastFrame.y };
     ImGui::SetNextWindowSizeConstraints({ taskListSize.x, 0.0f }, taskListSize);
     ImGui::SetNextWindowPos(taskListPos, ImGuiCond_Always);

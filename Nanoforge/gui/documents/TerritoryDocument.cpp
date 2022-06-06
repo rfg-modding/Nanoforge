@@ -149,6 +149,9 @@ void TerritoryDocument::Update(GuiState* state)
                 for (auto& roadMesh : terrain.RoadMeshes)
                     if (roadMesh.SubzoneIndex == i)
                         roadMesh.Mesh->Visible = highLodVisible;
+                for (auto& rockMesh : terrain.RockMeshes)
+                    if (rockMesh.SubzoneIndex == i)
+                        rockMesh.Mesh->Visible = highLodVisible;
             }
 
         }

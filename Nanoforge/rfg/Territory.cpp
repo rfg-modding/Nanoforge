@@ -279,7 +279,6 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
                     anyRoadTextureValid = true;
             }
 
-            //Todo: Load other stitch meshes (a bunch of rocks). Currently only loads road stitch meshes since the rocks are stored in separate files.
             Handle<RenderObject> renderObject = scene->CreateRenderObject("TerrainRoad", Mesh{ scene->d3d11Device_, meshData.value() }, roadMesh.Get<Vec3>("Position"));
             renderObject->Visible = useHighLodTerrain_;
             renderObject->UseTextures = anyRoadTextureValid;
@@ -288,6 +287,32 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
 
             TerrainLock.lock();
             terrainInstance.RoadMeshes.push_back(RoadMesh{ .Mesh = renderObject, .SubzoneIndex = (u32)subzoneIndex });
+            TerrainLock.unlock();
+        }
+
+        //Load rock meshes
+        for (ObjectHandle rock : highLodTerrain.GetObjectList("Rocks"))
+        {
+            std::optional<MeshInstanceData> meshData = LoadRegistryMesh(rock.Get<ObjectHandle>("Mesh"));
+            if (!meshData)
+                continue;
+
+            //Load diffuse texture
+            std::optional<Texture2D> diffuseTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, rock.Get<ObjectHandle>("DiffuseTexture"));
+            std::optional<Texture2D> normalTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, rock.Get<ObjectHandle>("NormalTexture"));
+            bool anyRockTextureValid = diffuseTexture.has_value() || normalTexture.has_value();
+
+            //Create render object
+            Handle<RenderObject> renderObject = scene->CreateRenderObject("Rock", Mesh{ scene->d3d11Device_, meshData.value() }, rock.Get<Vec3>("Position"), rock.Get<Mat3>("Rotation"));
+            renderObject->Visible = useHighLodTerrain_;
+            renderObject->UseTextures = anyRockTextureValid;
+            if (diffuseTexture)
+                renderObject->Textures[0] = diffuseTexture;
+            if (normalTexture)
+                renderObject->Textures[1] = normalTexture;
+
+            TerrainLock.lock();
+            terrainInstance.RockMeshes.push_back(RockMesh{ .Mesh = renderObject, .SubzoneIndex = (u32)subzoneIndex });
             TerrainLock.unlock();
         }
     }

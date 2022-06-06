@@ -37,6 +37,12 @@ struct RoadMesh
     u32 SubzoneIndex;
 };
 
+struct RockMesh
+{
+    Handle<RenderObject> Mesh;
+    u32 SubzoneIndex;
+};
+
 //Data for a single zones terrain. Made up of 9 smaller meshes which are stitched together
 struct TerrainInstance
 {
@@ -55,6 +61,7 @@ struct TerrainInstance
     std::vector<Handle<RenderObject>> HighLodMeshes;
     std::vector<StitchMesh> StitchMeshes;
     std::vector<RoadMesh> RoadMeshes;
+    std::vector<RockMesh> RockMeshes;
 
     bool Loaded = false;
 };

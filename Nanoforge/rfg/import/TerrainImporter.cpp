@@ -309,7 +309,7 @@ ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFi
         for (size_t i = 0; i < rfgTerrain.RoadMeshes.size(); i++)
         {
             PROFILER_SCOPED(fmt::format("Import road mesh {}", i).c_str())
-            MeshDataBlock& roadMeshHeader = rfgTerrain.RoadMeshes[i];
+                MeshDataBlock& roadMeshHeader = rfgTerrain.RoadMeshes[i];
             RoadMeshData& roadMeshData = rfgTerrain.RoadMeshDatas[i];
             RfgMaterial& roadMaterial = rfgTerrain.RoadMaterials[i]; //TODO: Import this
             std::vector<string>& roadTextures = rfgTerrain.RoadTextures[i];
@@ -337,6 +337,93 @@ ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFi
     {
         LOG_ERROR("Road mesh vector size mismatch for {}. Skipping road meshes. Sizes: {}, {}, {}, {}", filename, rfgTerrain.RoadMeshDatas.size(), rfgTerrain.RoadMeshes.size(), rfgTerrain.RoadMaterials.size(), rfgTerrain.RoadTextures.size());
         highLodTerrain.SetObjectList("RoadMeshes", {});
+    }
+
+    //Load rock meshes
+    std::unordered_map<string, ObjectHandle> rockMeshCache = {};
+    for (size_t i = 0; i < rfgTerrain.StitchInstances.size(); i++)
+    {
+        PROFILER_SCOPED("Load stitch mesh");
+
+        TerrainStitchInstance& stitchInstance = rfgTerrain.StitchInstances[i];
+        string& rockFilename = rfgTerrain.StitchPieceNames2[i];
+        if (String::EqualIgnoreCase(rockFilename, "_Road"))
+            continue; //Skip road stitch instance. Road mesh data is stored in the terrain file and loaded separately
+
+        ObjectHandle rock = registry.CreateObject(rockFilename, "Rock");
+        rock.Set<Vec3>("Position", stitchInstance.Position);
+        rock.Set<Mat3>("Rotation", stitchInstance.Rotation);
+
+        //Load mesh data if it hasn't already been loaded
+        if (rockMeshCache.contains(rockFilename))
+        {
+            rock.Set<ObjectHandle>("Mesh", rockMeshCache[rockFilename]); //Already loaded
+        }
+        else
+        {
+            //Find stitch mesh values
+            string cpuFilename = rockFilename + ".cstch_pc";
+            string gpuFilename = rockFilename + ".gstch_pc";
+            std::vector<FileHandle> search = packfileVFS->GetFiles(cpuFilename, true, true);
+            if (search.size() == 0)
+            {
+                LOG_ERROR("Failed to locate stitch mesh '{}' for '{}'", cpuFilename, filename);
+                return NullObjectHandle;
+            }
+
+            //Load stitch mesh bytes
+            std::optional<FilePair> maybeFilePair = search[0].GetPair();
+            if (!maybeFilePair)
+            {
+                LOG_ERROR("Failed to load file pair [{}, {}]", cpuFilename, gpuFilename);
+                return NullObjectHandle;
+            }
+
+            //TODO: Move parsing code to RfgTools++ & provide interface to get vertices/indices like other mesh types have
+            //Open stitch mesh readers
+            FilePair& filePair = maybeFilePair.value();
+            BinaryReader cpuFileReader(filePair.CpuFile);
+            BinaryReader gpuFileReader(filePair.GpuFile);
+
+            //Mesh header
+            cpuFileReader.SeekBeg(16); //Offset of mesh header is always at bytes 16-19
+            u32 meshHeaderOffset = cpuFileReader.ReadUint32();
+            cpuFileReader.SeekBeg(meshHeaderOffset);
+            MeshDataBlock meshDataBlock;
+            meshDataBlock.Read(cpuFileReader);
+            ObjectHandle mesh = Importers::ImportMeshHeader(meshDataBlock);
+            rock.Set<ObjectHandle>("Mesh", mesh);
+
+            //Read texture names
+            cpuFileReader.Align(16);
+            u32 textureStringsSize = cpuFileReader.ReadUint32();
+            mesh.SetStringList("Textures", cpuFileReader.ReadSizedStringList(textureStringsSize));
+
+            //Read indices
+            std::vector<u8> indices = {};
+            size_t indicesSize = meshDataBlock.NumIndices * meshDataBlock.IndexSize;
+            indices.resize(indicesSize);
+            gpuFileReader.SeekBeg(16);
+            gpuFileReader.ReadToMemory(indices.data(), indicesSize);
+
+            //Read vertices
+            std::vector<u8> vertices = {};
+            size_t verticesSize = meshDataBlock.NumVertices * meshDataBlock.VertexStride0;
+            vertices.resize(verticesSize);
+            gpuFileReader.Align(16);
+            gpuFileReader.ReadToMemory(vertices.data(), verticesSize);
+
+            //Create registry buffers for indices & vertices
+            BufferHandle indexBuffer = registry.CreateBuffer(indices, fmt::format("{}_rock_{}_indices", subzoneName, i));
+            BufferHandle vertexBuffer = registry.CreateBuffer(vertices, fmt::format("{}_rock_{}_vertices", subzoneName, i));
+            mesh.Property("Indices").Set(indexBuffer);
+            mesh.Property("Vertices").Set(vertexBuffer);
+
+            //Cache mesh so it's only loaded once
+            rockMeshCache[rockFilename] = mesh;
+        }
+
+        highLodTerrain.GetObjectList("Rocks").push_back(rock);
     }
 
     //Load terrain textures
@@ -370,6 +457,74 @@ ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFi
         {
             string objName = fmt::format("Texture{}", i);
             roadMesh.Set<ObjectHandle>(objName, textures.value()[i]);
+        }
+    }
+
+    //Load rock textures
+    for (ObjectHandle rock : highLodTerrain.GetObjectList("Rocks"))
+    {
+        PROFILER_SCOPED("Load rock textures");
+
+        ObjectHandle mesh = rock.Get<ObjectHandle>("Mesh");
+        std::vector<string> textures = mesh.GetStringList("Textures");
+        if (textures.size() >= 2)
+        {
+            //TODO: See if we need to take a more advanced approach here.Maybe base it off of material data in / around MeshDataBlock
+            //TODO: One odd case to look at is pkr_lm_spike5 in mp_puncture. Has 2 diffuse and 2 normal maps. Only one submesh so it isn't applying them to different ones. Maybe blends them?
+
+            //For now we just assume the first texture is diffuse and the second is normal. Since that seems be the general truth for rock meshes.
+            string diffuseTextureName = textures[0];
+            string normalTextureName = textures[1];
+
+            //Load diffuse
+            {
+                PROFILER_SCOPED("Load diffuse texture");
+                std::optional<string> texturePath = textureIndex->GetTexturePegPath(diffuseTextureName);
+                if (texturePath)
+                {
+                    ObjectHandle peg = Importers::ImportPegFromPath(texturePath.value(), textureIndex);
+                    ObjectHandle texture = GetPegEntry(peg, diffuseTextureName);
+                    if (texture)
+                    {
+                        rock.Set<ObjectHandle>("DiffuseTexture", texture);
+                    }
+                    else
+                    {
+                        LOG_ERROR("Failed to get peg entry {} from {}", diffuseTextureName, texturePath.value());
+                    }
+                }
+                else
+                {
+                    LOG_ERROR("Failed to get texture path for rock texture '{}'", diffuseTextureName);
+                }
+            }
+
+            //Load normal
+            {
+                PROFILER_SCOPED("Load normal texture");
+                std::optional<string> texturePath = textureIndex->GetTexturePegPath(normalTextureName);
+                if (texturePath)
+                {
+                    ObjectHandle peg = Importers::ImportPegFromPath(texturePath.value(), textureIndex);
+                    ObjectHandle texture = GetPegEntry(peg, normalTextureName);
+                    if (texture)
+                    {
+                        rock.Set<ObjectHandle>("NormalTexture", texture);
+                    }
+                    else
+                    {
+                        LOG_ERROR("Failed to get peg entry {} from {}", normalTextureName, texturePath.value());
+                    }
+                }
+                else
+                {
+                    LOG_ERROR("Failed to get texture path for rock texture '{}'", normalTextureName);
+                }
+            }
+        }
+        else
+        {
+            Log->warn("{} doesn't have any textures...", rock.Get<string>("Name"));
         }
     }
 
@@ -460,10 +615,9 @@ std::optional<std::vector<ObjectHandle>> LoadTerrainTextures(const std::vector<s
 
         ObjectHandle peg = Importers::ImportPegFromPath(texturePath.value(), textureIndex);
         ObjectHandle texture = GetPegEntry(peg, materialTextureNames[i]);
-#if DEBUG_BUILD
         if (!texture)
-            Log->warn("Failed to get peg entry {} from {}", materialTextureNames[i], texturePath.value());
-#endif
+            LOG_ERROR("Failed to get peg entry {} from {}", materialTextureNames[i], texturePath.value());
+
         result.push_back(texture);
     }
 

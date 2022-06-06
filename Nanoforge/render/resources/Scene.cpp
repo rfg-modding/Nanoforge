@@ -118,12 +118,13 @@ void Scene::Draw(f32 deltaTime)
 
         //Calculate MVP matrix for all primitives
         DirectX::XMVECTOR rotaxis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-        DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f);
+        DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(rotaxis, 0.0f); //TODO: Try just using the identity matrix here + doing rotation * translation * scale for WVP calculation
         DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f);
         DirectX::XMMATRIX scale = DirectX::XMMatrixScaling(1.0f, 1.0f, 1.0f);
         constants.MVP = DirectX::XMMatrixIdentity();
         constants.MVP = translation * rotation * scale; //First calculate the model matrix
         constants.MVP = DirectX::XMMatrixTranspose(constants.MVP * Cam.camView * Cam.camProjection); //Then calculate MVP matrix with Model * View * Projection
+        constants.Rotation = rotation;
 
         d3d11Context_->GSSetConstantBuffers(0, 1, perFrameBuffer_.GetAddressOf());
         perObjectBuffer_.SetData(d3d11Context_, &constants);
@@ -397,10 +398,10 @@ void Scene::ResetPrimitives()
     litTriangleListVertices_.clear();
 }
 
-Handle<RenderObject> Scene::CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position)
+Handle<RenderObject> Scene::CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position, const Mat3& rotation)
 {
     std::lock_guard<std::mutex> lock(ObjectCreationMutex);
-    Handle<RenderObject> obj = CreateHandle<RenderObject>(mesh, position);
+    Handle<RenderObject> obj = CreateHandle<RenderObject>(mesh, position, rotation);
     Objects.push_back(obj);
 
     //Map object to its material

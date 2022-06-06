@@ -24,6 +24,8 @@ namespace RfgUtil
             return filenameNoExt + ".gtmesh_pc";
         else if (extension == ".cterrain_pc")
             return filenameNoExt + ".gterrain_pc";
+        else if (extension == ".cstch_pc")
+            return filenameNoExt + ".gstch_pc";
         else
         {
             LOG_ERROR("Unknown rfg file extension \"{}\"", extension);
