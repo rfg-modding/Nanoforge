@@ -106,7 +106,7 @@ void Camera::UpdateProjectionMatrix()
 void Camera::UpdateViewMatrix()
 {
     //Recalculate target
-    camRotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(pitchRadians_, yawRadians_, ToRadians(180.0f));
+    camRotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(pitchRadians_, yawRadians_, ToRadians(0.0f));
     camTarget = DirectX::XMVector3TransformCoord(DefaultForward, camRotationMatrix);
     camTarget = DirectX::XMVector3Normalize(camTarget);
 
@@ -114,7 +114,6 @@ void Camera::UpdateViewMatrix()
     camRight = DirectX::XMVector3TransformCoord(DefaultRight, camRotationMatrix);
     camForward = DirectX::XMVector3TransformCoord(DefaultForward, camRotationMatrix);
     camUp = DirectX::XMVector3Cross(camForward, camRight);
-    camUp = DirectX::XMVectorMultiply(camUp, { -1.0f, -1.0f, -1.0f });
 
     //Recalculate view matrix
     camTarget = DirectX::XMVectorAdd(camPosition, camTarget);
