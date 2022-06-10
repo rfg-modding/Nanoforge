@@ -25,8 +25,12 @@ void Shader::Load(std::string_view shaderName, ComPtr<ID3D11Device> d3d11Device,
     ComPtr<ID3DBlob> pVSBlob = nullptr;
     ComPtr<ID3DBlob> pGSBlob = nullptr;
 
+    //Get data about included files when compiling vertex shader. Can ignore other times since all Nanoforge shaders are merged into one file
+    includePaths_.clear();
+    includeWriteTimes_.clear();
+
     //Compile the vertex shader
-    if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "VS", "vs_4_0", pVSBlob.GetAddressOf())))
+    if (FAILED(CompileShaderFromFile(shaderPathWide.get(), "VS", "vs_4_0", pVSBlob.GetAddressOf(), &includePaths_, &includeWriteTimes_)))
     {
         LOG_ERROR("Failed to compile vertex shader in {}", Path::GetFileName(shaderPath_));
         return;
@@ -81,14 +85,14 @@ void Shader::Load(std::string_view shaderName, ComPtr<ID3D11Device> d3d11Device,
 
 void Shader::TryReload()
 {
-    //Reload shader if file has been written to since last check
-    if (shaderWriteTime_ == std::filesystem::last_write_time(shaderPath_))
-        return;
-
-    //Wait for a moment as a quickfix to a crash that happens when we read the shader as it's being saved
-    Log->info("Reloading shader \"{}\"", Path::GetFileName(shaderPath_));
-    Sleep(250);
-    Load(Path::GetFileName(shaderPath_), d3d11Device_, useGeometryShaders_);
+    if (NeedsReload())
+    {
+        //Wait for a moment as a quickfix to a crash that happens when we read the shader as it's being saved
+        //Later note: LOL. The "quickfix" is still here after almost 2 years. Not gonna bother trying anything else since it already works, and shader reload is very infrequent and only for dev purposes.
+        Log->info("Reloading shader \"{}\"", Path::GetFileName(shaderPath_));
+        Sleep(250);
+        Load(Path::GetFileName(shaderPath_), d3d11Device_, useGeometryShaders_);
+    }
 }
 
 void Shader::Bind(ComPtr<ID3D11DeviceContext> d3d11Context)
@@ -97,4 +101,18 @@ void Shader::Bind(ComPtr<ID3D11DeviceContext> d3d11Context)
     d3d11Context->PSSetShader(pixelShader_.Get(), nullptr, 0);
     if(useGeometryShaders_)
         d3d11Context->GSSetShader(geometryShader_.Get(), nullptr, 0);
+}
+
+bool Shader::NeedsReload()
+{
+    //Reload shader if file has been written to since last check
+    if (shaderWriteTime_ != std::filesystem::last_write_time(shaderPath_))
+        return true;
+
+    //Reload shader if any included files have changed
+    for (size_t i = 0; i < includePaths_.size(); i++)
+        if (includeWriteTimes_[i] != std::filesystem::last_write_time(includePaths_[i]))
+            return true;
+
+    return false;
 }
