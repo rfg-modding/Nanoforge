@@ -601,6 +601,18 @@ bool Registry::Save(const string& outFolderPath)
     return true;
 }
 
+void Registry::Reset()
+{
+    //Clear existing state
+    _objects.clear();
+    _buffers.clear();
+    _tinyBufferOffsets.clear();
+    _nextUID = 0;
+    _nextBufferUID = 0;
+    _ready = false;
+    _folderPath = "";
+}
+
 string Registry::Path() const
 {
     return _folderPath;
@@ -619,7 +631,7 @@ std::vector<ObjectHandle> Registry::FindObjects(std::string_view name, std::stri
         if (name != "")
         {
             if (object.Has("Name") && std::get<string>(object.Property("Name").Value) == name)
-                match == true;
+                match = true;
             else
                 continue;
         }
@@ -646,7 +658,7 @@ ObjectHandle Registry::FindObject(std::string_view name, std::string_view type, 
         if (name != "")
         {
             if (object.Has("Name") && std::get<string>(object.Property("Name").Value) == name)
-                match == true;
+                match = true;
             else
                 continue;
         }
@@ -766,7 +778,7 @@ PropertyHandle ObjectHandle::Property(std::string_view name)
         THROW_EXCEPTION("Attempted to get property from a null object.");
 
     //Search for property
-    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    std::scoped_lock<std::mutex> lock(*_object->Mutex.get());
     for (size_t i = 0; i < _object->Properties.size(); i++)
         if (_object->Properties[i].Name == name)
             return { _object, (u32)i }; //Property found
@@ -782,7 +794,7 @@ bool ObjectHandle::Has(std::string_view propertyName)
     if (!_object)
         return false;
 
-    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    std::scoped_lock<std::mutex> lock(*_object->Mutex.get());
     for (size_t i = 0; i < _object->Properties.size(); i++)
         if (_object->Properties[i].Name == propertyName)
             return true;
@@ -792,7 +804,7 @@ bool ObjectHandle::Has(std::string_view propertyName)
 
 std::vector<PropertyHandle> ObjectHandle::Properties()
 {
-    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    std::scoped_lock<std::mutex> lock(*_object->Mutex.get());
     std::vector<PropertyHandle> properties = {};
     for (u32 i = 0; i < _object->Properties.size(); i++)
         properties.emplace_back(_object, i);
@@ -831,7 +843,7 @@ bool ObjectHandle::Remove(std::string_view propertyName)
         THROW_EXCEPTION("Attempted to use null object handle");
 
     //Search for property
-    std::lock_guard<std::mutex> lock(*_object->Mutex.get());
+    std::scoped_lock<std::mutex> lock(*_object->Mutex.get());
     for (size_t i = 0; i < _object->Properties.size(); i++)
         if (_object->Properties[i].Name == propertyName)
         {
@@ -844,7 +856,7 @@ bool ObjectHandle::Remove(std::string_view propertyName)
 
 RegistryProperty& Object::Property(std::string_view name)
 {
-    std::lock_guard<std::mutex> lock(*Mutex.get());
+    std::scoped_lock<std::mutex> lock(*Mutex.get());
 
     //Search for property
     for (RegistryProperty& prop : Properties)
@@ -859,7 +871,7 @@ RegistryProperty& Object::Property(std::string_view name)
 
 bool Object::Has(std::string_view propertyName)
 {
-    std::lock_guard<std::mutex> lock(*Mutex.get());
+    std::scoped_lock<std::mutex> lock(*Mutex.get());
     for (RegistryProperty& prop : Properties)
         if (prop.Name == propertyName)
             return true;
@@ -902,7 +914,7 @@ std::optional<std::vector<u8>> BufferHandle::Load()
 bool BufferHandle::Save(std::span<u8> bytes)
 {
     if (!_buffer)
-        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::Save()");
+        THROW_EXCEPTION("_buffer is nullptr");
 
     return _buffer->Save(bytes);
 }

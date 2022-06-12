@@ -12,6 +12,7 @@
     #define PROFILER_SCOPED(blockName) ZoneScopedN(blockName)
     #define PROFILER_SCOPED_AUTO ZoneScoped
     #define PROFILER_FUNCTION() ZoneScoped
+    #define PROFILER_MESSAGE(str, strSize) TracyMessage(str, strSize)
     #define PROFILER_D3D11_CONTEXT(device, deviceContext) TracyD3D11Context(device, deviceContext)
     #define PROFILER_D3D11_CONTEXT_DESTROY(ctx) TracyD3D11Destroy(ctx)
     #define PROFILER_D3D11_ZONE(ctx, name) TracyD3D11Zone(ctx, name)
@@ -32,6 +33,7 @@
     #define PROFILER_SCOPED(blockName)
     #define PROFILER_SCOPED_AUTO(blockName)
     #define PROFILER_FUNCTION()
+    #define PROFILER_MESSAGE(str, strSize)
     #define PROFILER_D3D11_CONTEXT(device, deviceContext)
     #define PROFILER_D3D11_CONTEXT_DESTROY(ctx)
     #define PROFILER_D3D11_ZONE(ctx, name)

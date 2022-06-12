@@ -77,6 +77,7 @@ bool DrawNewProjectWindow(bool* open, Project* project)
                 project->Author = projectAuthor;
                 project->ProjectFilename = projectName + ".nanoproj";
                 project->UnsavedChanges = false;
+                Registry::Get().Reset(); //Discard any data from previous project
                 project->Save();
                 project->Load(endPath + projectName + ".nanoproj");
                 string newPath = endPath + projectName + ".nanoproj";
@@ -219,6 +220,7 @@ bool TryOpenProject(Project* project)
     if (!foundPath)
         recentProjects.insert(recentProjects.begin(), newPath);
 
+    Registry::Get().Reset(); //Discard any data from previous project
     Config::Get()->Save();
     project->Load(newPath);
     return true;

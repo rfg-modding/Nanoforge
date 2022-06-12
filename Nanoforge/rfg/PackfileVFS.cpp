@@ -4,8 +4,9 @@
 #include "common/string/String.h"
 #include "application/project/Project.h"
 #include <RfgTools++\formats\packfiles\Packfile3.h>
-#include "Log.h"
+#include "util/Profiler.h"
 #include <filesystem>
+#include "Log.h"
 
 void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
 {
@@ -17,6 +18,7 @@ void PackfileVFS::Init(const string& packfileFolderPath, Project* project)
 
 void PackfileVFS::ScanPackfilesAndLoadCache()
 {
+    PROFILER_FUNCTION();
     TRACE();
     packfiles_.clear();
 
@@ -38,6 +40,8 @@ void PackfileVFS::ScanPackfilesAndLoadCache()
 
 std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchFilters, bool recursive, bool oneResultPerFilter)
 {
+    PROFILER_FUNCTION();
+
     //Vector for our file handles
     std::vector<FileHandle> handles = {};
 
@@ -106,6 +110,8 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const std::vector<string>& searchF
 
 std::vector<FileHandle> PackfileVFS::GetFiles(const string& packfileName, const string& filter, bool recursive, bool oneResultPerFilter)
 {
+    PROFILER_FUNCTION();
+
     //Vector for our file handles
     std::vector<FileHandle> handles = {};
 
@@ -171,6 +177,8 @@ std::vector<FileHandle> PackfileVFS::GetFiles(const string& packfileName, const 
 
 std::optional<std::vector<u8>> PackfileVFS::GetFileBytes(const string& filePath)
 {
+    PROFILER_FUNCTION();
+
     //Split path by '/' into components
     std::string_view packfile = "", container = "", file = "";
     std::vector<std::string_view> split = String::SplitString(filePath, "/");
@@ -246,6 +254,7 @@ std::optional<std::vector<u8>> PackfileVFS::GetFileBytes(const string& filePath)
 
 std::optional<string> PackfileVFS::GetFileString(const string& filePath)
 {
+    PROFILER_FUNCTION();
     //Read file
     std::optional<std::vector<u8>> fileBytes = GetFileBytes(filePath);
     if (!fileBytes)
@@ -260,11 +269,13 @@ std::optional<string> PackfileVFS::GetFileString(const string& filePath)
 
 std::vector<FileHandle> PackfileVFS::GetFiles(const std::initializer_list<string>& searchFilters, bool recursive, bool findOne)
 {
+    PROFILER_FUNCTION();
     return GetFiles(std::vector<string>(searchFilters), recursive, findOne);
 }
 
 std::vector<FileHandle> PackfileVFS::GetFiles(const string& filter, bool recursive, bool findOne)
 {
+    PROFILER_FUNCTION();
     //Call primary overload which can take multiple filters
     return GetFiles(std::vector<string>{filter}, recursive, findOne);
 }
@@ -280,6 +291,7 @@ Handle<Packfile3> PackfileVFS::GetPackfile(const std::string_view name)
 
 Handle<Packfile3> PackfileVFS::GetContainer(const std::string_view name, const std::string_view parentName)
 {
+    PROFILER_FUNCTION();
     Handle<Packfile3> packfile = GetPackfile(parentName);
     if (!packfile)
         THROW_EXCEPTION("Failed to get packfile '{}'", parentName);

@@ -599,8 +599,4 @@ void Territory::SetZoneShortName(ObjectHandle zone)
     {
         zone.Property("ShortName").Set<string>(fullName.substr(expectedPrefix.length(), finalPostfixIndex - expectedPrefix.length())); //Keep string between prefix and postfix
     }
-
-    //Add p_ prefix back onto persistent files
-    if (zone.Property("Persistent").Get<bool>())
-        zone.Property("ShortName").Set<string>("p_" + zone.Property("ShortName").Get<string>());
 }

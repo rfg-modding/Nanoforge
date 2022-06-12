@@ -81,6 +81,7 @@ void StartPanel::Update(GuiState* state, bool* open)
         {
             if (state->CurrentProject->Loaded())
                 state->CurrentProject->Save();
+            Registry::Get().Reset(); //Discard any data from previous project
             state->CurrentProject->Load(openRecentProjectRequestData_);
             state->Xtbls->ReloadXtbls();
         }

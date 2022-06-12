@@ -1,6 +1,7 @@
 #include "FileHandle.h"
 #include <RfgTools++/formats/packfiles/Packfile3.h>
 #include "common/filesystem/Path.h"
+#include "util/Profiler.h"
 #include "util/RfgUtil.h"
 #include "PackfileVFS.h"
 #include "Log.h"
@@ -18,6 +19,8 @@ FileHandle::FileHandle(Handle<Packfile3> packfile, std::string_view fileName, st
 
 std::vector<u8> FileHandle::Get()
 {
+    PROFILER_FUNCTION();
+
     if (fileInContainer_)
     {
         //Find container
@@ -49,6 +52,7 @@ std::vector<u8> FileHandle::Get()
 
 std::optional<FilePair> FileHandle::GetPair()
 {
+    PROFILER_FUNCTION();
     Handle<Packfile3> container = GetContainer();
     if (!container)
         return {};
@@ -67,8 +71,6 @@ std::optional<FilePair> FileHandle::GetPair()
     return FilePair { cpuFileBytes.value(), gpuFileBytes.value() };
 }
 
-
-
 Handle<Packfile3> FileHandle::GetPackfile()
 {
     return packfile_;
@@ -76,6 +78,8 @@ Handle<Packfile3> FileHandle::GetPackfile()
 
 Handle<Packfile3> FileHandle::GetContainer()
 {
+    PROFILER_FUNCTION();
+
     //Find container
     std::optional<std::vector<u8>> containerBytes = packfile_->ExtractSingleFile(containerName_, false);
     if (!containerBytes)

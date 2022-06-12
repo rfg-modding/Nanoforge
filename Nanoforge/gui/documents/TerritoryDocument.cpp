@@ -120,6 +120,7 @@ void TerritoryDocument::Update(GuiState* state)
     //Update high/low lod mesh visibility based on camera distance
     if ((ImGui::IsWindowFocused() || terrainVisiblityUpdateNeeded_) && useHighLodTerrain_)
     {
+        PROFILER_SCOPED("Update mesh visibility");
         std::lock_guard<std::shared_mutex> lock(Territory.TerrainLock);
         f32 highLodTerrainDistance = highLodTerrainEnabled_ ? highLodTerrainDistance_ : -1.0f;
         for (TerrainInstance& terrain : Territory.TerrainInstances)
@@ -155,7 +156,6 @@ void TerritoryDocument::Update(GuiState* state)
             }
 
         }
-        Territory.UpdateObjectClassInstanceCounts();
         terrainVisiblityUpdateNeeded_ = false;
     }
 
@@ -171,7 +171,10 @@ void TerritoryDocument::Update(GuiState* state)
     contentAreaSize.x = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
     contentAreaSize.y = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
     if (contentAreaSize.x > 0.0f && contentAreaSize.y > 0.0f)
+    {
+        PROFILER_SCOPED("Resize scene");
         Scene->HandleResize((u32)contentAreaSize.x, (u32)contentAreaSize.y);
+    }
 
     //Store initial position so we can draw buttons over the scene texture after drawing it
     ImVec2 initialPos = ImGui::GetCursorPos();
@@ -204,6 +207,7 @@ void TerritoryDocument::Update(GuiState* state)
 #pragma warning(disable:4100)
 void TerritoryDocument::Save(GuiState* state)
 {
+    PROFILER_FUNCTION();
     if (!state->CurrentProject)
     {
         LOG_ERROR("Failed to save map! No project open. This shouldn't be possible...");
@@ -227,6 +231,8 @@ static std::vector<string> UnsupportedObjectCreatorTypes =
 
 void TerritoryDocument::DrawMenuBar(GuiState* state)
 {
+    PROFILER_FUNCTION();
+
     ImGui::SetNextItemWidth(Scene->Width());
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.0f, 8.0f }); //Must manually set padding here since the parent window has padding disabled to get the viewport flush with the window border.
     bool openScenePopup = false;
@@ -494,6 +500,8 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
 
 void TerritoryDocument::Keybinds(GuiState* state)
 {
+    PROFILER_FUNCTION();
+
     ImGuiKeyModFlags keyMods = ImGui::GetMergedKeyModFlags();
     if ((keyMods & ImGuiKeyModFlags_Ctrl) == ImGuiKeyModFlags_Ctrl) //Ctrl down
     {
@@ -523,6 +531,8 @@ void TerritoryDocument::Keybinds(GuiState* state)
 
 void TerritoryDocument::DrawPopups(GuiState* state)
 {
+    PROFILER_FUNCTION();
+
     //Object deletion popup
     if (PopupResult result = deleteObjectPopup_.Update(state); result == PopupResult::Yes)
     {
@@ -582,6 +592,8 @@ void TerritoryDocument::DrawPopups(GuiState* state)
 
 void TerritoryDocument::UpdateDebugDraw(GuiState* state)
 {
+    PROFILER_FUNCTION();
+
     //Reset primitives first to ensure old primitives get cleared
     Scene->ResetPrimitives();
 
@@ -996,11 +1008,13 @@ void TerritoryDocument::Outliner(GuiState* state)
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
 
-            //Close zone node if none of it's child objects a visible (based on object type filters)
+            //Don't draw zone if none of the objects in it are visible
             bool anyChildrenVisible = Outliner_ZoneAnyChildObjectsVisible(zone);
-            bool visible = outliner_OnlyShowNearZones_ ? anyChildrenVisible : true;
+            if (!anyChildrenVisible)
+                continue;
+
             bool selected = (zone == selectedObject_);
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | (visible ? 0 : ImGuiTreeNodeFlags_Leaf);
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | (anyChildrenVisible ? 0 : ImGuiTreeNodeFlags_Leaf);
             if (selected)
                 flags |= ImGuiTreeNodeFlags_Selected;
 
@@ -1115,7 +1129,7 @@ void TerritoryDocument::Inspector(GuiState* state)
 
         UnsavedChanges = true;
     }
-    if (Inspector_DrawMat3Editor(selectedObject_.Property("Orient"))) UnsavedChanges = true;
+    if (selectedObject_.Has("Orient") && Inspector_DrawMat3Editor(selectedObject_.Property("Orient"))) UnsavedChanges = true;
 
     //Object properties
     static std::vector<string> HiddenProperties = //These ones aren't drawn or have special logic
@@ -1764,7 +1778,7 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
 
     //Don't show node if it and it's children object types are being hidden
     bool showObjectOrChildren = Outliner_ShowObjectOrChildren(object);
-    bool visible = outliner_OnlyShowNearZones_ ? Outliner_ShowObjectOrChildren(object) : true;
+    bool visible = Outliner_ShowObjectOrChildren(object);
     if (!visible)
         return;
 

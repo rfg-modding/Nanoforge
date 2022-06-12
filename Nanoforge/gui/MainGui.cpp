@@ -321,7 +321,7 @@ void MainGui::Update()
     {
         if (std::filesystem::exists(openRecentProjectRequestData_))
         {
-            State.CurrentProject->Save();
+            Registry::Get().Reset(); //Discard any data from previous project
             State.CurrentProject->Load(openRecentProjectRequestData_);
             State.Xtbls->ReloadXtbls();
         }
@@ -495,7 +495,6 @@ void MainGui::DrawMainMenuBar()
                     outlinerOpen_ = true;
                     inspectorOpen_ = true;
                     SetPanelVisibility("Log", false);
-                    SetPanelVisibility("File explorer", true);
                     SetPanelVisibility("Scriptx viewer", false);
                 }
                 ImGui::EndMenu();

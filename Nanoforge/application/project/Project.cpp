@@ -19,6 +19,7 @@
 Project::Project()
 {
     PackageModTask = Task::Create("Packaging mod...");
+    Registry::Get().Reset();
 }
 
 bool Project::Load(std::string_view projectFilePath)

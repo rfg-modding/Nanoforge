@@ -41,6 +41,8 @@ public:
     bool Load(const string& inFolderPath);
     //Save registry to folder
     bool Save(const string& outFolderPath);
+    //Discard all registry data in memory. Any unsaved changes are gone.
+    void Reset();
     //Filesystem location the registry is serialized to
     string Path() const;
     //Find objects with given name + type. Object must have Name & Type properties to check
