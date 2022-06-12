@@ -7,6 +7,8 @@
 #include "common/timing/Timer.h"
 #include "common/filesystem/File.h"
 #include "common/string/String.h"
+#include <BinaryTools/BinaryReader.h>
+#include <BinaryTools/BinaryWriter.h>
 #include <charconv>
 
 Registry& Registry::Get()
@@ -85,7 +87,7 @@ BufferHandle Registry::CreateBufferInternal(u64 uid, std::string_view name, size
     }
     _bufferCreationLock.unlock_shared();
 
-    std::lock_guard<std::shared_mutex> lock(_bufferCreationLock); //Block other threads from reading/writing _buffers during write
+    std::scoped_lock<std::shared_mutex> lock(_bufferCreationLock); //Block other threads from reading/writing _buffers during write
     _buffers[uid] = RegistryBuffer(uid, name, size);
     BufferHandle handle = { &_buffers[uid] };
     return handle;
@@ -187,6 +189,10 @@ ObjectHandle Registry::LoadObject(const std::vector<std::string_view>& lines, si
         else if (type == "i32")
         {
             object.Property(name).Set<i32>(ConvertStringView<i32>(value));
+        }
+        else if (type == "i16")
+        {
+            object.Property(name).Set<i16>(ConvertStringView<i16>(value));
         }
         else if (type == "i8")
         {
@@ -344,6 +350,7 @@ bool Registry::Load(const string& inFolderPath)
     //Clear existing state
     _objects.clear();
     _buffers.clear();
+    _tinyBufferOffsets.clear();
 
     _folderPath = inFolderPath;
     std::filesystem::create_directories(inFolderPath + "Buffers\\");
@@ -390,6 +397,37 @@ bool Registry::Load(const string& inFolderPath)
                     highestBufferUID = uid;
 
                 break;
+            }
+            else if (String::StartsWith(lineTrimmed, "TinyBufferOffsets("))
+            {
+                lines = { lines.begin() + i, lines.end() }; //Discard empty lines
+
+                //Get list of values separated by '|'
+                std::string_view values = lineTrimmed;
+                values.remove_prefix(strlen("TinyBufferOffsets("));
+                values.remove_suffix(strlen(")"));
+
+                //Split value pairs by ','
+                std::vector<std::string_view> pairs = String::SplitString(values, ","); //key-value pairs separated by commas
+                for (std::string_view valuePair : pairs)
+                {
+                    std::vector<std::string_view> pairSplit = String::SplitString(valuePair, "|");
+                    if (pairSplit.size() != 2)
+                    {
+                        LOG_ERROR("Invalid TinyBufferOffsets pair '{}'. Skipping the remaining values.", valuePair);
+                        break;
+                    }
+
+                    u64 uid = ConvertStringView<u64>(String::TrimWhitespace(pairSplit[0]));
+                    u64 offset = ConvertStringView<u64>(String::TrimWhitespace(pairSplit[1]));
+                    if (_tinyBufferOffsets.contains(uid))
+                    {
+                        LOG_ERROR("Duplicate UID in TinyBufferOffsets. UID = {}, Offset = {}. Skipping the remaining values.", uid, offset);
+                        break;
+                    }
+
+                    _tinyBufferOffsets[uid] = offset;
+                }
             }
             else
             {
@@ -481,6 +519,11 @@ bool Registry::Save(const string& outFolderPath)
             {
                 propType = "i32";
                 propValue = std::to_string(std::get<i32>(prop.Value));
+            }
+            else if (std::holds_alternative<i16>(prop.Value))
+            {
+                propType = "i16";
+                propValue = std::to_string(std::get<i16>(prop.Value));
             }
             else if (std::holds_alternative<i8>(prop.Value))
             {
@@ -590,6 +633,20 @@ bool Registry::Save(const string& outFolderPath)
     {
         RegistryBuffer& buffer = kv.second;
         fileBuffer += fmt::format("Buffer({}, \"{}\", {});\n", buffer.UID, buffer.Name, buffer.Size);
+    }
+
+    //Write tiny buffer offsets
+    if (_tinyBufferOffsets.size() > 0)
+    {
+        fileBuffer += "TinyBufferOffsets(";
+        for (auto& kv : _tinyBufferOffsets)
+        {
+            fileBuffer += fmt::format("{}|{}, ", kv.first, kv.second);
+        }
+        //Remove ", " after last entry
+        fileBuffer.pop_back();
+        fileBuffer.pop_back();
+        fileBuffer += ");\n";
     }
 
     string outPath = outFolderPath + "\\Registry.registry";
@@ -817,14 +874,46 @@ bool ObjectHandle::operator==(ObjectHandle other)
     return _object == other._object;
 }
 
+void ObjectHandle::Lock()
+{
+    if (!_object)
+        THROW_EXCEPTION("_object is nullptr");
+
+    _object->Mutex->lock();
+}
+
+void ObjectHandle::Unlock()
+{
+    if (!_object)
+        THROW_EXCEPTION("_object is nullptr");
+
+    _object->Mutex->unlock();
+}
+
 std::vector<ObjectHandle>& ObjectHandle::GetObjectList(std::string_view propertyName)
 {
     return Property(propertyName).GetObjectList();
 }
 
+bool ObjectHandle::AppendObjectList(std::string_view name, ObjectHandle obj)
+{
+    if (!_object)
+        THROW_EXCEPTION("_object is nullptr");
+
+    return _object->AppendObjectList(name, obj);
+}
+
 std::vector<string>& ObjectHandle::GetStringList(std::string_view propertyName)
 {
     return Property(propertyName).GetStringList();
+}
+
+bool ObjectHandle::AppendStringList(std::string_view name, const string& str)
+{
+    if (!_object)
+        THROW_EXCEPTION("_object is nullptr");
+
+    return _object->AppendStringList(name, str);
 }
 
 void ObjectHandle::SetObjectList(std::string_view propertyName, const std::vector<ObjectHandle>& value)
@@ -879,34 +968,179 @@ bool Object::Has(std::string_view propertyName)
     return false;
 }
 
-std::optional<std::vector<u8>> RegistryBuffer::Load()
+bool Object::AppendObjectList(std::string_view name, ObjectHandle obj)
 {
-    std::lock_guard<std::mutex> lock(*Mutex.get());
-    string filePath = fmt::format("{}\\Buffers\\{}.{}.buffer", Registry::Get().Path(), Name, UID);
-    if (!std::filesystem::exists(filePath))
+    //Note: The start of this function is the same as Object::Property(). Can't lock then call that function since we're not using recursive mutex.
+    //      Just another thing that'll be fixed when the registry is rewritten to better handle multithreading. But first the map editor needs to be in a good spot.
+    std::scoped_lock<std::mutex> lock(*Mutex.get());
+    RegistryProperty* list = nullptr;
+
+    //Search for property
+    for (RegistryProperty& prop : Properties)
+        if (prop.Name == name)
+        {
+            list = &prop;
+            break;
+        }
+
+    //Property not found. Add it to the buffer
+    if (!list)
+    {
+        RegistryProperty& prop = Properties.emplace_back();
+        prop.Name = string(name);
+        prop.Value = std::vector<ObjectHandle>{};
+        list = &prop;
+    }
+
+    std::get<std::vector<ObjectHandle>>(list->Value).push_back(obj);
+    return true;
+}
+
+bool Object::AppendStringList(std::string_view name, const string& str)
+{
+    //Note: The start of this function is the same as Object::Property(). Can't lock then call that function since we're not using recursive mutex. I don't want to since it'd make objects even larger.
+    //      Just another thing that'll be fixed when the registry is rewritten to better handle multithreading. But first the map editor needs to be in a good spot.
+    std::scoped_lock<std::mutex> lock(*Mutex.get());
+    RegistryProperty* list = nullptr;
+
+    //Search for property
+    for (RegistryProperty& prop : Properties)
+        if (prop.Name == name)
+        {
+            list = &prop;
+            break;
+        }
+
+    //Property not found. Add it to the buffer
+    if (!list)
+    {
+        RegistryProperty& prop = Properties.emplace_back();
+        prop.Name = string(name);
+        prop.Value = std::vector<string>{};
+        list = &prop;
+    }
+
+    std::get<std::vector<string>>(list->Value).push_back(str);
+    return true;
+}
+
+string Registry::GetMergedBufferPath() const
+{
+    return fmt::format("{}\\Buffers\\TinyBuffers.buffer", Registry::Get().Path());
+}
+
+std::optional<std::vector<u8>> Registry::LoadTinyBuffer(RegistryBuffer& buffer)
+{
+    std::scoped_lock<std::mutex> lock(TinyBufferLock);
+    if (!_tinyBufferOffsets.contains(buffer.UID))
         return {};
 
-    return File::ReadAllBytes(filePath);
+    //Seek to buffer
+    const u64 offset = _tinyBufferOffsets[buffer.UID];
+    BinaryReader reader(GetMergedBufferPath());
+    reader.SeekBeg(offset);
+    
+    //Read buffer data
+    std::vector<u8> bytes = {};
+    bytes.resize(buffer.Size);
+    reader.ReadToMemory(bytes.data(), buffer.Size);
+    return bytes;
+}
+
+bool Registry::SaveTinyBuffer(RegistryBuffer& buffer, std::span<u8> bytes)
+{
+    std::scoped_lock<std::mutex> lock(TinyBufferLock);
+    BinaryWriter writer(GetMergedBufferPath(), false);
+    const u64 mergedBufferSize = writer.Length();
+    const u64 oldSize = buffer.Size;
+    const u64 newSize = bytes.size();
+    const bool newBuffer = !_tinyBufferOffsets.contains(buffer.UID);
+
+    if (!newBuffer && newSize <= oldSize) //Update existing buffer
+    {
+        const u64 offset = _tinyBufferOffsets[buffer.UID];
+        writer.SeekBeg(offset);
+        writer.WriteSpan<u8>(bytes);
+    }
+    else //Write buffer to the end of the file. Either writing a new buffer, or the buffer changed size and can't fit in its old slot
+    {
+        //Seek to end and write new data
+        writer.SeekBeg(mergedBufferSize);
+        writer.WriteSpan<u8>(bytes);
+        _tinyBufferOffsets[buffer.UID] = mergedBufferSize;
+    }
+
+    return true;
+}
+
+std::optional<std::vector<u8>> RegistryBuffer::Load()
+{
+    std::scoped_lock<std::mutex> lock(*Mutex.get());
+    std::optional<std::vector<u8>> result = {};
+    if (Size <= Registry::TinyBufferMaxSize)
+    {
+        result = Registry::Get().LoadTinyBuffer(*this);
+    }
+    else
+    {
+        string filePath = fmt::format("{}\\Buffers\\{}.{}.buffer", Registry::Get().Path(), Name, UID);
+        if (std::filesystem::exists(filePath))
+            result = File::ReadAllBytes(filePath);
+        else
+            result = {};
+    }
+
+    return result;
 }
 
 bool RegistryBuffer::Save(std::span<u8> bytes)
 {
-    std::lock_guard<std::mutex> lock(*Mutex.get());
-    //Ensure buffers folder exists
-    string buffersPath = fmt::format("{}\\Buffers\\", Registry::Get().Path());
-    Path::CreatePath(buffersPath);
+    std::scoped_lock<std::mutex> lock(*Mutex.get());
+    bool result = false;
+    const u64 oldSize = Size;
+    const u64 newSize = bytes.size();
 
-    //Save buffer to file
-    string filePath = fmt::format("{}{}.{}.buffer", buffersPath, Name, UID);
-    File::WriteToFile(filePath, bytes);
-    Size = bytes.size_bytes();
-    return true;
+    if (bytes.size() <= Registry::TinyBufferMaxSize)
+    {
+        result = Registry::Get().SaveTinyBuffer(*this, bytes);
+    }
+    else
+    {
+        //Ensure buffers folder exists
+        string buffersPath = fmt::format("{}\\Buffers\\", Registry::Get().Path());
+        Path::CreatePath(buffersPath);
+
+        //Save buffer to file
+        string filePath = fmt::format("{}{}.{}.buffer", buffersPath, Name, UID);
+        File::WriteToFile(filePath, bytes);
+        result = true;
+    }
+
+    //Saved. Update size + delete buffer file if its now small enough to be in the merged file
+    if (result)
+    {
+        Size = newSize;
+        if (oldSize > Registry::TinyBufferMaxSize && newSize <= Registry::TinyBufferMaxSize)
+        {
+            //Buffer is no longer big enough to have a separate file. Delete the file.
+            string buffersPath = fmt::format("{}\\Buffers\\", Registry::Get().Path());
+            std::filesystem::remove(buffersPath);
+        }
+        if (oldSize <= Registry::TinyBufferMaxSize && newSize > Registry::TinyBufferMaxSize)
+        {
+            //Buffer is now big enough to have its own file. Remove it from TinyBufferOffsets
+            std::scoped_lock<std::mutex> lock(Registry::Get().TinyBufferLock);
+            Registry::Get()._tinyBufferOffsets.erase(UID);
+        }
+    }
+
+    return result;
 }
 
 std::optional<std::vector<u8>> BufferHandle::Load()
 {
     if (!_buffer)
-        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::Load()");
+        THROW_EXCEPTION("_buffer is nullptr");
 
     return _buffer->Load();
 }
@@ -922,25 +1156,25 @@ bool BufferHandle::Save(std::span<u8> bytes)
 string BufferHandle::Name()
 {
     if (!_buffer)
-        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::Name()");
+        THROW_EXCEPTION("_buffer is nullptr");
 
-    std::lock_guard<std::mutex> lock(*_buffer->Mutex.get());
+    std::scoped_lock<std::mutex> lock(*_buffer->Mutex.get());
     return _buffer->Name;
 }
 
 void BufferHandle::SetName(const string& name)
 {
     if (!_buffer)
-        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::SetName()");
+        THROW_EXCEPTION("_buffer is nullptr");
 
-    std::lock_guard<std::mutex> lock(*_buffer->Mutex.get());
+    std::scoped_lock<std::mutex> lock(*_buffer->Mutex.get());
     _buffer->Name = name;
 }
 
 u64 BufferHandle::UID() const
 {
     if (!_buffer)
-        THROW_EXCEPTION("_buffer is nullptr in BufferHandle::UID()");
+        THROW_EXCEPTION("_buffer is nullptr");
 
     return _buffer->UID;
 }
