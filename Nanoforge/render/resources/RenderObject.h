@@ -21,9 +21,9 @@ constexpr size_t a2 = sizeof(PerObjectConstants);
 class RenderObject
 {
 public:
-    RenderObject(const Mesh& mesh, const Vec3& position, const Mat3& rotation = {}) : ObjectMesh(mesh), Position(position), Rotation(rotation) { }
+    RenderObject(const Mesh& mesh, const Vec3& position, const Mat3& rotation = {});
     //Draw the objects mesh
-    void Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObjectBuffer, Camera& cam);
+    virtual void Draw(ComPtr<ID3D11DeviceContext> d3d11Context, Buffer& perObjectBuffer, Camera& cam);
     //Set uniform scale
     void SetScale(f32 scale)
     {
@@ -37,6 +37,7 @@ public:
     Vec3 Position = { 0.0f, 0.0f, 0.0f };
     Mat3 Rotation = {};
     bool Visible = true;
+    u32 SubmeshOverride = -1;
 
     bool UseTextures = false;
     std::array<std::optional<Texture2D>, 10> Textures;

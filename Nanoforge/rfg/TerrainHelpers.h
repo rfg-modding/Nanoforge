@@ -27,19 +27,19 @@ static_assert(sizeof(TerrainVertex) == 8, "TerrainVertex size incorrect!");
 
 struct StitchMesh
 {
-    Handle<RenderObject> Mesh;
+    RenderObject* Mesh;
     u32 SubzoneIndex;
 };
 
 struct RoadMesh
 {
-    Handle<RenderObject> Mesh;
+    RenderObject* Mesh;
     u32 SubzoneIndex;
 };
 
 struct RockMesh
 {
-    Handle<RenderObject> Mesh;
+    RenderObject* Mesh;
     u32 SubzoneIndex;
 };
 
@@ -55,10 +55,10 @@ struct TerrainInstance
     Vec3 Position;
 
     //Low lod
-    std::vector<Handle<RenderObject>> LowLodMeshes;
+    std::vector<RenderObject*> LowLodMeshes;
 
     //High lod
-    std::vector<Handle<RenderObject>> HighLodMeshes;
+    std::vector<RenderObject*> HighLodMeshes;
     std::vector<StitchMesh> StitchMeshes;
     std::vector<RoadMesh> RoadMeshes;
     std::vector<RockMesh> RockMeshes;

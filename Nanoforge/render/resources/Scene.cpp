@@ -7,6 +7,12 @@
 #include "render/Render.h"
 #include "util/Profiler.h"
 
+Scene::~Scene()
+{
+    for (RenderObject* renderObject : Objects)
+        delete renderObject;
+}
+
 void Scene::Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context)
 {
     d3d11Device_ = d3d11Device;
@@ -68,7 +74,7 @@ void Scene::Draw(f32 deltaTime)
             material->Use(d3d11Context_);
 
             //Render all objects using the material
-            for (Handle<RenderObject> renderObject : kv.second)
+            for (RenderObject* renderObject : kv.second)
                 renderObject->Draw(d3d11Context_, perObjectBuffer_, Cam);
         }
     }
@@ -398,14 +404,27 @@ void Scene::ResetPrimitives()
     litTriangleListVertices_.clear();
 }
 
-Handle<RenderObject> Scene::CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position, const Mat3& rotation)
+RenderObject* Scene::CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position, const Mat3& rotation)
 {
-    std::lock_guard<std::mutex> lock(ObjectCreationMutex);
-    Handle<RenderObject> obj = CreateHandle<RenderObject>(mesh, position, rotation);
+    std::scoped_lock<std::mutex> lock(ObjectCreationMutex);
+    RenderObject* obj = new RenderObject(mesh, position, rotation);
     Objects.push_back(obj);
 
     //Map object to its material
-    auto materialObjectList = objectMaterials_.try_emplace(string(materialName), std::vector<Handle<RenderObject>>());
+    auto materialObjectList = objectMaterials_.try_emplace(string(materialName), std::vector<RenderObject*>());
+    materialObjectList.first->second.push_back(obj); //Add obj to list of objects that use the same material
+
+    return obj;
+}
+
+RenderChunk* Scene::CreateRenderChunk(std::string_view materialName, const Mesh& mesh, const RenderChunkData& chunkData, const Vec3& position, const Mat3& rotation)
+{
+    std::scoped_lock<std::mutex> lock(ObjectCreationMutex);
+    RenderChunk* obj = new RenderChunk(mesh, chunkData, position, rotation);
+    Objects.push_back(obj);
+
+    //Map object to its material
+    auto materialObjectList = objectMaterials_.try_emplace(string(materialName), std::vector<RenderObject*>());
     materialObjectList.first->second.push_back(obj); //Add obj to list of objects that use the same material
 
     return obj;

@@ -53,7 +53,7 @@ std::vector<u8> FileHandle::Get()
 std::optional<FilePair> FileHandle::GetPair()
 {
     PROFILER_FUNCTION();
-    Handle<Packfile3> container = GetContainer();
+    Handle<Packfile3> container = fileInContainer_ ? GetContainer() : packfile_;
     if (!container)
         return {};
 
@@ -83,7 +83,7 @@ Handle<Packfile3> FileHandle::GetContainer()
     //Find container
     std::optional<std::vector<u8>> containerBytes = packfile_->ExtractSingleFile(containerName_, false);
     if (!containerBytes)
-        THROW_EXCEPTION("Failed to extract container from packfile.");
+        THROW_EXCEPTION("Failed to extract {} from {}", containerName_, packfile_->Name());
 
     //Parse container and get file byte buffer
     Handle<Packfile3> container = CreateHandle<Packfile3>(containerBytes.value());

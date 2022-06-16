@@ -4,9 +4,11 @@
 #include "rfg/TerrainHelpers.h"
 #include <RfgTools++\types\Vec3.h>
 #include "render/resources/Texture2D.h"
+#include "render/resources/Mesh.h"
 #include "application/Registry.h"
 #include <unordered_map>
 #include <shared_mutex>
+#include <atomic>
 
 class Task;
 class Scene;
@@ -48,6 +50,7 @@ public:
 private:
     void LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state); //Top level loading thread. Imports territory on first load
     void LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, ObjectHandle zone, size_t terrainIndex, GuiState* state); //Loads a single zone and its assets
+    std::optional<Mesh> LoadRegistryChunkMesh(ObjectHandle chunk, Handle<Scene> scene); //Load chunk mesh stored in registry as a renderer ready format. Also prevents repeat loads using chunkMeshCache_
     std::optional<MeshInstanceData> LoadRegistryMesh(ObjectHandle mesh); //Load mesh stored in registry as a renderer ready format
     //Load texture (xxx.tga) and create a render texture from it. Textures are cached to prevent repeat loads
     std::optional<Texture2D> LoadTexture(ComPtr<ID3D11Device> d3d11Device, TextureIndex* textureSearchIndex, ObjectHandle texture);
@@ -63,6 +66,8 @@ private:
     bool useHighLodTerrain_ = true;
     std::mutex textureCacheLock_;
     std::unordered_map<string, Texture2D> textureCache_; //Textures loaded during territory load are cached to prevent repeat loads. Cleared once territory is done loading.
+    std::mutex chunkMeshCacheLock_;
+    std::unordered_map<string, Mesh> chunkMeshCache_; //Chunk meshes. Some chunks are used dozens of times. Quickly gets out of hand if you make separate meshes/buffers per instance (10GB+ memory usage on mp_crescent)
 };
 
 //Used by Territory to filter objects list by class type

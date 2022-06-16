@@ -482,16 +482,6 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
 
     //Load mesh and create render object from it
     MeshInstanceData meshData = maybeMeshData.value();
-    Handle<RenderObject> renderObject = Scene->CreateRenderObject(to_string(format), Mesh{ Scene->d3d11Device_, meshData, StaticMesh.NumLods });
-
-    //Set camera position to get a better view of the mesh
-    {
-        auto& submesh0 = StaticMesh.MeshInfo.Submeshes[0];
-        Vec3 pos = submesh0.Bmax - submesh0.Bmin;
-        Scene->Cam.SetPosition(pos.z, pos.y, pos.x); //x and z intentionally switched since that usually has a better result
-        Scene->Cam.SetNearPlane(0.1f);
-        Scene->Cam.Speed = 0.05f;
-    }
 
     WorkerProgressFraction += stepSize;
     meshExportEnabled_ = true;
@@ -516,12 +506,15 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
                      String::EndsWith(str, "_d_low.tga") || String::EndsWith(str, "_n_low.tga") || String::EndsWith(str, "_s_low.tga"));
         }), textures.end());
 
+    std::optional<Texture2D> diffuseTexture = {};
+    std::optional<Texture2D> specularTexture = {};
+    std::optional<Texture2D> normalTexture = {};
+
     //Load textures
     for (auto& textureName : textures)
     {
         //Check if the document was closed. If so, end worker thread early
-        if (meshLoadTask_->Cancelled())
-            return;
+        TaskEarlyExitCheck();
 
         string textureNameLower = String::ToLower(textureName);
         if (!foundDiffuse && String::Contains(textureNameLower, "_d"))
@@ -531,8 +524,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
             {
                 Log->info("Found diffuse texture {} for {}", texture.value().Name, Filename);
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                renderObject->UseTextures = true;
-                renderObject->Textures[0] = texture.value();
+                diffuseTexture = texture;
                 DiffuseName = texture.value().Name;
                 DiffusePegPath = state->TextureSearchIndex->GetTexturePegPath(texture.value().Name, true);
                 foundDiffuse = true;
@@ -550,8 +542,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
                 Log->info("Found normal map {} for {}", texture.value().Name, Filename);
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                renderObject->UseTextures = true;
-                renderObject->Textures[2] = texture.value();
+                normalTexture = texture;
                 NormalName = texture.value().Name;
                 NormalPegPath = state->TextureSearchIndex->GetTexturePegPath(texture.value().Name, true);
                 foundNormal = true;
@@ -569,8 +560,7 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
                 Log->info("Found specular map {} for {}", texture.value().Name, Filename);
 
                 std::lock_guard<std::mutex> lock(state->Renderer->ContextMutex);
-                renderObject->UseTextures = true;
-                renderObject->Textures[1] = texture.value();
+                specularTexture = texture;
                 SpecularName = texture.value().Name;
                 SpecularPegPath = state->TextureSearchIndex->GetTexturePegPath(texture.value().Name, true);
                 foundSpecular = true;
@@ -581,6 +571,22 @@ void StaticMeshDocument::WorkerThread(Handle<Task> task, GuiState* state)
             }
         }
     }
+
+    TaskEarlyExitCheck();
+
+    //Create render object
+    RenderObject* renderObject = Scene->CreateRenderObject(to_string(format), Mesh{ Scene->d3d11Device_, meshData, StaticMesh.NumLods });
+    renderObject->UseTextures = diffuseTexture || specularTexture || normalTexture;
+    renderObject->Textures[0] = diffuseTexture;
+    renderObject->Textures[1] = specularTexture;
+    renderObject->Textures[2] = normalTexture;
+
+    //Set camera position to get a better view of the mesh
+    auto& submesh0 = StaticMesh.MeshInfo.Submeshes[0];
+    Vec3 pos = submesh0.Bmax - submesh0.Bmin;
+    Scene->Cam.SetPosition(pos.z, pos.y, pos.x); //x and z intentionally switched since that usually has a better result
+    Scene->Cam.SetNearPlane(0.1f);
+    Scene->Cam.Speed = 0.05f;
 
     WorkerProgressFraction += stepSize;
     WorkerStatusString = "Done! " ICON_FA_CHECK;

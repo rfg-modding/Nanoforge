@@ -23,10 +23,10 @@
 } \
 
 ObjectHandle ImportLowLodTerrain(std::string_view filename, std::span<u8> cpuFileBytes, std::span<u8> gpuFileBytes, PackfileVFS* packfileVFS, TextureIndex* textureIndex);
-ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFileBytes, std::span<u8> gpuFileBytes, const std::vector<string>&materialNames, PackfileVFS* packfileVFS, TextureIndex* textureIndex);
+ObjectHandle ImportHighLodTerrain(ObjectHandle territory, std::string_view filename, std::span<u8> cpuFileBytes, std::span<u8> gpuFileBytes, const std::vector<string>&materialNames, PackfileVFS* packfileVFS, TextureIndex* textureIndex);
 std::optional<std::vector<ObjectHandle>> LoadTerrainTextures(const std::vector<string>& materialNames, const string& subzoneName, TextureIndex* textureIndex);
 
-ObjectHandle Importers::ImportTerrain(std::string_view terrainName, const Vec3& position, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal)
+ObjectHandle Importers::ImportTerrain(ObjectHandle territory, std::string_view terrainName, const Vec3& position, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal)
 {
     PROFILER_FUNCTION();
     Registry& registry = Registry::Get();
@@ -75,7 +75,7 @@ ObjectHandle Importers::ImportTerrain(std::string_view terrainName, const Vec3& 
     //Load high lod terrain
     {
         PROFILER_SCOPED("Import high lod terrain");
-        std::mutex highLodTerrainMutex;
+        static std::mutex highLodTerrainMutex; //Made static since multiple threads might call this function at once
         std::vector<FileHandle> highLodSearchResult = packfileVFS->GetFiles(string(terrainName) + "_*", true);
         for (FileHandle& file : highLodSearchResult)
         {
@@ -94,7 +94,7 @@ ObjectHandle Importers::ImportTerrain(std::string_view terrainName, const Vec3& 
 
             //Valid high lod terrain file found. Import it
             ObjectHandle terrainLowLod = zoneTerrain.Get<ObjectHandle>("LowLod");
-            ObjectHandle terrainHighLod = ImportHighLodTerrain(file.Filename(), filePair.value().CpuFile, filePair.value().GpuFile, terrainLowLod.GetStringList("TerrainMaterialNames"), packfileVFS, textureIndex);
+            ObjectHandle terrainHighLod = ImportHighLodTerrain(territory, file.Filename(), filePair.value().CpuFile, filePair.value().GpuFile, terrainLowLod.GetStringList("TerrainMaterialNames"), packfileVFS, textureIndex);
             if (terrainHighLod)
             {
                 highLodTerrainMutex.lock();
@@ -189,9 +189,12 @@ ObjectHandle ImportLowLodTerrain(std::string_view filename, std::span<u8> cpuFil
     return lowLodTerrain;
 }
 
-ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFileBytes, std::span<u8> gpuFileBytes, const std::vector<string>& materialNames, PackfileVFS* packfileVFS, TextureIndex* textureIndex)
+ObjectHandle ImportHighLodTerrain(ObjectHandle territory, std::string_view filename, std::span<u8> cpuFileBytes, std::span<u8> gpuFileBytes, const std::vector<string>& materialNames, PackfileVFS* packfileVFS, TextureIndex* textureIndex)
 {
     PROFILER_FUNCTION();
+    string message = fmt::format("Loading {}", filename);
+    PROFILER_MESSAGE(message.c_str(), message.size());
+
     Registry& registry = Registry::Get();
     Terrain rfgTerrain;
     ObjectHandle highLodTerrain = registry.CreateObject(filename, "TerrainHighLod");
@@ -308,8 +311,10 @@ ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFi
 
         for (size_t i = 0; i < rfgTerrain.RoadMeshes.size(); i++)
         {
-            PROFILER_SCOPED(fmt::format("Import road mesh {}", i).c_str())
-                MeshDataBlock& roadMeshHeader = rfgTerrain.RoadMeshes[i];
+            string message = fmt::format("Import road mesh {}", i);
+            PROFILER_MESSAGE(message.c_str(), message.size());
+
+            MeshDataBlock& roadMeshHeader = rfgTerrain.RoadMeshes[i];
             RoadMeshData& roadMeshData = rfgTerrain.RoadMeshDatas[i];
             RfgMaterial& roadMaterial = rfgTerrain.RoadMaterials[i]; //TODO: Import this
             std::vector<string>& roadTextures = rfgTerrain.RoadTextures[i];
@@ -340,27 +345,47 @@ ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFi
     }
 
     //Load rock meshes
-    std::unordered_map<string, ObjectHandle> rockMeshCache = {};
     for (size_t i = 0; i < rfgTerrain.StitchInstances.size(); i++)
     {
-        PROFILER_SCOPED("Load stitch mesh");
+        PROFILER_SCOPED("Import rock mesh");
 
         TerrainStitchInstance& stitchInstance = rfgTerrain.StitchInstances[i];
         string& rockFilename = rfgTerrain.StitchPieceNames2[i];
         if (String::EqualIgnoreCase(rockFilename, "_Road"))
             continue; //Skip road stitch instance. Road mesh data is stored in the terrain file and loaded separately
 
-        ObjectHandle rock = registry.CreateObject(rockFilename, "Rock");
-        rock.Set<Vec3>("Position", stitchInstance.Position);
-        rock.Set<Mat3>("Rotation", stitchInstance.Rotation);
-
-        //Load mesh data if it hasn't already been loaded
-        if (rockMeshCache.contains(rockFilename))
+        //See if the rock was already loaded
+        ObjectHandle cachedRock = NullObjectHandle;
+        std::vector<ObjectHandle> rockCache = territory.GetObjectList("Rocks");
+        for (ObjectHandle rock : rockCache)
         {
-            rock.Set<ObjectHandle>("Mesh", rockMeshCache[rockFilename]); //Already loaded
+            if (rock.Get<string>("Name") == rockFilename)
+            {
+                cachedRock = rock;
+                break;
+            }
         }
-        else
+
+        if (cachedRock) //Rock already loaded. Just make a new rock using the pre-existing ones meshes + textures
         {
+            PROFILER_SCOPED("Cached rock import");
+
+            ObjectHandle rock = registry.CreateObject(rockFilename, "Rock");
+            rock.Set<Vec3>("Position", stitchInstance.Position);
+            rock.Set<Mat3>("Rotation", stitchInstance.Rotation);
+            rock.Set<ObjectHandle>("Mesh", cachedRock.Get<ObjectHandle>("Mesh"));
+
+            highLodTerrain.AppendObjectList("Rocks", rock);
+            continue;
+        }
+        else //First time this rock has been loaded
+        {
+            PROFILER_SCOPED("New rock import");
+
+            ObjectHandle rock = registry.CreateObject(rockFilename, "Rock");
+            rock.Set<Vec3>("Position", stitchInstance.Position);
+            rock.Set<Mat3>("Rotation", stitchInstance.Rotation);
+
             //Find stitch mesh values
             string cpuFilename = rockFilename + ".cstch_pc";
             string gpuFilename = rockFilename + ".gstch_pc";
@@ -419,11 +444,11 @@ ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFi
             mesh.Property("Indices").Set(indexBuffer);
             mesh.Property("Vertices").Set(vertexBuffer);
 
-            //Cache mesh so it's only loaded once
-            rockMeshCache[rockFilename] = mesh;
-        }
+            highLodTerrain.AppendObjectList("Rocks", rock);
 
-        highLodTerrain.GetObjectList("Rocks").push_back(rock);
+            //Add rock to territory list so it's only loaded once
+            territory.AppendObjectList("Rocks", rock);
+        }
     }
 
     //Load terrain textures
@@ -461,6 +486,7 @@ ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFi
     }
 
     //Load rock textures
+    //Note: We could cache rock texture loads like we do the meshes, but profiling showed that this takes very little time on most MP/WC maps. So it's not worth the effort for the moment.
     for (ObjectHandle rock : highLodTerrain.GetObjectList("Rocks"))
     {
         PROFILER_SCOPED("Load rock textures");
@@ -533,6 +559,7 @@ ObjectHandle ImportHighLodTerrain(std::string_view filename, std::span<u8> cpuFi
 
 std::optional<std::vector<ObjectHandle>> LoadTerrainTextures(const std::vector<string>& materialNames, const string& subzoneName, TextureIndex* textureIndex)
 {
+    PROFILER_FUNCTION();
     std::vector<ObjectHandle> result = {};
     std::array<std::optional<string>, 8> materialPegPaths; //Up to 4 materials, each with one diffuse and normal map
     std::array<string, 8> materialTextureNames;
@@ -605,7 +632,8 @@ std::optional<std::vector<ObjectHandle>> LoadTerrainTextures(const std::vector<s
     //Load found textures into buffers
     for (size_t i = 0; i < materialPegPaths.size(); i++)
     {
-        PROFILER_SCOPED(fmt::format("Load texture {}", i).c_str());
+        string message = fmt::format("Loading '{}'", materialTextureNames[i]);
+        PROFILER_MESSAGE(message.c_str(), message.size());
         std::optional<string> texturePath = materialPegPaths[i];
         if (!texturePath)
         {

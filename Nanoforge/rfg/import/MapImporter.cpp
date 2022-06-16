@@ -22,14 +22,13 @@
 
 void LoadZone(std::string_view zoneFilename, ObjectHandle territory, Handle<Packfile3> packfile, bool* stopSignal);
 void LoadTerrain(ObjectHandle zone, ObjectHandle territory, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal);
-
-//Used to lock territory.Zones while pushing. Limitation of registry object lists not yet being thread safe.
-std::mutex ZoneFilesLock;
+void LoadChunks(ObjectHandle zone, ObjectHandle territory, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal);
 
 ObjectHandle Importers::ImportTerritory(std::string_view territoryFilename, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal)
 {
     Registry& registry = Registry::Get();
     ObjectHandle territory = registry.CreateObject(territoryFilename, "Territory");
+    territory.Set<ObjectHandle>("TextureCache", registry.CreateObject("TextureCache", "TextureCache")); //Stores list of textures used by the territory and its assets. Used to reduce repeat loads
 
     Handle<Packfile3> packfile = packfileVFS->GetPackfile(territoryFilename);
     if (!packfile)
@@ -77,23 +76,31 @@ ObjectHandle Importers::ImportTerritory(std::string_view territoryFilename, Pack
             });
     }
 
-    //Load terrain
+    //Load terrain & chunks
     {
-        Log->info("Starting loading terrain for {}...", territoryFilename);
-        std::vector<Handle<Task>> terrainLoadTasks = {};
+        PROFILER_SCOPED("Load terrain & chunks");
+
+        std::vector<Handle<Task>> terrainAndChunkLoadTasks = {};
+        Log->info("Starting loading terrain & chunks for {}...", territoryFilename);
         for (ObjectHandle zone : territory.GetObjectList("Zones"))
         {
             Handle<Task> terrainLoadTask = Task::Create(fmt::format("Importing {} terrain...", zone.Property("Name").Get<string>()));
             TaskScheduler::QueueTask(terrainLoadTask, std::bind(LoadTerrain, zone, territory, packfileVFS, textureIndex, stopSignal));
-            terrainLoadTasks.push_back(terrainLoadTask);
+            terrainAndChunkLoadTasks.push_back(terrainLoadTask);
+        }
+        for (ObjectHandle zone : territory.GetObjectList("Zones"))
+        {
+            Handle<Task> terrainLoadTask = Task::Create(fmt::format("Importing {} chunks...", zone.Property("Name").Get<string>()));
+            TaskScheduler::QueueTask(terrainLoadTask, std::bind(LoadChunks, zone, territory, packfileVFS, textureIndex, stopSignal));
+            terrainAndChunkLoadTasks.push_back(terrainLoadTask);
         }
 
         //Wait for terrain to finish loading
         {
             PROFILER_SCOPED("Wait for terrain load worker threads");
-            while (!std::ranges::all_of(terrainLoadTasks, [](Handle<Task> task) { return task->Completed(); }))
+            while (!std::ranges::all_of(terrainAndChunkLoadTasks, [](Handle<Task> task) { return task->Completed(); }))
             {
-                for (Handle<Task> loadTask : terrainLoadTasks)
+                for (Handle<Task> loadTask : terrainAndChunkLoadTasks)
                     loadTask->Wait();
             }
         }
@@ -114,9 +121,7 @@ void LoadZone(std::string_view zoneFilename, ObjectHandle territory, Handle<Pack
         zone = Importers::ImportZoneFile(zoneBytes.value(), persistentZoneBytes.value(), zoneFilename, territoryFilename);
         if (zone)
         {
-            ZoneFilesLock.lock();
-            territory.Property("Zones").GetObjectList().push_back(zone);
-            ZoneFilesLock.unlock();
+            territory.AppendObjectList("Zones", zone);
         }
         else
         {
@@ -148,13 +153,61 @@ void LoadTerrain(ObjectHandle zone, ObjectHandle territory, PackfileVFS* packfil
     Vec3 objZoneBbCenter = objZoneBmin + (objZoneBmax - objZoneBmin); //Terrain base position
 
     //Holds terrain info for a single zone (low + high lod terrain stored in sub-objects)
-    ObjectHandle zoneTerrain = Importers::ImportTerrain(terrainName, objZoneBbCenter, packfileVFS, textureIndex, stopSignal);
+    ObjectHandle zoneTerrain = Importers::ImportTerrain(territory, terrainName, objZoneBbCenter, packfileVFS, textureIndex, stopSignal);
     if (zoneTerrain)
     {
-        ZoneFilesLock.lock();
-        zone.Property("Terrain").Set(zoneTerrain);
-        ZoneFilesLock.unlock();
+        zone.Set<ObjectHandle>("Terrain", zoneTerrain);
     }
     else
         LOG_ERROR("Failed to import terrain for {}", zone.Property("Name").Get<string>());
+}
+
+void LoadChunks(ObjectHandle zone, ObjectHandle territory, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal)
+{
+    PROFILER_FUNCTION();
+
+    for (ObjectHandle obj : zone.GetObjectList("Objects"))
+    {
+        const string objType = obj.Get<string>("Type");
+        if (objType == "rfg_mover" || objType == "general_mover")
+        {
+            if (!obj.Has("chunk_name") && !obj.IsType<string>("chunk_name"))
+            {
+                LOG_ERROR("Failed to load chunk mesh for {}, chunk_name property missing.", obj.Get<string>("Name"));
+                continue;
+            }
+
+            //Get chunk name and replace .rfgchunk_pc extension with .cchk_pc (the real extension)
+            string chunkFilename = obj.Get<string>("chunk_name");
+            chunkFilename = String::Replace(chunkFilename, ".rfgchunk_pc", ".cchk_pc");
+
+            //See if chunk was already loaded to prevent repeat loads
+            ObjectHandle chunkMesh = NullObjectHandle;
+            std::vector<ObjectHandle> chunkCache = territory.GetObjectList("Chunks");
+            for (ObjectHandle chunk : chunkCache)
+            {
+                if (chunk.Get<string>("Name") == chunkFilename)
+                {
+                    chunkMesh = chunk;
+                    break;
+                }
+            }
+             
+            if (!chunkMesh) //First import
+            {
+                chunkMesh = Importers::ImportChunk(chunkFilename, packfileVFS, textureIndex, stopSignal, territory.Get<ObjectHandle>("TextureCache"));
+                if (chunkMesh)
+                {
+                    territory.AppendObjectList("Chunks", chunkMesh);
+                }
+                else
+                {
+                    LOG_ERROR("Failed to import chunk mesh for {}", obj.UID());
+                    continue;
+                }
+            }
+
+            obj.Set<ObjectHandle>("ChunkMesh", chunkMesh);
+        }
+    }
 }

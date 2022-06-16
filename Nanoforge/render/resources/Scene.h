@@ -1,6 +1,7 @@
 #pragma once
 #include "common/Typedefs.h"
 #include "render/resources/RenderObject.h"
+#include "render/resources/RenderChunk.h"
 #include "render/resources/Texture2D.h"
 #include "render/resources/Material.h"
 #include "render/resources/Shader.h"
@@ -9,6 +10,8 @@
 #include "render/camera/Camera.h"
 #include "rfg/TerrainHelpers.h"
 #include "RfgTools++/types/Vec2.h"
+#include "RfgTools++/formats/meshes/ChunkMesh.h"
+#include "RfgTools++/formats/meshes/ChunkTypes.h"
 #include <unordered_map>
 #include <filesystem>
 #include <d3d11.h>
@@ -36,6 +39,8 @@ const Vec3 ColorWhite(1.0f, 1.0f, 1.0f);
 class Scene
 {
 public:
+    ~Scene();
+
     void Init(ComPtr<ID3D11Device> d3d11Device, ComPtr<ID3D11DeviceContext> d3d11Context);
     void Draw(f32 deltaTime);
     //Resizes scene render target and resources if the provided size is different than the current scene view dimensions
@@ -59,10 +64,11 @@ public:
     //Clear any existing primitives and force the primitive vertex buffers to be updated
     void ResetPrimitives();
 
-    Handle<RenderObject> CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position = { 0.0f, 0.0f, 0.0f }, const Mat3& rotation = {});
+    RenderObject* CreateRenderObject(std::string_view materialName, const Mesh& mesh, const Vec3& position = { 0.0f, 0.0f, 0.0f }, const Mat3& rotation = {});
+    RenderChunk* CreateRenderChunk(std::string_view materialName, const Mesh& mesh, const RenderChunkData& chunkData, const Vec3& position = { 0.0f, 0.0f, 0.0f }, const Mat3& rotation = {});
 
     Camera Cam;
-    std::vector<Handle<RenderObject>> Objects = {};
+    std::vector<RenderObject*> Objects = {};
     std::mutex ObjectCreationMutex;
     DirectX::XMFLOAT4 ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f };
     f32 TotalTime = 0.0f; //Total frame time
@@ -97,7 +103,7 @@ private:
     ComPtr<ID3D11RasterizerState> meshRasterizerState_ = nullptr;
 
     //Track object materials so objects can be batch rendered by material
-    std::unordered_map<string, std::vector<Handle<RenderObject>>> objectMaterials_;
+    std::unordered_map<string, std::vector<RenderObject*>> objectMaterials_;
 
     //Used for line, box, and triangle list drawing
     struct ColoredVertex

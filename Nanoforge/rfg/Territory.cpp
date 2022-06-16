@@ -185,7 +185,7 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
             if (!meshData)
                 continue;
 
-            Handle<RenderObject> renderObject = scene->CreateRenderObject("TerrainLowLod", Mesh{ scene->d3d11Device_, meshData.value() }, terrain.Get<Vec3>("Position"));
+            RenderObject* renderObject = scene->CreateRenderObject("TerrainLowLod", Mesh{ scene->d3d11Device_, meshData.value() }, terrain.Get<Vec3>("Position"));
             renderObject->Visible = !useHighLodTerrain_;
             renderObject->UseTextures = texture0.has_value() || texture1.has_value();
             renderObject->Textures[0] = texture0.value();
@@ -224,7 +224,7 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
             if (!meshData)
                 continue;
 
-            Handle<RenderObject> renderObject = scene->CreateRenderObject("Terrain", Mesh{ scene->d3d11Device_, meshData.value() }, highLodTerrain.Get<Vec3>("Position"));
+            RenderObject* renderObject = scene->CreateRenderObject("Terrain", Mesh{ scene->d3d11Device_, meshData.value() }, highLodTerrain.Get<Vec3>("Position"));
             renderObject->Visible = useHighLodTerrain_;
             renderObject->UseTextures = anyTextureValid;
             for (size_t i = 0; i < 10; i++)
@@ -245,7 +245,7 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
 
             //Todo: Load other stitch meshes (a bunch of rocks). Currently only loads road stitch meshes since the rocks are stored in separate files.
             Vec3 stitchPos = highLodTerrain.GetObjectList("StitchInstances").back().Get<Vec3>("Position");
-            Handle<RenderObject> stitchObject = scene->CreateRenderObject("TerrainStitch", Mesh{ scene->d3d11Device_, stitchMeshData.value() }, stitchPos);
+            RenderObject* stitchObject = scene->CreateRenderObject("TerrainStitch", Mesh{ scene->d3d11Device_, stitchMeshData.value() }, stitchPos);
             stitchObject->Visible = useHighLodTerrain_;
             stitchObject->UseTextures = anyTextureValid;
             for (size_t i = 0; i < 10; i++)
@@ -279,7 +279,7 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
                     anyRoadTextureValid = true;
             }
 
-            Handle<RenderObject> renderObject = scene->CreateRenderObject("TerrainRoad", Mesh{ scene->d3d11Device_, meshData.value() }, roadMesh.Get<Vec3>("Position"));
+            RenderObject* renderObject = scene->CreateRenderObject("TerrainRoad", Mesh{ scene->d3d11Device_, meshData.value() }, roadMesh.Get<Vec3>("Position"));
             renderObject->Visible = useHighLodTerrain_;
             renderObject->UseTextures = anyRoadTextureValid;
             for (size_t i = 0; i < 10; i++)
@@ -291,43 +291,159 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
         }
 
         //Load rock meshes
-        for (ObjectHandle rock : highLodTerrain.GetObjectList("Rocks"))
+        if (highLodTerrain.Has("Rocks"))
         {
-            std::optional<MeshInstanceData> meshData = LoadRegistryMesh(rock.Get<ObjectHandle>("Mesh"));
-            if (!meshData)
+            for (ObjectHandle rock : highLodTerrain.GetObjectList("Rocks"))
+            {
+                std::optional<MeshInstanceData> meshData = LoadRegistryMesh(rock.Get<ObjectHandle>("Mesh"));
+                if (!meshData)
+                    continue;
+
+                //Load diffuse texture
+                std::optional<Texture2D> diffuseTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, rock.Get<ObjectHandle>("DiffuseTexture"));
+                std::optional<Texture2D> normalTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, rock.Get<ObjectHandle>("NormalTexture"));
+                bool anyRockTextureValid = diffuseTexture.has_value() || normalTexture.has_value();
+
+                //Create render object
+                RenderObject* renderObject = scene->CreateRenderObject("Rock", Mesh{ scene->d3d11Device_, meshData.value() }, rock.Get<Vec3>("Position"), rock.Get<Mat3>("Rotation"));
+                renderObject->Visible = useHighLodTerrain_;
+                renderObject->UseTextures = anyRockTextureValid;
+                if (diffuseTexture)
+                    renderObject->Textures[0] = diffuseTexture;
+                if (normalTexture)
+                    renderObject->Textures[2] = normalTexture;
+
+                TerrainLock.lock();
+                terrainInstance.RockMeshes.push_back(RockMesh{ .Mesh = renderObject, .SubzoneIndex = (u32)subzoneIndex });
+                TerrainLock.unlock();
+            }
+        }
+        else
+        {
+            Log->warn("No rocks found in {}. You probably loaded a project from an older version. Feature to re-import rocks without doing the whole map coming in the future. For the moment export your map to vpp_pc and re-import that vpp_pc with a new project.");
+        }
+
+        //Load chunk meshes
+        for (ObjectHandle obj : zone.GetObjectList("Objects"))
+        {
+            const string objType = obj.Get<string>("Type");
+            if (objType != "rfg_mover" && objType != "general_mover")
                 continue;
 
-            //Load diffuse texture
-            std::optional<Texture2D> diffuseTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, rock.Get<ObjectHandle>("DiffuseTexture"));
-            std::optional<Texture2D> normalTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, rock.Get<ObjectHandle>("NormalTexture"));
-            bool anyRockTextureValid = diffuseTexture.has_value() || normalTexture.has_value();
+            //Get chunk mesh from object
+            ObjectHandle chunk = obj.IsType<ObjectHandle>("ChunkMesh") ? obj.Get<ObjectHandle>("ChunkMesh") : NullObjectHandle;
+            if (!chunk)
+            {
+                LOG_ERROR("Failed to load chunk mesh for object {}. ChunkMesh = NullObjectHandle", obj.UID());
+                continue;
+            }
+
+            //Load mesh data from registry
+            std::optional<Mesh> meshLoadResult = LoadRegistryChunkMesh(chunk, scene); //This caches meshes so they only need to get loaded once per territory
+            if (!meshLoadResult)
+            {
+                LOG_ERROR("Failed to load chunk mesh '{}' for object {}", chunk.Get<string>("Name"), obj.UID());
+                continue;
+            }
+            Mesh meshData = meshLoadResult.value();
+
+            //Load textures
+            std::optional<Texture2D> diffuseTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("DiffuseTexture"));
+            std::optional<Texture2D> specularTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("SpecularTexture"));
+            std::optional<Texture2D> normalTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("NormalTexture"));
+            bool anyChunkTextureValid = diffuseTexture.has_value() || specularTexture.has_value() || normalTexture.has_value();
+
+            //Get destroyable used by this object by uid
+            u32 destroyableUID = obj.Get<u32>("uid"); //TODO: Rename this so it's clear this is a chunk UID and not a registry UID. Will need to translate it back to "uid" on export since that's the name the game expects
+            std::vector<ObjectHandle>& destroyables = chunk.GetObjectList("Destroyables");
+            auto destroyableSearch = std::ranges::find_if(destroyables, [destroyableUID](ObjectHandle destroyable)
+            {
+                return destroyable && destroyable.Get<u32>("UID") == destroyableUID;
+            });
+            if (destroyableSearch == destroyables.end())
+            {
+                LOG_ERROR("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
+                continue;
+            }
+            ObjectHandle destroyable = *destroyableSearch;
+
+            //Collect data needed by renderer to draw the chunk
+            RenderChunkData chunkData;
+            for (ObjectHandle subpiece : destroyable.GetObjectList("Subpieces"))
+                chunkData.SubpieceSubmeshes.push_back(subpiece.Get<u16>("RenderSubpiece"));
+            for (ObjectHandle dlod : destroyable.GetObjectList("Dlods"))
+            {
+                ChunkPiece& piece = chunkData.Pieces.emplace_back();
+                piece.Position = dlod.Get<Vec3>("Position");
+                piece.Orient = dlod.Get<Mat3>("Orient");
+                piece.FirstSubpiece = dlod.Get<u16>("FirstPiece");
+                piece.NumSubpieces = dlod.Get<u8>("MaxPieces");
+            }
 
             //Create render object
-            Handle<RenderObject> renderObject = scene->CreateRenderObject("Rock", Mesh{ scene->d3d11Device_, meshData.value() }, rock.Get<Vec3>("Position"), rock.Get<Mat3>("Rotation"));
-            renderObject->Visible = useHighLodTerrain_;
-            renderObject->UseTextures = anyRockTextureValid;
+            RenderChunk* renderChunk = scene->CreateRenderChunk(to_string(meshData.GetInfo().VertFormat), meshData, chunkData, obj.Get<Vec3>("Position"), obj.Get<Mat3>("Orient"));
+            renderChunk->Visible = useHighLodTerrain_;
+            renderChunk->UseTextures = anyChunkTextureValid;
             if (diffuseTexture)
-                renderObject->Textures[0] = diffuseTexture;
+                renderChunk->Textures[0] = diffuseTexture;
+            if (specularTexture)
+                renderChunk->Textures[1] = specularTexture;
             if (normalTexture)
-                renderObject->Textures[1] = normalTexture;
-
-            TerrainLock.lock();
-            terrainInstance.RockMeshes.push_back(RockMesh{ .Mesh = renderObject, .SubzoneIndex = (u32)subzoneIndex });
-            TerrainLock.unlock();
+                renderChunk->Textures[2] = normalTexture;
         }
     }
 
     terrainInstance.Loaded = true;
 }
 
+std::optional<Mesh> Territory::LoadRegistryChunkMesh(ObjectHandle chunk, Handle<Scene> scene)
+{
+    if (!chunk)
+        return {};
+
+    ObjectHandle meshObj = chunk.Get<ObjectHandle>("Mesh");
+    if (!meshObj)
+        return {};
+
+    std::scoped_lock<std::mutex> lock(chunkMeshCacheLock_);
+
+    //Check cache first
+    const string chunkName = chunk.Get<string>("Name");
+    auto cacheSearch = chunkMeshCache_.find(chunkName);
+    if (cacheSearch != chunkMeshCache_.end())
+    {
+        return cacheSearch->second; //Already loaded. Use cached mesh
+    }
+    else //Mesh not in cache. Load it
+    {
+        std::optional<MeshInstanceData> meshLoadResult = LoadRegistryMesh(meshObj);
+        if (!meshLoadResult)
+        {
+            LOG_ERROR("Failed to load chunk mesh '{}'", chunkName);
+            return {};
+        }
+
+        //Create mesh instance. Loads vertex + index buffers into memory
+        MeshInstanceData& meshData = meshLoadResult.value();
+        Mesh mesh{ scene->d3d11Device_, meshData };
+
+        //Add mesh to cache & return it
+        chunkMeshCache_[chunkName] = mesh;
+        return mesh;
+    }
+}
+
 std::optional<MeshInstanceData> Territory::LoadRegistryMesh(ObjectHandle mesh)
 {
+    if (!mesh)
+        return {};
+
     MeshInstanceData data;
     BufferHandle indexBuffer = mesh.Get<BufferHandle>("Indices");
     BufferHandle vertexBuffer = mesh.Get<BufferHandle>("Vertices");
     if (!indexBuffer || !vertexBuffer)
     {
-        LOG_ERROR("Failed to load registry mesh '{}'. Null buffer handle. UIDs: {}, {}", mesh.Get<string>("Name"), indexBuffer.UID(), vertexBuffer.UID());
+        LOG_ERROR("Failed to load registry mesh {}. Null buffer handle. UIDs: {}, {}", mesh.UID(), indexBuffer.UID(), vertexBuffer.UID());
         return {};
     }
 
@@ -390,6 +506,8 @@ std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device
     if (!texture)
         return {};
 
+    string message = fmt::format("Loading {}", texture.Get<string>("Name"));
+    PROFILER_MESSAGE(message.c_str(), message.size());
     std::lock_guard<std::mutex> lock(textureCacheLock_);
 
     //Check cache first
@@ -399,7 +517,7 @@ std::optional<Texture2D> Territory::LoadTexture(ComPtr<ID3D11Device> d3d11Device
 
     //Not cached yet, load it
     {
-        PROFILER_SCOPED(fmt::format("Loading {}", texture.Get<string>("Name")).c_str());
+        PROFILER_SCOPED("Loading new texture");
         BufferHandle pixelBuffer = texture.Get<BufferHandle>("Pixels");
         if (!pixelBuffer)
         {
@@ -459,6 +577,7 @@ bool Territory::ObjectClassRegistered(u32 classnameHash, u32& outIndex)
 
 void Territory::UpdateObjectClassInstanceCounts()
 {
+    PROFILER_FUNCTION();
     if (!Object)
         return;
 
@@ -494,7 +613,7 @@ void Territory::InitObjectClassData()
 {
     ZoneObjectClasses =
     {
-        { "rfg_mover",                      2898847573, 0, Vec3{ 0.819f, 0.819f, 0.819f }, true , false, ICON_FA_HOME " ",            true  },
+        { "rfg_mover",                      2898847573, 0, Vec3{ 0.819f, 0.819f, 0.819f }, true , false, ICON_FA_HOME " ",            false },
         { "cover_node",                     3322951465, 0, Vec3{ 1.0f, 0.0f, 0.0f       }, false, false, ICON_FA_SHIELD_ALT " ",      false },
         { "navpoint",                       4055578105, 0, Vec3{ 1.0f, 0.968f, 0.0f     }, false, false, ICON_FA_LOCATION_ARROW " ",  false },
         { "general_mover",                  1435016567, 0, Vec3{ 1.0f, 0.664f, 0.0f     }, true , false, ICON_FA_CUBES  " ",          false },
