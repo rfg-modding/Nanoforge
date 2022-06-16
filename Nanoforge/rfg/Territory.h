@@ -3,6 +3,7 @@
 #include "common/timing/Timer.h"
 #include "rfg/TerrainHelpers.h"
 #include <RfgTools++\types\Vec3.h>
+#include "render/resources/RenderChunk.h"
 #include "render/resources/Texture2D.h"
 #include "render/resources/Mesh.h"
 #include "application/Registry.h"
@@ -41,6 +42,7 @@ public:
     std::vector<ObjectHandle> Zones = {};
     std::vector<ZoneObjectClass> ZoneObjectClasses = {};
     std::vector<TerrainInstance> TerrainInstances = {};
+    std::unordered_map<u64, RenderChunk*> Chunks; //<Registry object UID, RenderChunk*>
     std::shared_mutex ZoneFilesLock;
     std::shared_mutex TerrainLock;
 

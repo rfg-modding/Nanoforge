@@ -75,6 +75,7 @@ private:
     bool terrainVisiblityUpdateNeeded_ = true;
     u32 numLoadedTerrainInstances_ = 0;
     bool useHighLodTerrain_ = true;
+    f32 chunkDistance_ = 500.0f;
 
     //Zone object visibility range
     f32 zoneObjDistance_ = 1200.0f;

@@ -12,6 +12,7 @@
 #include "render/imgui/imgui_ext.h"
 #include "rfg/export/Exporters.h"
 #include "gui/util/WinUtil.h"
+#include "render/resources/RenderChunk.h"
 #include "application/project/Project.h"
 #include "common/filesystem/Path.h"
 #include "common/filesystem/File.h"
@@ -31,6 +32,13 @@ CVar CVar_DisableHighQualityTerrain("Disable high quality terrain", ConfigType::
 );
 CVar CVar_DrawObjectOrientLines("Draw object orientation lines", ConfigType::Bool,
     "Draw lines indicating the orientation of the currently selected object in the map editor. Red = right, green = up, blue = forward",
+    ConfigValue(true),
+    true,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
+CVar CVar_DrawChunkMeshes("Draw building meshes", ConfigType::Bool,
+    "Draw building meshes in the map editor",
     ConfigValue(true),
     true,  //ShowInSettings
     false, //IsFolderPath
@@ -157,6 +165,16 @@ void TerritoryDocument::Update(GuiState* state)
 
         }
         terrainVisiblityUpdateNeeded_ = false;
+    }
+
+    //Update chunk visibility
+    for (auto& kv : Territory.Chunks)
+    {
+        RenderChunk* chunk = kv.second;
+        Vec2 chunkPos = chunk->Position.XZ();
+        Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
+        f32 distanceFromCamera = chunkPos.Distance(cameraPos);
+        chunk->Visible = distanceFromCamera <= chunkDistance_ && CVar_DrawChunkMeshes.Get<bool>();
     }
 
     //Update debug draw regardless of focus state since we'll never be focused when using the other panels which control debug draw
@@ -348,6 +366,10 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             ImGui::SliderFloat("Diffuse intensity", &Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 2.0f);
         }
 
+        ImGui::SliderFloat("Zone object distance", &zoneObjDistance_, 0.0f, 10000.0f);
+        ImGui::SameLine();
+        gui::HelpMarker("Zone object bounding boxes and meshes aren't drawn beyond this distance from the camera.", ImGui::GetIO().FontDefault);
+
         if (useHighLodTerrain_)
         {
             if (ImGui::Checkbox("High lod terrain enabled", &highLodTerrainEnabled_))
@@ -363,9 +385,16 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             }
         }
 
-        ImGui::SliderFloat("Zone object distance", &zoneObjDistance_, 0.0f, 10000.0f);
-        ImGui::SameLine();
-        gui::HelpMarker("Zone object bounding boxes and meshes aren't drawn beyond this distance from the camera.", ImGui::GetIO().FontDefault);
+        bool drawChunkMeshes = CVar_DrawChunkMeshes.Get<bool>();
+        if (ImGui::Checkbox("Show buildings", &drawChunkMeshes))
+            CVar_DrawChunkMeshes.Get<bool>() = drawChunkMeshes;
+        if (drawChunkMeshes)
+        {
+            ImGui::SliderFloat("Building distance", &chunkDistance_, 0.0f, 10000.0f);
+            ImGui::SameLine();
+            gui::HelpMarker("Beyond this distance from the camera buildings won't be drawn.", ImGui::GetIO().FontDefault);
+            terrainVisiblityUpdateNeeded_ = true;
+        }
 
         ImGui::EndPopup();
     }
@@ -1127,9 +1156,25 @@ void TerritoryDocument::Inspector(GuiState* state)
         if (selectedObject_.Has("BBmax"))
             selectedObject_.Set<Vec3>("BBmax", selectedObject_.Get<Vec3>("BBmax") + delta);
 
+        //If object has a chunk mesh update its position
+        if (Territory.Chunks.contains(selectedObject_.UID()))
+        {
+            RenderChunk* chunk = Territory.Chunks[selectedObject_.UID()];
+            chunk->Position += delta;
+        }
+
         UnsavedChanges = true;
     }
-    if (selectedObject_.Has("Orient") && Inspector_DrawMat3Editor(selectedObject_.Property("Orient"))) UnsavedChanges = true;
+    if (selectedObject_.Has("Orient") && Inspector_DrawMat3Editor(selectedObject_.Property("Orient")))
+    {
+        //If object has a chunk mesh update its orient
+        if (Territory.Chunks.contains(selectedObject_.UID()))
+        {
+            RenderChunk* chunk = Territory.Chunks[selectedObject_.UID()];
+            chunk->Rotation = selectedObject_.Get<Mat3>("Orient");
+        }
+        UnsavedChanges = true;
+    }
 
     //Object properties
     static std::vector<string> HiddenProperties = //These ones aren't drawn or have special logic
