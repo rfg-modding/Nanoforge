@@ -23,8 +23,9 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
     //Adjust range from [0, 1] to [-1, 1]
     output.Normal = normalize(inNormal * 2.0f - 1.0f);
     output.Normal.w = 1.0f;
+    output.Normal = mul(Rotation, output.Normal);
 
-    output.Tangent = mul(inTangent, WVP);
+    output.Tangent = mul(Rotation, inTangent * 2.0f - 1.0f);
 
     //Divide by 1024 to normalize
     output.Uv = float2(inUv.x, inUv.y) / 1024.0f;
