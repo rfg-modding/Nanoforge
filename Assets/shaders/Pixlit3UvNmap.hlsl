@@ -25,6 +25,7 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
     //Adjust range from [0, 1] to [-1, 1]
     output.Normal = normalize(inNormal * 2.0f - 1.0f);
     output.Normal.w = 1.0f;
+    output.Normal = mul(Rotation, output.Normal); //Rotate normals based on object rotation //TODO: Do this in all other shaders. Currently rocks are the only things that get rotated, added recently.
 
     output.Tangent = mul(inTangent, WVP);
 
@@ -40,7 +41,8 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     //Todo: Figure out how second and third UVs should be used. All textures look wrong when sampled with them
     float4 color = DiffuseTexture.Sample(DiffuseSampler, input.Uv0);
-    float4 normal = normalize(input.Normal + (NormalTexture.Sample(NormalSampler, input.Uv0) * 2.0 - 1.0));
+    //TODO: Disabled normal map until conversion out of tangent space is added
+    float4 normal = input.Normal;//normalize(input.Normal + (NormalTexture.Sample(NormalSampler, input.Uv0) * 2.0 - 1.0));
     float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv0);
 
     //Ambient light
@@ -64,5 +66,5 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float3 specular = spec * specularStrength;
 
     //Final output
-    return float4(ambient + diffuse + specular, 1.0f);
+    return float4(ambient + diffuse, 1.0f);
 }

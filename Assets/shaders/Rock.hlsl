@@ -27,7 +27,7 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
     output.Normal.w = 1.0f;
     output.Normal = mul(Rotation, output.Normal); //Rotate normals based on object rotation //TODO: Do this in all other shaders. Currently rocks are the only things that get rotated, added recently.
 
-    output.Tangent = mul(inTangent, Rotation);
+    output.Tangent = mul(Rotation, inTangent);
 
     //Divide by 1024 to normalize
     output.Uv = float2(inUv.x, inUv.y) / 1024.0f;

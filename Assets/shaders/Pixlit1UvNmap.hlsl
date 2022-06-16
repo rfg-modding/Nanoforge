@@ -35,7 +35,7 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     float4 color = DiffuseTexture.Sample(DiffuseSampler, input.Uv);
-    float4 normal = normalize(input.Normal + (NormalTexture.Sample(NormalSampler, input.Uv) * 2.0f - 1.0f));
+    float4 normal = input.Normal;//normalize(input.Normal + (NormalTexture.Sample(NormalSampler, input.Uv) * 2.0f - 1.0f));
     float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv);
 
     //Ambient light
@@ -59,5 +59,5 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float3 specular = spec * specularStrength;
 
     //Final output
-    return float4(ambient + diffuse + specular, 1.0f);
+    return float4(ambient + diffuse, 1.0f);
 }
