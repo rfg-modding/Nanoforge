@@ -17,6 +17,6 @@ namespace BuildConfig
 #define NanoforgeVersionMajor 0
 #define NanoforgeVersionMinor 20
 #define NanoforgeVersionPatch 0
-#define NanoforgeVersionSuffix "-pre6"
+#define NanoforgeVersionSuffix "-pre7"
     static const std::string Version = MAKE_VERSION_STRING(NanoforgeVersionMajor, NanoforgeVersionMinor, NanoforgeVersionPatch, NanoforgeVersionSuffix);
 }
