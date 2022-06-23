@@ -20,6 +20,11 @@ void PackfileVFS::ScanPackfilesAndLoadCache()
 {
     PROFILER_FUNCTION();
     TRACE();
+    if (!std::filesystem::exists(packfileFolderPath_))
+    {
+        LOG_ERROR("packfileFolderPath_ doesn't exist!");
+        return;
+    }
     packfiles_.clear();
 
     //Loop through all files in data folder

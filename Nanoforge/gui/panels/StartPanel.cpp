@@ -123,7 +123,10 @@ void StartPanel::DrawDataPathSelector(GuiState* state)
             dataPathValid_ = RfgUtil::AutoDetectDataPath();
 
         //Start data folder parse thread
-        TaskScheduler::QueueTask(dataFolderParseTask_, std::bind(DataFolderParseTask, dataFolderParseTask_, state));
+        if (dataPathValid_)
+        {
+            TaskScheduler::QueueTask(dataFolderParseTask_, std::bind(DataFolderParseTask, dataFolderParseTask_, state));
+        }
         FirstRun = false;
     }
 
