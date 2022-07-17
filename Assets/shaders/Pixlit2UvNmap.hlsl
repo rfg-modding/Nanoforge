@@ -1,30 +1,4 @@
-
-cbuffer cbPerObject
-{
-    float4x4 WVP;
-    float4 WorldPosition;
-};
-
-cbuffer cbPerFrame
-{
-    //Position of the camera
-    float3 ViewPos;
-    int Padding0; //Padding since DirectX::XMVector is really 16 bytes
-
-    //Color of the diffuse light
-    float3 DiffuseColor;
-    int Padding1; //Padding since DirectX::XMVector is really 16 bytes
-
-    //Intensity of diffuse light 
-    float DiffuseIntensity;
-    //Bias of elevation coloring in ShadeMode 1. If 0 elevation won't effect color
-    float ElevationFactorBias;
-    //Shade mode 0: Color terrain only by elevation
-    //Shade mode 1: Color terrain with basic lighting + option elevation coloring
-    int ShadeMode;
-    float Time;
-    float2 ViewportDimensions;
-};
+#include "Constants.hlsl"
 
 struct VS_OUTPUT
 {
@@ -50,8 +24,9 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
     //Adjust range from [0, 1] to [-1, 1]
     output.Normal = normalize(inNormal * 2.0f - 1.0f);
     output.Normal.w = 1.0f;
+    output.Normal = mul(Rotation, output.Normal);
 
-    output.Tangent = mul(inTangent, WVP);
+    output.Tangent = mul(Rotation, inTangent * 2.0f - 1.0f);
 
     //Divide by 1024 to normalize
     output.Uv0 = float2(inUv0.x, inUv0.y) / 1024.0f;
@@ -64,7 +39,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     //Todo: Figure out how second UV should be used. All textures look wrong when sampled with it
     float4 color = DiffuseTexture.Sample(DiffuseSampler, input.Uv0);
-    float4 normal = normalize(input.Normal + (NormalTexture.Sample(NormalSampler, input.Uv0) * 2.0 - 1.0));
+    float4 normal = input.Normal;//normalize(input.Normal + (NormalTexture.Sample(NormalSampler, input.Uv0) * 2.0 - 1.0));
     float4 specularStrength = SpecularTexture.Sample(SpecularSampler, input.Uv0);
 
     //Ambient light
@@ -88,5 +63,5 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float3 specular = spec * specularStrength;
 
     //Final output
-    return float4(ambient + diffuse + specular, 1.0f);
+    return float4(ambient + diffuse, 1.0f);
 }

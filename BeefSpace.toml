@@ -1,0 +1,18 @@
+FileVersion = 1
+Projects = {Nanoforge = {Path = "."}, ImGui = {Path = "Dependencies/imgui-beef/ImGui"}}
+
+[Workspace]
+StartupProject = "Nanoforge"
+
+[Configs.Debug.Win64]
+Toolset = "LLVM"
+BfSIMDSetting = "SSE4"
+
+[Configs.Release.Win64]
+BfSIMDSetting = "SSE4"
+
+[Configs.Paranoid.Win64]
+BfSIMDSetting = "SSE4"
+
+[Configs.Test.Win64]
+BfSIMDSetting = "SSE4"
