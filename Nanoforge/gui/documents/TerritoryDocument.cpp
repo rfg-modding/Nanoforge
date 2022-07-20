@@ -22,6 +22,7 @@
 #include <WinUser.h>
 #include <imgui_internal.h>
 #include <imgui.h>
+#include <shellapi.h>
 
 CVar CVar_DisableHighQualityTerrain("Disable high quality terrain", ConfigType::Bool,
     "If true high lod terrain won't be used in the territory viewer. You must close and re-open any viewers after changing this for it to go into effect.",
@@ -483,6 +484,28 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             if (initialPath != exportPath)
                 Config::Get()->Save();
 
+            //Select original vpp path. Only for binary patch generation
+            string originalVppPath = originalVppPath_;
+            string initialOriginalVppPath = originalVppPath;
+            ImGui::InputText("Original vpp_pc path", &originalVppPath);
+            ImGui::SameLine();
+            if (ImGui::Button("...##OriginalVppPath"))
+            {
+                std::optional<string> newPath = OpenFile("vpp_pc");
+                if (newPath)
+                    originalVppPath = newPath.value();
+            }
+            originalVppPath_ = originalVppPath;
+            ImGui::SameLine();
+            if (ImGui::Button("Auto"))
+            {
+                string maybeOriginalPath = state->PackfileVFS->DataFolderPath() + "\\" + Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name")) + ".original.vpp_pc";
+                if (std::filesystem::exists(maybeOriginalPath))
+                    originalVppPath_ = maybeOriginalPath;
+            }
+            ImGui::SameLine();
+            gui::HelpMarker("This option is required by the binary patch option. It requires a copy of the maps original vpp_pc file. You can make a copy of the vpp and give it a name like map.original.vpp_pc. The auto button looks for a file with that format.", ImGui::GetDefaultFont());
+
             //Disable mesh export button if export is disabled
             static string resultString = "";
             const bool canExport = Territory.Ready() && Territory.Object;
@@ -495,13 +518,23 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             bool exportPressed = ImGui::Button("Export");
             bool exportPatchPressed = ImGui::Button("Export patch");
             ImGui::SameLine();
-            gui::HelpMarker("Writes a patch file, for use with RfgMapPatcher. This results in a much smaller download since it only includes edited files. Only use this for distribution purposes. You should use the other export button when developing your map since it'll automatically generate the vpp_pc for you.", ImGui::GetIO().FontDefault);
-            if (exportPressed || exportPatchPressed)
+            gui::HelpMarker("This option is going away in future versions. You should use 'Export binary patch (SyncFaction)' instead.", ImGui::GetIO().FontDefault);
+            bool exportBinaryPatchPressed = ImGui::Button("Export binary patch (SyncFaction)");
+
+            MapExportType exportType;
+            if (exportPressed)
+                exportType = MapExportType::Vpp;
+            else if (exportPatchPressed)
+                exportType = MapExportType::RfgPatch;
+            else if (exportBinaryPatchPressed)
+                exportType = MapExportType::BinaryPatch;
+
+            if (exportPressed || exportPatchPressed || exportBinaryPatchPressed)
             {
                 exportTask_ = Task::Create("Export map");
                 if (std::filesystem::exists(CVar_MapExportPath.Get<string>()))
                 {
-                    TaskScheduler::QueueTask(exportTask_, std::bind(&TerritoryDocument::ExportTask, this, state, exportPatchPressed));
+                    TaskScheduler::QueueTask(exportTask_, std::bind(&TerritoryDocument::ExportTask, this, state, exportType));
                 }
                 else
                 {
@@ -1450,9 +1483,16 @@ bool TerritoryDocument::Inspector_DrawBoolEditor(PropertyHandle prop)
     return edited;
 }
 
-void TerritoryDocument::ExportTask(GuiState* state, bool exportPatch)
+void TerritoryDocument::ExportTask(GuiState* state, MapExportType exportType)
 {
-    bool exportResult = exportPatch ? ExportPatch() : ExportMap(state);
+    bool exportResult = false;
+    if (exportType == MapExportType::Vpp)
+        exportResult = ExportMap(state, CVar_MapExportPath.Get<string>());
+    else if (exportType == MapExportType::RfgPatch)
+        exportResult = ExportPatch();
+    else if (exportType == MapExportType::BinaryPatch)
+        exportResult = ExportBinaryPatch(state);
+
     if (exportResult)
     {
         //Get current time
@@ -1475,7 +1515,7 @@ void TerritoryDocument::ExportTask(GuiState* state, bool exportPatch)
 }
 
 void UpdateAsmPc(const string& asmPath);
-bool TerritoryDocument::ExportMap(GuiState* state)
+bool TerritoryDocument::ExportMap(GuiState* state, const string& exportPath)
 {
     string terrPackfileName = Territory.Object.Get<string>("Name");
     string mapName = Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name"));
@@ -1492,7 +1532,6 @@ bool TerritoryDocument::ExportMap(GuiState* state)
     std::filesystem::create_directories(tempFolderPath);
 
     //Export zone files
-    string exportFolderPath = CVar_MapExportPath.Get<string>();
     if (!Exporters::ExportTerritory(Territory.Object, tempFolderPath))
     {
         LOG_ERROR("Failed to export territory '{}'", mapName);
@@ -1574,7 +1613,7 @@ bool TerritoryDocument::ExportMap(GuiState* state)
     exportStatus_ = "Copying vpp_pc to export folder...";
 
     //Copy vpp_pc to output path + delete temporary files
-    std::filesystem::copy_file(tempFolderPath + "\\" + terrPackfileName, CVar_MapExportPath.Get<string>() + "\\" + terrPackfileName, std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::copy_file(tempFolderPath + "\\" + terrPackfileName, exportPath + "\\" + terrPackfileName, std::filesystem::copy_options::overwrite_existing);
     std::filesystem::remove_all(tempFolderPath);
 
     exportPercentage_ += percentagePerStep;
@@ -1630,6 +1669,59 @@ bool TerritoryDocument::ExportPatch()
     std::filesystem::remove(pZoneFilePath);
 
     exportPercentage_ = 1.0f;
+    return true;
+}
+
+bool TerritoryDocument::ExportBinaryPatch(GuiState* state)
+{
+    //Make sure folder exists for writing temporary files
+    string mapName = Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name"));
+    string tempFolderPath = state->CurrentProject->Path + "\\PatchTemp\\";
+    std::filesystem::create_directories(tempFolderPath);
+
+    //Generate whole vpp_pc
+    ExportMap(state, tempFolderPath);
+
+    //Get original vpp_pc
+    exportStatus_ = "Getting original map vpp_pc...";
+    if (std::filesystem::exists(originalVppPath_))
+    {
+        std::filesystem::copy_file(originalVppPath_, tempFolderPath + "\\original.vpp_pc", std::filesystem::copy_options::overwrite_existing);
+    }
+    else
+    {
+        exportStatus_ = "Couldn't find original map vpp_pc. Make sure path is correct.";
+        return false;
+    }
+
+    //Generate binary patch with xdelta
+    exportStatus_ = "Generating binary patch...";
+    string xdeltaPath = BuildConfig::AssetFolderPath + "xdelta3-3.1.0-x86_64.exe";
+    string args = fmt::format(" -e -S -s \"{0}\\original.vpp_pc\" \"{0}\\{1}.vpp_pc\" \"{0}\\mapPatch.xdelta\"", tempFolderPath, mapName);
+    string moddedVppPath = tempFolderPath + Territory.Object.Get<string>("Name");
+    string originalVppPath = tempFolderPath + "original.vpp_pc";
+    STARTUPINFO startupInfo;
+    PROCESS_INFORMATION processInfo;
+    if (CreateProcessA(xdeltaPath.c_str(), (char*)args.c_str(), nullptr, nullptr, false, 0, nullptr, nullptr, &startupInfo, &processInfo))
+    {
+        WaitForSingleObject(processInfo.hProcess, INFINITE); //Wait for xdelta to finish
+    }
+    else
+    {
+        exportStatus_ = "Failed to run xdelta.exe. Last error code: " + std::to_string(GetLastError());
+    }
+    CloseHandle(processInfo.hProcess);
+    CloseHandle(processInfo.hThread);
+
+    //Copy patch to output folder
+    exportStatus_ = "Copying patch to output folder & cleaning up...";
+    string patchTempPath = fmt::format("{}\\mapPatch.xdelta", tempFolderPath);
+    string patchOutputPath = fmt::format("{}\\{}.xdelta", CVar_MapExportPath.Get<string>(), mapName);
+    std::filesystem::copy_file(patchTempPath, patchOutputPath, std::filesystem::copy_options::overwrite_existing);
+
+    //Delete temp folder
+    std::filesystem::remove_all(tempFolderPath);
+
     return true;
 }
 

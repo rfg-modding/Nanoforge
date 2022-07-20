@@ -10,6 +10,13 @@ class Scene;
 class Task;
 class GuiState;
 
+enum MapExportType
+{
+    Vpp,
+    RfgPatch,
+    BinaryPatch
+};
+
 class TerritoryDocument : public IDocument
 {
 public:
@@ -55,9 +62,10 @@ private:
     bool Inspector_DrawStringEditor(PropertyHandle prop);
     bool Inspector_DrawBoolEditor(PropertyHandle prop);
 
-    void ExportTask(GuiState* state, bool exportPatch);
-    bool ExportMap(GuiState* state);
+    void ExportTask(GuiState* state, MapExportType exportType);
+    bool ExportMap(GuiState* state, const string& exportPath);
     bool ExportPatch();
+    bool ExportBinaryPatch(GuiState* state);
 
     string TerritoryName;
     string TerritoryShortname;
@@ -91,6 +99,7 @@ private:
     Handle<Task> exportTask_ = nullptr;
     string exportStatus_ = "";
     f32 exportPercentage_ = 0.0f;
+    string originalVppPath_ = ""; //Path of original vpp_pc file. For binary patch generation
 
     //Confirmation popups + relevant object for several operations. Kinda gross but Dear ImGui popups operate in a strange order
     Popup deleteObjectPopup_ = { "Delete object?", "Are you sure you want to delete the object?", PopupType::YesCancel, true };

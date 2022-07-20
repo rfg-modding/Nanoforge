@@ -40,6 +40,8 @@ public:
     //Get a container packfile (a .str2_pc file that's inside a .vpp_pc)
     Handle<Packfile3> GetContainer(const std::string_view name, const std::string_view parentName);
 
+    string DataFolderPath() { return packfileFolderPath_; }
+
     //If true this class is ready for use by guis / other code
     bool Ready() const { return ready_; }
 
