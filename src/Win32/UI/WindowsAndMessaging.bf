@@ -2199,6 +2199,7 @@ namespace Win32
         public const uint32 WM_IME_KEYUP = 657;
         public const uint32 WM_NCMOUSEHOVER = 672;
         public const uint32 WM_NCMOUSELEAVE = 674;
+        public const uint32 WM_MOUSELEAVE = 675;
         public const uint32 WM_WTSSESSION_CHANGE = 689;
         public const uint32 WM_TABLET_FIRST = 704;
         public const uint32 WM_TABLET_LAST = 735;

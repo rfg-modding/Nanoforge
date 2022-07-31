@@ -15,13 +15,24 @@ namespace Direct3D
     [CRepr]
     public struct D3D11_INPUT_ELEMENT_DESC
     {
-    	public PSTR SemanticName;
+    	public char8* SemanticName;
     	public uint32 SemanticIndex;
     	public DXGI_FORMAT Format;
     	public uint32 InputSlot;
     	public uint32 AlignedByteOffset;
     	public D3D11_INPUT_CLASSIFICATION InputSlotClass;
     	public uint32 InstanceDataStepRate;
+
+        public this(char8* semanticName, uint32 semanticIndex, DXGI_FORMAT format, uint32 inputSlot, uint32 alignedByteOffset, D3D11_INPUT_CLASSIFICATION inputSlotClass, uint32 instanceDataStepRate)
+		{
+            this.SemanticName = semanticName;
+            this.SemanticIndex = semanticIndex;
+            this.Format = format;
+            this.InputSlot = inputSlot;
+            this.AlignedByteOffset = alignedByteOffset;
+            this.InputSlotClass = inputSlotClass;
+            this.InstanceDataStepRate = instanceDataStepRate;
+		}
     }
     [CRepr]
     public struct D3D11_SO_DECLARATION_ENTRY
@@ -2209,8 +2220,8 @@ namespace Direct3D
     	public void VSSetShader(ID3D11VertexShader* pVertexShader, ID3D11ClassInstance** ppClassInstances, uint32 NumClassInstances) mut => VT.VSSetShader(ref this, pVertexShader, ppClassInstances, NumClassInstances);
     	public void DrawIndexed(uint32 IndexCount, uint32 StartIndexLocation, int32 BaseVertexLocation) mut => VT.DrawIndexed(ref this, IndexCount, StartIndexLocation, BaseVertexLocation);
     	public void Draw(uint32 VertexCount, uint32 StartVertexLocation) mut => VT.Draw(ref this, VertexCount, StartVertexLocation);
-    	public HRESULT Map(ref ID3D11Resource pResource, uint32 Subresource, D3D11_MAP MapType, uint32 MapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource) mut => VT.Map(ref this, ref pResource, Subresource, MapType, MapFlags, pMappedResource);
-    	public void Unmap(ref ID3D11Resource pResource, uint32 Subresource) mut => VT.Unmap(ref this, ref pResource, Subresource);
+    	public HRESULT Map(ID3D11Resource* pResource, uint32 Subresource, D3D11_MAP MapType, uint32 MapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource) mut => VT.Map(ref this, pResource, Subresource, MapType, MapFlags, pMappedResource);
+    	public void Unmap(ID3D11Resource* pResource, uint32 Subresource) mut => VT.Unmap(ref this, pResource, Subresource);
     	public void PSSetConstantBuffers(uint32 StartSlot, uint32 NumBuffers, ID3D11Buffer** ppConstantBuffers) mut => VT.PSSetConstantBuffers(ref this, StartSlot, NumBuffers, ppConstantBuffers);
     	public void IASetInputLayout(ID3D11InputLayout* pInputLayout) mut => VT.IASetInputLayout(ref this, pInputLayout);
     	public void IASetVertexBuffers(uint32 StartSlot, uint32 NumBuffers, ID3D11Buffer** ppVertexBuffers, uint32* pStrides, uint32* pOffsets) mut => VT.IASetVertexBuffers(ref this, StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets);
@@ -2321,8 +2332,8 @@ namespace Direct3D
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ID3D11VertexShader* pVertexShader, ID3D11ClassInstance** ppClassInstances, uint32 NumClassInstances) VSSetShader;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, uint32 IndexCount, uint32 StartIndexLocation, int32 BaseVertexLocation) DrawIndexed;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, uint32 VertexCount, uint32 StartVertexLocation) Draw;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11DeviceContext self, ref ID3D11Resource pResource, uint32 Subresource, D3D11_MAP MapType, uint32 MapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource) Map;
-    		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11Resource pResource, uint32 Subresource) Unmap;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11DeviceContext self, ID3D11Resource* pResource, uint32 Subresource, D3D11_MAP MapType, uint32 MapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource) Map;
+    		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ID3D11Resource* pResource, uint32 Subresource) Unmap;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, uint32 StartSlot, uint32 NumBuffers, ID3D11Buffer** ppConstantBuffers) PSSetConstantBuffers;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ID3D11InputLayout* pInputLayout) IASetInputLayout;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, uint32 StartSlot, uint32 NumBuffers, ID3D11Buffer** ppVertexBuffers, uint32* pStrides, uint32* pOffsets) IASetVertexBuffers;
@@ -2757,10 +2768,10 @@ namespace Direct3D
     	public HRESULT CreateTexture1D(in D3D11_TEXTURE1D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture1D** ppTexture1D) mut => VT.CreateTexture1D(ref this, pDesc, pInitialData, ppTexture1D);
     	public HRESULT CreateTexture2D(in D3D11_TEXTURE2D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture2D** ppTexture2D) mut => VT.CreateTexture2D(ref this, pDesc, pInitialData, ppTexture2D);
     	public HRESULT CreateTexture3D(in D3D11_TEXTURE3D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture3D** ppTexture3D) mut => VT.CreateTexture3D(ref this, pDesc, pInitialData, ppTexture3D);
-    	public HRESULT CreateShaderResourceView(ref ID3D11Resource pResource, D3D11_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D11ShaderResourceView** ppSRView) mut => VT.CreateShaderResourceView(ref this, ref pResource, pDesc, ppSRView);
-    	public HRESULT CreateUnorderedAccessView(ref ID3D11Resource pResource, D3D11_UNORDERED_ACCESS_VIEW_DESC* pDesc, ID3D11UnorderedAccessView** ppUAView) mut => VT.CreateUnorderedAccessView(ref this, ref pResource, pDesc, ppUAView);
-    	public HRESULT CreateRenderTargetView(ref ID3D11Resource pResource, D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView) mut => VT.CreateRenderTargetView(ref this, ref pResource, pDesc, ppRTView);
-    	public HRESULT CreateDepthStencilView(ref ID3D11Resource pResource, D3D11_DEPTH_STENCIL_VIEW_DESC* pDesc, ID3D11DepthStencilView** ppDepthStencilView) mut => VT.CreateDepthStencilView(ref this, ref pResource, pDesc, ppDepthStencilView);
+    	public HRESULT CreateShaderResourceView(ID3D11Resource* pResource, D3D11_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D11ShaderResourceView** ppSRView) mut => VT.CreateShaderResourceView(ref this, pResource, pDesc, ppSRView);
+    	public HRESULT CreateUnorderedAccessView(ID3D11Resource* pResource, D3D11_UNORDERED_ACCESS_VIEW_DESC* pDesc, ID3D11UnorderedAccessView** ppUAView) mut => VT.CreateUnorderedAccessView(ref this, pResource, pDesc, ppUAView);
+    	public HRESULT CreateRenderTargetView(ID3D11Resource* pResource, D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView) mut => VT.CreateRenderTargetView(ref this, pResource, pDesc, ppRTView);
+    	public HRESULT CreateDepthStencilView(ID3D11Resource* pResource, D3D11_DEPTH_STENCIL_VIEW_DESC* pDesc, ID3D11DepthStencilView** ppDepthStencilView) mut => VT.CreateDepthStencilView(ref this, pResource, pDesc, ppDepthStencilView);
     	public HRESULT CreateInputLayout(D3D11_INPUT_ELEMENT_DESC* pInputElementDescs, uint32 NumElements, void* pShaderBytecodeWithInputSignature, uint BytecodeLength, ID3D11InputLayout** ppInputLayout) mut => VT.CreateInputLayout(ref this, pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
     	public HRESULT CreateVertexShader(void* pShaderBytecode, uint BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11VertexShader** ppVertexShader) mut => VT.CreateVertexShader(ref this, pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
     	public HRESULT CreateGeometryShader(void* pShaderBytecode, uint BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11GeometryShader** ppGeometryShader) mut => VT.CreateGeometryShader(ref this, pShaderBytecode, BytecodeLength, pClassLinkage, ppGeometryShader);
@@ -2801,10 +2812,10 @@ namespace Direct3D
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_TEXTURE1D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture1D** ppTexture1D) CreateTexture1D;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_TEXTURE2D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture2D** ppTexture2D) CreateTexture2D;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_TEXTURE3D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture3D** ppTexture3D) CreateTexture3D;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ref ID3D11Resource pResource, D3D11_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D11ShaderResourceView** ppSRView) CreateShaderResourceView;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ref ID3D11Resource pResource, D3D11_UNORDERED_ACCESS_VIEW_DESC* pDesc, ID3D11UnorderedAccessView** ppUAView) CreateUnorderedAccessView;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ref ID3D11Resource pResource, D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView) CreateRenderTargetView;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ref ID3D11Resource pResource, D3D11_DEPTH_STENCIL_VIEW_DESC* pDesc, ID3D11DepthStencilView** ppDepthStencilView) CreateDepthStencilView;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ID3D11Resource* pResource, D3D11_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D11ShaderResourceView** ppSRView) CreateShaderResourceView;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ID3D11Resource* pResource, D3D11_UNORDERED_ACCESS_VIEW_DESC* pDesc, ID3D11UnorderedAccessView** ppUAView) CreateUnorderedAccessView;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ID3D11Resource* pResource, D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView) CreateRenderTargetView;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ID3D11Resource* pResource, D3D11_DEPTH_STENCIL_VIEW_DESC* pDesc, ID3D11DepthStencilView** ppDepthStencilView) CreateDepthStencilView;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, D3D11_INPUT_ELEMENT_DESC* pInputElementDescs, uint32 NumElements, void* pShaderBytecodeWithInputSignature, uint BytecodeLength, ID3D11InputLayout** ppInputLayout) CreateInputLayout;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, void* pShaderBytecode, uint BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11VertexShader** ppVertexShader) CreateVertexShader;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, void* pShaderBytecode, uint BytecodeLength, ID3D11ClassLinkage* pClassLinkage, ID3D11GeometryShader** ppGeometryShader) CreateGeometryShader;
@@ -6810,7 +6821,7 @@ static
     public static mixin DxRequired(HRESULT result, StringView message)
     {
         //Interpreting any result other than 0 as an error currently: https://docs.microsoft.com/en-us/windows/win32/direct3d11/d3d11-graphics-reference-returnvalues
-        if (result != 0)
+        if (result != Win32.S_OK)
             Runtime.FatalError(scope $"Fatal D3D11 error '{message}'. Error code: {result}");
     }
 }

@@ -32,9 +32,9 @@ namespace Nanoforge.Gui
 		[SystemStage(.Update)]
 		void Update(App app)
 		{
-			/*for (var layer in Layers)
+			for (var layer in Layers)
 				if (layer.Enabled)
-					layer.Update(app);*/
+					layer.Update(app);
 		}
 
 		//Destroys all gui layers and their modules
@@ -94,7 +94,7 @@ namespace Nanoforge.Gui
 		}
 
 		//Helper functions & constants
-		public static Vec4<f32> SecondaryTextColor => .(0.2f, 0.7f, 1.0f, 1.00f) * 0.92f; //Light blue;
+		public static Vec4<f32> SecondaryTextColor => .(0.32f, 0.67f, 1.0f, 1.00f);//.(0.2f, 0.7f, 1.0f, 1.00f) * 0.92f; //Light blue;
 		public static Vec4<f32> TertiaryTextColor => .(0.64f, 0.67f, 0.69f, 1.00f); //Light grey;
 		public static Vec4<f32> Red => .(0.784f, 0.094f, 0.035f, 1.0f);
 

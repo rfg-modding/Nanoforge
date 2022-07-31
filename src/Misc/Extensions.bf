@@ -24,9 +24,9 @@ namespace System
             return str;
         }
 
-        public static String ValueToString<T>(String str, T value)
+        public static String ValueToString<T>(String str, T value) where T : operator explicit int, enum
         {
-            T val = value;
+            int val = (int)value;
             Type type = typeof(T);
             Runtime.Assert(type.IsEnum);
             for (var enumField in type.GetFields())

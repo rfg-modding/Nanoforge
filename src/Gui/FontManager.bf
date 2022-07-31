@@ -16,7 +16,7 @@ namespace Nanoforge.Gui
         private static append List<u16> _iconRanges = .();
         public static bool EnableNonLatinGlyphs = false; //Currently disabled by default since I (only dev) only use english & enabling these increases boot time. Will enable when necessary
 
-		public static void RegisterFonts(BuildConfig buildConfig)
+		public static void LoadFonts(BuildConfig buildConfig)
 		{
             static bool firstRun = true;
             if (firstRun) //Build glyph list the first time this is called

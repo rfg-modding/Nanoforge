@@ -60,12 +60,10 @@ namespace Nanoforge.Gui.Panels
 		private void DrawDockspace(App app)
 		{
 			//Dockspace flags
-			dockspaceFlags = ImGui.DockNodeFlags.None | ImGui.DockNodeFlags.PassthruCentralNode;
+			dockspaceFlags = ImGui.DockNodeFlags.None;
 
 			//Parent window flags
-			ImGui.WindowFlags windowFlags = ImGui.WindowFlags.NoDocking | ImGui.WindowFlags.NoTitleBar | ImGui.WindowFlags.NoCollapse
-			    | ImGui.WindowFlags.NoResize | ImGui.WindowFlags.NoMove
-			    | ImGui.WindowFlags.NoBringToFrontOnFocus | ImGui.WindowFlags.NoNavFocus | ImGui.WindowFlags.NoBackground;
+			ImGui.WindowFlags windowFlags = .NoDocking | .NoTitleBar | .NoCollapse | .NoResize | .NoMove | .NoBringToFrontOnFocus | .NoNavFocus | .NoBackground;
 
 			//Set dockspace size and params
 			var viewport = ImGui.GetMainViewport();

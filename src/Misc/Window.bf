@@ -18,6 +18,8 @@ namespace Nanoforge.Misc
         public HWND Handle { get; private set; } = 0;
         public bool Focused { get; private set; } = true;
         public bool ShouldClose { get; private set; } = false;
+        //Use to add other functions to pass window messages to
+        public Event<delegate LRESULT(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam)> WndProcExtensions ~ _.Dispose();
         private Input _input = null;
 
         ///The actual WndProc logic is in a member function called by this delegate. That way it has access to the window fields
@@ -43,13 +45,13 @@ namespace Nanoforge.Misc
             //Define window class
             WNDCLASSEXW wc = .();
             wc.cbSize = sizeof(WNDCLASSEXW);
-            wc.style = .HREDRAW | .VREDRAW | .DROPSHADOW;
+            wc.style = .HREDRAW | .VREDRAW;
             wc.lpfnWndProc = => WNDPROC;
             wc.cbClsExtra = 0;
             wc.cbWndExtra = 0;
             wc.hInstance = hInstance;
             wc.hIcon = Win32.LoadIconW(0, Win32.IDI_WINLOGO);
-            wc.hCursor = Win32.LoadCursorW(0, Win32.IDC_ARROW);
+            wc.hCursor = Win32.LoadCursorW(0, Win32.IDC_SIZEWE);
             wc.hbrBackground = (int)SYS_COLOR_INDEX.COLOR_MENUTEXT;
             wc.lpszMenuName = null;
             wc.lpszClassName = &windowClassName;
@@ -62,8 +64,8 @@ namespace Nanoforge.Misc
             if (Handle == 0)
                 Win32.FatalError!("CreateWindowExW() failed while creating window");
 
-            //Maximize window
-            Win32.ShowWindow(Handle, .MAXIMIZE);
+            //Show window
+            Win32.ShowWindow(Handle, .SHOW);
         }
 
         //Process window events
@@ -87,9 +89,13 @@ namespace Nanoforge.Misc
 
         LRESULT InstanceWNDPROC(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam)
         {
+            for (var dlg in WndProcExtensions)
+                if (dlg(hwnd, msg, wParam, lParam) != 0)
+                    return 1;
+
             switch (msg)
             {
-                case Win32.WM_CLOSE,Win32.WM_QUIT,Win32.WM_DESTROY:
+                case Win32.WM_CLOSE, Win32.WM_QUIT, Win32.WM_DESTROY:
                     ShouldClose = true;
                     return 0;
                 case Win32.WM_SIZE:
@@ -125,6 +131,11 @@ namespace Nanoforge.Misc
         {
             return WndProcDelegate(hwnd, msg, wParam, lParam);
         }
+
+        public void Maximize()
+        {
+            Win32.ShowWindow(Handle, .MAXIMIZE);
+        }    
     }
 
     //Matches wParam of WndProc WM_SIZE message: https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-size

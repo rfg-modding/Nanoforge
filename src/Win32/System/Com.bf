@@ -38,6 +38,8 @@ static
     public static mixin ReleaseCOM(Win32.IUnknown* x)
     {
         if (x != null)
-            x.Release();
+        {
+			x.Release();
+		}
     }
 }

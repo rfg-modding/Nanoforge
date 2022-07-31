@@ -1,3 +1,4 @@
+using Nanoforge.Systems;
 using Nanoforge.Render;
 using Nanoforge.Misc;
 using Nanoforge.App;
@@ -25,6 +26,7 @@ namespace Nanoforge
                 ..AddSystem<Input>(isResource: true)
                 ..AddSystem<Renderer>()
                 ..AddSystem<Gui>(isResource: true)
+                ..AddSystem<AppLogic>()
 				.Run();
 		}
 	}

@@ -3378,6 +3378,12 @@ namespace Win32
     {
     	public int32 x;
     	public int32 y;
+
+        public this(int32 xInit, int32 yInit)
+        {
+            x = xInit;
+            y = yInit;
+        }
     }
     [CRepr]
     public struct POINTL
@@ -10003,6 +10009,16 @@ namespace Win32
         {
             //Most of these casts are unnecessary. Just duplicating what's used in the windows macro to start to get things working
             ((int)(int16)((uint16)((((uint64)(lParam)) >> 16) & 0xffff)))
+        }
+
+        public static mixin LOBYTE(int lParam)
+        {
+            ((uint8)(((uint64)(lParam)) & 0xff))
+        }
+
+        public static mixin HIBYTE(int lParam)
+        {
+            ((uint8)((((uint64)(lParam)) >> 8) & 0xff))
         }
 
         //Note: Disabled these since they aren't needed. Don't want to add unnecessary dependencies

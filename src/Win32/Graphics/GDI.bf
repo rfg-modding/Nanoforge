@@ -60,6 +60,9 @@ namespace Win32
 
 	extension Win32
 	{
-
+        [Import("user32.lib"), CLink, CallingConvention(.Stdcall)]
+        public static extern BOOL ClientToScreen(HWND hWnd, POINT* lpPoint);
+        [Import("user32.lib"), CLink, CallingConvention(.Stdcall)]
+        public static extern BOOL ScreenToClient(HWND hWnd, POINT* lpPoint);
 	}
 }
