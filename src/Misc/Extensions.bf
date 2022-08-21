@@ -45,6 +45,19 @@ namespace System
             return StringView.Compare(a, b, ignoreCase) == 0;
         }
     }
+
+    namespace IO
+    {
+        extension FileFindEntry
+        {
+            public void GetExtension(String outExt)
+            {
+                String fileName = this.GetFileName(.. scope .());
+                Path.GetExtension(fileName, outExt);
+                return;
+            }
+        }
+    }
 }
 
 static

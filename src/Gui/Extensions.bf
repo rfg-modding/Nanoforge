@@ -62,6 +62,12 @@ namespace ImGui
             return ImGui.BeginMenu(str.Ptr, enabled);
         }
 
+        public static void DockBuilderDockWindow(StringView window_name, ID node_id)
+        {
+            String str = scope .(window_name)..Append('\0');
+            ImGui.DockBuilderDockWindow(str.Ptr, node_id);
+        }
+
         //Draw label and value next to each other with value using secondary color
         public static void LabelAndValue(StringView label, StringView value, Vec4<f32> color)
         {

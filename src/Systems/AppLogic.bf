@@ -2,12 +2,16 @@ using Nanoforge.Misc;
 using Nanoforge.App;
 using Nanoforge;
 using System;
+using Nanoforge.FileSystem;
 
 namespace Nanoforge.Systems
 {
 	[System]
 	class AppLogic : ISystem
 	{
+        //TODO: De-hardcode this. Add a data folder selector UI + auto game detection like the C++ version had.
+        public static StringView DataFolderPath = "G:/GOG/Games/Red Faction Guerrilla Re-Mars-tered/data/";
+
 		static void ISystem.Build(App app)
 		{
 
@@ -16,7 +20,7 @@ namespace Nanoforge.Systems
 		[SystemInit]
 		void Init(App app)
 		{
-
+            PackfileVFS.SetDataFolder(DataFolderPath);
 		}
 
 		[SystemStage]

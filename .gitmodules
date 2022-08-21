@@ -4,3 +4,6 @@
 [submodule "Dependencies/RfgTools"]
 	path = Dependencies/RfgTools
 	url = https://github.com/Moneyl/RfgTools.git
+[submodule "Dependencies/Beef.Linq"]
+	path = Dependencies/Beef.Linq
+	url = https://github.com/xposure/Beef.Linq.git

@@ -9,9 +9,11 @@ namespace Nanoforge.Gui.Panels
     //Has a bunch of info about the apps state, system functions, and stages
     public class StateViewer : GuiPanelBase
     {
+        public static String ID = new .(Icons.ICON_FA_CODE_BRANCH)..Append(" App state\0") ~delete _;
+
         public override void Update(App app, Gui gui)
         {
-            if (!ImGui.Begin(scope String(Icons.ICON_FA_CODE_BRANCH)..Append(" App state"), &Open))
+            if (!ImGui.Begin(ID, &Open))
             {
                 ImGui.End();
                 return;

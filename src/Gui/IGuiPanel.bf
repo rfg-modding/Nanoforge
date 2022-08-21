@@ -17,6 +17,7 @@ namespace Nanoforge.Gui
     {
         public bool Open = true;
         public String MenuPos = new .() ~delete _;
+        public bool FirstDraw = true;
 
         public virtual void Update(App app, Gui gui)
         {
