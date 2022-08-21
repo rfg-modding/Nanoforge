@@ -28,7 +28,7 @@ namespace Nanoforge.Gui.Panels
                     ImGui.SameLine();
                     if (i == app.[Friend]_stateStack.Count - 1) //Top of the state stack (active state)
                     {
-                        ImGui.TextColored(Enum.ValueToString<AppState>(.. scope .(), state), Gui.SecondaryTextColor);
+                        ImGui.TextColored(Enum.ValueToString<AppState>(.. scope .(), state), ImGui.SecondaryTextColor);
                     }
                     else
                     {
@@ -187,10 +187,10 @@ namespace Nanoforge.Gui.Panels
         {
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
-            ImGui.TextColored(scope $"{systemFunc.ClassName}.", Gui.TertiaryTextColor);
+            ImGui.TextColored(scope $"{systemFunc.ClassName}.", ImGui.TertiaryTextColor);
             ImGui.SameLine();
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() - 8.0f);
-            ImGui.TextColored(scope $"{systemFunc.Name}()", Gui.SecondaryTextColor);
+            ImGui.TextColored(scope $"{systemFunc.Name}()", ImGui.SecondaryTextColor);
 
             ImGui.TableNextColumn();
             if (runTypeName != null)

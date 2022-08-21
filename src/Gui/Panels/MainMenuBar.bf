@@ -46,12 +46,12 @@ namespace Nanoforge.Gui.Panels
 				}
 
 				var drawList = ImGui.GetWindowDrawList();
-				String realFrameTime = scope String()..AppendF("{0:G4}", frameData.RealFrameTime * 1000.0f);
+				String realFrameTime = scope String()..AppendF("{0:G3}", frameData.AverageFrameTime * 1000.0f);
                 String totalFrameTime = scope String()..AppendF("/  {0:G4}", frameData.DeltaTime * 1000.0f);
 				drawList.AddText(.(ImGui.GetCursorPosX(), 5.0f), 0xF2F5FAFF, "|    Frametime (ms): ");
 				var textSize = ImGui.CalcTextSize("|    Frametime (ms): ");
-				drawList.AddText(.(ImGui.GetCursorPosX() + (f32)textSize.x, 5.0f), ImGui.ColorConvertFloat4ToU32(Gui.SecondaryTextColor), realFrameTime.CStr());
-                drawList.AddText(.(ImGui.GetCursorPosX() + (f32)textSize.x + 42.0f, 5.0f), ImGui.ColorConvertFloat4ToU32(Gui.SecondaryTextColor), totalFrameTime.CStr());
+				drawList.AddText(.(ImGui.GetCursorPosX() + (f32)textSize.x, 5.0f), ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), realFrameTime.CStr());
+                drawList.AddText(.(ImGui.GetCursorPosX() + (f32)textSize.x + 42.0f, 5.0f), ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), totalFrameTime.CStr());
 
 				ImGui.EndMainMenuBar();
 			}
