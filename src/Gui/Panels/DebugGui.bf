@@ -7,11 +7,11 @@ using ImGui;
 
 namespace Nanoforge.Gui.Panels
 {
-	public class DebugGui : IGuiPanel
+	public class DebugGui : GuiPanelBase
 	{
 		bool ShowImGuiDemo = true;
 
-		public void Update(App app)
+		public override void Update(App app, Gui gui)
 		{
 			if (ShowImGuiDemo)
 				ImGui.ShowDemoWindow(&ShowImGuiDemo);
@@ -21,7 +21,7 @@ namespace Nanoforge.Gui.Panels
 
 		private void DrawDebugWindow(App app)
 		{
-			if (!ImGui.Begin(scope String(Icons.ICON_FA_BUG)..Append(" Debug")))
+			if (!ImGui.Begin(scope String(Icons.ICON_FA_BUG)..Append(" Debug"), &Open))
 			{
 				ImGui.End();
 				return;

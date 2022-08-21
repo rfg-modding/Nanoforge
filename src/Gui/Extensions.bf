@@ -50,6 +50,18 @@ namespace ImGui
             return ImGui.TreeNodeEx(str.Ptr, flags);
         }
 
+        public static bool MenuItem(StringView label, char* shortcut, bool* p_selected, bool enabled = true)
+        {
+            String str = scope .(label)..Append('\0');
+            return ImGui.MenuItem(str.Ptr, shortcut, p_selected, enabled);
+        }
+
+        public static bool BeginMenu(StringView label, bool enabled = true)
+        {
+            String str = scope .(label)..Append('\0');
+            return ImGui.BeginMenu(str.Ptr, enabled);
+        }
+
         //Draw label and value next to each other with value using secondary color
         public static void LabelAndValue(StringView label, StringView value, Vec4<f32> color)
         {

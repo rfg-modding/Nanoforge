@@ -37,6 +37,14 @@ namespace System
             return str;
         }
 	}
+
+    extension StringView
+    {
+        public static bool Equals(StringView a, StringView b, bool ignoreCase = false)
+        {
+            return StringView.Compare(a, b, ignoreCase) == 0;
+        }
+    }
 }
 
 static

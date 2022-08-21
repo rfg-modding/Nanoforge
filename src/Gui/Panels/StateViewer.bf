@@ -7,11 +7,11 @@ using ImGui;
 namespace Nanoforge.Gui.Panels
 {
     //Has a bunch of info about the apps state, system functions, and stages
-    public class StateViewer : IGuiPanel
+    public class StateViewer : GuiPanelBase
     {
-        void IGuiPanel.Update(App app)
+        public override void Update(App app, Gui gui)
         {
-            if (!ImGui.Begin(scope String(Icons.ICON_FA_CODE_BRANCH)..Append(" App state")))
+            if (!ImGui.Begin(scope String(Icons.ICON_FA_CODE_BRANCH)..Append(" App state"), &Open))
             {
                 ImGui.End();
                 return;

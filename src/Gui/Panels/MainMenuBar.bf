@@ -2,15 +2,24 @@ using Nanoforge.App;
 using Nanoforge;
 using System;
 using ImGui;
+using System.Collections;
 
 namespace Nanoforge.Gui.Panels
 {
-	public class MainMenuBar : IGuiPanel
+	public class MainMenuBar : GuiPanelBase
 	{
 		private ImGui.DockNodeFlags dockspaceFlags = 0;
+        public List<MenuItem> MenuItems = new .() ~DeleteContainerAndItems!(_);
 
-		void IGuiPanel.Update(App app)
+		public override void Update(App app, Gui gui)
 		{
+            static bool firstDraw = true;
+            if (firstDraw)
+            {
+                GenerateMenus(gui);
+                firstDraw = false;
+            }
+
 			DrawMainMenuBar(app);
 			DrawDockspace(app);
 		}
@@ -32,6 +41,11 @@ namespace Nanoforge.Gui.Panels
 				{
 					ImGui.EndMenu();
 				}
+
+                //Draw menu item for each panel (e.g. file explorer, properties, log, etc) so user can toggle visibility
+                for (MenuItem item in MenuItems)
+                    item.Draw();
+
 				if(ImGui.BeginMenu("View"))
 				{
 					//Todo: Put toggles for other guis in this layer here
@@ -87,5 +101,95 @@ namespace Nanoforge.Gui.Panels
 
 			ImGui.End();
 		}
+
+        private MenuItem GetMenu(StringView text)
+        {
+            for (MenuItem item in MenuItems)
+                if (StringView.Equals(item.Text, text, true))
+                    return item;
+
+            return null;
+        }
+
+        private void GenerateMenus(Gui gui)
+        {
+            for (GuiPanelBase panel in gui.Panels)
+            {
+                //No menu entry if it's left blank. The main menu itself also doesn't have an entry
+                if (panel.MenuPos == "" || panel == this)
+                {
+                    panel.Open = true;
+                    continue;
+                }
+
+                //Split menu path into components
+                StringView[] pathSplit = panel.MenuPos.Split!('/');
+                StringView menuName = pathSplit[0];
+
+                //Get or create menu
+                MenuItem curMenuItem = GetMenu(menuName);
+                if (curMenuItem == null)
+                {
+                    curMenuItem = new MenuItem(menuName);
+                    MenuItems.Add(curMenuItem);
+                }
+
+                //Iterate through path segmeents to create menu tree
+                for (int i = 1; i < pathSplit.Count; i++)
+                {
+                    StringView nextPart = pathSplit[i];
+                    MenuItem nextItem = curMenuItem.GetChild(nextPart);
+                    if (nextItem == null)
+                    {
+                        nextItem = new MenuItem(nextPart);
+                        curMenuItem.Items.Add(nextItem);
+                    }
+
+                    curMenuItem = nextItem;
+                }
+
+                curMenuItem.Panel = panel;
+            }
+        }
 	}
+
+    //Entry in the main menu bar
+    public class MenuItem
+    {
+        public String Text = new .() ~delete _;
+        public List<MenuItem> Items = new .() ~DeleteContainerAndItems!(_);
+        public GuiPanelBase Panel = null;
+
+        public this(StringView text)
+        {
+            Text.Set(text);
+        }
+
+        public void Draw()
+        {
+            if (Panel != null)
+            {
+                ImGui.MenuItem(Text, "", &Panel.Open);
+                return;
+            }
+
+            if (ImGui.BeginMenu(Text))
+            {
+                for (MenuItem item in Items)
+                {
+                    item.Draw();
+                }
+                ImGui.EndMenu();
+            }
+        }
+
+        public MenuItem GetChild(StringView text)
+        {
+            for (MenuItem item in Items)
+                if (StringView.Equals(item.Text, text, true))
+                    return item;
+
+            return null;
+        }
+    }
 }
