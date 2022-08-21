@@ -46,7 +46,12 @@ namespace Nanoforge.Gui.Panels
                 {
                     if (ImGui.MenuItem("Open file...")) { }
                     if (ImGui.MenuItem("Save file...")) { }
-                    if (ImGui.MenuItem("Exit")) { }
+                    if (ImGui.MenuItem("Exit"))
+					{
+                        gui.CloseNanoforgeRequested = true;
+                        for (GuiDocumentBase doc in gui.Documents)
+                            doc.Open = false; //Close all documents so save confirmation modal appears for them
+				    }
                     ImGui.EndMenu();
                 }
                 if (ImGui.BeginMenu("Edit"))

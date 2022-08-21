@@ -22,6 +22,7 @@ namespace Nanoforge.Gui
         public String OutlinerIdentifier = new .(Icons.ICON_FA_LIST)..Append(" Outliner") ~delete _;
         public String InspectorIdentifier = new .(Icons.ICON_FA_WRENCH)..Append(" Inspector") ~delete _;
         public GuiDocumentBase FocusedDocument = null;
+        public bool CloseNanoforgeRequested = false;
 
 		static void ISystem.Build(App app)
 		{
@@ -69,6 +70,7 @@ namespace Nanoforge.Gui
                         FocusedDocument = document;
 
                     document.Update(app, this);
+                    document.FirstDraw = false;
                     ImGui.End();
 
                     if (document.NoWindowPadding)
@@ -134,17 +136,22 @@ namespace Nanoforge.Gui
         ///Confirms that the user wants to close documents with unsaved changes
         void DrawDocumentCloseConfirmationPopup(App app)
         {
-            int numUnsavedDocs = Documents.Select((doc) => doc.UnsavedChanges).Count();
+            int numUnsavedDocs = Documents.Select((doc) => doc).Where((doc) => !doc.Open && doc.UnsavedChanges).Count();
+            if (CloseNanoforgeRequested && numUnsavedDocs == 0)
+            {
+                app.Exit = true; //Signal to App it's ok to close the window (any unsaved changes were saved or cancelled)
+            }
+
             if (numUnsavedDocs == 0)
                 return;
 
-            if (ImGui.IsPopupOpen("Save?"))
+            if (!ImGui.IsPopupOpen("Save?"))
                 ImGui.OpenPopup("Save?");
             if (ImGui.BeginPopupModal("Save?", null, .AlwaysAutoResize))
             {
                 ImGui.Text("Save changes to the following file(s)?");
                 f32 itemHeight = ImGui.GetTextLineHeightWithSpacing();
-                if (ImGui.BeginChildFrame(ImGui.GetID("frame"), .(-f32.MinValue, 6.25f * itemHeight)))
+                if (ImGui.BeginChildFrame(ImGui.GetID("frame"), .(-f32.Epsilon, 6.25f * itemHeight)))
                 {
                     for (GuiDocumentBase doc in Documents)
                         if (!doc.Open && doc.UnsavedChanges)
@@ -195,7 +202,7 @@ namespace Nanoforge.Gui
                     //openProjectRequested_ = false;
                     //closeProjectRequested_ = false;
                     //openRecentProjectRequested_ = false;
-                    //closeNanoforgeRequested_ = false;
+                    CloseNanoforgeRequested = false;
                     ImGui.CloseCurrentPopup();
                 }
 

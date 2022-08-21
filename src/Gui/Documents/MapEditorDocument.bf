@@ -15,6 +15,7 @@ namespace Nanoforge.Gui.Documents
             HasMenuBar = false;
             NoWindowPadding = true;
             HasCustomOutlinerAndInspector = true;
+            UnsavedChanges = true;
         }
 
         public override void Update(App app, Gui gui)
