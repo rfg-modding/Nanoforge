@@ -1,3 +1,4 @@
+using Nanoforge.Misc.Containers;
 using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
@@ -16,11 +17,31 @@ namespace Nanoforge.App
 
 	public class FrameData
 	{
-        ///Amount of time this frame that work was being done. Delta time can be larger if the target framerate is slower than the current framerate
+        ///Amount of time this frame that work was being done. DeltaTime includes time waiting for target framerate. This doesn't.
         public f32 RealFrameTime;
 
         ///Total time elapsed last frame. Includes time waiting until target framerate if there was time to spare
 		public f32 DeltaTime;
+
+        ///Number of frames to sample AverageFrameTime
+        public const int NumFrametimeSamples = 30;
+
+        ///Last N real frametimes. Used to calculate AverageFrameTime
+        public append RingBuffer<f32, 30> AverageFrametimeSamples;
+
+        ///Average of last N RealFrameTime values. Use when you want a more stable value for UI purposes. The real value can fluctuate frame by frame
+        public f32 AverageFrameTime
+        {
+		    get
+    		{
+                f32 result = 0.0f;
+                for (f32 v in AverageFrametimeSamples.[Friend]_data) //TODO: Fix the RingBuffer enumerator
+                    result += v;
+
+                return result / AverageFrametimeSamples.Size;
+		    }
+		};
+
 	}
 
 	//System stages. Run each frame in this order.
@@ -116,6 +137,7 @@ namespace Nanoforge.App
 
                 //Wait until target frametime
                 frameData.RealFrameTime = (f32)_frameTimer.ElapsedMicroseconds / 1000000.0f;
+                frameData.AverageFrametimeSamples.Push(frameData.RealFrameTime);
                 while(((float)_frameTimer.ElapsedMicroseconds / 1000000.0f) < _maxFrameRateDelta)
 				{
 
