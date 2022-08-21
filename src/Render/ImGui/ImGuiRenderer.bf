@@ -17,6 +17,7 @@ namespace Nanoforge.Render.ImGui
         private ID3D11Device* _device = null;
         private IDXGIFactory* _factory = null;
         private HWND _hwnd = 0;
+        private u32 _drawCount = 0;
 
         public void Shutdown()
         {
