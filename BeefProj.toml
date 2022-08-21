@@ -1,6 +1,7 @@
 FileVersion = 1
-Dependencies = {corlib = "*", ImGui = "*"}
+Dependencies = {corlib = "*", ImGui = "*", RfgTools = "*"}
 
 [Project]
 Name = "Nanoforge"
+TargetType = "BeefGUIApplication"
 StartupObject = "Nanoforge.Program"

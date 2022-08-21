@@ -1,5 +1,6 @@
 FileVersion = 1
-Projects = {Nanoforge = {Path = "."}, ImGui = {Path = "Dependencies/imgui-beef/ImGui"}}
+Projects = {Nanoforge = {Path = "."}, ImGui = {Path = "Dependencies/imgui-beef/ImGui"}, RfgTools = {Path = "Dependencies/RfgTools"}}
+Unlocked = ["Zlib"]
 
 [Workspace]
 StartupProject = "Nanoforge"

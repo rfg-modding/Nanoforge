@@ -20,7 +20,7 @@ static
 {
     //Ensure sized types are the expected size. If any of these fail you're either on a weird platform or there are serious problems
     [Comptime]
-	static void ValidationMirrorTypeSizes()
+	static void ValidateNanoforgeTypeSizes()
     {
         Compiler.Assert(sizeof(Nanoforge.u8) == 1);
         Compiler.Assert(sizeof(Nanoforge.u16) == 2);

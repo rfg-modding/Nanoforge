@@ -1,3 +1,6 @@
 [submodule "Dependencies/imgui-beef"]
 	path = Dependencies/imgui-beef
 	url = https://github.com/RogueMacro/imgui-beef.git
+[submodule "Dependencies/RfgTools"]
+	path = Dependencies/RfgTools
+	url = https://github.com/Moneyl/RfgTools.git
