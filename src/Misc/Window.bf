@@ -8,7 +8,7 @@ using Win32;
 
 namespace Nanoforge.Misc
 {
-    //Wrapper for a GLFW window
+    //Wrapper for a win32 window
     [System]
     public class Window : ISystem
     {
@@ -27,6 +27,7 @@ namespace Nanoforge.Misc
 
         static void ISystem.Build(App app)
         {
+
         }
 
         [SystemInit]
@@ -35,8 +36,6 @@ namespace Nanoforge.Misc
             Width = 1080;
             Height = 720;
             WndProcDelegate = new => InstanceWNDPROC;
-
-            BuildConfig config = app.GetResource<BuildConfig>();
 
             static char16[?] windowClassName = L("Nanoforge");
             static char16[?] windowName = L("Nanoforge");

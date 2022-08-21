@@ -90,7 +90,7 @@ namespace Nanoforge.Render.ImGui
             io.BackendRendererUserData = null;
         }
 
-        public void NewFrame() mut
+        public void NewFrame()
         {
             if (FontSampler == null)
                 CreateDeviceObjects();
