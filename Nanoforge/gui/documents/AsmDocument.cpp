@@ -69,7 +69,7 @@ AsmDocument::AsmDocument(GuiState* state, std::string_view filename, std::string
         if (String::EqualIgnoreCase(asmFile.Name, filename))
         {
             asmFile_ = &asmFile;
-            _asmFileObject = AsmFile5ToObject(asmFile);
+            //_asmFileObject = AsmFile5ToObject(asmFile);
             break;
         }
 
@@ -100,12 +100,12 @@ void AsmDocument::Update(GuiState* state)
     ImGui::Separator();
 
     //Draw UI from asmfile registry object
-    {
-        for (PropertyHandle prop : _asmFileObject.Properties())
-        {
+    //{
+    //    for (PropertyHandle prop : _asmFileObject.Properties())
+    //    {
 
-        }
-    }
+    //    }
+    //}
 
     //Header data
     ImGui::Indent(indent);
