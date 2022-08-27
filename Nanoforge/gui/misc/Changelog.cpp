@@ -118,6 +118,13 @@ R"(# Getting started
   * See [Nanoforge texture editing](https://www.redfactionwiki.com/wiki/Nanoforge_Texture_Editing) for a guide on using Nanoforge to edit textures.
 
 # Changelog
+## v0.20.0 - Basic map editor (MP/WC only)
+
+### Changes
+
+
+
+
 ## v0.19.0 - High resolution terrain + Mesh viewer improvements
 This release adds support for high lod terrain meshes and high resolution terrain textures (see it via `Tools > Open Territory`). It also fixes some mesh rendering bugs and has a much quicker texture search that fails less often.
 
