@@ -28,9 +28,9 @@ void Camera::Init(const DirectX::XMVECTOR& initialPos, f32 initialFovDegrees, co
 void Camera::DoFrame(f32 deltaTime)
 {
     //Get key modifiers (ctrl, shift, etc)
-    ImGuiKeyModFlags modifiers = ImGui::GetMergedKeyModFlags();
-    bool ctrlDown = (modifiers & ImGuiKeyModFlags_Ctrl) == ImGuiKeyModFlags_Ctrl;
-    bool shiftDown = (modifiers & ImGuiKeyModFlags_Shift) == ImGuiKeyModFlags_Shift;
+    ImGuiModFlags modifiers = ImGui::GetMergedModFlags();
+    bool ctrlDown = (modifiers & ImGuiModFlags_Ctrl) == ImGuiModFlags_Ctrl;
+    bool shiftDown = (modifiers & ImGuiModFlags_Shift) == ImGuiModFlags_Shift;
 
     //Update camera movement and rotation
     if (!ctrlDown && InputActive) //Don't move when ctrl is down. Allows editor to use keybinds like Ctrl + D without moving the camera on accident

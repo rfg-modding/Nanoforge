@@ -564,7 +564,7 @@ void TerritoryDocument::Keybinds(GuiState* state)
 {
     PROFILER_FUNCTION();
 
-    ImGuiKeyModFlags keyMods = ImGui::GetMergedKeyModFlags();
+    ImGuiModFlags keyMods = ImGui::GetMergedModFlags();
     if ((keyMods & ImGuiKeyModFlags_Ctrl) == ImGuiKeyModFlags_Ctrl) //Ctrl down
     {
         //Win32 virtual keycodes: https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
