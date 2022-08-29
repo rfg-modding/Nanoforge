@@ -1397,29 +1397,86 @@ void TerritoryDocument::Inspector(GuiState* state)
 
         ImGui::Unindent(15.0f);
     }
-
-    //Draw name, persistent, position, and orient first so they're easy to find
-    if (Inspector_DrawBoolEditor(selectedObject_.Property("Persistent")))
+    if (ImGui::CollapsingHeader("Flags##FlagsHeader"))
     {
+        ImGui::Indent(15.0f);
+
+        //Option to edit flags as a single integer
+        static u16 manualFlagSetter = 0;
+        manualFlagSetter = selectedObject_.Get<u16>("Flags");
+        if (ImGui::InputScalar("Merged##FlagsSingleInt", ImGuiDataType_U16, &manualFlagSetter))
+        {
+            selectedObject_.Set<u16>("Flags", manualFlagSetter);
+            UnsavedChanges = true;
+        }
+
+        //Separate checkboxes for flag
         u16 flags = selectedObject_.Get<u16>("Flags");
-        if (selectedObject_.Get<bool>("Persistent"))
-            flags |= 1; //Enable persistent flag bit
-        else
-            flags &= ~1; //Disable persistent flag bit
+#define GET_FLAG(index) (flags & (1 << index)) != 0
 
-        selectedObject_.Set<u16>("Flags", flags);
-        UnsavedChanges = true;
-    }
-    u16 flags = selectedObject_.Get<u16>("Flags");
-    if (ImGui::InputScalar("Flags", ImGuiDataType_U16, &flags))
-    {
-        selectedObject_.Set<u16>("Flags", flags);
-        bool persistent = (flags & 1) != 0;
-        selectedObject_.Set<bool>("Persistent", persistent);
-        UnsavedChanges = true;
-    }
-    //if (Inspector_DrawStringEditor(selectedObject_.Property("Name"))) UnsavedChanges = true; //Disabled for now since this is also shown + editable at top of inspector
+        bool persistent = GET_FLAG(0);
+        bool flag1      = GET_FLAG(1);
+        bool flag2      = GET_FLAG(2);
+        bool flag3      = GET_FLAG(3);
+        bool flag4      = GET_FLAG(4);
+        bool flag5      = GET_FLAG(5);
+        bool flag6      = GET_FLAG(6);
+        bool flag7      = GET_FLAG(7);
+        bool flag8      = GET_FLAG(8);
+        bool flag9      = GET_FLAG(9);
+        bool flag10     = GET_FLAG(10);
+        bool flag11     = GET_FLAG(11);
+        bool flag12     = GET_FLAG(12);
+        bool flag13     = GET_FLAG(13);
+        bool flag14     = GET_FLAG(14);
+        bool flag15     = GET_FLAG(15);
 
+        bool changed = false;
+        if (ImGui::Checkbox("Persistent", &persistent)) changed = true;
+        if (ImGui::Checkbox("Flag1", &flag1))           changed = true;
+        if (ImGui::Checkbox("Flag2", &flag2))           changed = true;
+        if (ImGui::Checkbox("Flag3", &flag3))           changed = true;
+        if (ImGui::Checkbox("Flag4", &flag4))           changed = true;
+        if (ImGui::Checkbox("Flag5", &flag5))           changed = true;
+        if (ImGui::Checkbox("Flag6", &flag6))           changed = true;
+        if (ImGui::Checkbox("Flag7", &flag7))           changed = true;
+        if (ImGui::Checkbox("Flag8", &flag8))           changed = true;
+        if (ImGui::Checkbox("Flag9", &flag9))           changed = true;
+        if (ImGui::Checkbox("Flag10", &flag10))         changed = true;
+        if (ImGui::Checkbox("Flag11", &flag11))         changed = true;
+        if (ImGui::Checkbox("Flag12", &flag12))         changed = true;
+        if (ImGui::Checkbox("Flag13", &flag13))         changed = true;
+        if (ImGui::Checkbox("Flag14", &flag14))         changed = true;
+        if (ImGui::Checkbox("Flag15", &flag15))         changed = true;
+
+        if (changed)
+        {
+            u16 newFlags = 0;
+            if (persistent) newFlags |= (1 << 0);
+            if (flag1)      newFlags |= (1 << 1);
+            if (flag2)      newFlags |= (1 << 2);
+            if (flag3)      newFlags |= (1 << 3);
+            if (flag4)      newFlags |= (1 << 4);
+            if (flag5)      newFlags |= (1 << 5);
+            if (flag6)      newFlags |= (1 << 6);
+            if (flag7)      newFlags |= (1 << 7);
+            if (flag8)      newFlags |= (1 << 8);
+            if (flag9)      newFlags |= (1 << 9);
+            if (flag10)     newFlags |= (1 << 10);
+            if (flag11)     newFlags |= (1 << 11);
+            if (flag12)     newFlags |= (1 << 12);
+            if (flag13)     newFlags |= (1 << 13);
+            if (flag14)     newFlags |= (1 << 14);
+            if (flag15)     newFlags |= (1 << 15);
+
+            selectedObject_.Set<bool>("Persistent", persistent);
+            selectedObject_.Set<u16>("Flags", newFlags);
+            UnsavedChanges = true;
+        }
+        ImGui::Unindent(15.0f);
+    }
+
+    //Draw position and orient first so they're easy to find
     Vec3 initialPos = selectedObject_.Get<Vec3>("Position");
     if (Inspector_DrawVec3Editor(selectedObject_.Property("Position")))
     {
