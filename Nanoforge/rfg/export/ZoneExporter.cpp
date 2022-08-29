@@ -166,7 +166,7 @@ void InitZonePropertyWriters()
             "respawn", "respawns", "checkpoint_respawn", "initial_spawn", "activity_respawn", "special_npc", "safehouse_vip", "special_vehicle", "hands_off_raid_squad",
             "radio_operator", "squad_vehicle", "miner_persona", "raid_spawn", "no_reassignment", "disable_ambient_parking", "player_vehicle_respawn", "no_defensive_combat",
             "preplaced", "enabled", "indoor", "no_stub", "autostart", "high_priority", "run_to", "infinite_duration", "no_check_in", "combat_ready", "looping_patrol",
-            "marauder_raid", "ASD_truck_partol" /*Note: Typo also in game. Keeping for compatibility sake.*/, "courier_patrol", "override_patrol", "allow_ambient_peds",
+            "marauder_raid", "ASD_truck_partol" /*Note: Typo also in game. Must keep to be compatible with the game*/, "courier_patrol", "override_patrol", "allow_ambient_peds",
             "disabled", "tag_node", "start_node", "end_game_only", "visible", "vehicle_only", "npc_only", "dead_body", "looping", "use_object_orient", "random_backpacks",
             "liberated", "liberated_play_line"
         },
@@ -289,8 +289,8 @@ void InitZonePropertyWriters()
             if (!object.Has("BBmin") || !object.Has("BBmax"))
                 return false;
 
-            const Vec3& bmin = object.Get<Vec3>("BBmin");
-            const Vec3& bmax = object.Get<Vec3>("BBmax");
+            Vec3 bmin = object.Get<Vec3>("BBmin");
+            Vec3 bmax = object.Get<Vec3>("BBmax");
             writer.Write<u16>(5); //Property type
             writer.Write<u16>(sizeof(Vec3) * 2); //Property size
             writer.Write<u32>(Hash::HashVolitionCRC(propertyName, 0)); //Property name hash
@@ -333,20 +333,17 @@ void InitZonePropertyWriters()
         },
         [](BinaryWriter& writer, ObjectHandle object, std::string_view propertyName) -> bool
         {
-            if (!object.Has("AllowCough") || !object.Has("AllowAmbEdfCivilianDump") || !object.Has("PlayCapstoneUnlockedLines") || !object.Has("DisableMoraleChange") || !object.Has("DisableControlChange"))
-                return false;
-
-            //Calculate flags
+            //Calculate district flags
             u32 flags = (u32)DistrictFlags::None; //Todo: Add operator overload so this can be done without casting
-            if (object.Get<bool>("AllowCough"))
+            if (object.Has("AllowCough") && object.Get<bool>("AllowCough"))
                 flags |= (u32)DistrictFlags::AllowCough;
-            if (object.Get<bool>("AllowAmbEdfCivilianDump"))
+            if (object.Has("AllowAmbEdfCivilianDump") && object.Get<bool>("AllowAmbEdfCivilianDump"))
                 flags |= (u32)DistrictFlags::AllowAmbEdfCivilianDump;
-            if (object.Get<bool>("PlayCapstoneUnlockedLines"))
+            if (object.Has("PlayCapstoneUnlockedLines") && object.Get<bool>("PlayCapstoneUnlockedLines"))
                 flags |= (u32)DistrictFlags::PlayCapstoneUnlockedLines;
-            if (object.Get<bool>("DisableMoraleChange"))
+            if (object.Has("DisableMoraleChange") && object.Get<bool>("DisableMoraleChange"))
                 flags |= (u32)DistrictFlags::DisableMoraleChange;
-            if (object.Get<bool>("DisableControlChange"))
+            if (object.Has("DisableControlChange") && object.Get<bool>("DisableControlChange"))
                 flags |= (u32)DistrictFlags::DisableControlChange;
 
             writer.Write<u16>(5); //Property type
@@ -395,8 +392,26 @@ void InitZonePropertyWriters()
         },
         [](BinaryWriter& writer, ObjectHandle object, std::string_view propertyName) -> bool
         {
-            if (!object.Has("NumPoints") || !object.Has("PointsOffset") || !object.Has("NumConnections") || !object.Has("ConnectionsOffset"))
+            if (!object.Has("NumPoints"))
+            {
+                Log->warn("Failed to write PathRoadStruct property. NumPoints missing.");
                 return false;
+            }
+            if (!object.Has("PointsOffset"))
+            {
+                Log->warn("Failed to write PathRoadStruct property. PointsOffset missing.");
+                return false;
+            }
+            if (!object.Has("NumConnections"))
+            {
+                Log->warn("Failed to write PathRoadStruct property. NumConnections missing.");
+                return false;
+            }
+            if (!object.Has("ConnectionsOffset"))
+            {
+                Log->warn("Failed to write PathRoadStruct property. ConnectionsOffset missing.");
+                return false;
+            }
 
             RoadSplineHeader data;
             data.NumPoints = object.Get<i32>("NumPoints");
@@ -572,6 +587,6 @@ bool WriteZoneObjectProperty(BinaryWriter& writer, ObjectHandle object, std::str
 				return propType.Writer(writer, object, propName);
 			}
 
-	Log->warn("Failed to import zone object property. Name: {}", propertyName);
+	Log->warn("Failed to write zone object property '{}'. None of the property writers support this property.", propertyName);
 	return false;
 }

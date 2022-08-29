@@ -43,7 +43,9 @@ private:
     void CopyScriptxReference(ObjectHandle object);
     void RemoveWorldAnchors(ObjectHandle object);
     void RemoveDynamicLinks(ObjectHandle object);
-    u32 GetNewObjectHandle(); //Get unused object handle for a new object
+    void AddGenericObject(GuiState* state);
+    u32 GetNewObjectHandle(); //Get unused object handle for a new object. Returns 0xFFFFFFFF if it fails.
+    u32 GetNewObjectNum(); //Get unused object num for a new object. Returns 0xFFFFFFFF if it fails.
 
     //Outliner functions
     void Outliner_DrawFilters(GuiState* state);
@@ -94,6 +96,9 @@ private:
     
     bool updateDebugDraw_ = true;
     GuiState* state_ = nullptr;
+
+    //Debug draw & editor settings
+    bool drawSecondaryBbox_ = false;
 
     //Export thread data
     Handle<Task> exportTask_ = nullptr;

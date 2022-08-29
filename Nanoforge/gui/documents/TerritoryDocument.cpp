@@ -18,6 +18,7 @@
 #include "common/filesystem/File.h"
 #include "rfg/PackfileVFS.h"
 #include <RfgTools++/hashes/HashGuesser.h>
+#include <RfgTools++/hashes/Hash.h>
 #include <RfgTools++/formats/packfiles/Packfile3.h>
 #include <WinUser.h>
 #include <imgui_internal.h>
@@ -299,6 +300,12 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
 
             //    ImGui::EndMenu();
             //}
+            if (ImGui::MenuItem("Add generic object", nullptr))
+            {
+                AddGenericObject(state);
+            }
+            gui::HelpMarker("Creates a dummy object that you can turn into any object type. Improperly configured objects can crash the game, so use at your own risk.", nullptr);
+
             if (ImGui::MenuItem("Delete", "Delete", nullptr, canDelete))
             {
                 DeleteObject(selectedObject_);
@@ -693,6 +700,16 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
             bool selected = (object == selectedObject_);
             if (selected)
             {
+                //Show secondary bbox instead if T key is held down or option is checked in bbox header. If the checkbox is toggled T is used to toggle the primary bbox instead.
+                if (ImGui::IsKeyDown(0x54) != drawSecondaryBbox_)
+                {
+                    if (object.Has("BBmin") && object.Has("BBmax"))
+                    {
+                        bmin = object.Get<Vec3>("BBmin");
+                        bmax = object.Get<Vec3>("BBmax");
+                    }
+                }
+
                 //Calculate color that changes with time
                 Vec3 color = objectClass.Color;
                 f32 colorMagnitude = objectClass.Color.Magnitude();
@@ -739,7 +756,7 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                     f32 lineLength = orientLineScale * std::max({ size.x, size.y, size.z }); //Make lines equal length, as long as the widest side of the bbox
 
                     Mat3 orient = object.Get<Mat3>("Orient");
-                    Vec3 center = bmin + (size / 2.0f);
+                    Vec3 center = object.Get<Vec3>("Position");//bmin + (size / 2.0f);
                     Scene->DrawLine(center, center + (orient.rvec * lineLength), { 1.0f, 0.0f, 0.0f }); //Right
                     Scene->DrawLine(center, center + (orient.uvec * lineLength), { 0.0f, 1.0f, 0.0f }); //Up
                     Scene->DrawLine(center, center + (orient.fvec * lineLength), { 0.0f, 0.0f, 1.0f }); //Forward
@@ -921,6 +938,7 @@ void TerritoryDocument::CloneObject(ObjectHandle object)
 {
     //Don't bother creating a new object if there isn't an unused handle available.
     u32 newHandle = GetNewObjectHandle();
+    u32 newNum = GetNewObjectNum();
     if (newHandle == 0xFFFFFFFF)
     {
         LOG_ERROR("Failed to clone object {}. Couldn't find unused object handle. Please report this to a developer. This shouldn't really ever happen.", object.UID());
@@ -955,6 +973,7 @@ void TerritoryDocument::CloneObject(ObjectHandle object)
         COPY_PROPERTY(BufferHandle);
     }
     newObject.Set<u32>("Handle", newHandle);
+    newObject.Set<u32>("Num", newNum);
 
     ObjectHandle zone = newObject.Get<ObjectHandle>("Zone");
     zone.GetObjectList("Objects").push_back(newObject);
@@ -1010,6 +1029,63 @@ void TerritoryDocument::RemoveDynamicLinks(ObjectHandle object)
     removeDynamicLinkPopupHandle_ = object;
 }
 
+void TerritoryDocument::AddGenericObject(GuiState* state)
+{
+    Registry& registry = Registry::Get();
+    std::string_view classname = "object_dummy";
+    u32 classnameHash = Hash::HashVolition(classname);
+    u32 handle = GetNewObjectHandle();
+    u32 num = GetNewObjectNum();
+    bool persistent = true;
+    u16 flags = 65280;
+    if (persistent)
+        flags |= 1;
+
+    Vec3 bmin = { 0.0f, 0.0f, 0.0f };
+    Vec3 bmax = { 10.0f, 10.0f, 10.0f };
+    Vec3 position = bmin + ((bmax - bmin) / 2.0f);
+
+    if (classnameHash != 2671133140)
+    {
+        ShowMessageBox("Failed to calculate object_dummy classname hash. Someone broke the hashing function... Contact a Nanoforge developer.", "Invalid classname hash");
+        return;
+    }
+    if (handle == 0xFFFFFFFF)
+    {
+        ShowMessageBox("Failed to create generic object. Couldn't find an unused object handle. Contact a Nanoforge developer.", "No unused handles");
+        return;
+    }
+
+    ObjectHandle newObj = registry.CreateObject("", classname);
+    newObj.Set<u32>("ClassnameHash", classnameHash);
+    newObj.Set<u32>("Handle", handle);
+    newObj.Set<u32>("Num", num);
+    newObj.Set<Vec3>("Bmin", bmin);
+    newObj.Set<Vec3>("Bmax", bmax);
+    newObj.Set<u16>("Flags", flags); //TODO: Find good default with non persistence
+    newObj.Set<u16>("BlockSize", 0); //This gets recalculated on export so we just set it to 0
+    newObj.Set<u32>("ParentHandle", 0xFFFFFFFF);
+    newObj.Set<u32>("SiblingHandle", 0xFFFFFFFF);
+    newObj.Set<u32>("ChildHandle", 0xFFFFFFFF);
+    newObj.Set<u16>("NumProps", 0); //Also re-calculated on export
+    newObj.Set<u16>("PropBlockSize", 0); //^^^
+    newObj.Set<ObjectHandle>("Parent", NullObjectHandle);
+    newObj.Set<ObjectHandle>("Sibling", NullObjectHandle);
+    newObj.Set<bool>("Persistent", persistent);
+    newObj.SetStringList("RfgPropertyNames", { "op" });
+
+    //Add properties that all object types have
+    newObj.Set<Vec3>("Position", position);
+    newObj.Set<Mat3>("Orient", {});
+
+    //Set zone + add object to zones object list
+    ObjectHandle zone = Territory.Zones[0];
+    newObj.Set<ObjectHandle>("Zone", zone);
+    zone.AppendObjectList("Objects", newObj);
+    selectedObject_ = newObj;
+    UnsavedChanges = true;
+}
+
 u32 TerritoryDocument::GetNewObjectHandle()
 {
     //Give new object a unique handle
@@ -1033,6 +1109,31 @@ u32 TerritoryDocument::GetNewObjectHandle()
     //TODO: See if we can start at 0 instead. All vanilla game handles are very large but they might've be generated them with a hash or something
     //TODO: See if we can discard handle + num completely and regenerate them on export. One problem is that changes to one zone might require regenerating all zones on the SP map (assuming there's cross zone object relations)
     return largestHandle + 1;
+}
+
+u32 TerritoryDocument::GetNewObjectNum()
+{
+    //Give new object a unique handle
+    u32 largestNum = 0;
+    for (ObjectHandle zone : Territory.Object.GetObjectList("Zones"))
+    {
+        for (ObjectHandle obj : zone.GetObjectList("Objects"))
+        {
+            if (obj.Get<u32>("Num") > largestNum)
+                largestNum = obj.Get<u32>("Num");
+        }
+    }
+
+    //Error if handle is out of valid range
+    if (largestNum >= std::numeric_limits<u32>::max() - 1)
+    {
+        LOG_ERROR("Failed to find unused object handle. Returning 0xFFFFFFFF.");
+        return 0xFFFFFFFF;
+    }
+
+    //TODO: See if we can start at 0 instead
+    //TODO: See if we can discard handle + num completely and regenerate them on export. One problem is that changes to one zone might require regenerating all zones on the SP map (assuming there's cross zone object relations)
+    return largestNum + 1;
 }
 
 void TerritoryDocument::Outliner(GuiState* state)
@@ -1118,23 +1219,86 @@ void TerritoryDocument::Inspector(GuiState* state)
 
     string name = selectedObject_.Property("Name").Get<string>();
     if (name == "")
-        name = selectedObject_.Property("Type").Get<string>();
+        name = "Unnamed";// selectedObject_.Property("Type").Get<string>();
 
     //Name
+    static bool editingName = false;
+    static string nameEditStr = "";
     state->FontManager->FontMedium.Push();
-    ImGui::Text(name);
+    if (editingName)
+    {
+        auto applyEdit = [&]()
+        {
+            selectedObject_.Set<string>("Name", nameEditStr);
+            editingName = false;
+            UnsavedChanges = true;
+        };
+        if (ImGui::InputText("##ObjectNameEdit", &nameEditStr, ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            applyEdit();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Save"))
+        {
+            applyEdit();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+        {
+            editingName = false;
+        }
+    }
+    else
+    {
+        ImGui::Text(name);
+        ImGui::SameLine();
+        if (ImGui::Button("Edit name"))
+        {
+            editingName = true;
+            nameEditStr = selectedObject_.Get<string>("Name");
+        }
+    }
     state->FontManager->FontMedium.Pop();
 
-    //Type
-    ImGui::PushStyleColor(ImGuiCol_Text, gui::SecondaryTextColor);
-    ImGui::Text(selectedObject_.Property("Type").Get<string>());
-    ImGui::PopStyleColor();
+    //Object class selector
+    static string objectClassSelectorSearch = "";
+    string objectClassname = selectedObject_.Get<string>("Type");
+    if (ImGui::BeginCombo("##ClassnameCombo", objectClassname.c_str()))
+    {
+        //Search bar
+        ImGui::InputText("Search", &objectClassSelectorSearch);
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_VS_CHROME_CLOSE))
+        {
+            objectClassSelectorSearch = "";
+        }
+        ImGui::Separator();
+
+        //Entries
+        for (ZoneObjectClass& objectClass : Territory.ZoneObjectClasses)
+        {
+            if (objectClass.Name == "unknown")
+                continue;
+            if (objectClassSelectorSearch != "" && !String::Contains(String::ToLower(objectClass.Name), String::ToLower(objectClassSelectorSearch)))
+                continue;
+
+            bool selected = (objectClass.Name == objectClassname);
+            if (ImGui::Selectable(objectClass.Name.c_str(), selected))
+            {
+                //Set new object class. Must update relevant properties in registry object
+                selectedObject_.Set<u32>("ClassnameHash", objectClass.Hash);
+                selectedObject_.Set<string>("Type", objectClass.Name);
+                UnsavedChanges = true;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
 
     //Handle, num
     u32 handle = selectedObject_.Property("Handle").Get<u32>();
     u32 num = selectedObject_.Property("Num").Get<u32>();
-    ImGui::SameLine();
-    ImGui::Text(fmt::format(", {}, {}", handle, num).c_str());
+    ImGui::Text(fmt::format("{}, {}", handle, num).c_str());
     ImGui::Separator();
 
     //Relative objects
@@ -1150,14 +1314,86 @@ void TerritoryDocument::Inspector(GuiState* state)
     if (ImGui::CollapsingHeader("Bounding box"))
     {
         ImGui::Indent(15.0f);
-        if (Inspector_DrawVec3Editor(selectedObject_.Property("Bmin"))) UnsavedChanges = true;
-        if (Inspector_DrawVec3Editor(selectedObject_.Property("Bmax"))) UnsavedChanges = true;
-        if (selectedObject_.Has("BBmin"))
-            if (Inspector_DrawVec3Editor(selectedObject_.Property("BBmin")))
+        ImGui::Checkbox("Draw secondary bbox", &drawSecondaryBbox_);
+        gui::TooltipOnPrevious("When checked the secondary bbox (BBmin and BBmax) will be drawn instead of the primary. You can also hold the `T` key to temporarily show the secondary bbox. While this is checked the `T` key will shown the primary bbox instead.");
+
+        /* Primary BBox - Objects are required to have this */
+        if (ImGui::Button("Center on position"))
+        {
+            Vec3 bboxSize = selectedObject_.Get<Vec3>("Bmax") - selectedObject_.Get<Vec3>("Bmin");
+            Vec3 newBmin = selectedObject_.Get<Vec3>("Position") - (bboxSize / 2.0f);
+            Vec3 newBmax = selectedObject_.Get<Vec3>("Position") + (bboxSize / 2.0f);
+            selectedObject_.Set<Vec3>("Bmin", newBmin);
+            selectedObject_.Set<Vec3>("Bmax", newBmax);
+            UnsavedChanges = true;
+        }
+        gui::TooltipOnPrevious("Move the primary bbox so that its center is at the object position");
+        if (selectedObject_.Has("BBmin") && selectedObject_.Has("BBmax")) //Calculate Bmin & Bmax from the secondary bbox
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("Calculate##CalcPrimaryBBox"))
+            {
+                selectedObject_.Set<Vec3>("Bmin", selectedObject_.Get<Vec3>("BBmin") + selectedObject_.Get<Vec3>("Position"));
+                selectedObject_.Set<Vec3>("Bmax", selectedObject_.Get<Vec3>("BBmax") + selectedObject_.Get<Vec3>("Position"));
                 UnsavedChanges = true;
-        if (selectedObject_.Has("BBmax"))
-            if (Inspector_DrawVec3Editor(selectedObject_.Property("BBmax")))
+            }
+            gui::TooltipOnPrevious("Calculate primary bbox from BBmin and BBmax. Equation is `BBprimary = BBsecondary + position`");
+        }
+        if (Inspector_DrawVec3Editor(selectedObject_.Property("Bmin")))
+            UnsavedChanges = true;
+        if (Inspector_DrawVec3Editor(selectedObject_.Property("Bmax")))
+            UnsavedChanges = true;
+
+
+        /* Secondary BBox - Objects aren't required to have this */
+        ImGui::Separator();
+        if (selectedObject_.Has("BBmin") && selectedObject_.Has("BBmax"))
+        {
+            bool removedSecondaryBbox = false;
+            if (ImGui::Button("Remove secondary bbox"))
+            {
+                selectedObject_.Remove("BBmin");
+                selectedObject_.Remove("BBmax");
+
+                //Remove from properties list
+                const auto [first, last] = std::ranges::remove_if(selectedObject_.GetStringList("RfgPropertyNames"), [](string& str) { return str == "bb"; });
+                selectedObject_.GetStringList("RfgPropertyNames").erase(first, last);
                 UnsavedChanges = true;
+                removedSecondaryBbox = true;
+            }
+
+            if (!removedSecondaryBbox)
+            {
+                //Calculate BBMin & BBmax from the primary bbox
+                ImGui::SameLine();
+                if (ImGui::Button("Calculate##CalcSecondaryBBox"))
+                {
+                    selectedObject_.Set<Vec3>("BBmin", selectedObject_.Get<Vec3>("Bmin") - selectedObject_.Get<Vec3>("Position"));
+                    selectedObject_.Set<Vec3>("BBmax", selectedObject_.Get<Vec3>("Bmax") - selectedObject_.Get<Vec3>("Position"));
+                    UnsavedChanges = true;
+                }
+                gui::TooltipOnPrevious("Calculate secondary bbox from Bmin and Bmax. Equation is `BBsecondary = BBprimary - position`");
+
+                //Bbox editor
+                if (Inspector_DrawVec3Editor(selectedObject_.Property("BBmin")))
+                    UnsavedChanges = true;
+                if (Inspector_DrawVec3Editor(selectedObject_.Property("BBmax")))
+                    UnsavedChanges = true;
+            }
+        }
+        else //Doesn't have a secondary bbox (BBmin and BBmax)
+        {
+            if (ImGui::Button("Add secondary bbox"))
+            {
+                selectedObject_.Set<Vec3>("BBmin", selectedObject_.Get<Vec3>("Bmin") - selectedObject_.Get<Vec3>("Position"));
+                selectedObject_.Set<Vec3>("BBmax", selectedObject_.Get<Vec3>("Bmax") - selectedObject_.Get<Vec3>("Position"));
+                if (std::ranges::count_if(selectedObject_.GetStringList("RfgPropertyNames"), [](string& str) { return str == "bb"; }) == 0)
+                {
+                    selectedObject_.AppendStringList("RfgPropertyNames", "bb");
+                }
+                UnsavedChanges = true;
+            }
+        }
 
         ImGui::Unindent(15.0f);
     }
@@ -1171,9 +1407,18 @@ void TerritoryDocument::Inspector(GuiState* state)
         else
             flags &= ~1; //Disable persistent flag bit
 
+        selectedObject_.Set<u16>("Flags", flags);
         UnsavedChanges = true;
     }
-    if (Inspector_DrawStringEditor(selectedObject_.Property("Name"))) UnsavedChanges = true;
+    u16 flags = selectedObject_.Get<u16>("Flags");
+    if (ImGui::InputScalar("Flags", ImGuiDataType_U16, &flags))
+    {
+        selectedObject_.Set<u16>("Flags", flags);
+        bool persistent = (flags & 1) != 0;
+        selectedObject_.Set<bool>("Persistent", persistent);
+        UnsavedChanges = true;
+    }
+    //if (Inspector_DrawStringEditor(selectedObject_.Property("Name"))) UnsavedChanges = true; //Disabled for now since this is also shown + editable at top of inspector
 
     Vec3 initialPos = selectedObject_.Get<Vec3>("Position");
     if (Inspector_DrawVec3Editor(selectedObject_.Property("Position")))
@@ -1184,10 +1429,6 @@ void TerritoryDocument::Inspector(GuiState* state)
             selectedObject_.Set<Vec3>("Bmin", selectedObject_.Get<Vec3>("Bmin") + delta);
         if (selectedObject_.Has("Bmax"))
             selectedObject_.Set<Vec3>("Bmax", selectedObject_.Get<Vec3>("Bmax") + delta);
-        if (selectedObject_.Has("BBmin"))
-            selectedObject_.Set<Vec3>("BBmin", selectedObject_.Get<Vec3>("BBmin") + delta);
-        if (selectedObject_.Has("BBmax"))
-            selectedObject_.Set<Vec3>("BBmax", selectedObject_.Get<Vec3>("BBmax") + delta);
 
         //If object has a chunk mesh update its position
         if (Territory.Chunks.contains(selectedObject_.UID()))
@@ -1214,13 +1455,15 @@ void TerritoryDocument::Inspector(GuiState* state)
     {
         "Handle", "Num", "ClassnameHash", "RfgPropertyNames", "BlockSize", "ParentHandle", "SiblingHandle", "ChildHandle",
         "NumProps", "PropBlockSize", "Type", "Parent", "Child", "Sibling", "Children", "Zone", "Bmin", "Bmax", "BBmin", "BBmax",
-        "Position", "Orient", "Name", "Persistent"
+        "Position", "Orient", "Name", "Persistent", "Flags", "ChunkMesh"
     };
+    string propertyToRemove = "";
     for (PropertyHandle prop : selectedObject_.Properties())
     {
         if (std::ranges::find(HiddenProperties, prop.Name()) != HiddenProperties.end())
             continue; //Skip hidden properties
 
+        bool supportedProperty = true;
         bool propertyEdited = false;
         const f32 indent = 15.0f;
         ImGui::PushID(fmt::format("{}_{}", selectedObject_.UID(), prop.Index()).c_str());
@@ -1232,6 +1475,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 prop.Set<i32>(data);
                 propertyEdited = true;
             }
+            gui::TooltipOnPrevious("int32");
         }
         else if (prop.IsType<u64>())
         {
@@ -1241,6 +1485,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 prop.Set<u64>(data);
                 propertyEdited = true;
             }
+            gui::TooltipOnPrevious("uint64");
         }
         else if (prop.IsType<u32>())
         {
@@ -1250,6 +1495,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 prop.Set<u32>(data);
                 propertyEdited = true;
             }
+            gui::TooltipOnPrevious("uint32");
         }
         else if (prop.IsType<u16>())
         {
@@ -1259,6 +1505,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 prop.Set<u16>(data);
                 propertyEdited = true;
             }
+            gui::TooltipOnPrevious("uint16");
         }
         else if (prop.IsType<u8>())
         {
@@ -1268,6 +1515,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 prop.Set<u8>(data);
                 propertyEdited = true;
             }
+            gui::TooltipOnPrevious("uint8");
         }
         else if (prop.IsType<f32>())
         {
@@ -1277,6 +1525,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 prop.Set<f32>(data);
                 propertyEdited = true;
             }
+            gui::TooltipOnPrevious("float");
         }
         else if (prop.IsType<bool>())
         {
@@ -1346,7 +1595,20 @@ void TerritoryDocument::Inspector(GuiState* state)
         }
         else
         {
+            supportedProperty = false;
             ImGui::TextWrapped(ICON_FA_EXCLAMATION_CIRCLE " Unsupported property type");
+        }
+        if (supportedProperty)
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("X"))//ICON_VS_CHROME_CLOSE))
+            {
+                int messageBoxResult = ShowMessageBox(fmt::format("Are you sure you want to delete the property '{}'", prop.Name()), "Delete property?", MB_YESNO, MB_ICONWARNING);
+                if (messageBoxResult == IDYES)
+                {
+                    propertyToRemove = prop.Name(); //Actually removed outside of the loop to avoid iterator invalidation
+                }
+            }
         }
         ImGui::PopID();
 
@@ -1355,6 +1617,104 @@ void TerritoryDocument::Inspector(GuiState* state)
             updateDebugDraw_ = true; //Update in case value related to debug draw is changed
             UnsavedChanges = true; //Mark file as edited. Puts * on tab + lets you save changes with Ctrl + S
         }
+    }
+
+    if (propertyToRemove != "")
+    {
+        selectedObject_.Remove(propertyToRemove);
+        UnsavedChanges = true;
+    }
+
+    //Add property button
+    ImGui::Separator();
+    state->FontManager->FontMedium.Push();
+    ImGui::Text("Add property:");
+    //ImGui::Separator();
+    state->FontManager->FontMedium.Pop();
+
+    static std::vector<string> types =
+    {
+        "string", "bool", "float", "uint", "vec3", "matrix33" //Only types used by MP properties. There's a few other used by SP but it'll need other changes to support
+    };
+
+    static string newPropName = "";
+    static string newPropType = "uint";
+
+    ImGui::InputText("Name", &newPropName);
+    if (ImGui::BeginCombo("Type", newPropType.c_str()))
+    {
+        for (string& type : types)
+        {
+            bool selected = (type == newPropType);
+            if (ImGui::Selectable(type.c_str(), selected))
+            {
+                newPropType = type;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+    if (ImGui::Button("Add"))
+    {
+        if (String::TrimWhitespace(newPropName) == "")
+        {
+            ShowMessageBox("You must enter a name.", "Name not set", MB_OK, MB_ICONWARNING);
+            return;
+        }
+        if (String::TrimWhitespace(newPropType) == "")
+        {
+            ShowMessageBox("You must choose a type.", "Name not set", MB_OK, MB_ICONWARNING);
+            return;
+        }
+
+        //Ensure property name isn't already in use
+        bool alreadyExists = false;
+        for (PropertyHandle prop : selectedObject_.Properties())
+        {
+            if (prop.Name() == newPropName)
+            {
+                ShowMessageBox(fmt::format("This object already has a property named '{}'", newPropName), "Property already exists", MB_OK);
+                return;
+            }
+        }
+
+        PropertyHandle newProp = selectedObject_.Property(newPropName);
+        if (newPropType == "string")
+        {
+            newProp.Set<string>("");
+        }
+        else if (newPropType == "bool")
+        {
+            newProp.Set<bool>(false);
+        }
+        else if (newPropType == "float")
+        {
+            newProp.Set<f32>(0.0f);
+        }
+        else if (newPropType == "uint")
+        {
+            newProp.Set<u32>(0);
+        }
+        else if (newPropType == "vec3")
+        {
+            newProp.Set<Vec3>({});
+        }
+        else if (newPropType == "matrix33")
+        {
+            newProp.Set<Mat3>({});
+        }
+
+        //Add property to RfgPropertyNames list if it isn't already in there
+        if (std::ranges::count_if(selectedObject_.GetStringList("RfgPropertyNames"), [&](const string& str) { return str == newPropName; }) == 0)
+        {
+            selectedObject_.AppendStringList("RfgPropertyNames", newPropName);
+        }
+        else
+        {
+            Log->warn("Didn't add {} to RfgPropertyNames. Already in the list.", newPropName);
+        }
+        UnsavedChanges = true;
+        newPropName = ""; //Reset afterwards
     }
 }
 
@@ -1376,6 +1736,7 @@ bool TerritoryDocument::Inspector_DrawObjectHandleEditor(PropertyHandle prop)
         uid = std::to_string(handle.UID());
 
     gui::LabelAndValue(prop.Name() + ":", fmt::format("Object({}{})", name, uid));
+    gui::TooltipOnPrevious("ObjectHandle");
     return false; //Editing not yet supported by this type so it always returns false
 }
 
@@ -1383,6 +1744,7 @@ bool TerritoryDocument::Inspector_DrawObjectHandleListEditor(PropertyHandle prop
 {
     const f32 indent = 15.0f;
     ImGui::Text(prop.Name() + ":");
+    gui::TooltipOnPrevious("ObjectHandle list");
     ImGui::Indent(indent);
 
     std::vector<ObjectHandle> handles = prop.Get<std::vector<ObjectHandle>>();
@@ -1427,6 +1789,7 @@ bool TerritoryDocument::Inspector_DrawVec3Editor(PropertyHandle prop)
         prop.Set<Vec3>(data);
         edited = true; //Update in case value related to debug draw is changed
     }
+    gui::TooltipOnPrevious("vec3");
 
     return edited;
 }
@@ -1435,6 +1798,7 @@ bool TerritoryDocument::Inspector_DrawMat3Editor(PropertyHandle prop)
 {
     bool edited = false;
     ImGui::Text(prop.Name() + ":");
+    gui::TooltipOnPrevious("matrix33");
     ImGui::Indent(15.0f);
 
     Mat3 data = prop.Get<Mat3>();
@@ -1467,6 +1831,7 @@ bool TerritoryDocument::Inspector_DrawStringEditor(PropertyHandle prop)
         prop.Set<string>(data);
         edited = true;
     }
+    gui::TooltipOnPrevious("string");
     return edited;
 }
 
@@ -1479,6 +1844,7 @@ bool TerritoryDocument::Inspector_DrawBoolEditor(PropertyHandle prop)
         prop.Set<bool>(data);
         edited = true;
     }
+    gui::TooltipOnPrevious("bool");
     
     return edited;
 }
@@ -1618,6 +1984,7 @@ bool TerritoryDocument::ExportMap(GuiState* state, const string& exportPath)
 
     exportPercentage_ += percentagePerStep;
     exportStatus_ = "Done!";
+    return true;
 }
 
 constexpr u32 RFG_PATCHFILE_SIGNATURE = 1330528590; //Equals ASCII string "NANO"

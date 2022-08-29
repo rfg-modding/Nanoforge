@@ -183,8 +183,8 @@ public:
     {
         if (parentUID != NullUID)
             Property("ParentUID").Value = parentUID;
-        if (name != "")
-            Property("Name").Value = string(name);
+
+        Property("Name").Value = string(name);
     }
 };
 

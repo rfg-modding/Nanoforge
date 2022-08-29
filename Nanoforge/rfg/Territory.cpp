@@ -363,7 +363,8 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
             });
         if (destroyableSearch == destroyables.end())
         {
-            LOG_ERROR("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
+            //LOG_ERROR("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
+            Log->warn("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
             continue;
         }
         ObjectHandle destroyable = *destroyableSearch;

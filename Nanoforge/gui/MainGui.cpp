@@ -252,7 +252,9 @@ void MainGui::Update()
 
                     doc->UnsavedChanges = false;
                 }
+                State.SetStatus("Saving project...", GuiStatus::Working);
                 State.CurrentProject->Save();
+                State.ClearStatus();
                 ImGui::CloseCurrentPopup();
             }
 
@@ -361,9 +363,11 @@ void MainGui::SaveFocusedDocument()
     if (!State.CurrentProject->Loaded() || !currentDocument_ || !currentDocument_->UnsavedChanges)
         return;
 
+    State.SetStatus("Saving project...", GuiStatus::Working);
     currentDocument_->Save(&State);
     currentDocument_->UnsavedChanges = false;
     State.CurrentProject->Save();
+    State.ClearStatus();
 }
 
 void MainGui::AddMenuItem(std::string_view menuPos, bool open, Handle<IGuiPanel> panel)
@@ -415,7 +419,9 @@ void MainGui::DrawMainMenuBar()
             }
             if (ImGui::MenuItem("Save project", nullptr, false, State.CurrentProject->Loaded()))
             {
+                State.SetStatus("Saving project...", GuiStatus::Working);
                 State.CurrentProject->Save();
+                State.ClearStatus();
             }
             if (ImGui::MenuItem("Close project", nullptr, false, State.CurrentProject->Loaded()))
             {

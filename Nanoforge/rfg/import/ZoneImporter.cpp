@@ -132,7 +132,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
         j++;
     }
 
-    //Mark persistent objects by finding match objects in persistent file (same zone filename with the p_ prefix)
+    //Mark persistent objects by finding matching objects in persistent file (same zone filename with the p_ prefix)
     {
         current = persistentZoneFile.Objects;
         while (current)

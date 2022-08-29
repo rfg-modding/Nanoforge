@@ -51,9 +51,9 @@ std::optional<string> SaveFile(const char* filter)
 		return {};
 }
 
-int ShowMessageBox(const string& text, const string& caption, u32 type)
+int ShowMessageBox(const string& text, const string& caption, u32 type, u32 icon)
 {
-	return MessageBoxA(hwnd, text.c_str(), caption.c_str(), type);
+	return MessageBoxA(hwnd, text.c_str(), caption.c_str(), type | icon);
 }
 
 //WinToast requires a handler. Currently does nothing since no special behavior is needed.
