@@ -19,8 +19,12 @@ class Project
 {
 public:
     Project();
+    //Starts the load thread. Returns false immediately if the load thread is already running
     bool Load(std::string_view projectFilePath);
+    void LoadThread(string projectFilePath);
+    //Starts the save thread. Returns false immediately if the save thread is already running
     bool Save();
+    void SaveThread();
     void Close();
     void PackageMod(std::string outputPath, PackfileVFS* vfs, XtblManager* xtblManager);
     string GetCachePath();
@@ -57,6 +61,18 @@ public:
     string WorkerState;
     f32 WorkerPercentage = 0.0f;
     Handle<Task> PackageModTask;
+
+    //Threaded saving
+    Handle<Task> SaveProjectTask;
+    bool Saving = false;
+    f32 SaveThreadPercentage = 0.0f;
+    string SaveThreadState;
+
+    //Threaded loading
+    Handle<Task> LoadProjectTask;
+    bool Loading = false;
+    f32 LoadThreadPercentage = 0.0f;
+    string LoadThreadState;
 
 private:
     bool LoadProjectFile(std::string_view projectFilePath);

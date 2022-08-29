@@ -252,9 +252,7 @@ void MainGui::Update()
 
                     doc->UnsavedChanges = false;
                 }
-                State.SetStatus("Saving project...", GuiStatus::Working);
-                State.CurrentProject->Save();
-                State.ClearStatus();
+                SaveAll();
                 ImGui::CloseCurrentPopup();
             }
 
@@ -323,7 +321,6 @@ void MainGui::Update()
     {
         if (std::filesystem::exists(openRecentProjectRequestData_))
         {
-            Registry::Get().Reset(); //Discard any data from previous project
             State.CurrentProject->Load(openRecentProjectRequestData_);
             State.Xtbls->ReloadXtbls();
         }
@@ -356,18 +353,18 @@ void MainGui::Update()
             ImGui::EndPopup();
         }
     }
+
+    DrawProjectSaveLoadDialogs();
 }
 
 void MainGui::SaveFocusedDocument()
 {
-    if (!State.CurrentProject->Loaded() || !currentDocument_ || !currentDocument_->UnsavedChanges)
+    if (!State.CurrentProject->Loaded() || !currentDocument_ || !currentDocument_->UnsavedChanges || State.CurrentProject->Saving)
         return;
 
-    State.SetStatus("Saving project...", GuiStatus::Working);
     currentDocument_->Save(&State);
     currentDocument_->UnsavedChanges = false;
     State.CurrentProject->Save();
-    State.ClearStatus();
 }
 
 void MainGui::AddMenuItem(std::string_view menuPos, bool open, Handle<IGuiPanel> panel)
@@ -417,13 +414,11 @@ void MainGui::DrawMainMenuBar()
 
                 openProjectRequested_ = true;
             }
-            if (ImGui::MenuItem("Save project", nullptr, false, State.CurrentProject->Loaded()))
+            if (ImGui::MenuItem("Save project", nullptr, false, State.CurrentProject->Loaded() && !State.CurrentProject->Saving))
             {
-                State.SetStatus("Saving project...", GuiStatus::Working);
-                State.CurrentProject->Save();
-                State.ClearStatus();
+                SaveAll();
             }
-            if (ImGui::MenuItem("Close project", nullptr, false, State.CurrentProject->Loaded()))
+            if (ImGui::MenuItem("Close project", nullptr, false, State.CurrentProject->Loaded() && !State.CurrentProject->Saving))
             {
                 //Close all documents so save confirmation modal appears for them
                 for (auto& doc : State.Documents)
@@ -919,4 +914,62 @@ void MainGui::DrawOutlinerAndInspector()
 
         ImGui::End();
     }
+}
+
+void MainGui::DrawProjectSaveLoadDialogs()
+{
+    if (!State.CurrentProject)
+        return;
+
+    f32 progressBarWidth = 400.0f;
+    State.FontManager->FontMedium.Push();
+
+    //Save/load progress dialogs. Shows progress + blocks access to the rest of the GUI
+    //const char* saveDialogName = "Saving project";
+    string saveDialogName = fmt::format("Saving {}", State.CurrentProject->Name);
+    if (State.CurrentProject->Loaded() && State.CurrentProject->Saving)
+    {
+        ImGui::OpenPopup(saveDialogName);
+        if (ImGui::BeginPopupModal(saveDialogName, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text(State.CurrentProject->SaveThreadState.c_str());
+            ImGui::ProgressBar(State.CurrentProject->SaveThreadPercentage, { progressBarWidth, 0.0f });
+            ImGui::EndPopup();
+        }
+    }
+
+    //const char* loadDialogName = "Loading project";
+    string loadDialogName = fmt::format("Loading {}", State.CurrentProject->Name);
+    if (State.CurrentProject->Loading)
+    {
+        ImGui::OpenPopup(loadDialogName);
+        if (ImGui::BeginPopupModal(loadDialogName, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text(State.CurrentProject->LoadThreadState.c_str());
+            ImGui::ProgressBar(State.CurrentProject->LoadThreadPercentage, { progressBarWidth, 0.0f });
+            ImGui::EndPopup();
+        }
+    }
+    State.FontManager->FontMedium.Pop();
+}
+
+void MainGui::SaveAll()
+{
+    if (!State.CurrentProject || !State.CurrentProject->Loaded())
+    {
+        Log->warn("MainGui::SaveAll() failed. No project is loaded.");
+        return;
+    }
+    if (State.CurrentProject->Saving || State.CurrentProject->Loading)
+        return; //Already saving/loading
+
+    for (Handle<IDocument> doc : State.Documents)
+    {
+        if (doc->UnsavedChanges)
+        {
+            doc->Save(&State);
+            doc->UnsavedChanges = false;
+        }
+    }
+    State.CurrentProject->Save();
 }

@@ -220,7 +220,6 @@ bool TryOpenProject(Project* project)
     if (!foundPath)
         recentProjects.insert(recentProjects.begin(), newPath);
 
-    Registry::Get().Reset(); //Discard any data from previous project
     Config::Get()->Save();
     project->Load(newPath);
     return true;

@@ -30,6 +30,8 @@ public:
     void SetPanelVisibility(const std::string& title, bool visible);
     //Try to close application window. Asks the user if they want to save any unsaved documents first.
     void RequestAppClose();
+    //Save project and all open documents
+    void SaveAll();
 
     GuiState State; //Global gui state provided to each panel and document
     f32 mainMenuHeight = 8.0f;
@@ -43,6 +45,7 @@ private:
     void GenerateMenus();
     MenuItem* GetMenu(std::string_view text);
     void DrawOutlinerAndInspector();
+    void DrawProjectSaveLoadDialogs();
 
     std::vector<Handle<IGuiPanel>> panels_ = {};
     std::vector<MenuItem> menuItems_ = {}; //Main menu bar items

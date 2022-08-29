@@ -77,15 +77,30 @@ void StartPanel::Update(GuiState* state, bool* open)
     }
     if (openRecentProjectRequested_ && numUnsavedDocs == 0)
     {
+        static bool saveStarted = false;
         if (std::filesystem::exists(openRecentProjectRequestData_))
         {
-            if (state->CurrentProject->Loaded())
+            //Start save if a project is already loaded
+            if (state->CurrentProject->Loaded() && !saveStarted)
+            {
                 state->CurrentProject->Save();
-            Registry::Get().Reset(); //Discard any data from previous project
-            state->CurrentProject->Load(openRecentProjectRequestData_);
-            state->Xtbls->ReloadXtbls();
+                saveStarted = true;
+            }
+
+            if (!(saveStarted && state->CurrentProject->Saving))
+            {
+                //Once done saving the old project start loading the next one. Can't do this immediately since saving and loading are now threaded
+                state->CurrentProject->Load(openRecentProjectRequestData_);
+                state->Xtbls->ReloadXtbls();
+                openRecentProjectRequested_ = false;
+                saveStarted = false; //Reset so next project we open triggers the existing one to save again
+            }
         }
-        openRecentProjectRequested_ = false;
+        else
+        {
+            openRecentProjectRequested_ = false;
+            saveStarted = false;
+        }
     }
 
     ImGui::Separator();

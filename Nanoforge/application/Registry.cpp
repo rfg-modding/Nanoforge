@@ -340,7 +340,7 @@ BufferHandle Registry::LoadBuffer(const std::vector<std::string_view>& lines, si
     return CreateBufferInternal(uid, name, size);
 }
 
-bool Registry::Load(const string& inFolderPath)
+bool Registry::Load(const string& inFolderPath, f32& loadPercentage, string& loadState)
 {
     _ready = false;
 #ifdef DEBUG_BUILD
@@ -358,15 +358,22 @@ bool Registry::Load(const string& inFolderPath)
     if (!std::filesystem::exists(registryFilePath))
         return true;
 
+    loadState = "Reading .registry file from disk...";
     string fileBuffer = File::ReadToString(registryFilePath);
     std::vector<std::string_view> entries = String::SplitString(fileBuffer, ";"); //Each entry ends with a semicolon
+
+    size_t numSteps = entries.size() + 1; //+1 is for the patching step after parsing all the entries
+    f32 stepSize = 1.0f / (f32)numSteps;
 
     //Load objects
     u64 highestUID = 0;
     u64 highestBufferUID = 0;
     size_t entryLineStart = 0;
+    size_t entryIndex = 0;
     for (std::string_view entryText : entries)
     {
+        loadState = fmt::format("Loading entries {}/{}...", entryIndex, entries.size());
+
         bool parseError = false;
         std::vector<std::string_view> lines = String::SplitString(entryText, "\r\n"); //Get view on each line
         for (size_t i = 0; i < lines.size(); i++)
@@ -439,11 +446,15 @@ bool Registry::Load(const string& inFolderPath)
         }
         if (!parseError)
             entryLineStart += lines.size();
+
+        entryIndex++;
+        loadPercentage += stepSize;
     }
     _nextUID = highestUID + 1;
     _nextBufferUID = highestBufferUID + 1;
 
     //Patch ObjectHandle internal pointers
+    loadState = "Patching object handles...";
     auto patchObjectHandle = [](ObjectHandle& handle)
     {
         Registry& registry = Registry::Get();
@@ -481,6 +492,9 @@ bool Registry::Load(const string& inFolderPath)
         }
     }
 
+    loadState = "Done loading!";
+    loadPercentage = 1.0f;
+
 #ifdef DEBUG_BUILD
     Log->info("Loading Registry took {}s", timer.ElapsedSecondsPrecise());
 #endif
@@ -488,7 +502,7 @@ bool Registry::Load(const string& inFolderPath)
     return true;
 }
 
-bool Registry::Save(const string& outFolderPath)
+bool Registry::Save(const string& outFolderPath, f32& savePercentage, string& saveState)
 {
 #ifdef DEBUG_BUILD
     Timer timer;
@@ -496,12 +510,18 @@ bool Registry::Save(const string& outFolderPath)
 #endif
     Path::CreatePath(outFolderPath);
 
+    size_t numSteps = _objects.size() + _buffers.size() + _tinyBufferOffsets.size() + 1; //+1 is for writing the actual text file
+    f32 stepSize = 1.0f / (f32)numSteps;
+
     string fileBuffer; //Generate file in memory then write all at once
     fileBuffer.reserve(_objects.size() * 1200); //Rough guess of 1000 characters per buffer in text form. Prevents a bunch of reallocations during generation
 
     //Write objects
+    size_t objectIndex = 0;
     for (auto& kv : _objects)
     {
+        saveState = fmt::format("Saving objects {}/{}...", objectIndex, _objects.size());
+
         Object& object = kv.second;
         fileBuffer += fmt::format("Object({}):\n", object.UID);
 
@@ -626,18 +646,30 @@ bool Registry::Save(const string& outFolderPath)
         }
 
         fileBuffer += ";\n\n"; //End of object + a few empty lines for spacing
+
+        savePercentage += stepSize;
+        objectIndex++;
     }
 
     //Write buffers
+    size_t bufferIndex = 0;
     for (auto& kv : _buffers)
     {
+        saveState = fmt::format("Saving buffers {}/{}...", bufferIndex, _buffers.size());
+
         RegistryBuffer& buffer = kv.second;
         fileBuffer += fmt::format("Buffer({}, \"{}\", {});\n", buffer.UID, buffer.Name, buffer.Size);
+        
+        savePercentage += stepSize;
+        bufferIndex++;
     }
 
     //Write tiny buffer offsets
+    size_t tinyBufferIndex = 0;
     if (_tinyBufferOffsets.size() > 0)
     {
+        saveState = fmt::format("Saving tiny buffers {}/{}...", tinyBufferIndex, _tinyBufferOffsets.size());
+
         fileBuffer += "TinyBufferOffsets(";
         for (auto& kv : _tinyBufferOffsets)
         {
@@ -647,10 +679,17 @@ bool Registry::Save(const string& outFolderPath)
         fileBuffer.pop_back();
         fileBuffer.pop_back();
         fileBuffer += ");\n";
+
+        savePercentage += stepSize;
+        tinyBufferIndex++;
     }
 
+    saveState = "Writing .registry file to disk...";
     string outPath = outFolderPath + "\\Registry.registry";
     File::WriteTextToFile(outPath, fileBuffer);
+
+    saveState = "Done saving!";
+    savePercentage = 1.0f;
 
 #ifdef DEBUG_BUILD
     Log->info("Saving Registry took {}s", timer.ElapsedSecondsPrecise());

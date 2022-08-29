@@ -198,7 +198,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         //Ctrl + S - Save focused document
         if (wParam == 0x53 && GetKeyState(VK_CONTROL) & 0x8000)
         {
-            appInstance->gui_.SaveFocusedDocument();
+            appInstance->gui_.SaveAll();
         }
         return 0;
     case WM_KEYUP:

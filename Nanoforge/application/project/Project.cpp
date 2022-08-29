@@ -19,20 +19,50 @@
 Project::Project()
 {
     PackageModTask = Task::Create("Packaging mod...");
+    SaveProjectTask = Task::Create("Saving project...");
+    LoadProjectTask = Task::Create("Loading project...");
     Registry::Get().Reset();
 }
 
 bool Project::Load(std::string_view projectFilePath)
 {
+    if (Loading)
+        return false;
+
+    Loading = true;
+    TaskScheduler::QueueTask(LoadProjectTask, std::bind(&Project::LoadThread, this, string(projectFilePath)));
+    return true;
+}
+
+void Project::LoadThread(string projectFilePath)
+{
+    LoadThreadPercentage = 0.0f;
+
     Edits.clear();
     Path = Path::GetParentDirectory(projectFilePath);
     ProjectFilename = Path::GetFileName(projectFilePath);
     loaded_ = LoadProjectFile(projectFilePath);
-    return loaded_;
+
+    LoadThreadPercentage = 1.0f;
+    LoadThreadState = "Done!";
+    Loading = false;
 }
 
 bool Project::Save()
 {
+    if (Saving)
+        return false;
+
+    Saving = true;
+    TaskScheduler::QueueTask(SaveProjectTask, std::bind(&Project::SaveThread, this));
+    return true;
+}
+
+void Project::SaveThread()
+{
+    SaveThreadPercentage = 0.0f;
+    SaveThreadState = "Writing .nanoproj file...";
+
     tinyxml2::XMLDocument project;
     auto* projectBlock = project.NewElement("Project");
     auto* name = projectBlock->InsertNewChildElement("Name");
@@ -65,9 +95,16 @@ bool Project::Save()
     project.InsertFirstChild(projectBlock);
     project.SaveFile((Path + "\\" + ProjectFilename).c_str());
 
+    SaveThreadPercentage = 0.0f;
+    SaveThreadState = "Writing .registry file...";
+
     Path::CreatePath(Path + "\\Registry\\");
     Registry& registry = Registry::Get();
-    return registry.Save(Path + "\\Registry\\");
+    registry.Save(Path + "\\Registry\\", SaveThreadPercentage, SaveThreadState);
+
+    SaveThreadPercentage = 1.0f;
+    SaveThreadState = "Done!";
+    Saving = false;
 }
 
 void Project::Close()
@@ -114,6 +151,7 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     if (!std::filesystem::exists(projectFilePath))
         return false;
 
+    LoadThreadState = "Loading .nanoproj file...";
     tinyxml2::XMLDocument project;
     project.LoadFile(string(projectFilePath).c_str()); //Wrapped in string to ensure null termination
 
@@ -164,6 +202,7 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
     }
 
     //Get edits list
+    LoadThreadState = "Loading edits...";
     auto* edit = edits->FirstChildElement("Edit");
     while (edit)
     {
@@ -184,8 +223,9 @@ bool Project::LoadProjectFile(std::string_view projectFilePath)
         edit = edit->NextSiblingElement("Edit");
     }
 
+    LoadThreadState = "Loading registry...";
     Registry& registry = Registry::Get();
-    return registry.Load(Path + "\\Registry\\");
+    return registry.Load(Path + "\\Registry\\", LoadThreadPercentage, LoadThreadState);
 }
 
 void Project::PackageModThread(Handle<Task> task, std::string outputPath, PackfileVFS* vfs, XtblManager* xtblManager)

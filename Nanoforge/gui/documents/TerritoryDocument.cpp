@@ -233,7 +233,6 @@ void TerritoryDocument::Save(GuiState* state)
         LOG_ERROR("Failed to save map! No project open. This shouldn't be possible...");
         return;
     }
-    Registry::Get().Save(state->CurrentProject->Path + "\\Registry\\");
 }
 #pragma warning(default:4100)
 
@@ -570,6 +569,10 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
 void TerritoryDocument::Keybinds(GuiState* state)
 {
     PROFILER_FUNCTION();
+    if (state->CurrentProject && (state->CurrentProject->Loading || state->CurrentProject->Saving))
+    {
+        return;
+    }
 
     ImGuiModFlags keyMods = ImGui::GetMergedModFlags();
     if ((keyMods & ImGuiKeyModFlags_Ctrl) == ImGuiKeyModFlags_Ctrl) //Ctrl down

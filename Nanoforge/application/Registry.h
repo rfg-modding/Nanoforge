@@ -38,9 +38,9 @@ public:
     u64 NumObjects() const;
     bool ObjectExists(u64 uid);
     //Load registry from folder
-    bool Load(const string& inFolderPath);
+    bool Load(const string& inFolderPath, f32& loadPercentage, string& loadState);
     //Save registry to folder
-    bool Save(const string& outFolderPath);
+    bool Save(const string& outFolderPath, f32& savePercentage, string& saveState);
     //Discard all registry data in memory. Any unsaved changes are gone.
     void Reset();
     //Filesystem location the registry is serialized to
