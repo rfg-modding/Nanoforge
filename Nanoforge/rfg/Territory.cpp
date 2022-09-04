@@ -335,7 +335,7 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
         ObjectHandle chunk = obj.IsType<ObjectHandle>("ChunkMesh") ? obj.Get<ObjectHandle>("ChunkMesh") : NullObjectHandle;
         if (!chunk)
         {
-            LOG_ERROR("Failed to load chunk mesh for object {}. ChunkMesh = NullObjectHandle", obj.UID());
+            //LOG_ERROR("Failed to load chunk mesh for object {}. ChunkMesh = NullObjectHandle", obj.UID());
             continue;
         }
 
@@ -343,7 +343,7 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
         std::optional<Mesh> meshLoadResult = LoadRegistryChunkMesh(chunk, scene); //This caches meshes so they only need to get loaded once per territory
         if (!meshLoadResult)
         {
-            LOG_ERROR("Failed to load chunk mesh '{}' for object {}", chunk.Get<string>("Name"), obj.UID());
+            //LOG_ERROR("Failed to load chunk mesh '{}' for object {}", chunk.Get<string>("Name"), obj.UID());
             continue;
         }
         Mesh meshData = meshLoadResult.value();
@@ -364,7 +364,7 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
         if (destroyableSearch == destroyables.end())
         {
             //LOG_ERROR("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
-            Log->warn("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
+            //Log->warn("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
             continue;
         }
         ObjectHandle destroyable = *destroyableSearch;
@@ -394,8 +394,8 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
             renderChunk->Textures[2] = normalTexture;
 
         TerrainLock.lock();
-        if (Chunks.contains(obj.UID()))
-            Log->warn("Chunk loaded twice for obj {}", obj.UID());
+        //if (Chunks.contains(obj.UID()))
+        //    Log->warn("Chunk loaded twice for obj {}", obj.UID());
 
         Chunks[obj.UID()] = renderChunk;
         TerrainLock.unlock();
