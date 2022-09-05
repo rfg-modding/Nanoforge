@@ -49,6 +49,9 @@ public:
     u32 LongestZoneName = 0;
     Timer LoadThreadTimer;
 
+    //Set to true by LoadAsync() after loading is finished if the territory needed to be imported. Only happens once per territory per project
+    bool JustImported = false;
+
 private:
     void LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* state); //Top level loading thread. Imports territory on first load
     void LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, ObjectHandle zone, size_t terrainIndex, GuiState* state); //Loads a single zone and its assets

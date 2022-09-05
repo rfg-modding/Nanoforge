@@ -83,8 +83,9 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         Object = Importers::ImportTerritory(territoryFilename_, state->PackfileVFS, state->TextureSearchIndex, &loadThreadShouldStop_);
         if (Object)
         {
-            if (state->CurrentProject)
-                state->CurrentProject->Save();
+            //if (state->CurrentProject)
+            //    state->CurrentProject->Save();
+            JustImported = true;
         }
         else
         {

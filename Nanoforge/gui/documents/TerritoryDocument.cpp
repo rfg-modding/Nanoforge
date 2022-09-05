@@ -108,6 +108,14 @@ void TerritoryDocument::Update(GuiState* state)
     //Only redraw scene if window is focused
     Scene->NeedsRedraw = ImGui::IsWindowFocused();
 
+    //Used to mark the document as having unsaved changes if Territory::LoadAsync() is called for the first time and does a succesful import. This is mainly so players don't close the project after import without saving and wipe the import
+    static bool handledImport = false;
+    if (Territory.JustImported && TerritoryLoadTask && !TerritoryLoadTask->Running() && !handledImport)
+    {
+        UnsavedChanges = true;
+        handledImport = true;
+    }
+
     //Set current territory to most recently focused territory window
     if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered())
     {
