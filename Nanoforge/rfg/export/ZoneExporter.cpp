@@ -2,6 +2,7 @@
 #include "BinaryTools/BinaryWriter.h"
 #include "common/filesystem/File.h"
 #include <RfgTools++/hashes/Hash.h>
+#include <RfgTools++/formats/zones/ZoneFile.h>
 #include <RfgTools++/formats/zones/ZoneProperties.h>
 #include <vector>
 #include <mutex>
@@ -29,19 +30,19 @@ constexpr u32 RFG_ZONE_VERSION = 36;
 
 bool Exporters::ExportZone(ObjectHandle zone, std::string_view outputPath, bool persistent)
 {
-	static bool firstRun = true;
-	if (firstRun)
-	{
-		ZoneWriterTypesMutex.lock();
-		if (firstRun) //Second check needed in case another thread handled init while this one was waiting for lock
-		{
-			InitZonePropertyWriters();
-			firstRun = false;
-		}
-		ZoneWriterTypesMutex.unlock();
-	}
+    static bool firstRun = true;
+    if (firstRun)
+    {
+        ZoneWriterTypesMutex.lock();
+        if (firstRun) //Second check needed in case another thread handled init while this one was waiting for lock
+        {
+            InitZonePropertyWriters();
+            firstRun = false;
+        }
+        ZoneWriterTypesMutex.unlock();
+    }
 
-    u32 numObjects = 0;
+    std::vector<ObjectHandle> outObjects = {}; //Collect objects that we're writing
     for (ObjectHandle object : zone.GetObjectList("Objects"))
     {
         if (persistent && !object.Get<bool>("Persistent"))
@@ -49,36 +50,58 @@ bool Exporters::ExportZone(ObjectHandle zone, std::string_view outputPath, bool 
         if (object.Has("Deleted") && object.Get<bool>("Deleted"))
             continue;
 
-        numObjects++;
+        outObjects.push_back(object);
     }
 
-	//Write header
-	BinaryWriter writer(outputPath);
-	writer.WriteFixedLengthString("ZONE");
-	writer.WriteUint32(RFG_ZONE_VERSION);
-	writer.WriteUint32(numObjects);
-	writer.WriteUint32(zone.Get<u32>("NumHandles"));
-	writer.WriteUint32(zone.Get<u32>("DistrictHash"));
-	writer.WriteUint32(zone.Get<u32>("DistrictFlags"));
+    //Check if object limit is exceeded. This limit is based on the max object count of the relation data section.
+    //The necessity of that section is still in question, so it may be possible to exceed this. Just playing it safe for now. No zone in the SP map exceeds 3000 objects
+    //TODO: See if this limit can be exceeded. Likely depends on how necessary the relation data hash table is
+    const size_t maxObjects = 7280;//std::numeric_limits<u16>::max();
+    if (outObjects.size() > maxObjects)
+    {
+        LOG_ERROR("Failed to export {}. Zone has {} objects. This exceeds the maximum per zone object limit of {}", zone.Get<string>("Name"), outObjects.size(), maxObjects);
+        return false;
+    }
 
-	//Write relation data
-	const bool hasRelationData = (zone.Get<u32>("DistrictFlags") & 5) == 0;
-	if (hasRelationData)
-	{
-		//Just fill with zeroes for now. Haven't looked into generating this yet. Not even sure if it's needed since some of the vanilla files have random data in this section.
-		writer.WriteNullBytes(87368); //TODO: Determine if this data is actually needed, and if so, figure out how to generate it
-	}
+    //Write header
+    BinaryWriter writer(outputPath);
+    writer.WriteFixedLengthString("ZONE");
+    writer.WriteUint32(RFG_ZONE_VERSION);
+    writer.WriteUint32(outObjects.size());
+    writer.WriteUint32(zone.Get<u32>("NumHandles"));
+    writer.WriteUint32(zone.Get<u32>("DistrictHash"));
+    writer.WriteUint32(zone.Get<u32>("DistrictFlags"));
 
-	//Write objects
-	for (ObjectHandle object : zone.GetObjectList("Objects"))
+    //Write relation data
+    const bool hasRelationData = (zone.Get<u32>("DistrictFlags") & 5) == 0;
+    if (hasRelationData)
+    {
+        //Write nothing initially. Generated after writing every object since we need to object offsets
+        writer.WriteNullBytes(87368);
+    }
+
+    //Write objects
+    std::vector<size_t> objectOffsets = {}; //Offset of each object in bytes relative to the start of object block
+    const size_t objectBlockStart = writer.Position();
+	for (ObjectHandle object : outObjects)
 	{
         if (persistent && !object.Get<bool>("Persistent"))
             continue;
         if (object.Has("Deleted") && object.Get<bool>("Deleted"))
             continue;
 
-        //Store position of object header. We won't have some of this info until after writing the properties so first we write null bytes for the header.
+        //Get object offset + validate
         const size_t objectStartPos = writer.Position();
+        const size_t offset = objectStartPos - objectBlockStart;
+        if (offset > (size_t)std::numeric_limits<u32>::max())
+        {
+            //Just a sanity check. If the zone file got to even half this size (2GB) it'd probably break the game
+            LOG_ERROR("Failed to export {}. Object data exceeded limit of {} bytes", zone.Get<string>("Name"), std::numeric_limits<u32>::max());
+            return false;
+        }
+        objectOffsets.push_back(offset);
+
+        //Write null bytes for object header initially. We won't have its values until after we write the properties
         writer.WriteNullBytes(56);
         size_t numProps = 0;
 
@@ -123,6 +146,53 @@ bool Exporters::ExportZone(ObjectHandle zone, std::string_view outputPath, bool 
         writer.Write<u16>((u16)propBlockSize);
         writer.SeekBeg(objectEndPos); //Jump to end of object data so next object can be written
 	}
+
+    if (hasRelationData)
+    {
+        //u8 Padding0[4];
+        //u16 Free;
+        //u16 Slot[7280];
+        //u16 Next[7280];
+        //u8 Padding1[2];
+        //u32 Keys[7280];
+        //u32 Values[7280];
+
+        auto GetSlotIndex = [](u32 key) -> u32
+        {
+            u32 result = 0;
+            result = ~(key << 15) + key;
+            result = ((u32)((i32)result >> 10) ^ result) * 9;
+            result ^= (u32)((i32)result >> 6);
+            result += ~(result << 11);
+            result = ((u32)((i32)result >> 16) ^ result) % 7280;
+            return result;
+        };
+
+        ZoneFileRelationData hashTable;
+        hashTable.Free = outObjects.size(); //Next free key/value index
+        for (size_t i = 0; i < 7280; i++)
+        {
+            hashTable.Slot[i] = 65535;
+            hashTable.Next[i] = i + 1;
+            hashTable.Keys[i] = 0;
+            hashTable.Values[i] = 0;
+        }
+
+        for (size_t i = 0; i < outObjects.size(); i++)
+        {
+            ObjectHandle object = outObjects[i];
+            u32 key = object.Get<u32>("Handle");
+            u32 value = objectOffsets[i]; //Offset in bytes relative to the start of the object list
+            u32 slotIndex = GetSlotIndex(key);
+            hashTable.Slot[slotIndex] = i; //Note: Slot[slotIndex] doesn't always equal i in the vanilla files. Doesn't seem to be an issue with GetSlotIndex() since the games version of that function returns the same values
+            hashTable.Keys[i] = key;
+            hashTable.Values[i] = value;
+        }
+
+        //Writer hash table to file
+        writer.SeekBeg(sizeof(ZoneFileHeader)); //This section is always right after the header
+        writer.Write<ZoneFileRelationData>(hashTable);
+    }
 
 	return true;
 }
@@ -238,7 +308,7 @@ void InitZonePropertyWriters()
         "Vec3",
         std::vector<std::string_view>
         {
-            "just_pos", "min_clip", "max_clip", "clr_orig"
+            "min_clip", "max_clip", "clr_orig"
         },
         [](BinaryWriter& writer, ObjectHandle object, std::string_view propertyName) -> bool
         {
@@ -320,6 +390,28 @@ void InitZonePropertyWriters()
             writer.Write<u32>(Hash::HashVolitionCRC(propertyName, 0)); //Property name hash
             writer.Write<Vec3>(pos);
             writer.Write<Mat3>(orient);
+            return true;
+        }
+    );
+
+    //Special case for just_pos
+    ZonePropertyWriters.emplace_back
+    (
+        "just_pos",
+        std::vector<std::string_view>
+        {
+            "just_pos"
+        },
+        [](BinaryWriter& writer, ObjectHandle object, std::string_view propertyName) -> bool
+        {
+            if (!object.Has("Position"))
+                return false;
+
+            const Vec3& data = object.Get<Vec3>("Position");
+            writer.Write<u16>(5); //Property type
+            writer.Write<u16>(sizeof(Vec3)); //Property size
+            writer.Write<u32>(Hash::HashVolitionCRC("just_pos", 0)); //Property name hash
+            writer.Write<Vec3>(data);
             return true;
         }
     );
@@ -503,76 +595,78 @@ void InitZonePropertyWriters()
         },
         [](BinaryWriter& writer, ObjectHandle object, std::string_view propertyName) -> bool
         {
-            if (!object.Has("ConstraintType"))
+            if (!object.Has("Constraint"))
                 return false;
 
-            ConstraintTemplate constraint;
-            constraint.Body1Index = object.Get<u32>("Body1Index");
-            constraint.Body1Orient = object.Get<Mat3>("Body1Orient");
-            constraint.Body1Pos = object.Get<Vec3>("Body1Pos");
-            constraint.Body2Index = object.Get<u32>("Body2Index");
-            constraint.Body2Orient = object.Get<Mat3>("Body2Orient");
-            constraint.Body2Pos = object.Get<Vec3>("Body2Pos");
-            constraint.Threshold = object.Get<f32>("Threshold");
+            ObjectHandle constraint = object.Get<ObjectHandle>("Constraint");
 
-            const string constraintType = object.Get<string>("ConstraintType");
+            ConstraintTemplate constraintData;
+            constraintData.Body1Index = constraint.Get<u32>("Body1Index");
+            constraintData.Body1Orient = constraint.Get<Mat3>("Body1Orient");
+            constraintData.Body1Pos = constraint.Get<Vec3>("Body1Pos");
+            constraintData.Body2Index = constraint.Get<u32>("Body2Index");
+            constraintData.Body2Orient = constraint.Get<Mat3>("Body2Orient");
+            constraintData.Body2Pos = constraint.Get<Vec3>("Body2Pos");
+            constraintData.Threshold = constraint.Get<f32>("Threshold");
+
+            const string constraintType = constraint.Get<string>("ConstraintType");
             if (constraintType == "PointConstraint")
             {
-                constraint.Type = ConstraintType::Point;
-                constraint.Data.Point.Type = object.Get<i32>("PointConstraintType");
-                constraint.Data.Point.xLimitMin = object.Get<f32>("xLimitMin");
-                constraint.Data.Point.xLimitMax = object.Get<f32>("xLimitMax");
-                constraint.Data.Point.yLimitMin = object.Get<f32>("yLimitMin");
-                constraint.Data.Point.yLimitMax = object.Get<f32>("yLimitMax");
-                constraint.Data.Point.zLimitMin = object.Get<f32>("zLimitMin");
-                constraint.Data.Point.zLimitMax = object.Get<f32>("zLimitMax");
-                constraint.Data.Point.StiffSpringLength = object.Get<f32>("StiffSpringLength");
+                constraintData.Type = ConstraintType::Point;
+                constraintData.Data.Point.Type = constraint.Get<i32>("PointConstraintType");
+                constraintData.Data.Point.xLimitMin = constraint.Get<f32>("xLimitMin");
+                constraintData.Data.Point.xLimitMax = constraint.Get<f32>("xLimitMax");
+                constraintData.Data.Point.yLimitMin = constraint.Get<f32>("yLimitMin");
+                constraintData.Data.Point.yLimitMax = constraint.Get<f32>("yLimitMax");
+                constraintData.Data.Point.zLimitMin = constraint.Get<f32>("zLimitMin");
+                constraintData.Data.Point.zLimitMax = constraint.Get<f32>("zLimitMax");
+                constraintData.Data.Point.StiffSpringLength = constraint.Get<f32>("StiffSpringLength");
             }
             else if (constraintType == "HingeConstraint")
             {
-                constraint.Type = ConstraintType::Hinge;
-                constraint.Data.Hinge.Limited = object.Get<i32>("Limited");
-                constraint.Data.Hinge.LimitMinAngle = object.Get<f32>("LimitMinAngle");
-                constraint.Data.Hinge.LimitMaxAngle = object.Get<f32>("LimitMaxAngle");
-                constraint.Data.Hinge.LimitFriction = object.Get<f32>("LimitFriction");
+                constraintData.Type = ConstraintType::Hinge;
+                constraintData.Data.Hinge.Limited = constraint.Get<i32>("Limited");
+                constraintData.Data.Hinge.LimitMinAngle = constraint.Get<f32>("LimitMinAngle");
+                constraintData.Data.Hinge.LimitMaxAngle = constraint.Get<f32>("LimitMaxAngle");
+                constraintData.Data.Hinge.LimitFriction = constraint.Get<f32>("LimitFriction");
             }
             else if (constraintType == "PrismaticConstraint")
             {
-                constraint.Type = ConstraintType::Prismatic;
-                constraint.Data.Prismatic.Limited = object.Get<i32>("Limited");
-                constraint.Data.Prismatic.LimitMinAngle = object.Get<f32>("LimitMinAngle");
-                constraint.Data.Prismatic.LimitMaxAngle = object.Get<f32>("LimitMaxAngle");
-                constraint.Data.Prismatic.LimitFriction = object.Get<f32>("LimitFriction");
+                constraintData.Type = ConstraintType::Prismatic;
+                constraintData.Data.Prismatic.Limited = constraint.Get<i32>("Limited");
+                constraintData.Data.Prismatic.LimitMinAngle = constraint.Get<f32>("LimitMinAngle");
+                constraintData.Data.Prismatic.LimitMaxAngle = constraint.Get<f32>("LimitMaxAngle");
+                constraintData.Data.Prismatic.LimitFriction = constraint.Get<f32>("LimitFriction");
             }
             else if (constraintType == "RagdollConstraint")
             {
-                constraint.Type = ConstraintType::Ragdoll;
-                constraint.Data.Ragdoll.TwistMin = object.Get<f32>("TwistMin");
-                constraint.Data.Ragdoll.TwistMax = object.Get<f32>("TwistMax");
-                constraint.Data.Ragdoll.ConeMin = object.Get<f32>("ConeMin");
-                constraint.Data.Ragdoll.ConeMax = object.Get<f32>("ConeMax");
-                constraint.Data.Ragdoll.PlaneMin = object.Get<f32>("PlaneMin");
-                constraint.Data.Ragdoll.PlaneMax = object.Get<f32>("PlaneMax");
+                constraintData.Type = ConstraintType::Ragdoll;
+                constraintData.Data.Ragdoll.TwistMin = constraint.Get<f32>("TwistMin");
+                constraintData.Data.Ragdoll.TwistMax = constraint.Get<f32>("TwistMax");
+                constraintData.Data.Ragdoll.ConeMin = constraint.Get<f32>("ConeMin");
+                constraintData.Data.Ragdoll.ConeMax = constraint.Get<f32>("ConeMax");
+                constraintData.Data.Ragdoll.PlaneMin = constraint.Get<f32>("PlaneMin");
+                constraintData.Data.Ragdoll.PlaneMax = constraint.Get<f32>("PlaneMax");
             }
             else if (constraintType == "MotorConstraint")
             {
-                constraint.Type = ConstraintType::Motor;
-                constraint.Data.Motor.AngularSpeed = object.Get<f32>("AngularSpeed");
-                constraint.Data.Motor.Gain = object.Get<f32>("Gain");
-                constraint.Data.Motor.Axis = object.Get<i32>("Axis");
-                constraint.Data.Motor.AxisInBodySpaceX = object.Get<f32>("AxisInBodySpaceX");
-                constraint.Data.Motor.AxisInBodySpaceY = object.Get<f32>("AxisInBodySpaceY");
-                constraint.Data.Motor.AxisInBodySpaceZ = object.Get<f32>("AxisInBodySpaceZ");
+                constraintData.Type = ConstraintType::Motor;
+                constraintData.Data.Motor.AngularSpeed = constraint.Get<f32>("AngularSpeed");
+                constraintData.Data.Motor.Gain = constraint.Get<f32>("Gain");
+                constraintData.Data.Motor.Axis = constraint.Get<i32>("Axis");
+                constraintData.Data.Motor.AxisInBodySpaceX = constraint.Get<f32>("AxisInBodySpaceX");
+                constraintData.Data.Motor.AxisInBodySpaceY = constraint.Get<f32>("AxisInBodySpaceY");
+                constraintData.Data.Motor.AxisInBodySpaceZ = constraint.Get<f32>("AxisInBodySpaceZ");
             }
             else if (constraintType == "FakeConstraint")
             {
-                constraint.Type = ConstraintType::Fake;
+                constraintData.Type = ConstraintType::Fake;
             }
 
             writer.Write<u16>(5); //Property type
             writer.Write<u16>(sizeof(ConstraintTemplate)); //Property size
             writer.Write<u32>(Hash::HashVolitionCRC(propertyName, 0)); //Property name hash
-            writer.Write<ConstraintTemplate>(constraint);
+            writer.Write<ConstraintTemplate>(constraintData);
             return true;
         }
     );
