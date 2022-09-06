@@ -197,11 +197,14 @@ void StartPanel::DrawRecentProjectsList(GuiState* state)
     ImVec2 windowSize = ImGui::GetWindowSize();
     if (ImGui::BeginChild("##RecentProjectsList"))
     {
+        string pathToRemove = "";
+        int i = 0;
         for (auto& path : recentProjects)
         {
+            ImGui::PushID(i);
             //Draw selectable with no text. Text is manually positioned below this because there doesn't seem to be an easier way to do multi-line selectables
             ImVec2 startPos = ImGui::GetCursorPos();
-            if (ImGui::Selectable(fmt::format("##Selectable{}", Path::GetFileName(path)).c_str(), false, 0, {windowSize.x, ImGui::GetFontSize() * 2.4f}))
+            if (ImGui::Selectable(fmt::format("##Selectable{}", Path::GetFileName(path)).c_str(), false, 0, { windowSize.x, ImGui::GetFontSize() * 2.4f }))
             {
                 //Close all documents so save confirmation modal appears for them
                 for (auto& doc : state->Documents)
@@ -211,6 +214,17 @@ void StartPanel::DrawRecentProjectsList(GuiState* state)
                 openRecentProjectRequestData_ = path;
             }
             ImVec2 endPos = ImGui::GetCursorPos();
+
+            //Right click context menu
+            if (ImGui::BeginPopupContextItem())
+            {
+                if (ImGui::Selectable("Remove from list"))
+                {
+                    pathToRemove = path;
+                }
+
+                ImGui::EndPopup();
+            }
 
             f32 iconIndent = 8.0f;
             ImGui::Indent(iconIndent);
@@ -234,6 +248,15 @@ void StartPanel::DrawRecentProjectsList(GuiState* state)
             ImGui::SetCursorPosY(endPos.y);
 
             ImGui::Unindent(textIndent);
+            ImGui::PopID();
+            i++;
+        }
+
+        //Remove a project if the remove button was pressed
+        if (pathToRemove != "")
+        {
+            recentProjects.erase(std::remove(recentProjects.begin(), recentProjects.end(), pathToRemove), recentProjects.end());
+            Config::Get()->Save();
         }
 
         ImGui::EndChild();

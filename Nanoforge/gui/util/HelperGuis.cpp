@@ -78,7 +78,16 @@ bool DrawNewProjectWindow(bool* open, Project* project)
                 project->ProjectFilename = projectName + ".nanoproj";
                 project->UnsavedChanges = false;
                 Registry::Get().Reset(); //Discard any data from previous project
+
+                //Save project
                 project->Save();
+                size_t saveTime = 0;
+                while (project->Saving && saveTime < 1000)
+                {
+                    saveTime++;
+                    Sleep(1);
+                }
+
                 project->Load(endPath + projectName + ".nanoproj");
                 string newPath = endPath + projectName + ".nanoproj";
 
