@@ -26,7 +26,7 @@
 #include <shellapi.h>
 
 CVar CVar_DisableHighQualityTerrain("Disable high quality terrain", ConfigType::Bool,
-    "If true high lod terrain won't be used in the territory viewer. You must close and re-open any viewers after changing this for it to go into effect.",
+    "If true high lod terrain won't be used in the map editor. You must close and re-open a map after changing this for it to go into effect.",
     ConfigValue(false),
     true,  //ShowInSettings
     false, //IsFolderPath
@@ -40,7 +40,7 @@ CVar CVar_DrawObjectOrientLines("Draw object orientation lines", ConfigType::Boo
     false //IsFilePath
 );
 CVar CVar_DrawChunkMeshes("Draw building meshes", ConfigType::Bool,
-    "Draw building meshes in the map editor",
+    "Load and draw building meshes in the map editor. You must close and re-open a map after changing this for it to go into effect.",
     ConfigValue(true),
     true,  //ShowInSettings
     false, //IsFolderPath
@@ -62,8 +62,9 @@ TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territory
     NoWindowPadding = true;
     HasCustomOutlinerAndInspector = true;
 
-    //Determine if high lod terrain should be used
+    //Determine if high lod terrain and buildings should be loaded. If these are false now you can't reload them without closing a map and re-opening it.
     useHighLodTerrain_ = !CVar_DisableHighQualityTerrain.Get<bool>();
+    bool loadBuildings = CVar_DrawChunkMeshes.Get<bool>();
 
     //Create scene
     Scene = state->Renderer->CreateScene();
@@ -73,7 +74,7 @@ TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territory
     Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2f;
 
     //Start territory loading thread
-    Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname, useHighLodTerrain_);
+    Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname, useHighLodTerrain_, loadBuildings);
     TerritoryLoadTask = Territory.LoadAsync(Scene, state);
     updateDebugDraw_ = true;
 }
@@ -479,10 +480,13 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "No project open. Must have one open to export maps.");
         else if (exportTask_ && (exportTask_->Running() || !exportTask_->Completed()))
             ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Export in progress. Please wait...");
-        else if (string mapName = Territory.Object.Get<string>("Name"); mapName == "zonescript_terr01.vpp_pc" || mapName == "zonescript_dlc01.vpp_pc")
-            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Export only supports MP and WC maps currently.");
+        //else if (string mapName = Territory.Object.Get<string>("Name"); mapName == "zonescript_terr01.vpp_pc" || mapName == "zonescript_dlc01.vpp_pc")
+        //    ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Export only supports MP and WC maps currently.");
         else
         {
+            string mapName = Territory.Object.Get<string>("Name");
+            bool isSPMap = mapName == "zonescript_terr01.vpp_pc" || mapName == "zonescript_dlc01.vpp_pc";
+
             //Select export folder path
             string exportPath = CVar_MapExportPath.Get<string>();
             string initialPath = exportPath;
@@ -499,28 +503,31 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
                 Config::Get()->Save();
 
             //Select original vpp path. Only for binary patch generation
-            string originalVppPath = originalVppPath_;
-            string initialOriginalVppPath = originalVppPath;
-            ImGui::InputText("Original vpp_pc path", &originalVppPath);
-            ImGui::SameLine();
-            if (ImGui::Button("...##OriginalVppPath"))
+            if (!isSPMap)
             {
-                std::optional<string> newPath = OpenFile("vpp_pc");
-                if (newPath)
-                    originalVppPath = newPath.value();
+                string originalVppPath = originalVppPath_;
+                string initialOriginalVppPath = originalVppPath;
+                ImGui::InputText("Original vpp_pc path", &originalVppPath);
+                ImGui::SameLine();
+                if (ImGui::Button("...##OriginalVppPath"))
+                {
+                    std::optional<string> newPath = OpenFile("vpp_pc");
+                    if (newPath)
+                        originalVppPath = newPath.value();
+                }
+                originalVppPath_ = originalVppPath;
+                ImGui::SameLine();
+                if (ImGui::Button("Auto"))
+                {
+                    string maybeOriginalPath = state->PackfileVFS->DataFolderPath() + "\\" + Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name")) + ".original.vpp_pc";
+                    if (std::filesystem::exists(maybeOriginalPath))
+                        originalVppPath_ = maybeOriginalPath;
+                }
+                ImGui::SameLine();
+                gui::HelpMarker("This option is required by the binary patch option. It requires a copy of the maps original vpp_pc file. You can make a copy of the vpp and give it a name like map.original.vpp_pc. The auto button looks for a file with that format.", ImGui::GetDefaultFont());
             }
-            originalVppPath_ = originalVppPath;
-            ImGui::SameLine();
-            if (ImGui::Button("Auto"))
-            {
-                string maybeOriginalPath = state->PackfileVFS->DataFolderPath() + "\\" + Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name")) + ".original.vpp_pc";
-                if (std::filesystem::exists(maybeOriginalPath))
-                    originalVppPath_ = maybeOriginalPath;
-            }
-            ImGui::SameLine();
-            gui::HelpMarker("This option is required by the binary patch option. It requires a copy of the maps original vpp_pc file. You can make a copy of the vpp and give it a name like map.original.vpp_pc. The auto button looks for a file with that format.", ImGui::GetDefaultFont());
 
-            //Disable mesh export button if export is disabled
+            //Disable map export button if export is disabled
             static string resultString = "";
             const bool canExport = Territory.Ready() && Territory.Object;
             if (!canExport)
@@ -529,11 +536,18 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
             }
 
-            bool exportPressed = ImGui::Button("Export");
-            bool exportPatchPressed = ImGui::Button("Export patch");
-            ImGui::SameLine();
-            gui::HelpMarker("This option is going away in future versions. You should use 'Export binary patch (SyncFaction)' instead.", ImGui::GetIO().FontDefault);
-            bool exportBinaryPatchPressed = ImGui::Button("Export binary patch (SyncFaction)");
+            bool exportPressed = false;
+            bool exportPatchPressed = false;
+            bool exportBinaryPatchPressed = false;
+
+            exportPressed = ImGui::Button("Export");
+            if (!isSPMap)
+            {
+                exportPatchPressed = ImGui::Button("Export patch");
+                ImGui::SameLine();
+                gui::HelpMarker("This option is going away in future versions. You should use 'Export binary patch (SyncFaction)' instead.", ImGui::GetIO().FontDefault);
+                exportBinaryPatchPressed = ImGui::Button("Export binary patch (SyncFaction)");
+            }
 
             MapExportType exportType;
             if (exportPressed)
@@ -603,9 +617,20 @@ void TerritoryDocument::Keybinds(GuiState* state)
             RemoveDynamicLinks(selectedObject_);
         }
     }
-    else if (ImGui::IsKeyPressed(VK_DELETE, false) && selectedObject_ && !ImGui::IsAnyItemActive())
+    else //Ctrl not down
     {
-        DeleteObject(selectedObject_);
+        if (ImGui::IsKeyPressed(VK_DELETE, false) && selectedObject_ && !ImGui::IsAnyItemActive())
+        {
+            DeleteObject(selectedObject_);
+        }
+        if (ImGui::IsKeyPressed(0x46) /*F key*/ && !ImGui::IsAnyItemFocused())
+        {
+            _highlightHoveredZone = !_highlightHoveredZone; //Toggle hovered zone highlight
+        }
+        if (ImGui::IsKeyPressed(0x47) /*G key*/ && !ImGui::IsAnyItemFocused())
+        {
+            _highlightHoveredObject = !_highlightHoveredObject; //Toggle hovered object highlight
+        }
     }
 }
 
@@ -755,7 +780,7 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                     Scene->DrawBox(bmin, bmax, color);
 
                 //Draw long vertical line to help locate the selected object
-                if (ImGui::IsKeyDown(0x52)) //Only show when R key is down
+                if (ImGui::IsKeyDown(0x52) /*R key*/) //Only show when R key is down
                     Scene->DrawLine(lineStart, lineEnd, color);
 
                 //Draw lines indicating object orientation (red = right, green = up, blue = forward)
@@ -781,6 +806,82 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                     Scene->DrawBox(bmin, bmax, objectClass.Color);
             }
         }
+    }
+
+    //Draw a solid box around the zone being mouse hovered in the outliner if that option is enabled
+    if (_highlightHoveredZone && _hoveredZone.Valid())
+    {
+        //Attempt to calculate zone XZ coorsd based on shortname
+        string shortName = _hoveredZone.Get<string>("ShortName");
+        std::vector<std::string_view> split = String::SplitString(shortName, "_");
+        if (split.size() == 2)
+        {
+            std::string_view xStr = split[0];
+            std::string_view zStr = split[1];
+            
+            //Strip 0 from start of coord if it starts with that. E.g. 07 -> 7
+            if (xStr.starts_with('0'))
+                xStr.remove_prefix(1);
+            if (zStr.starts_with('0'))
+                zStr.remove_prefix(1);
+
+            //String to int
+            i32 zoneX = -1;
+            i32 zoneZ = -1;
+            std::from_chars(xStr.data(), xStr.data() + xStr.size(), zoneX);
+            std::from_chars(zStr.data(), zStr.data() + zStr.size(), zoneZ);
+
+            if (zoneX != -1 && zoneZ != -1)
+            {
+                //Calculate zone box size & position
+                Vec3 zoneOrigin = { -4088.0, 0.0f, 4088.0 }; //Position of the corner of a zone with xz coords 0,0 in world coordinates (x,y,z)
+                f32 zoneWidth = 511.0f; //Width of the xz axes of a zone in world coordinates
+                f32 zoneHeight = _zoneBoxHeight; //Height of a zone in world coordinates
+
+                Vec3 zoneBmin = zoneOrigin;
+                zoneBmin.x += (f32)zoneX * zoneWidth;
+                zoneBmin.z -= (f32)zoneZ * zoneWidth;
+                zoneBmin.y = -zoneHeight;
+
+                Vec3 zoneBmax = zoneBmin;
+                zoneBmax.x += zoneWidth;
+                zoneBmax.z -= zoneWidth;
+                zoneBmax.y = zoneHeight;
+
+                //Finally, draw the box
+                Vec3 color = { 0.0f, (f32)zoneX / 15.0f, (f32)zoneZ / 15.0f }; //{ 0.8f, 0.0f, 0.0f };
+                Scene->DrawBoxSolid(zoneBmin, zoneBmax, color);
+            }
+        }
+    }
+
+    if (_highlightHoveredObject && _hoveredObject.Valid())
+    {
+        Vec3 bmin = _hoveredObject.Property("Bmin").Get<Vec3>();
+        Vec3 bmax = _hoveredObject.Property("Bmax").Get<Vec3>();
+        Vec3 pos = _hoveredObject.Has("Position") ? _hoveredObject.Property("Position").Get<Vec3>() : Vec3{ 0.0f, 0.0f, 0.0f };
+
+        //Calculate color that changes with time so it's easy to find in dense maps
+        auto objectClass = Territory.GetObjectClass(_hoveredObject.Property("ClassnameHash").Get<u32>());
+        Vec3 color = objectClass.Color; 
+        f32 colorMagnitude = objectClass.Color.Magnitude();
+        //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
+        f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
+        color.x = objectClass.Color.x + powf(sin(Scene->TotalTime * 2.0f), 2.0f) * multiplier;
+        color.y = objectClass.Color.y + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+        color.z = objectClass.Color.z + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+
+        //Keep color in a certain range so it stays visible against the terrain
+        f32 magnitudeMin = 0.20f;
+        f32 colorMin = 0.20f;
+        if (color.Magnitude() < magnitudeMin)
+        {
+            color.x = std::max(color.x, colorMin);
+            color.y = std::max(color.y, colorMin);
+            color.z = std::max(color.z, colorMin);
+        }
+
+        Scene->DrawBoxSolid(bmin, bmax, color);
     }
 
     Scene->NeedsRedraw = true;
@@ -1153,6 +1254,10 @@ void TerritoryDocument::Outliner(GuiState* state)
 
     Outliner_DrawFilters(state);
 
+    //Clear hovered objects so if no object is hovered this frame they're null
+    _hoveredZone = NullObjectHandle;
+    _hoveredObject = NullObjectHandle;
+
     //Set custom highlight colors for the table
     ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
     ImVec4 highlightColor = { selectedColor.x * 1.1f, selectedColor.y * 1.1f, selectedColor.z * 1.1f, 1.0f };
@@ -1174,6 +1279,7 @@ void TerritoryDocument::Outliner(GuiState* state)
         ImGui::TableHeadersRow();
 
         //Loop through visible zones
+        bool anyZoneHovered = false;
         for (ObjectHandle zone : Territory.Zones)
         {
             if (outliner_OnlyShowNearZones_ && !zone.Property("RenderBoundingBoxes").Get<bool>())
@@ -1198,6 +1304,14 @@ void TerritoryDocument::Outliner(GuiState* state)
             if (!singleZone)
                 treeNodeOpen = ImGui::TreeNodeEx(zone.Property("Name").Get<string>().c_str(), flags);
 
+            //Track which zone is hovered for zone highlight option
+            bool zoneNodeHovered = ImGui::IsItemHovered();
+            if (zoneNodeHovered)
+            {
+                _hoveredZone = zone;
+                anyZoneHovered = true;
+            }
+
             if (singleZone || treeNodeOpen)
             {
                 for (ObjectHandle object : zone.Property("Objects").GetObjectList())
@@ -1212,6 +1326,11 @@ void TerritoryDocument::Outliner(GuiState* state)
                 }
                 ImGui::TreePop();
             }
+        }
+
+        if (!anyZoneHovered)
+        {
+            _hoveredZone = NullObjectHandle;
         }
 
         ImGui::PopStyleColor(3);
@@ -1920,12 +2039,41 @@ bool TerritoryDocument::Inspector_DrawBoolEditor(PropertyHandle prop)
 void TerritoryDocument::ExportTask(GuiState* state, MapExportType exportType)
 {
     bool exportResult = false;
-    if (exportType == MapExportType::Vpp)
-        exportResult = ExportMap(state, CVar_MapExportPath.Get<string>());
-    else if (exportType == MapExportType::RfgPatch)
-        exportResult = ExportPatch();
-    else if (exportType == MapExportType::BinaryPatch)
-        exportResult = ExportBinaryPatch(state);
+
+    string mapName = Territory.Object.Get<string>("Name");
+    bool isSPMap = mapName == "zonescript_terr01.vpp_pc" || mapName == "zonescript_dlc01.vpp_pc";
+    if (isSPMap)
+    {
+        if (exportType == MapExportType::Vpp)
+        {
+            exportResult = ExportMapSP(state, CVar_MapExportPath.Get<string>());
+        }
+        else if (exportType == MapExportType::RfgPatch)
+        {
+            Log->error("Failed to export {}. RfgPatch export isn't supported for SP maps.", mapName);
+            exportResult = false;
+        }
+        else if (exportType == MapExportType::BinaryPatch)
+        {
+            Log->error("Failed to export {}. Binary patch export isn't supported for SP maps.", mapName);
+            exportResult = false;
+        }
+    }
+    else
+    {
+        if (exportType == MapExportType::Vpp)
+        {
+            exportResult = ExportMap(state, CVar_MapExportPath.Get<string>());
+        }
+        else if (exportType == MapExportType::RfgPatch)
+        {
+            exportResult = ExportPatch();
+        }
+        else if (exportType == MapExportType::BinaryPatch)
+        {
+            exportResult = ExportBinaryPatch(state);
+        }
+    }
 
     if (exportResult)
     {
@@ -2160,6 +2308,90 @@ bool TerritoryDocument::ExportBinaryPatch(GuiState* state)
     return true;
 }
 
+//TODO: Extract vanilla zonescript_terr01.vpp_pc to temp folder
+//TODO: Add relational data generation to zone/map exporter
+//TODO:     - Test on a few MP maps to see if it breaks anything
+//TODO: Loop through zones in registry and export each of them to temp folder, overwriting vanilla copies
+//TODO: Repack zonescript_terr01.vpp_pc in temp folder 
+//TODO: Copy zonescript_terr01 to exportPath (folder) and overwrite file already there with same name if present
+//TODO: Reparse zonescript_terr01 in packfile vfs
+//TODO: See if it works:
+//TODO:      - If so, have some fun
+//TODO:      - If not, implement complicated ass export method and see if that works
+
+bool TerritoryDocument::ExportMapSP(GuiState* state, const string& exportPath)
+{
+    string terrPackfileName = Territory.Object.Get<string>("Name");
+    string mapName = Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name"));
+
+    //Steps: Export zones, extract vpp_pc, extract containers, copy zones to containers, repack containers, update asm_pc, repack vpp_pc, cleanup
+    const f32 numSteps = 5.0f;
+    const f32 percentagePerStep = 1.0f / numSteps;
+
+    exportPercentage_ = 0.0f;
+    exportStatus_ = "Exporting zones...";
+
+    //Make sure folder exists for writing temporary files
+    string tempFolderPath = state->CurrentProject->Path + "\\Temp\\";
+    string repackFolderPath = state->CurrentProject->Path + "\\Temp\\vpp\\";
+    std::filesystem::create_directories(tempFolderPath);
+    std::filesystem::create_directories(repackFolderPath);
+
+    //Export zone files
+    if (!Exporters::ExportTerritory(Territory.Object, tempFolderPath))
+    {
+        LOG_ERROR("Failed to export territory '{}'", mapName);
+        return false;
+    }
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Extracting " + terrPackfileName + "...";
+
+    //Extract vpp_pc
+    Handle<Packfile3> vppHandle = state->PackfileVFS->GetPackfile(terrPackfileName);
+    if (!vppHandle)
+    {
+        LOG_ERROR("SP map export failed to find {}. Make sure it's in your data folder and restart Nanoforge.", terrPackfileName);
+        return false;
+    }
+    //Reparse packfile from games data folder. Simplest way to do this for the moment until PackfileVFS is updated to be able to handle reloading packfiles safely
+    //Can't use data in PackfileVFS since the packfile contents would've changed if the user does multiple map exports in a row
+    string packfilePath = vppHandle->Path;
+    Handle<Packfile3> currVpp = CreateHandle<Packfile3>(packfilePath);
+    currVpp->ReadMetadata();
+    currVpp->ExtractSubfiles(repackFolderPath, false);
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Copying zones to " + terrPackfileName + "...";
+
+    //Copy zones into repack folder
+    for (auto entry : std::filesystem::directory_iterator(tempFolderPath))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".rfgzone_pc")
+            continue; //Skip anything that isn't a .rfgzone_pc file
+
+        string destinationPath = repackFolderPath + entry.path().filename().string();
+        std::filesystem::copy_file(entry.path(), destinationPath, std::filesystem::copy_options::overwrite_existing);
+    }
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Repacking " + terrPackfileName + "...";
+
+    //Repack main vpp_pc
+    Packfile3::Pack(repackFolderPath, tempFolderPath + "\\" + terrPackfileName, true, false);
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Copying vpp_pc to export folder...";
+
+    //Copy vpp_pc to output path + delete temporary files
+    std::filesystem::copy_file(tempFolderPath + "\\" + terrPackfileName, exportPath + "\\" + terrPackfileName, std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::remove_all(tempFolderPath);
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Done!";
+    return true;
+}
+
 void UpdateAsmPc(const string& asmPath)
 {
     AsmFile5 asmFile;
@@ -2254,6 +2486,7 @@ void TerritoryDocument::Outliner_DrawFilters(GuiState* state)
     //Filters out objects shown in the outliner
     if (ImGui::Button(ICON_FA_FILTER))
         ImGui::OpenPopup("##ObjectFiltersPopup");
+
     if (ImGui::BeginPopup("##ObjectFiltersPopup"))
     {
         if (ImGui::Button("Show all types"))
@@ -2285,6 +2518,19 @@ void TerritoryDocument::Outliner_DrawFilters(GuiState* state)
         gui::HelpMarker("If checked then objects outside of the viewing range are hidden. The viewing range is configurable through View > Scene in the map editor menu bar.", ImGui::GetIO().FontDefault);
         ImGui::SameLine();
         ImGui::Checkbox("Only show persistent", &outliner_OnlyShowPersistentObjects_);
+
+        //When checked the zone being moused over in the outliner has a solid box draw on it in the editor. Also toggleable with the F key
+        ImGui::Checkbox("Highlight zones", &_highlightHoveredZone);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(100.0f);
+        ImGui::InputFloat("Height", &_zoneBoxHeight);
+        ImGui::SameLine();
+        gui::HelpMarker("Draw a solid box over zones when they're moused over in the outliner. Can also be toggled with the F key", ImGui::GetDefaultFont());
+
+        //When checked draw solid bbox over moused over objects
+        ImGui::Checkbox("Highlight objects", &_highlightHoveredObject);
+        ImGui::SameLine();
+        gui::HelpMarker("Draw a solid box over objects when they're moused over in the outliner. Can also be toggled with the G key", ImGui::GetDefaultFont());
 
         //Set custom highlight colors for the table
         ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
@@ -2386,7 +2632,10 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
             selectedObject_ = object; //Clicked object, select it
     }
     if (ImGui::IsItemHovered())
+    {
         gui::TooltipOnPrevious(object.Property("Type").Get<string>(), ImGui::GetIO().FontDefault);
+        _hoveredObject = object;
+    }
 
     //Draw node icon
     ImGui::PushStyleColor(ImGuiCol_Text, { objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f });

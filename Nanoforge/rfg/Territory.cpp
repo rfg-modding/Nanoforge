@@ -25,12 +25,13 @@
 //Todo: Separate gui specific code into a different file or class
 #include <IconsFontAwesome5_c.h>
 
-void Territory::Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname, bool useHighLodTerrain)
+void Territory::Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname, bool useHighLodTerrain, bool loadBuildings)
 {
     packfileVFS_ = packfileVFS;
     territoryFilename_ = territoryFilename;
     territoryShortname_ = territoryShortname;
     useHighLodTerrain_ = useHighLodTerrain;
+    loadBuildings_ = loadBuildings;
 }
 
 Handle<Task> Territory::LoadAsync(Handle<Scene> scene, GuiState* state)
@@ -326,80 +327,83 @@ void Territory::LoadZoneWorkerThread(Handle<Task> task, Handle<Scene> scene, Obj
     }
 
     //Load chunk meshes
-    for (ObjectHandle obj : zone.GetObjectList("Objects"))
+    if (loadBuildings_)
     {
-        const string objType = obj.Get<string>("Type");
-        if (objType != "rfg_mover" && objType != "general_mover")
-            continue;
-
-        //Get chunk mesh from object
-        ObjectHandle chunk = obj.IsType<ObjectHandle>("ChunkMesh") ? obj.Get<ObjectHandle>("ChunkMesh") : NullObjectHandle;
-        if (!chunk)
+        for (ObjectHandle obj : zone.GetObjectList("Objects"))
         {
-            //LOG_ERROR("Failed to load chunk mesh for object {}. ChunkMesh = NullObjectHandle", obj.UID());
-            continue;
-        }
+            const string objType = obj.Get<string>("Type");
+            if (objType != "rfg_mover" && objType != "general_mover")
+                continue;
 
-        //Load mesh data from registry
-        std::optional<Mesh> meshLoadResult = LoadRegistryChunkMesh(chunk, scene); //This caches meshes so they only need to get loaded once per territory
-        if (!meshLoadResult)
-        {
-            //LOG_ERROR("Failed to load chunk mesh '{}' for object {}", chunk.Get<string>("Name"), obj.UID());
-            continue;
-        }
-        Mesh meshData = meshLoadResult.value();
-
-        //Load textures
-        std::optional<Texture2D> diffuseTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("DiffuseTexture"));
-        std::optional<Texture2D> specularTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("SpecularTexture"));
-        std::optional<Texture2D> normalTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("NormalTexture"));
-        bool anyChunkTextureValid = diffuseTexture.has_value() || specularTexture.has_value() || normalTexture.has_value();
-
-        //Get destroyable used by this object by uid
-        u32 destroyableUID = obj.Get<u32>("uid"); //TODO: Rename this so it's clear this is a chunk UID and not a registry UID. Will need to translate it back to "uid" on export since that's the name the game expects
-        std::vector<ObjectHandle>& destroyables = chunk.GetObjectList("Destroyables");
-        auto destroyableSearch = std::ranges::find_if(destroyables, [destroyableUID](ObjectHandle destroyable)
+            //Get chunk mesh from object
+            ObjectHandle chunk = obj.IsType<ObjectHandle>("ChunkMesh") ? obj.Get<ObjectHandle>("ChunkMesh") : NullObjectHandle;
+            if (!chunk)
             {
-                return destroyable && destroyable.Get<u32>("UID") == destroyableUID;
-            });
-        if (destroyableSearch == destroyables.end())
-        {
-            //LOG_ERROR("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
-            //Log->warn("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
-            continue;
+                //LOG_ERROR("Failed to load chunk mesh for object {}. ChunkMesh = NullObjectHandle", obj.UID());
+                continue;
+            }
+
+            //Load mesh data from registry
+            std::optional<Mesh> meshLoadResult = LoadRegistryChunkMesh(chunk, scene); //This caches meshes so they only need to get loaded once per territory
+            if (!meshLoadResult)
+            {
+                //LOG_ERROR("Failed to load chunk mesh '{}' for object {}", chunk.Get<string>("Name"), obj.UID());
+                continue;
+            }
+            Mesh meshData = meshLoadResult.value();
+
+            //Load textures
+            std::optional<Texture2D> diffuseTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("DiffuseTexture"));
+            std::optional<Texture2D> specularTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("SpecularTexture"));
+            std::optional<Texture2D> normalTexture = LoadTexture(scene->d3d11Device_, state->TextureSearchIndex, chunk.Get<ObjectHandle>("NormalTexture"));
+            bool anyChunkTextureValid = diffuseTexture.has_value() || specularTexture.has_value() || normalTexture.has_value();
+
+            //Get destroyable used by this object by uid
+            u32 destroyableUID = obj.Get<u32>("uid"); //TODO: Rename this so it's clear this is a chunk UID and not a registry UID. Will need to translate it back to "uid" on export since that's the name the game expects
+            std::vector<ObjectHandle>& destroyables = chunk.GetObjectList("Destroyables");
+            auto destroyableSearch = std::ranges::find_if(destroyables, [destroyableUID](ObjectHandle destroyable)
+                {
+                    return destroyable && destroyable.Get<u32>("UID") == destroyableUID;
+                });
+            if (destroyableSearch == destroyables.end())
+            {
+                //LOG_ERROR("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
+                //Log->warn("Failed to get destroyable with UID {} for object {}", destroyableUID, obj.UID());
+                continue;
+            }
+            ObjectHandle destroyable = *destroyableSearch;
+
+            //Collect data needed by renderer to draw the chunk
+            RenderChunkData chunkData;
+            for (ObjectHandle subpiece : destroyable.GetObjectList("Subpieces"))
+                chunkData.SubpieceSubmeshes.push_back(subpiece.Get<u16>("RenderSubpiece"));
+            for (ObjectHandle dlod : destroyable.GetObjectList("Dlods"))
+            {
+                ChunkPiece& piece = chunkData.Pieces.emplace_back();
+                piece.Position = dlod.Get<Vec3>("Position");
+                piece.Orient = dlod.Get<Mat3>("Orient");
+                piece.FirstSubpiece = dlod.Get<u16>("FirstPiece");
+                piece.NumSubpieces = dlod.Get<u8>("MaxPieces");
+            }
+
+            //Create render object
+            RenderChunk* renderChunk = scene->CreateRenderChunk(to_string(meshData.GetInfo().VertFormat), meshData, chunkData, obj.Get<Vec3>("Position"), obj.Get<Mat3>("Orient"));
+            renderChunk->Visible = useHighLodTerrain_;
+            renderChunk->UseTextures = anyChunkTextureValid;
+            if (diffuseTexture)
+                renderChunk->Textures[0] = diffuseTexture;
+            if (specularTexture)
+                renderChunk->Textures[1] = specularTexture;
+            if (normalTexture)
+                renderChunk->Textures[2] = normalTexture;
+
+            TerrainLock.lock();
+            //if (Chunks.contains(obj.UID()))
+            //    Log->warn("Chunk loaded twice for obj {}", obj.UID());
+
+            Chunks[obj.UID()] = renderChunk;
+            TerrainLock.unlock();
         }
-        ObjectHandle destroyable = *destroyableSearch;
-
-        //Collect data needed by renderer to draw the chunk
-        RenderChunkData chunkData;
-        for (ObjectHandle subpiece : destroyable.GetObjectList("Subpieces"))
-            chunkData.SubpieceSubmeshes.push_back(subpiece.Get<u16>("RenderSubpiece"));
-        for (ObjectHandle dlod : destroyable.GetObjectList("Dlods"))
-        {
-            ChunkPiece& piece = chunkData.Pieces.emplace_back();
-            piece.Position = dlod.Get<Vec3>("Position");
-            piece.Orient = dlod.Get<Mat3>("Orient");
-            piece.FirstSubpiece = dlod.Get<u16>("FirstPiece");
-            piece.NumSubpieces = dlod.Get<u8>("MaxPieces");
-        }
-
-        //Create render object
-        RenderChunk* renderChunk = scene->CreateRenderChunk(to_string(meshData.GetInfo().VertFormat), meshData, chunkData, obj.Get<Vec3>("Position"), obj.Get<Mat3>("Orient"));
-        renderChunk->Visible = useHighLodTerrain_;
-        renderChunk->UseTextures = anyChunkTextureValid;
-        if (diffuseTexture)
-            renderChunk->Textures[0] = diffuseTexture;
-        if (specularTexture)
-            renderChunk->Textures[1] = specularTexture;
-        if (normalTexture)
-            renderChunk->Textures[2] = normalTexture;
-
-        TerrainLock.lock();
-        //if (Chunks.contains(obj.UID()))
-        //    Log->warn("Chunk loaded twice for obj {}", obj.UID());
-
-        Chunks[obj.UID()] = renderChunk;
-        TerrainLock.unlock();
     }
 
     terrainInstance.Loaded = true;

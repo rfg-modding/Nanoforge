@@ -25,7 +25,7 @@ class Territory
 {
 public:
     //Set values needed for it to function
-    void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname, bool useHighLodTerrain);
+    void Init(PackfileVFS* packfileVFS, const string& territoryFilename, const string& territoryShortname, bool useHighLodTerrain, bool loadBuildings);
     bool Ready() { return ready_; } //Returns true if the territory is loaded and ready for use
 
     Handle<Task> LoadAsync(Handle<Scene> scene, GuiState* state); //Starts a thread that loads the territory zones, terrain, etc
@@ -69,6 +69,7 @@ private:
     bool loadThreadShouldStop_ = false;
     bool loadThreadRunning_ = false;
     bool useHighLodTerrain_ = true;
+    bool loadBuildings_ = true;
     std::mutex textureCacheLock_;
     std::unordered_map<string, Texture2D> textureCache_; //Textures loaded during territory load are cached to prevent repeat loads. Cleared once territory is done loading.
     std::mutex chunkMeshCacheLock_;

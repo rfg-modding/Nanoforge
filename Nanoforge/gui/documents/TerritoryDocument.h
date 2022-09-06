@@ -68,6 +68,7 @@ private:
     bool ExportMap(GuiState* state, const string& exportPath);
     bool ExportPatch();
     bool ExportBinaryPatch(GuiState* state);
+    bool ExportMapSP(GuiState* state, const string& exportPath);
 
     string TerritoryName;
     string TerritoryShortname;
@@ -105,6 +106,16 @@ private:
     string exportStatus_ = "";
     f32 exportPercentage_ = 0.0f;
     string originalVppPath_ = ""; //Path of original vpp_pc file. For binary patch generation
+
+    //If true a large solid box will be drawn in the position of the currently hovered zone in the outliner
+    bool _highlightHoveredZone = false;
+    //Short name of hovered zone. E.g. 04_06 
+    ObjectHandle _hoveredZone = NullObjectHandle;
+    f32 _zoneBoxHeight = 150.0f; //For far a highlight zones bbox goes above and below y=0.0. The terrain can go from -512 to 512 but 256 is the default in the editor for visibility purposes
+
+    //If true draw a solid box around the object being hovered in the outliner
+    bool _highlightHoveredObject = false;
+    ObjectHandle _hoveredObject = NullObjectHandle;
 
     //Confirmation popups + relevant object for several operations. Kinda gross but Dear ImGui popups operate in a strange order
     Popup deleteObjectPopup_ = { "Delete object?", "Are you sure you want to delete the object?", PopupType::YesCancel, true };
