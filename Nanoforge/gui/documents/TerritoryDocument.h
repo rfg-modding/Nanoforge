@@ -70,6 +70,9 @@ private:
     bool ExportBinaryPatch(GuiState* state);
     bool ExportMapSP(GuiState* state, const string& exportPath);
 
+    //Update relevant data when an object is changed
+    void ObjectEdited(ObjectHandle object);
+
     string TerritoryName;
     string TerritoryShortname;
     Territory Territory;

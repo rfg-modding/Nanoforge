@@ -647,7 +647,7 @@ void TerritoryDocument::DrawPopups(GuiState* state)
         //TODO: Add actual object deletion via registry
         //Registry::Get().DeleteObject(selected);
         deleteObjectPopupHandle_.Set<bool>("Deleted", true);
-        UnsavedChanges = true;
+        ObjectEdited(deleteObjectPopupHandle_);
     }
     else if (result == PopupResult::Cancel)
     {
@@ -667,7 +667,7 @@ void TerritoryDocument::DrawPopups(GuiState* state)
             propertyNames.erase(find);
             removeWorldAnchorPopupHandle_.SetStringList("RfgPropertyNames", propertyNames);
         }
-        UnsavedChanges = true;
+        ObjectEdited(removeWorldAnchorPopupHandle_);
     }
     else if (result == PopupResult::Cancel)
     {
@@ -687,7 +687,7 @@ void TerritoryDocument::DrawPopups(GuiState* state)
             propertyNames.erase(find);
             removeDynamicLinkPopupHandle_.SetStringList("RfgPropertyNames", propertyNames);
         }
-        UnsavedChanges = true;
+        ObjectEdited(removeDynamicLinkPopupHandle_);
     }
     else if (result == PopupResult::Cancel)
     {
@@ -1090,7 +1090,7 @@ void TerritoryDocument::CloneObject(ObjectHandle object)
     ObjectHandle zone = newObject.Get<ObjectHandle>("Zone");
     zone.GetObjectList("Objects").push_back(newObject);
     selectedObject_ = newObject;
-    UnsavedChanges = true;
+    ObjectEdited(selectedObject_);
 }
 
 void TerritoryDocument::DeleteObject(ObjectHandle object)
@@ -1195,7 +1195,7 @@ void TerritoryDocument::AddGenericObject(GuiState* state)
     newObj.Set<ObjectHandle>("Zone", zone);
     zone.AppendObjectList("Objects", newObj);
     selectedObject_ = newObj;
-    UnsavedChanges = true;
+    ObjectEdited(selectedObject_);
 }
 
 u32 TerritoryDocument::GetNewObjectHandle()
@@ -1361,7 +1361,7 @@ void TerritoryDocument::Inspector(GuiState* state)
         {
             selectedObject_.Set<string>("Name", nameEditStr);
             editingName = false;
-            UnsavedChanges = true;
+            ObjectEdited(selectedObject_);
         };
         if (ImGui::InputText("##ObjectNameEdit", &nameEditStr, ImGuiInputTextFlags_EnterReturnsTrue))
         {
@@ -1418,7 +1418,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 //Set new object class. Must update relevant properties in registry object
                 selectedObject_.Set<u32>("ClassnameHash", objectClass.Hash);
                 selectedObject_.Set<string>("Type", objectClass.Name);
-                UnsavedChanges = true;
+                ObjectEdited(selectedObject_);
             }
         }
 
@@ -1435,10 +1435,10 @@ void TerritoryDocument::Inspector(GuiState* state)
     if (ImGui::CollapsingHeader("Relations"))
     {
         ImGui::Indent(15.0f);
-        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Zone"))) UnsavedChanges = true;
-        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Parent"))) UnsavedChanges = true;
-        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Sibling"))) UnsavedChanges = true;
-        if (Inspector_DrawObjectHandleListEditor(selectedObject_.Property("Children"))) UnsavedChanges = true;
+        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Zone"))) ObjectEdited(selectedObject_);
+        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Parent"))) ObjectEdited(selectedObject_);
+        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Sibling"))) ObjectEdited(selectedObject_);
+        if (Inspector_DrawObjectHandleListEditor(selectedObject_.Property("Children"))) ObjectEdited(selectedObject_);
         ImGui::Unindent(15.0f);
     }
     if (ImGui::CollapsingHeader("Bounding box"))
@@ -1455,7 +1455,7 @@ void TerritoryDocument::Inspector(GuiState* state)
             Vec3 newBmax = selectedObject_.Get<Vec3>("Position") + (bboxSize / 2.0f);
             selectedObject_.Set<Vec3>("Bmin", newBmin);
             selectedObject_.Set<Vec3>("Bmax", newBmax);
-            UnsavedChanges = true;
+            ObjectEdited(selectedObject_);
         }
         gui::TooltipOnPrevious("Move the primary bbox so that its center is at the object position");
         if (selectedObject_.Has("BBmin") && selectedObject_.Has("BBmax")) //Calculate Bmin & Bmax from the secondary bbox
@@ -1465,14 +1465,14 @@ void TerritoryDocument::Inspector(GuiState* state)
             {
                 selectedObject_.Set<Vec3>("Bmin", selectedObject_.Get<Vec3>("BBmin") + selectedObject_.Get<Vec3>("Position"));
                 selectedObject_.Set<Vec3>("Bmax", selectedObject_.Get<Vec3>("BBmax") + selectedObject_.Get<Vec3>("Position"));
-                UnsavedChanges = true;
+                ObjectEdited(selectedObject_);
             }
             gui::TooltipOnPrevious("Calculate primary bbox from BBmin and BBmax. Equation is `BBprimary = BBsecondary + position`");
         }
         if (Inspector_DrawVec3Editor(selectedObject_.Property("Bmin")))
-            UnsavedChanges = true;
+            ObjectEdited(selectedObject_);
         if (Inspector_DrawVec3Editor(selectedObject_.Property("Bmax")))
-            UnsavedChanges = true;
+            ObjectEdited(selectedObject_);
 
 
         /* Secondary BBox - Objects aren't required to have this */
@@ -1488,7 +1488,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 //Remove from properties list
                 const auto [first, last] = std::ranges::remove_if(selectedObject_.GetStringList("RfgPropertyNames"), [](string& str) { return str == "bb"; });
                 selectedObject_.GetStringList("RfgPropertyNames").erase(first, last);
-                UnsavedChanges = true;
+                ObjectEdited(selectedObject_);
                 removedSecondaryBbox = true;
             }
 
@@ -1500,15 +1500,15 @@ void TerritoryDocument::Inspector(GuiState* state)
                 {
                     selectedObject_.Set<Vec3>("BBmin", selectedObject_.Get<Vec3>("Bmin") - selectedObject_.Get<Vec3>("Position"));
                     selectedObject_.Set<Vec3>("BBmax", selectedObject_.Get<Vec3>("Bmax") - selectedObject_.Get<Vec3>("Position"));
-                    UnsavedChanges = true;
+                    ObjectEdited(selectedObject_);
                 }
                 gui::TooltipOnPrevious("Calculate secondary bbox from Bmin and Bmax. Equation is `BBsecondary = BBprimary - position`");
 
                 //Bbox editor
                 if (Inspector_DrawVec3Editor(selectedObject_.Property("BBmin")))
-                    UnsavedChanges = true;
+                    ObjectEdited(selectedObject_);
                 if (Inspector_DrawVec3Editor(selectedObject_.Property("BBmax")))
-                    UnsavedChanges = true;
+                    ObjectEdited(selectedObject_);
             }
         }
         else //Doesn't have a secondary bbox (BBmin and BBmax)
@@ -1521,7 +1521,7 @@ void TerritoryDocument::Inspector(GuiState* state)
                 {
                     selectedObject_.AppendStringList("RfgPropertyNames", "bb");
                 }
-                UnsavedChanges = true;
+                ObjectEdited(selectedObject_);
             }
         }
 
@@ -1537,7 +1537,7 @@ void TerritoryDocument::Inspector(GuiState* state)
         if (ImGui::InputScalar("Merged##FlagsSingleInt", ImGuiDataType_U16, &manualFlagSetter))
         {
             selectedObject_.Set<u16>("Flags", manualFlagSetter);
-            UnsavedChanges = true;
+            ObjectEdited(selectedObject_);
         }
 
         //Separate checkboxes for flag
@@ -1601,7 +1601,7 @@ void TerritoryDocument::Inspector(GuiState* state)
 
             selectedObject_.Set<bool>("Persistent", persistent);
             selectedObject_.Set<u16>("Flags", newFlags);
-            UnsavedChanges = true;
+            ObjectEdited(selectedObject_);
         }
         ImGui::Unindent(15.0f);
     }
@@ -1624,7 +1624,7 @@ void TerritoryDocument::Inspector(GuiState* state)
             chunk->Position += delta;
         }
 
-        UnsavedChanges = true;
+        ObjectEdited(selectedObject_);
     }
     if (selectedObject_.Has("Orient") && Inspector_DrawMat3Editor(selectedObject_.Property("Orient")))
     {
@@ -1634,7 +1634,7 @@ void TerritoryDocument::Inspector(GuiState* state)
             RenderChunk* chunk = Territory.Chunks[selectedObject_.UID()];
             chunk->Rotation = selectedObject_.Get<Mat3>("Orient");
         }
-        UnsavedChanges = true;
+        ObjectEdited(selectedObject_);
     }
 
     //Object properties
@@ -1802,14 +1802,14 @@ void TerritoryDocument::Inspector(GuiState* state)
         if (propertyEdited)
         {
             updateDebugDraw_ = true; //Update in case value related to debug draw is changed
-            UnsavedChanges = true; //Mark file as edited. Puts * on tab + lets you save changes with Ctrl + S
+            ObjectEdited(selectedObject_); //Mark file as edited. Puts * on tab + lets you save changes with Ctrl + S
         }
     }
 
     if (propertyToRemove != "")
     {
         selectedObject_.Remove(propertyToRemove);
-        UnsavedChanges = true;
+        ObjectEdited(selectedObject_);
     }
 
     //Add property button
@@ -1900,7 +1900,7 @@ void TerritoryDocument::Inspector(GuiState* state)
         {
             Log->warn("Didn't add {} to RfgPropertyNames. Already in the list.", newPropName);
         }
-        UnsavedChanges = true;
+        ObjectEdited(selectedObject_);
         newPropName = ""; //Reset afterwards
     }
 }
@@ -2694,4 +2694,23 @@ bool TerritoryDocument::Outliner_ShowObjectOrChildren(ObjectHandle object)
             return true;
 
     return false;
+}
+
+void TerritoryDocument::ObjectEdited(ObjectHandle object)
+{
+    if (!object)
+        return;
+
+    UnsavedChanges = true;
+    ObjectHandle zone = object.Get<ObjectHandle>("Zone");
+    if (!zone)
+    {
+        //Just in case. Don't need editor crashing on common operators just because this wasn't set
+        LOG_ERROR("Object {} doesn't have its zone set. SP exports might not work for this map. Contact the Nanoforge developer.");
+        return;
+    }
+
+    //This should be true if any child object was edited and never set back to false
+    //Used during SP map export so it can selectively export zones
+    zone.Set<bool>("ChildObjectEdited", true);
 }
