@@ -19,6 +19,7 @@ struct FilePair
 class FileHandle
 {
 public:
+    FileHandle() {}
     FileHandle(Handle<Packfile3> packfile, std::string_view fileName, std::string_view containerName = "");
 
     //Get the file as a byte array

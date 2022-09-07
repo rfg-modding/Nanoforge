@@ -117,6 +117,16 @@ void TerritoryDocument::Update(GuiState* state)
         handledImport = true;
     }
 
+    //Initialize zone edit tracking for zones which don't have the variable. Projects from older versions don't have this
+    static bool zoneInitialized = false;
+    if (Territory.Ready() || Territory.Object && !zoneInitialized)
+    {
+        zoneInitialized = true;
+        for (ObjectHandle zone : Territory.Object.GetObjectList("Zones"))
+            if (!zone.Has("ChildObjectEdited"))
+                zone.Set<bool>("ChildObjectEdited", true);
+    }
+
     //Set current territory to most recently focused territory window
     if (ImGui::IsWindowFocused() && ImGui::IsWindowHovered())
     {
@@ -2308,24 +2318,37 @@ bool TerritoryDocument::ExportBinaryPatch(GuiState* state)
     return true;
 }
 
-//TODO: Extract vanilla zonescript_terr01.vpp_pc to temp folder
-//TODO: Add relational data generation to zone/map exporter
-//TODO:     - Test on a few MP maps to see if it breaks anything
-//TODO: Loop through zones in registry and export each of them to temp folder, overwriting vanilla copies
-//TODO: Repack zonescript_terr01.vpp_pc in temp folder 
-//TODO: Copy zonescript_terr01 to exportPath (folder) and overwrite file already there with same name if present
-//TODO: Reparse zonescript_terr01 in packfile vfs
-//TODO: See if it works:
-//TODO:      - If so, have some fun
-//TODO:      - If not, implement complicated ass export method and see if that works
+struct ZoneSearchResult
+{
+    FileHandle File;
+    ObjectHandle Object;
+
+    ZoneSearchResult(FileHandle fileHandle, ObjectHandle obj)
+    {
+        File = fileHandle;
+        Object = obj;
+    }
+};
+bool UpdateSpPackfileZones(PackfileVFS* packfileVFS, std::vector<ZoneSearchResult>& editedZones, const string& packfileName, const string& tempFolderPath, bool compressed = false, bool condensed = false);
 
 bool TerritoryDocument::ExportMapSP(GuiState* state, const string& exportPath)
 {
+    string terrPrefix = "";
     string terrPackfileName = Territory.Object.Get<string>("Name");
-    string mapName = Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name"));
+    string mapName = "";
+    if (terrPackfileName == "zonescript_terr01.vpp_pc")
+        mapName = "terr01";
+    else if (terrPackfileName == "zonescript_dlc01.vpp_pc")
+        mapName = "dlc01";
+    else
+    {
+        exportStatus_ = "Failed to export map! '{}' not recognized as an SP map.";
+        LOG_ERROR(exportStatus_);
+        return false;
+    }
 
     //Steps: Export zones, extract vpp_pc, extract containers, copy zones to containers, repack containers, update asm_pc, repack vpp_pc, cleanup
-    const f32 numSteps = 5.0f;
+    const f32 numSteps = 8.0f;
     const f32 percentagePerStep = 1.0f / numSteps;
 
     exportPercentage_ = 0.0f;
@@ -2338,16 +2361,74 @@ bool TerritoryDocument::ExportMapSP(GuiState* state, const string& exportPath)
     std::filesystem::create_directories(repackFolderPath);
 
     //Export zone files
-    if (!Exporters::ExportTerritory(Territory.Object, tempFolderPath))
+    if (!Exporters::ExportTerritory(Territory.Object, tempFolderPath, true))
     {
-        LOG_ERROR("Failed to export territory '{}'", mapName);
+        exportStatus_ = fmt::format("Failed to export game files for territory '{}'", mapName);
+        LOG_ERROR(exportStatus_);
         return false;
     }
 
     exportPercentage_ += percentagePerStep;
-    exportStatus_ = "Extracting " + terrPackfileName + "...";
+    exportStatus_ = "Locating zone files...";
+
+    //Locate edited rfgzone_pc files in terr01_l0 and terr01_l1
+    std::vector<ZoneSearchResult> editedZoneLocations = {};
+    bool anyZoneInTerr01L0 = false;
+    bool anyZoneInTerr01L1 = false;
+    for (ObjectHandle zone : Territory.Object.GetObjectList("Zones"))
+    {
+        //Search terr01_l0.vpp_pc first
+        std::vector<FileHandle> l0SearchResult = state->PackfileVFS->GetFiles(fmt::format("{}_l0.vpp_pc", mapName), zone.Get<string>("Name"), true, true);
+        if (l0SearchResult.size() == 1)
+        {
+            editedZoneLocations.push_back({ l0SearchResult[0], zone });
+            anyZoneInTerr01L0 = true;
+            continue;
+        }
+
+        //Then search terr01_l1.vpp_pc
+        std::vector<FileHandle> l1SearchResult = state->PackfileVFS->GetFiles(fmt::format("{}_l1.vpp_pc", mapName), zone.Get<string>("Name"), true, true);
+        if (l1SearchResult.size() == 1)
+        {
+            editedZoneLocations.push_back({ l1SearchResult[0], zone });
+            anyZoneInTerr01L1 = true;
+            continue;
+        }
+        
+        //Didn't find the zone file. Cancel export
+        exportStatus_ = fmt::format("Map export failed! Couldn't find {}.", zone.Get<string>("Name"));
+        LOG_ERROR(exportStatus_);
+        return false;
+    }
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = fmt::format("Updating {}_l0.vpp_pc zones...", mapName);
+
+    if (anyZoneInTerr01L0)
+    {
+        if (!UpdateSpPackfileZones(state->PackfileVFS, editedZoneLocations, fmt::format("{}_l0.vpp_pc", mapName), tempFolderPath, false, false))
+        {
+            exportStatus_ = fmt::format("Map export failed! Error while updating zone data in {}_l0.vpp_pc.", mapName);
+            LOG_ERROR(exportStatus_);
+            return false;
+        }
+    }
+
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = fmt::format("Updating {}_l1.vpp_pc zones...", mapName);
+    if (anyZoneInTerr01L1)
+    {
+        if (!UpdateSpPackfileZones(state->PackfileVFS, editedZoneLocations, fmt::format("{}_l1.vpp_pc", mapName), tempFolderPath, false, false))
+        {
+            exportStatus_ = fmt::format("Map export failed! Error while updating zone data in {}_l1.vpp_pc.", mapName);
+            LOG_ERROR(exportStatus_);
+            return false;
+        }
+    }
 
     //Extract vpp_pc
+    exportPercentage_ += percentagePerStep;
+    exportStatus_ = fmt::format("Updating zonescript_{}.vpp_pc zones...", mapName);
     Handle<Packfile3> vppHandle = state->PackfileVFS->GetPackfile(terrPackfileName);
     if (!vppHandle)
     {
@@ -2361,10 +2442,9 @@ bool TerritoryDocument::ExportMapSP(GuiState* state, const string& exportPath)
     currVpp->ReadMetadata();
     currVpp->ExtractSubfiles(repackFolderPath, false);
 
+    //Copy zones into repack folder
     exportPercentage_ += percentagePerStep;
     exportStatus_ = "Copying zones to " + terrPackfileName + "...";
-
-    //Copy zones into repack folder
     for (auto entry : std::filesystem::directory_iterator(tempFolderPath))
     {
         if (!entry.is_regular_file() || entry.path().extension() != ".rfgzone_pc")
@@ -2377,18 +2457,71 @@ bool TerritoryDocument::ExportMapSP(GuiState* state, const string& exportPath)
     exportPercentage_ += percentagePerStep;
     exportStatus_ = "Repacking " + terrPackfileName + "...";
 
-    //Repack main vpp_pc
+    //Repack zonscript_xxxx.vpp_pc
     Packfile3::Pack(repackFolderPath, tempFolderPath + "\\" + terrPackfileName, true, false);
 
     exportPercentage_ += percentagePerStep;
-    exportStatus_ = "Copying vpp_pc to export folder...";
+    exportStatus_ = "Copying map vpp_pc files to export folder...";
 
-    //Copy vpp_pc to output path + delete temporary files
+    //Copy edited vpp files to output path
     std::filesystem::copy_file(tempFolderPath + "\\" + terrPackfileName, exportPath + "\\" + terrPackfileName, std::filesystem::copy_options::overwrite_existing);
+    if (anyZoneInTerr01L0)
+        std::filesystem::copy_file(tempFolderPath + "\\" + mapName + "_l0.vpp_pc", exportPath + "\\" + mapName + "_l0.vpp_pc", std::filesystem::copy_options::overwrite_existing);
+    if (anyZoneInTerr01L1)
+        std::filesystem::copy_file(tempFolderPath + "\\" + mapName + "_l1.vpp_pc", exportPath + "\\" + mapName + "_l1.vpp_pc", std::filesystem::copy_options::overwrite_existing);
+
+    //Delete temporary files
     std::filesystem::remove_all(tempFolderPath);
 
     exportPercentage_ += percentagePerStep;
     exportStatus_ = "Done!";
+    return true;
+}
+
+bool UpdateSpPackfileZones(PackfileVFS* packfileVFS, std::vector<ZoneSearchResult>& editedZones, const string& packfileName, const string& tempFolderPath, bool compressed, bool condensed)
+{
+    //Extract vpp_pc. Reparsed instead of using the copy from PackfileVFS since it doesn't auto update them after the file changes.
+    Handle<Packfile3> currVpp = CreateHandle<Packfile3>(packfileVFS->DataFolderPath() + "\\" + packfileName);
+    string extractFolder = tempFolderPath + Path::GetFileNameNoExtension(packfileName) + "\\";
+    currVpp->ReadMetadata();
+    currVpp->ExtractSubfiles(extractFolder, false);
+    
+    //Copy new zone files to the str2_pc file that contains them
+    std::filesystem::create_directories(extractFolder + "Unpack\\");
+    for (ZoneSearchResult& result : editedZones)
+    {
+        if (result.File.GetPackfile()->Name() != packfileName)
+            continue; //Zone not in this packfile
+
+        //Extract str2_pc file
+        string str2Name = result.File.ContainerName();
+        string str2OutFolder = extractFolder + "Unpack\\" + str2Name + "\\";
+        Packfile3 packfile = { extractFolder + str2Name };
+        packfile.ReadMetadata();
+        packfile.ExtractSubfiles();
+        std::filesystem::create_directories(str2OutFolder);
+        packfile.ExtractSubfiles(str2OutFolder, true);
+
+        //Copy zone to str2 folder
+        std::filesystem::copy_file(tempFolderPath + result.Object.Get<string>("Name"), str2OutFolder + "\\" + result.Object.Get<string>("Name"), std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::copy_file(tempFolderPath + "p_" + result.Object.Get<string>("Name"), str2OutFolder + "\\p_" + result.Object.Get<string>("Name"), std::filesystem::copy_options::overwrite_existing);
+
+        //Repack str2_pc file
+        Packfile3::Pack(str2OutFolder, extractFolder + str2Name, true, true);
+    }
+
+    //Update asm_pc files
+    //All the vanilla SP maps have a single asm_pc with the same name as the packfile. Writing it this way just in case a modder decides to add another with AsmTool
+    for (auto& entry : std::filesystem::directory_iterator(extractFolder))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".asm_pc")
+            continue;
+
+        UpdateAsmPc(entry.path().string());
+    }
+
+    //Repack vpp_pc
+    Packfile3::Pack(extractFolder, tempFolderPath + "\\" + packfileName, false, false);
     return true;
 }
 
