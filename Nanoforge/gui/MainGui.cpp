@@ -779,7 +779,7 @@ void MainGui::DrawDockspace()
     static bool firstDraw = true;
     if (firstDraw)
     {
-        ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.15f, nullptr, &dockspaceId);
+        ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.13f, nullptr, &dockspaceId);
         ImGuiID dockRightId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Right, 0.28f, nullptr, &dockspaceId);
         ImGuiID dockRightUp = ImGui::DockBuilderSplitNode(dockRightId, ImGuiDir_Up, 0.35f, nullptr, &dockRightId);
         dockspaceCentralNodeId = ImGui::DockBuilderGetCentralNode(dockspaceId)->ID;
@@ -930,6 +930,8 @@ void MainGui::DrawProjectSaveLoadDialogs()
     if (State.CurrentProject->Loaded() && State.CurrentProject->Saving)
     {
         ImGui::OpenPopup(saveDialogName);
+        ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+        ImGui::SetNextWindowPos({ viewportSize.x / 2.7f, viewportSize.y / 2.7f }, ImGuiCond_Appearing); //Auto center
         if (ImGui::BeginPopupModal(saveDialogName, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
             ImGui::Text(State.CurrentProject->SaveThreadState.c_str());

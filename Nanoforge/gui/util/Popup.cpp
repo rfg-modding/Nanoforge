@@ -11,6 +11,8 @@ PopupResult Popup::Update(GuiState* state)
 {
 	if (open_)
 		ImGui::OpenPopup(title_.c_str());
+	else
+		return PopupResult::None;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.0f, 8.0f }); //Manually set padding since the parent window might be a document with padding disabled
 	PopupResult popupResult = PopupResult::None;

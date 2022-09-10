@@ -65,7 +65,7 @@ private:
     bool imguiDemoWindowOpen_ = true;
     string openRecentProjectRequestData_;
 
-    bool outlinerOpen_ = false;
-    bool inspectorOpen_ = false;
+    bool outlinerOpen_ = true;
+    bool inspectorOpen_ = true;
     Handle<IDocument> currentDocument_ = nullptr;
 };

@@ -11,9 +11,22 @@
 void DrawSettingsGui(bool* open, ImGuiFontManager* fonts)
 {
     ImGui::SetNextWindowFocus();
-    if (!ImGui::Begin("Settings", open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking))
+    if (!*open)
+        return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape) && !ImGui::IsAnyItemActive())
     {
-        ImGui::End();
+        *open = false; //Close with escape if no item is being edited
+        return;
+    }
+
+    ImGui::OpenPopup("Settings");
+    ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+    ImGui::SetNextWindowPos({ viewportSize.x / 2.7f, viewportSize.y / 2.7f }, ImGuiCond_Appearing); //Auto center
+    ImGui::SetNextWindowSize({ 500.0f, 450.0f }, ImGuiCond_FirstUseEver);
+    if (!ImGui::BeginPopupModal("Settings", open))
+    {
+        ImGui::EndPopup();
         return;
     }
 
@@ -149,5 +162,5 @@ void DrawSettingsGui(bool* open, ImGuiFontManager* fonts)
         }
     }
 
-    ImGui::End();
+    ImGui::EndPopup();
 }
