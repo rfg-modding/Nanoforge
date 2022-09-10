@@ -20,7 +20,12 @@ void EnsureNotWhitespaceOrEmpty(std::string_view target, std::string_view defaul
 
 bool DrawNewProjectWindow(bool* open, Project* project)
 {
-    if (ImGui::Begin("New project", open))
+    if (*open)
+        ImGui::OpenPopup("New project");
+
+    ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+    ImGui::SetNextWindowPos({ viewportSize.x / 2.7f, viewportSize.y / 2.7f }, ImGuiCond_Appearing); //Auto center
+    if (ImGui::BeginPopupModal("New project", open))
     {
         static string projectName;
         static string projectPath;
@@ -99,13 +104,14 @@ bool DrawNewProjectWindow(bool* open, Project* project)
                 //Save project and return true to signal that it was created
                 Config::Get()->Save();
                 *open = false;
-                ImGui::End();
+                ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
                 return true;
             }
             //Todo: Add save check for existing project
         }
 
-        ImGui::End();
+        ImGui::EndPopup();
     }
 
     return false;
