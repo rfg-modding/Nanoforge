@@ -4,6 +4,7 @@
 #include "rfg/Territory.h"
 #include "common/timing/Timer.h"
 #include "gui/util/Popup.h"
+#include "render/imgui/ImGuiFontManager.h"
 #include <future>
 
 class Scene;
@@ -30,6 +31,9 @@ public:
     void Outliner(GuiState* state) override;
     void Inspector(GuiState* state) override;
 
+    const u32 MAX_OUTLINER_DEPTH = 7; //The outliner won't draw tree nodes deeper than this
+    const u32 MAX_DEEP_CLONE_DEPTH = 10; //::DeepCloneObject() won't clone objects in hierarchies any deeper than this. It will still clone objects higher in the hierarchy and log an error.
+
 private:
     void DrawMenuBar(GuiState* state);
     void Keybinds(GuiState* state);
@@ -38,18 +42,22 @@ private:
 
     //Object commands
     void DrawObjectCreationPopup(GuiState* state);
-    void CloneObject(ObjectHandle object);
+    ObjectHandle SimpleCloneObject(ObjectHandle object);
+    ObjectHandle ShallowCloneObject(ObjectHandle object, bool selectNewObject = true);
+    ObjectHandle DeepCloneObject(ObjectHandle object, bool selectNewObject = true, u32 depth = 0);
     void DeleteObject(ObjectHandle object);
     void CopyScriptxReference(ObjectHandle object);
     void RemoveWorldAnchors(ObjectHandle object);
     void RemoveDynamicLinks(ObjectHandle object);
-    void AddGenericObject(GuiState* state);
+    void AddGenericObject(ObjectHandle parent = NullObjectHandle);
+    void OrphanObject(ObjectHandle object);
+    void OrphanChildren(ObjectHandle parent);
     u32 GetNewObjectHandle(); //Get unused object handle for a new object. Returns 0xFFFFFFFF if it fails.
     u32 GetNewObjectNum(); //Get unused object num for a new object. Returns 0xFFFFFFFF if it fails.
 
     //Outliner functions
     void Outliner_DrawFilters(GuiState* state);
-    void Outliner_DrawObjectNode(GuiState* state, ObjectHandle object); //Draw tree node for zone object and recursively draw child objects
+    void Outliner_DrawObjectNode(GuiState* state, ObjectHandle object, u32 depth); //Draw tree node for zone object and recursively draw child objects
     bool Outliner_ZoneAnyChildObjectsVisible(ObjectHandle zone); //Returns true if any objects in the zone are visible
     bool Outliner_ShowObjectOrChildren(ObjectHandle object); //Returns true if the object or any of it's children are visible
     //If true zones outside the territory viewing distance are hidden. Configurable via the buttons in the top left of the territory viewer.
@@ -63,6 +71,7 @@ private:
     bool Inspector_DrawMat3Editor(PropertyHandle prop);
     bool Inspector_DrawStringEditor(PropertyHandle prop);
     bool Inspector_DrawBoolEditor(PropertyHandle prop);
+    void Inspector_DrawRelativeEditor();
 
     void ExportTask(GuiState* state, MapExportType exportType);
     bool ExportMap(GuiState* state, const string& exportPath);
@@ -72,6 +81,7 @@ private:
 
     //Update relevant data when an object is changed
     void ObjectEdited(ObjectHandle object);
+    void SetObjectParent(ObjectHandle object, ObjectHandle oldParent, ObjectHandle newParent);
 
     string TerritoryName;
     string TerritoryShortname;
@@ -120,11 +130,26 @@ private:
     bool _highlightHoveredObject = false;
     ObjectHandle _hoveredObject = NullObjectHandle;
 
+    //Used by "Add dummy child" right click menu in outliner. Adds the dummy at the end of ::Outliner() so we're not modifying objects Children list while iterating.
+    ObjectHandle _contextMenuAddDummyChildParent = NullObjectHandle;
+    ObjectHandle _contextMenuShallowCloneObject = NullObjectHandle;
+    ObjectHandle _contextMenuDeepCloneObject = NullObjectHandle;
+    //Open this node in the outliner if it's set. Currently only works if the parent node of this node is also open. Fine for now since it only gets triggered by the "add dummy child" right click menu option
+    ObjectHandle _openNodeNextFrame = NullObjectHandle;
+    //Scrolls to bottom of outliner once next time its drawn
+    bool _scrollToBottomOfOutliner = false;
+    //Scroll to this object next time the outliner is drawn. Only works if that objects outliner node is visible. It won't open that object node.
+    ObjectHandle _scrollToObjectInOutliner = NullObjectHandle;
+
     //Confirmation popups + relevant object for several operations. Kinda gross but Dear ImGui popups operate in a strange order
-    Popup deleteObjectPopup_ = { "Delete object?", "Are you sure you want to delete the object?", PopupType::YesCancel, true };
+    Popup deleteObjectPopup_ = { "Delete object?", "Are you sure you want to delete the object? Any children will be orphaned " ICON_FA_HEART_BROKEN, PopupType::YesCancel, true };
     ObjectHandle deleteObjectPopupHandle_ = NullObjectHandle;
     Popup removeWorldAnchorPopup_ = { "Remove world anchors?", "Are you sure you'd like to remove the world anchors from this object? You can't undo this.", PopupType::YesCancel, true };
     ObjectHandle removeWorldAnchorPopupHandle_ = NullObjectHandle;
     Popup removeDynamicLinkPopup_ = { "Remove dynamic links?", "Are you sure you'd like to remove the dynamic links from this object? You can't undo this.", PopupType::YesCancel, true };
     ObjectHandle removeDynamicLinkPopupHandle_ = NullObjectHandle;
+    Popup orphanObjectPopup_ = { "Orphan object?", "Are you sure you'd like to make this object an orphan?", PopupType::YesCancel, true };
+    ObjectHandle orphanObjectPopupHandle_ = NullObjectHandle;
+    Popup orphanChildrenPopup_ = { "Orphan children?", "Are you sure you'd like to orphan all the children of this object? You'll need to manually add the children to parent if you want to undo this.", PopupType::YesCancel, true };
+    ObjectHandle orphanChildrenPopupHandle_ = NullObjectHandle;
 };

@@ -293,10 +293,30 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             bool canDelete = selectedObject_.Valid();
             bool canRemoveWorldAnchors = selectedObject_.Valid() && selectedObject_.Has("world_anchors");
             bool canRemoveDynamicLinks = selectedObject_.Valid() && selectedObject_.Has("dynamic_links");
+            bool hasChildren = selectedObject_.Valid() && selectedObject_.Has("Children") && selectedObject_.GetObjectList("Children").size() > 0;
+            bool hasParent = selectedObject_.Valid() && selectedObject_.Get<ObjectHandle>("Parent").Valid();
 
             if (ImGui::MenuItem("Clone", "Ctrl + D", nullptr, canClone))
             {
-                CloneObject(selectedObject_);
+                ShallowCloneObject(selectedObject_);
+                _scrollToObjectInOutliner = selectedObject_;
+            }
+            if (ImGui::MenuItem("Deep clone", "", nullptr, canClone))
+            {
+                DeepCloneObject(selectedObject_, true);
+                _scrollToObjectInOutliner = selectedObject_;
+            }
+
+            ImGui::Separator();
+            if (ImGui::MenuItem("Orphan object", nullptr, nullptr, hasParent))
+            {
+                orphanObjectPopupHandle_ = selectedObject_;
+                orphanObjectPopup_.Open();
+            }
+            if (ImGui::MenuItem("Orphan children", nullptr, nullptr, hasChildren))
+            {
+                orphanChildrenPopupHandle_ = selectedObject_;
+                orphanChildrenPopup_.Open();
             }
             //Note: Temporarily disabled in order to get first version of map editor out ASAP. First want the bare minimum map editor
             //if (ImGui::BeginMenu("Create"))
@@ -318,16 +338,21 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
 
             //    ImGui::EndMenu();
             //}
-            if (ImGui::MenuItem("Add generic object", nullptr))
+            if (ImGui::MenuItem("Add dummy object", nullptr))
             {
-                AddGenericObject(state);
+                AddGenericObject();
+                _scrollToObjectInOutliner = selectedObject_;
             }
+            ImGui::SameLine();
             gui::HelpMarker("Creates a dummy object that you can turn into any object type. Improperly configured objects can crash the game, so use at your own risk.", nullptr);
 
+            ImGui::Separator();
             if (ImGui::MenuItem("Delete", "Delete", nullptr, canDelete))
             {
                 DeleteObject(selectedObject_);
             }
+
+            ImGui::Separator();
             if (ImGui::MenuItem("Copy scriptx reference", "Ctrl + I", nullptr, canDelete))
             {
                 CopyScriptxReference(selectedObject_);
@@ -612,7 +637,8 @@ void TerritoryDocument::Keybinds(GuiState* state)
         //Win32 virtual keycodes: https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
         if (ImGui::IsKeyPressed(0x44, false) && selectedObject_) //D
         {
-            CloneObject(selectedObject_);
+            ShallowCloneObject(selectedObject_);
+            _scrollToObjectInOutliner = selectedObject_;
         }
         else if (ImGui::IsKeyPressed(0x49, false) && selectedObject_) //I
         {
@@ -658,6 +684,9 @@ void TerritoryDocument::DrawPopups(GuiState* state)
         //Registry::Get().DeleteObject(selected);
         deleteObjectPopupHandle_.Set<bool>("Deleted", true);
         ObjectEdited(deleteObjectPopupHandle_);
+
+        //Orphan child objects
+        OrphanChildren(deleteObjectPopupHandle_);
     }
     else if (result == PopupResult::Cancel)
     {
@@ -702,6 +731,19 @@ void TerritoryDocument::DrawPopups(GuiState* state)
     else if (result == PopupResult::Cancel)
     {
         removeDynamicLinkPopupHandle_ = NullObjectHandle;
+    }
+
+    //Orphan single object popup
+    if (PopupResult result = orphanObjectPopup_.Update(state); result == PopupResult::Yes)
+    {
+        OrphanObject(orphanObjectPopupHandle_);
+        _scrollToObjectInOutliner = orphanObjectPopupHandle_;
+    }
+
+    //Orphan all children popup
+    if (PopupResult result = orphanChildrenPopup_.Update(state); result == PopupResult::Yes)
+    {
+        OrphanChildren(orphanChildrenPopupHandle_);
     }
 }
 
@@ -900,163 +942,163 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
 
 void TerritoryDocument::DrawObjectCreationPopup(GuiState* state)
 {
-    if (showObjectCreationPopup_)
-        ImGui::OpenPopup("Create object");
-    if (ImGui::BeginPopupModal("Create object", nullptr, ImGuiWindowFlags_NoCollapse))
-    {
-        static bool persistent = false;
-        //Todo: Split each creator into separate functions. Starting simple to bootstrap the map editor. This won't scale to the 20+ object types the game has though.
+    //if (showObjectCreationPopup_)
+    //    ImGui::OpenPopup("Create object");
+    //if (ImGui::BeginPopupModal("Create object", nullptr, ImGuiWindowFlags_NoCollapse))
+    //{
+    //    static bool persistent = false;
+    //    //Todo: Split each creator into separate functions. Starting simple to bootstrap the map editor. This won't scale to the 20+ object types the game has though.
 
-        //player_start fields
-        static bool playerStart_Respawn = true;
-        static bool playerStart_Indoor = false;
-        static bool playerStart_InitialSpawn = false;
-        static string playerStart_MpTeam = "EDF";
-        //Todo: Implement selectors for these when SP support is added to map editor
-        //static bool playerStart_ChekpointRespawn = false;
-        //static bool playerStart_ActivityRespawn = false;
-        //static string playerStart_MissionInfo;
+    //    //player_start fields
+    //    static bool playerStart_Respawn = true;
+    //    static bool playerStart_Indoor = false;
+    //    static bool playerStart_InitialSpawn = false;
+    //    static string playerStart_MpTeam = "EDF";
+    //    //Todo: Implement selectors for these when SP support is added to map editor
+    //    //static bool playerStart_ChekpointRespawn = false;
+    //    //static bool playerStart_ActivityRespawn = false;
+    //    //static string playerStart_MissionInfo;
 
-        //multi_object_marker fields
-
-
-        //weapon fields
+    //    //multi_object_marker fields
 
 
-        //trigger_region fields
+    //    //weapon fields
 
 
-        //item fields
+    //    //trigger_region fields
 
 
-        bool notImplemented = false;
-        state->FontManager->FontMedium.Push();
-        ImGui::Text("Creating %s", objectCreationType_.c_str());
-        state->FontManager->FontMedium.Pop();
+    //    //item fields
 
-        ImGui::Checkbox("Persistent", &persistent);
 
-        //Content
-        if (objectCreationType_ == "player_start")
-        {
-            static std::vector<string> playerTeamOptions = { "EDF", "Guerilla" /*Mispelled because the game mispelled it*/, "Neutral" };
-            if (ImGui::BeginCombo("MP team", playerStart_MpTeam.c_str()))
-            {
-                for (const string& str : playerTeamOptions)
-                {
-                    bool selected = (str == playerStart_MpTeam);
-                    if (ImGui::Selectable(str.c_str(), &selected))
-                    {
-                        playerStart_MpTeam = str;
-                    }
-                }
-                ImGui::EndCombo();
-            }
-            ImGui::Checkbox("Respawn", &playerStart_Respawn);
-            ImGui::Checkbox("Indoor", &playerStart_Indoor);
-            ImGui::Checkbox("Initial spawn", &playerStart_InitialSpawn);
-        }
-        else if (objectCreationType_ == "multi_object_marker")
-        {
+    //    bool notImplemented = false;
+    //    state->FontManager->FontMedium.Push();
+    //    ImGui::Text("Creating %s", objectCreationType_.c_str());
+    //    state->FontManager->FontMedium.Pop();
 
-        }
-        else if (objectCreationType_ == "weapon")
-        {
+    //    ImGui::Checkbox("Persistent", &persistent);
 
-        }
-        else if (objectCreationType_ == "trigger_region")
-        {
+    //    //Content
+    //    if (objectCreationType_ == "player_start")
+    //    {
+    //        static std::vector<string> playerTeamOptions = { "EDF", "Guerilla" /*Mispelled because the game mispelled it*/, "Neutral" };
+    //        if (ImGui::BeginCombo("MP team", playerStart_MpTeam.c_str()))
+    //        {
+    //            for (const string& str : playerTeamOptions)
+    //            {
+    //                bool selected = (str == playerStart_MpTeam);
+    //                if (ImGui::Selectable(str.c_str(), &selected))
+    //                {
+    //                    playerStart_MpTeam = str;
+    //                }
+    //            }
+    //            ImGui::EndCombo();
+    //        }
+    //        ImGui::Checkbox("Respawn", &playerStart_Respawn);
+    //        ImGui::Checkbox("Indoor", &playerStart_Indoor);
+    //        ImGui::Checkbox("Initial spawn", &playerStart_InitialSpawn);
+    //    }
+    //    else if (objectCreationType_ == "multi_object_marker")
+    //    {
 
-        }
-        else if (objectCreationType_ == "item")
-        {
-            //Todo: Consider having separate creator option/shortcut for bagman flags
-        }
-        else
-        {
-            notImplemented = true;
-            ImGui::Text("Creator not implemented for this type...");
-        }
+    //    }
+    //    else if (objectCreationType_ == "weapon")
+    //    {
 
-        //Create/cancel buttons
-        if (!notImplemented && ImGui::Button("Create"))
-        {
-            //Don't bother creating a new object if there isn't an unused handle available.
-            u32 newHandle = GetNewObjectHandle();
-            if (newHandle == 0xFFFFFFFF)
-            {
-                LOG_ERROR("Failed to create new object. Couldn't find unused object handle. Please report this to a developer. This shouldn't really ever happen.");
-                return;
-            }
+    //    }
+    //    else if (objectCreationType_ == "trigger_region")
+    //    {
 
-            ObjectHandle newObject = Registry::Get().CreateObject("", objectCreationType_);
-            newObject.Set<u32>("Handle", newHandle);
-            newObject.Set<u32>("Num", 0);
-            newObject.Set<Vec3>("Bmin", { 0.0f, 0.0f, 0.0f });
-            newObject.Set<Vec3>("Bmin", { 5.0f, 5.0f, 5.0f }); //TODO: Come up with a better way of generating default bbox
+    //    }
+    //    else if (objectCreationType_ == "item")
+    //    {
+    //        //Todo: Consider having separate creator option/shortcut for bagman flags
+    //    }
+    //    else
+    //    {
+    //        notImplemented = true;
+    //        ImGui::Text("Creator not implemented for this type...");
+    //    }
 
-            if (objectCreationType_ == "player_start")
-            {
-                u16 flags = 65280;
-                if (persistent) flags += 1;
+    //    //Create/cancel buttons
+    //    if (!notImplemented && ImGui::Button("Create"))
+    //    {
+    //        //Don't bother creating a new object if there isn't an unused handle available.
+    //        u32 newHandle = GetNewObjectHandle();
+    //        if (newHandle == 0xFFFFFFFF)
+    //        {
+    //            LOG_ERROR("Failed to create new object. Couldn't find unused object handle. Please report this to a developer. This shouldn't really ever happen.");
+    //            return;
+    //        }
 
-                //Create new object and give it a unique handle
-                newObject.Set<string>("Name", playerStart_MpTeam + " player start");
-                newObject.Set<u32>("ClassnameHash", 1794022917);
-                newObject.Set<u16>("Flags", flags);
-                newObject.Set<u16>("BlockSize", 0);
-                newObject.Set<u16>("NumProps", 0);
-                newObject.Set<u16>("PropBlockSize", 0);
-                newObject.Set<u32>("ParentHandle", 0xFFFFFFFF);
-                newObject.Set<u32>("SiblingHandle", 0xFFFFFFFF);
-                newObject.Set<u32>("ChildHandle", 0xFFFFFFFF);
-                newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
-                newObject.Set<ObjectHandle>("Sibling", NullObjectHandle);
-                newObject.SetObjectList("Children", {});
-                newObject.Set<bool>("Persistent", persistent);
+    //        ObjectHandle newObject = Registry::Get().CreateObject("", objectCreationType_);
+    //        newObject.Set<u32>("Handle", newHandle);
+    //        newObject.Set<u32>("Num", 0);
+    //        newObject.Set<Vec3>("Bmin", { 0.0f, 0.0f, 0.0f });
+    //        newObject.Set<Vec3>("Bmin", { 5.0f, 5.0f, 5.0f }); //TODO: Come up with a better way of generating default bbox
 
-                //Add object to zone and select it
-                ObjectHandle zone = Territory.Object.GetObjectList("Zones")[0];
-                zone.GetObjectList("Objects").push_back(newObject);
-                newObject.Set<ObjectHandle>("Zone", zone);
-                selectedObject_ = newObject;
-            }
-            else if (objectCreationType_ == "multi_object_marker")
-            {
+    //        if (objectCreationType_ == "player_start")
+    //        {
+    //            u16 flags = 65280;
+    //            if (persistent) flags += 1;
 
-            }
-            else if (objectCreationType_ == "weapon")
-            {
+    //            //Create new object and give it a unique handle
+    //            newObject.Set<string>("Name", playerStart_MpTeam + " player start");
+    //            newObject.Set<u32>("ClassnameHash", 1794022917);
+    //            newObject.Set<u16>("Flags", flags);
+    //            newObject.Set<u16>("BlockSize", 0);
+    //            newObject.Set<u16>("NumProps", 0);
+    //            newObject.Set<u16>("PropBlockSize", 0);
+    //            newObject.Set<u32>("ParentHandle", 0xFFFFFFFF);
+    //            newObject.Set<u32>("SiblingHandle", 0xFFFFFFFF);
+    //            newObject.Set<u32>("ChildHandle", 0xFFFFFFFF);
+    //            newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
+    //            newObject.Set<ObjectHandle>("Sibling", NullObjectHandle);
+    //            newObject.SetObjectList("Children", {});
+    //            newObject.Set<bool>("Persistent", persistent);
 
-            }
-            else if (objectCreationType_ == "trigger_region")
-            {
+    //            //Add object to zone and select it
+    //            ObjectHandle zone = Territory.Object.GetObjectList("Zones")[0];
+    //            zone.GetObjectList("Objects").push_back(newObject);
+    //            newObject.Set<ObjectHandle>("Zone", zone);
+    //            selectedObject_ = newObject;
+    //        }
+    //        else if (objectCreationType_ == "multi_object_marker")
+    //        {
 
-            }
-            else if (objectCreationType_ == "item")
-            {
-                //Todo: Consider having separate creator option/shortcut for bagman flags
-            }
+    //        }
+    //        else if (objectCreationType_ == "weapon")
+    //        {
 
-            showObjectCreationPopup_ = false;
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            return;
-        }
-        if (!notImplemented) ImGui::SameLine();
-        if (ImGui::Button("Cancel"))
-        {
-            //TODO: Delete temporary object if one is used for this
-            showObjectCreationPopup_ = false;
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            return;
-        }
-        ImGui::EndPopup();
-    }
+    //        }
+    //        else if (objectCreationType_ == "trigger_region")
+    //        {
+
+    //        }
+    //        else if (objectCreationType_ == "item")
+    //        {
+    //            //Todo: Consider having separate creator option/shortcut for bagman flags
+    //        }
+
+    //        showObjectCreationPopup_ = false;
+    //        ImGui::CloseCurrentPopup();
+    //        ImGui::EndPopup();
+    //        return;
+    //    }
+    //    if (!notImplemented) ImGui::SameLine();
+    //    if (ImGui::Button("Cancel"))
+    //    {
+    //        //TODO: Delete temporary object if one is used for this
+    //        showObjectCreationPopup_ = false;
+    //        ImGui::CloseCurrentPopup();
+    //        ImGui::EndPopup();
+    //        return;
+    //    }
+    //    ImGui::EndPopup();
+    //}
 }
 
-void TerritoryDocument::CloneObject(ObjectHandle object)
+ObjectHandle TerritoryDocument::SimpleCloneObject(ObjectHandle object)
 {
     //Don't bother creating a new object if there isn't an unused handle available.
     u32 newHandle = GetNewObjectHandle();
@@ -1064,7 +1106,7 @@ void TerritoryDocument::CloneObject(ObjectHandle object)
     if (newHandle == 0xFFFFFFFF)
     {
         LOG_ERROR("Failed to clone object {}. Couldn't find unused object handle. Please report this to a developer. This shouldn't really ever happen.", object.UID());
-        return;
+        return NullObjectHandle;
     }
 
     ObjectHandle newObject = Registry::Get().CreateObject();
@@ -1097,10 +1139,65 @@ void TerritoryDocument::CloneObject(ObjectHandle object)
     newObject.Set<u32>("Handle", newHandle);
     newObject.Set<u32>("Num", newNum);
 
+    //Add to zone + set as edited
     ObjectHandle zone = newObject.Get<ObjectHandle>("Zone");
     zone.GetObjectList("Objects").push_back(newObject);
-    selectedObject_ = newObject;
     ObjectEdited(selectedObject_);
+
+    return newObject;
+}
+
+ObjectHandle TerritoryDocument::ShallowCloneObject(ObjectHandle object, bool selectNewObject)
+{
+    ObjectHandle newObject = SimpleCloneObject(object);
+
+    //Clear relative handles. These are only cloned in a deep copy
+    newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
+    newObject.Set<ObjectHandle>("Child", NullObjectHandle);
+    newObject.SetObjectList("Children", {});
+    ObjectEdited(newObject);
+
+    if (selectNewObject)
+        selectedObject_ = newObject;
+
+    return newObject;
+}
+
+ObjectHandle TerritoryDocument::DeepCloneObject(ObjectHandle object, bool selectNewObject, u32 depth)
+{
+    if (depth > MAX_DEEP_CLONE_DEPTH)
+    {
+        LOG_ERROR("Deep clone error! Exceeded maximum deep clone hierarchy depth of {}", MAX_DEEP_CLONE_DEPTH);
+        return NullObjectHandle;
+    }
+
+    ObjectHandle newObject = SimpleCloneObject(object);
+    std::vector<ObjectHandle> oldChildren = newObject.GetObjectList("Children"); //Make a copy of the children list so we can edit it while iterating
+    std::vector<ObjectHandle>& children = newObject.GetObjectList("Children");
+    children.clear();
+
+    //Clone children
+    for (ObjectHandle oldChild : oldChildren)
+    {
+        ObjectHandle newChild = DeepCloneObject(oldChild, false, depth + 1);
+        if (newChild)
+        {
+            newChild.Set<ObjectHandle>("Parent", newObject);
+            children.push_back(newChild);
+        }
+    }
+
+    //Set first child handle
+    if (children.size() > 0)
+    {
+        newObject.Set<ObjectHandle>("Child", children[0]); //Note: You shouldn't use this property anymore. Just updating for compatibility sake. Use Children list instead
+    }
+    ObjectEdited(newObject);
+
+    if (selectNewObject)
+        selectedObject_ = newObject;
+
+    return newObject;
 }
 
 void TerritoryDocument::DeleteObject(ObjectHandle object)
@@ -1151,7 +1248,7 @@ void TerritoryDocument::RemoveDynamicLinks(ObjectHandle object)
     removeDynamicLinkPopupHandle_ = object;
 }
 
-void TerritoryDocument::AddGenericObject(GuiState* state)
+void TerritoryDocument::AddGenericObject(ObjectHandle parent)
 {
     Registry& registry = Registry::Get();
     std::string_view classname = "object_dummy";
@@ -1191,7 +1288,7 @@ void TerritoryDocument::AddGenericObject(GuiState* state)
     newObj.Set<u32>("ChildHandle", 0xFFFFFFFF);
     newObj.Set<u16>("NumProps", 0); //Also re-calculated on export
     newObj.Set<u16>("PropBlockSize", 0); //^^^
-    newObj.Set<ObjectHandle>("Parent", NullObjectHandle);
+    newObj.Set<ObjectHandle>("Parent", parent);
     newObj.Set<ObjectHandle>("Sibling", NullObjectHandle);
     newObj.Set<bool>("Persistent", persistent);
     newObj.SetStringList("RfgPropertyNames", { "op" });
@@ -1206,6 +1303,35 @@ void TerritoryDocument::AddGenericObject(GuiState* state)
     zone.AppendObjectList("Objects", newObj);
     selectedObject_ = newObj;
     ObjectEdited(selectedObject_);
+
+    if (parent)
+    {
+        parent.AppendObjectList("Children", newObj);
+        ObjectEdited(parent);
+    }
+}
+
+void TerritoryDocument::OrphanObject(ObjectHandle object)
+{
+    ObjectHandle parent = object.Get<ObjectHandle>("Parent");
+    if (parent)
+    {
+        std::vector<ObjectHandle>& oldChildrenList = parent.GetObjectList("Children");
+        oldChildrenList.erase(std::remove(oldChildrenList.begin(), oldChildrenList.end(), object), oldChildrenList.end());
+    }
+
+    object.Set<ObjectHandle>("Parent", NullObjectHandle);
+    ObjectEdited(object);
+}
+
+void TerritoryDocument::OrphanChildren(ObjectHandle parent)
+{
+    std::vector<ObjectHandle> children = parent.GetObjectList("Children"); //Get a copy of the object list. Don't use a reference since OrphanObject() modifies the child list
+    for (ObjectHandle child : children)
+        OrphanObject(child);
+
+    parent.GetObjectList("Children").clear(); //Clear just in case OrphanObject didn't get them all
+    ObjectEdited(parent);
 }
 
 u32 TerritoryDocument::GetNewObjectHandle()
@@ -1267,6 +1393,7 @@ void TerritoryDocument::Outliner(GuiState* state)
     //Clear hovered objects so if no object is hovered this frame they're null
     _hoveredZone = NullObjectHandle;
     _hoveredObject = NullObjectHandle;
+    _contextMenuAddDummyChildParent = NullObjectHandle;
 
     //Set custom highlight colors for the table
     ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
@@ -1332,7 +1459,8 @@ void TerritoryDocument::Outliner(GuiState* state)
                     if (object.Has("Deleted") && object.Get<bool>("Deleted"))
                         continue;
 
-                    Outliner_DrawObjectNode(state, object);
+                    u32 depth = 0;
+                    Outliner_DrawObjectNode(state, object, depth + 1);
                 }
                 ImGui::TreePop();
             }
@@ -1342,10 +1470,87 @@ void TerritoryDocument::Outliner(GuiState* state)
         {
             _hoveredZone = NullObjectHandle;
         }
+        if (_scrollToBottomOfOutliner)
+        {
+            ImGui::SetScrollY(1.0f);
+            _scrollToBottomOfOutliner = false;
+        }
 
         ImGui::PopStyleColor(3);
         ImGui::EndTable();
     }
+
+    if (_contextMenuAddDummyChildParent)
+    {
+        AddGenericObject(_contextMenuAddDummyChildParent);
+        _openNodeNextFrame = _contextMenuAddDummyChildParent;
+        _contextMenuAddDummyChildParent = NullObjectHandle;
+    }
+    if (_contextMenuShallowCloneObject)
+    {
+        ShallowCloneObject(_contextMenuShallowCloneObject);
+        _scrollToObjectInOutliner = selectedObject_;
+        _contextMenuShallowCloneObject = NullObjectHandle;
+    }
+    if (_contextMenuDeepCloneObject)
+    {
+        DeepCloneObject(_contextMenuDeepCloneObject);
+        _scrollToObjectInOutliner = selectedObject_;
+        _contextMenuDeepCloneObject = NullObjectHandle;
+    }
+}
+
+string GetObjectHandleName(ObjectHandle handle)
+{
+    string name = "";
+    if (handle.Has("Name"))
+    {
+        name = handle.Property("Name").Get<string>();
+        if (name == "")
+            name = std::to_string(handle.UID());
+
+        name += ", " + std::to_string(handle.Get<u32>("Num"));
+    }
+    else
+    {
+        name = std::to_string(handle.UID());
+    }
+
+    return name;
+}
+
+void TerritoryDocument::SetObjectParent(ObjectHandle object, ObjectHandle oldParent, ObjectHandle newParent)
+{
+    /*
+        Note: We don't need to update the Sibling handle in this function. Thats now recalculated on map export (see rfg/export/MapExporter.cpp)
+              Object hierarchies should be traversed using the Parent and Children properties of objects instead. 
+              Sibling will likely be removed in the rewrite since its not needed anymore, not kept up to date, and a bigger pain to use than the parent handle + child lists
+    */
+
+    if (oldParent == newParent)
+        return; //Nothing will change
+
+    //Don't allow objects to be their own parent
+    if (object == newParent)
+    {
+        LOG_ERROR("Failed to update relation data! Tried to make an object its own parent.");
+        return;
+    }
+
+    //Remove object from old parents children list
+    if (oldParent)
+    {
+        std::vector<ObjectHandle>& oldChildrenList = oldParent.GetObjectList("Children");
+        oldChildrenList.erase(std::remove(oldChildrenList.begin(), oldChildrenList.end(), object), oldChildrenList.end());
+    }
+    object.Set<ObjectHandle>("Parent", NullObjectHandle);
+
+    if (!newParent)
+        return; //Orphaning the object. Already cleared parent handle + removed child from the parents children list. Nothing more to do
+
+    //Setting new parent
+    newParent.AppendObjectList("Children", object);
+    object.Set<ObjectHandle>("Parent", newParent);
 }
 
 void TerritoryDocument::Inspector(GuiState* state)
@@ -1441,16 +1646,6 @@ void TerritoryDocument::Inspector(GuiState* state)
     ImGui::Text(fmt::format("{}, {}", handle, num).c_str());
     ImGui::Separator();
 
-    //Relative objects
-    if (ImGui::CollapsingHeader("Relations"))
-    {
-        ImGui::Indent(15.0f);
-        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Zone"))) ObjectEdited(selectedObject_);
-        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Parent"))) ObjectEdited(selectedObject_);
-        if (Inspector_DrawObjectHandleEditor(selectedObject_.Property("Sibling"))) ObjectEdited(selectedObject_);
-        if (Inspector_DrawObjectHandleListEditor(selectedObject_.Property("Children"))) ObjectEdited(selectedObject_);
-        ImGui::Unindent(15.0f);
-    }
     if (ImGui::CollapsingHeader("Bounding box"))
     {
         ImGui::Indent(15.0f);
@@ -1615,6 +1810,8 @@ void TerritoryDocument::Inspector(GuiState* state)
         }
         ImGui::Unindent(15.0f);
     }
+
+    Inspector_DrawRelativeEditor();
 
     //Draw position and orient first so they're easy to find
     Vec3 initialPos = selectedObject_.Get<Vec3>("Position");
@@ -2044,6 +2241,58 @@ bool TerritoryDocument::Inspector_DrawBoolEditor(PropertyHandle prop)
     gui::TooltipOnPrevious("bool");
     
     return edited;
+}
+
+void TerritoryDocument::Inspector_DrawRelativeEditor()
+{
+    //ImGui::Indent(15.0f);
+    ObjectHandle zone = selectedObject_.Get<ObjectHandle>("Zone");
+
+    //Parent combo selector
+    {
+        static string parentSelectorSearch = "";
+        ObjectHandle currentParent = selectedObject_.Get<ObjectHandle>("Parent");
+        string currentParentName = currentParent ? GetObjectHandleName(currentParent) : "Not set";
+        if (ImGui::BeginCombo("Parent", currentParentName.c_str()))
+        {
+            //Search bar
+            ImGui::InputText("Search", &parentSelectorSearch);
+            ImGui::SameLine();
+            if (ImGui::Button(ICON_VS_CHROME_CLOSE))
+            {
+                parentSelectorSearch = "";
+            }
+            ImGui::Separator();
+
+            //Options
+            for (ObjectHandle newParent : zone.GetObjectList("Objects"))
+            {
+                if (newParent == selectedObject_)
+                    continue; //Can't be your own parent
+                if (!newParent || (newParent && newParent.Has("Deleted") && newParent.Get<bool>("Deleted")))
+                    continue; //Parent must be alive
+
+                string name = GetObjectHandleName(newParent);
+                if (parentSelectorSearch != "" && !String::Contains(String::ToLower(name), String::ToLower(parentSelectorSearch)))
+                    continue;
+
+                bool selected = (newParent == currentParent);
+                if (ImGui::Selectable(name.c_str(), selected))
+                {
+                    SetObjectParent(selectedObject_, currentParent, newParent); //Set new parent
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reset"))
+        {
+            selectedObject_.Set<ObjectHandle>("Parent", NullObjectHandle); //Make object an orphan
+            SetObjectParent(selectedObject_, currentParent, NullObjectHandle);
+        }
+    }
+
+    //ImGui::Unindent(15.0f);
 }
 
 void TerritoryDocument::ExportTask(GuiState* state, MapExportType exportType)
@@ -2722,14 +2971,20 @@ void TerritoryDocument::Outliner_DrawFilters(GuiState* state)
     }
 }
 
-void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle object)
+void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle object, u32 depth)
 {
+    if (depth > MAX_OUTLINER_DEPTH)
+    {
+        ImGui::Text("Can't draw object! Hit tree depth limit!");
+        return;
+    }
+
     if (object.Has("Deleted") && object.Get<bool>("Deleted"))
         return;
 
     //Don't show node if it and it's children object types are being hidden
     bool showObjectOrChildren = Outliner_ShowObjectOrChildren(object);
-    bool visible = Outliner_ShowObjectOrChildren(object);
+    bool visible = Outliner_ShowObjectOrChildren(object) || object == _openNodeNextFrame;
     if (!visible)
         return;
 
@@ -2751,18 +3006,84 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
-    //Draw node
-    ImGui::PushID(object.UID()); //Push unique ID for the UI element
-    f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
-    bool nodeOpen = ImGui::TreeNodeEx(objectLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
-        (object.GetObjectList("Children").size() == 0 ? ImGuiTreeNodeFlags_Leaf : 0) | (selected ? ImGuiTreeNodeFlags_Selected : 0));
+    bool hasChildren = object.GetObjectList("Children").size() != 0;
+    bool hasParent = object.Get<ObjectHandle>("Parent").Valid();
 
+    ImGui::PushID(object.UID()); //Push unique ID for the UI element
+    if (_openNodeNextFrame == object) //Force open the node if set last frame
+    {
+        ImGui::SetNextItemOpen(true);
+        _openNodeNextFrame = NullObjectHandle;
+    }
+
+    //Draw node
+    f32 nodeXPos = ImGui::GetCursorPosX(); //Store position of the node for drawing the node icon later
+    bool nodeOpen = ImGui::TreeNodeEx(objectLabel.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_OpenOnArrow |
+        (hasChildren ? 0 : ImGuiTreeNodeFlags_Leaf) | (selected ? ImGuiTreeNodeFlags_Selected : 0));
+
+    if (_scrollToObjectInOutliner == object) //Scroll to node if set
+    {
+        ImGui::ScrollToItem();
+        _scrollToObjectInOutliner = NullObjectHandle;
+    }
     if (ImGui::IsItemClicked())
     {
         if (object == selectedObject_)
             selectedObject_ = NullObjectHandle; //Clicked selected object again, deselect it
         else
             selectedObject_ = object; //Clicked object, select it
+    }
+    if (ImGui::BeginPopupContextItem()) //Right click context menu
+    {
+        if (ImGui::Selectable("Clone"))
+        {
+            _contextMenuShallowCloneObject = object;
+        }
+
+        if (ImGui::Selectable("Deep clone"))
+        {
+            _contextMenuDeepCloneObject = object;
+        }
+        ImGui::Separator();
+
+
+        if (ImGui::Selectable("Add dummy child"))
+        {
+            _contextMenuAddDummyChildParent = object;
+        }
+
+        if (!hasParent) ImGui::BeginDisabled();
+        if (ImGui::Selectable("Orphan"))
+        {
+            orphanObjectPopupHandle_ = object;
+            orphanObjectPopup_.Open();
+        }
+        if (!hasParent) ImGui::EndDisabled();
+
+        if (!hasChildren) ImGui::BeginDisabled();
+        if (ImGui::Selectable("Orphan children"))
+        {
+            orphanChildrenPopupHandle_ = object;
+            orphanChildrenPopup_.Open();
+        }
+        if (!hasChildren) ImGui::EndDisabled();
+
+
+        ImGui::Separator();
+        if (ImGui::Selectable("Delete"))
+        {
+            deleteObjectPopupHandle_ = object;
+            deleteObjectPopup_.Open();
+        }
+
+
+        ImGui::Separator();
+        if (ImGui::Selectable("Copy scriptx reference"))
+        {
+            CopyScriptxReference(selectedObject_);
+        }
+
+        ImGui::EndPopup();
     }
     if (ImGui::IsItemHovered())
     {
@@ -2795,7 +3116,7 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
     {
         for (ObjectHandle child : object.GetObjectList("Children"))
             if (child || (object.Has("Deleted") && object.Get<bool>("Deleted")))
-                Outliner_DrawObjectNode(state, child);
+                Outliner_DrawObjectNode(state, child, depth + 1);
         ImGui::TreePop();
     }
     ImGui::PopID();

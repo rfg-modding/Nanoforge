@@ -7,6 +7,36 @@ bool Exporters::ExportTerritory(ObjectHandle territory, std::string_view outputP
 		if (skipUneditedZones && !zone.Get<bool>("ChildObjectEdited"))
 			continue;
 
+		//Update ParentHandle, ChildHandle, and SiblingHandle properties (in game u32 handles) with registry object handles
+		//Nanoforge doesn't use the games handle system internally because it'd be inconvenient.
+		for (ObjectHandle object : zone.GetObjectList("Objects"))
+		{
+			//Update parent handle
+			ObjectHandle objParent = object.Get<ObjectHandle>("Parent");
+			object.Set<u32>("ParentHandle", objParent.Valid() ? objParent.Get<u32>("Handle") : 0xFFFFFFFF);
+
+			//Update children
+			if (object.GetObjectList("Children").size() > 0) //Parent object, update children handle & update parent/sibling handles of each child
+			{
+				std::vector<ObjectHandle>& children = object.GetObjectList("Children");
+				ObjectHandle firstChild = children[0];
+				object.Set<u32>("ChildHandle", firstChild.Get<u32>("Handle"));
+
+				for (size_t i = 0; i < children.size(); i++)
+				{
+					ObjectHandle child = children[i];
+					ObjectHandle nextChild = (i < children.size() - 1) ? children[i + 1] : NullObjectHandle;
+					
+					child.Set<u32>("ParentHandle", object.Get<u32>("Handle"));
+					child.Set<u32>("SiblingHandle", nextChild.Valid() ? nextChild.Get<u32>("Handle") : 0xFFFFFFFF);
+				}
+			}
+			else //Object has no children
+			{
+				object.Set<u32>("ChildHandle", 0xFFFFFFFF);
+			}
+		}
+
 		if (!Exporters::ExportZone(zone, fmt::format("{}/{}", outputPath, zone.Get<string>("Name")), false)) //Generate zone file
 		{
 			LOG_ERROR("Failed to export territory '{}', zone '{}'", territory.Get<string>("Name"), zone.Get<string>("Name"));
