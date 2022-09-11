@@ -3066,9 +3066,11 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
         {
             for (Handle<IDocument> doc : otherMapEditors)
             {
-                if (ImGui::MenuItem(doc->Title.c_str()))
+                TerritoryDocument* otherMap = (TerritoryDocument*)doc.get();
+                bool ready = otherMap->Territory.Ready();
+                string name = doc->Title + (ready ? "" : " - Loading...");
+                if (ImGui::MenuItem(name.c_str(), nullptr, nullptr, ready))
                 {
-                    TerritoryDocument* otherMap = (TerritoryDocument*)doc.get();
                     ObjectHandle newObject = otherMap->ShallowCloneObject(object, true, true);
                     newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
                 }
@@ -3086,9 +3088,11 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
         {
             for (Handle<IDocument> doc : otherMapEditors)
             {
-                if (ImGui::MenuItem(doc->Title.c_str()))
+                TerritoryDocument* otherMap = (TerritoryDocument*)doc.get();
+                bool ready = otherMap->Territory.Ready();
+                string name = doc->Title + (ready ? "" : " - Loading...");
+                if (ImGui::MenuItem(name.c_str(), nullptr, nullptr, ready))
                 {
-                    TerritoryDocument* otherMap = (TerritoryDocument*)doc.get();
                     ObjectHandle newObject = otherMap->DeepCloneObject(object, true, 0, true);
                     newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
                 }
