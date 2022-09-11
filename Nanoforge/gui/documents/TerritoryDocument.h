@@ -34,6 +34,10 @@ public:
     const u32 MAX_OUTLINER_DEPTH = 7; //The outliner won't draw tree nodes deeper than this
     const u32 MAX_DEEP_CLONE_DEPTH = 10; //::DeepCloneObject() won't clone objects in hierarchies any deeper than this. It will still clone objects higher in the hierarchy and log an error.
 
+    string TerritoryName;
+    string TerritoryShortname;
+    Territory Territory;
+
 private:
     void DrawMenuBar(GuiState* state);
     void Keybinds(GuiState* state);
@@ -42,9 +46,9 @@ private:
 
     //Object commands
     void DrawObjectCreationPopup(GuiState* state);
-    ObjectHandle SimpleCloneObject(ObjectHandle object);
-    ObjectHandle ShallowCloneObject(ObjectHandle object, bool selectNewObject = true);
-    ObjectHandle DeepCloneObject(ObjectHandle object, bool selectNewObject = true, u32 depth = 0);
+    ObjectHandle SimpleCloneObject(ObjectHandle object, bool useTerritoryZone = false);
+    ObjectHandle ShallowCloneObject(ObjectHandle object, bool selectNewObject = true, bool useTerritoryZone = false);
+    ObjectHandle DeepCloneObject(ObjectHandle object, bool selectNewObject = true, u32 depth = 0, bool useTerritoryZone = false);
     void DeleteObject(ObjectHandle object);
     void CopyScriptxReference(ObjectHandle object);
     void RemoveWorldAnchors(ObjectHandle object);
@@ -83,9 +87,6 @@ private:
     void ObjectEdited(ObjectHandle object);
     void SetObjectParent(ObjectHandle object, ObjectHandle oldParent, ObjectHandle newParent);
 
-    string TerritoryName;
-    string TerritoryShortname;
-    Territory Territory;
     Handle<Scene> Scene = nullptr;
     Handle<Task> TerritoryLoadTask = nullptr;
     bool WorkerResourcesFreed = false;

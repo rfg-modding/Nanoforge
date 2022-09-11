@@ -61,6 +61,7 @@ TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territory
     HasMenuBar = true;
     NoWindowPadding = true;
     HasCustomOutlinerAndInspector = true;
+    DocumentType = "MapEditor";
 
     //Determine if high lod terrain and buildings should be loaded. If these are false now you can't reload them without closing a map and re-opening it.
     useHighLodTerrain_ = !CVar_DisableHighQualityTerrain.Get<bool>();
@@ -1098,7 +1099,7 @@ void TerritoryDocument::DrawObjectCreationPopup(GuiState* state)
     //}
 }
 
-ObjectHandle TerritoryDocument::SimpleCloneObject(ObjectHandle object)
+ObjectHandle TerritoryDocument::SimpleCloneObject(ObjectHandle object, bool useTerritoryZone)
 {
     //Don't bother creating a new object if there isn't an unused handle available.
     u32 newHandle = GetNewObjectHandle();
@@ -1140,16 +1141,25 @@ ObjectHandle TerritoryDocument::SimpleCloneObject(ObjectHandle object)
     newObject.Set<u32>("Num", newNum);
 
     //Add to zone + set as edited
-    ObjectHandle zone = newObject.Get<ObjectHandle>("Zone");
-    zone.GetObjectList("Objects").push_back(newObject);
-    ObjectEdited(selectedObject_);
+    if (useTerritoryZone) //Add the object to the first zone in the map. Used when transferring objects between maps since we don't want to add it to a zone in the source map
+    {
+        ObjectHandle zone = Territory.Object.GetObjectList("Zones")[0];
+        newObject.Set<ObjectHandle>("Zone", zone);
+        zone.AppendObjectList("Objects", newObject);
+    }
+    else //Add the object to the same zone as the original object
+    {
+        ObjectHandle zone = newObject.Get<ObjectHandle>("Zone");
+        zone.GetObjectList("Objects").push_back(newObject);
+    }
+    ObjectEdited(newObject);
 
     return newObject;
 }
 
-ObjectHandle TerritoryDocument::ShallowCloneObject(ObjectHandle object, bool selectNewObject)
+ObjectHandle TerritoryDocument::ShallowCloneObject(ObjectHandle object, bool selectNewObject, bool useTerritoryZone)
 {
-    ObjectHandle newObject = SimpleCloneObject(object);
+    ObjectHandle newObject = SimpleCloneObject(object, useTerritoryZone);
 
     //Clear relative handles. These are only cloned in a deep copy
     newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
@@ -1158,12 +1168,15 @@ ObjectHandle TerritoryDocument::ShallowCloneObject(ObjectHandle object, bool sel
     ObjectEdited(newObject);
 
     if (selectNewObject)
+    {
         selectedObject_ = newObject;
+        _scrollToObjectInOutliner = newObject;
+    }
 
     return newObject;
 }
 
-ObjectHandle TerritoryDocument::DeepCloneObject(ObjectHandle object, bool selectNewObject, u32 depth)
+ObjectHandle TerritoryDocument::DeepCloneObject(ObjectHandle object, bool selectNewObject, u32 depth, bool useTerritoryZone)
 {
     if (depth > MAX_DEEP_CLONE_DEPTH)
     {
@@ -1171,7 +1184,7 @@ ObjectHandle TerritoryDocument::DeepCloneObject(ObjectHandle object, bool select
         return NullObjectHandle;
     }
 
-    ObjectHandle newObject = SimpleCloneObject(object);
+    ObjectHandle newObject = SimpleCloneObject(object, useTerritoryZone);
     std::vector<ObjectHandle> oldChildren = newObject.GetObjectList("Children"); //Make a copy of the children list so we can edit it while iterating
     std::vector<ObjectHandle>& children = newObject.GetObjectList("Children");
     children.clear();
@@ -1179,7 +1192,7 @@ ObjectHandle TerritoryDocument::DeepCloneObject(ObjectHandle object, bool select
     //Clone children
     for (ObjectHandle oldChild : oldChildren)
     {
-        ObjectHandle newChild = DeepCloneObject(oldChild, false, depth + 1);
+        ObjectHandle newChild = DeepCloneObject(oldChild, false, depth + 1, useTerritoryZone);
         if (newChild)
         {
             newChild.Set<ObjectHandle>("Parent", newObject);
@@ -1195,7 +1208,10 @@ ObjectHandle TerritoryDocument::DeepCloneObject(ObjectHandle object, bool select
     ObjectEdited(newObject);
 
     if (selectNewObject)
+    {
         selectedObject_ = newObject;
+        _scrollToObjectInOutliner = newObject;
+    }
 
     return newObject;
 }
@@ -1757,14 +1773,14 @@ void TerritoryDocument::Inspector(GuiState* state)
         bool flag5      = GET_FLAG(5);
         bool flag6      = GET_FLAG(6);
         bool flag7      = GET_FLAG(7);
-        bool flag8      = GET_FLAG(8);
-        bool flag9      = GET_FLAG(9);
-        bool flag10     = GET_FLAG(10);
-        bool flag11     = GET_FLAG(11);
-        bool flag12     = GET_FLAG(12);
-        bool flag13     = GET_FLAG(13);
-        bool flag14     = GET_FLAG(14);
-        bool flag15     = GET_FLAG(15);
+        bool spawnInAnarchy      = GET_FLAG(8);
+        bool spawnInTeamAnarchy      = GET_FLAG(9);
+        bool spawnInCTF     = GET_FLAG(10);
+        bool spawnInSiege     = GET_FLAG(11);
+        bool spawnInDamageControl     = GET_FLAG(12);
+        bool spawnInBagman     = GET_FLAG(13);
+        bool spawnInTeamBagman     = GET_FLAG(14);
+        bool spawnInDemolition     = GET_FLAG(15);
 
         bool changed = false;
         if (ImGui::Checkbox("Persistent", &persistent)) changed = true;
@@ -1775,14 +1791,14 @@ void TerritoryDocument::Inspector(GuiState* state)
         if (ImGui::Checkbox("Flag5", &flag5))           changed = true;
         if (ImGui::Checkbox("Flag6", &flag6))           changed = true;
         if (ImGui::Checkbox("Flag7", &flag7))           changed = true;
-        if (ImGui::Checkbox("Flag8", &flag8))           changed = true;
-        if (ImGui::Checkbox("Flag9", &flag9))           changed = true;
-        if (ImGui::Checkbox("Flag10", &flag10))         changed = true;
-        if (ImGui::Checkbox("Flag11", &flag11))         changed = true;
-        if (ImGui::Checkbox("Flag12", &flag12))         changed = true;
-        if (ImGui::Checkbox("Flag13", &flag13))         changed = true;
-        if (ImGui::Checkbox("Flag14", &flag14))         changed = true;
-        if (ImGui::Checkbox("Flag15", &flag15))         changed = true;
+        if (ImGui::Checkbox("Spawn in Anarchy", &spawnInAnarchy))           changed = true;
+        if (ImGui::Checkbox("Spawn in Team Anarchy", &spawnInTeamAnarchy))           changed = true;
+        if (ImGui::Checkbox("Spawn in CTF", &spawnInCTF))         changed = true;
+        if (ImGui::Checkbox("Spawn in Siege", &spawnInSiege))         changed = true;
+        if (ImGui::Checkbox("Spawn in Damage Control", &spawnInDamageControl))         changed = true;
+        if (ImGui::Checkbox("Spawn in Bagman", &spawnInBagman))         changed = true;
+        if (ImGui::Checkbox("Spawn in Team Bagman", &spawnInTeamBagman))         changed = true;
+        if (ImGui::Checkbox("Spawn in Demolition", &spawnInDemolition))         changed = true;
 
         if (changed)
         {
@@ -1795,14 +1811,14 @@ void TerritoryDocument::Inspector(GuiState* state)
             if (flag5)      newFlags |= (1 << 5);
             if (flag6)      newFlags |= (1 << 6);
             if (flag7)      newFlags |= (1 << 7);
-            if (flag8)      newFlags |= (1 << 8);
-            if (flag9)      newFlags |= (1 << 9);
-            if (flag10)     newFlags |= (1 << 10);
-            if (flag11)     newFlags |= (1 << 11);
-            if (flag12)     newFlags |= (1 << 12);
-            if (flag13)     newFlags |= (1 << 13);
-            if (flag14)     newFlags |= (1 << 14);
-            if (flag15)     newFlags |= (1 << 15);
+            if (spawnInAnarchy)      newFlags |= (1 << 8);
+            if (spawnInTeamAnarchy)      newFlags |= (1 << 9);
+            if (spawnInCTF)     newFlags |= (1 << 10);
+            if (spawnInSiege)     newFlags |= (1 << 11);
+            if (spawnInDamageControl)     newFlags |= (1 << 12);
+            if (spawnInBagman)     newFlags |= (1 << 13);
+            if (spawnInTeamBagman)     newFlags |= (1 << 14);
+            if (spawnInDemolition)     newFlags |= (1 << 15);
 
             selectedObject_.Set<bool>("Persistent", persistent);
             selectedObject_.Set<u16>("Flags", newFlags);
@@ -3035,18 +3051,54 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
     }
     if (ImGui::BeginPopupContextItem()) //Right click context menu
     {
+        //Get list of open map editors for object transfer
+        std::vector<Handle<IDocument>>& documents = state->Documents;
+        std::vector<Handle<IDocument>> otherMapEditors = {};
+        std::ranges::copy_if(documents, std::back_inserter(otherMapEditors), [this](Handle<IDocument> doc) -> bool { return doc->DocumentType == "MapEditor" && doc.get() != this; });
+        bool otherMapsOpen = otherMapEditors.size() > 0;
+
         if (ImGui::Selectable("Clone"))
         {
             _contextMenuShallowCloneObject = object;
+        }
+
+        if (ImGui::BeginMenu("Clone to...", otherMapsOpen))
+        {
+            for (Handle<IDocument> doc : otherMapEditors)
+            {
+                if (ImGui::MenuItem(doc->Title.c_str()))
+                {
+                    TerritoryDocument* otherMap = (TerritoryDocument*)doc.get();
+                    ObjectHandle newObject = otherMap->ShallowCloneObject(object, true, true);
+                    newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
+                }
+            }
+
+            ImGui::EndMenu();
         }
 
         if (ImGui::Selectable("Deep clone"))
         {
             _contextMenuDeepCloneObject = object;
         }
+
+        if (ImGui::BeginMenu("Deep clone to...", otherMapsOpen))
+        {
+            for (Handle<IDocument> doc : otherMapEditors)
+            {
+                if (ImGui::MenuItem(doc->Title.c_str()))
+                {
+                    TerritoryDocument* otherMap = (TerritoryDocument*)doc.get();
+                    ObjectHandle newObject = otherMap->DeepCloneObject(object, true, 0, true);
+                    newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
+                }
+            }
+
+            ImGui::EndMenu();
+        }
+
+
         ImGui::Separator();
-
-
         if (ImGui::Selectable("Add dummy child"))
         {
             _contextMenuAddDummyChildParent = object;

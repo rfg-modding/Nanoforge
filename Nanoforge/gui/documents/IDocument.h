@@ -20,6 +20,7 @@ public:
     virtual void Inspector(GuiState* state) {}
 
     string Title;
+    string DocumentType;
     bool FirstDraw = true;
     bool Open = true;
     bool UnsavedChanges = false;
