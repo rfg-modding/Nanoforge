@@ -12,6 +12,7 @@ namespace Nanoforge.Misc
     public class Input : ISystem
     {
         //Input state
+        private List<KeyState> _lastFrameKeyDownStates = new .()..Resize(349) ~ delete _;
         private List<KeyState> _keyDownStates = new .()..Resize(349) ~ delete _;
         private List<bool> _mouseDownStates = new .()..Resize(3) ~ delete _;
         private float _lastMouseX = 0.0f;
@@ -50,6 +51,21 @@ namespace Nanoforge.Misc
         private void Init(App app)
         {
 
+        }
+
+        [SystemStage(.BeginFrame)]
+        private void BeginFrame()
+        {
+            for (int i in 0..<_keyDownStates.Count)
+            {
+                //Set key to repeat if it's held down for two frames
+                //Note: Ideally this should be handled by WndProcKeyDown already, but in practice it doesn't seem to work. At least on my system the second keydown message can be delayed by 1-2 dozen frames
+                //      That breaks KeyPressed(). Unsure if it's an issue with the system update code, my system, or maybe my keyboard
+                if (_lastFrameKeyDownStates[i] == .Down && _keyDownStates[i] == .Down)
+                    _keyDownStates[i] = .Repeat;
+
+                _lastFrameKeyDownStates[i] = _keyDownStates[i];
+            }
         }
 
         //Called at the end of each frame. Resets input state. Should only be called by the engine core
