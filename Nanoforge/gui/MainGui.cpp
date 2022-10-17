@@ -529,14 +529,22 @@ void MainGui::DrawMainMenuBar()
             {
                 for (const char* territory : TerritoryList)
                 {
-                    if (ImGui::MenuItem(territory))
-                    {
-                        string territoryShortname = string(territory);
-                        string territoryFilename = territoryShortname;
-                        if (territoryFilename == "terr01") territoryFilename = "zonescript_terr01";
-                        else if (territoryFilename == "dlc01") territoryFilename = "zonescript_dlc01";
-                        territoryFilename += ".vpp_pc";
+                    string territoryShortname = string(territory);
+                    string territoryFilename = territoryShortname;
+                    if (territoryFilename == "terr01") territoryFilename = "zonescript_terr01";
+                    else if (territoryFilename == "dlc01") territoryFilename = "zonescript_dlc01";
+                    territoryFilename += ".vpp_pc";
 
+                    bool overrideOpenCheck = (ImGui::IsKeyDown(ImGuiKey_RightCtrl) || ImGui::IsKeyDown(ImGuiKey_LeftCtrl)) && (ImGui::IsKeyDown(ImGuiKey_RightShift) || ImGui::IsKeyDown(ImGuiKey_LeftShift));
+                    bool alreadyOpen = false;
+                    for (Handle<IDocument> doc : State.Documents)
+                    {
+                        if (doc->Title == territoryShortname)
+                            alreadyOpen = true;
+                    }
+
+                    if (ImGui::MenuItem(territory, "", nullptr, overrideOpenCheck || !alreadyOpen))
+                    {
                         State.CreateDocument(territoryShortname, CreateHandle<TerritoryDocument>(&State, territoryFilename, territoryShortname));
                     }
                 }
