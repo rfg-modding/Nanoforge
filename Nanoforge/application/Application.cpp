@@ -46,10 +46,10 @@ void Application::Run()
     appInstance = this;
     Init();
     MainLoop();
-    delete Log;
 
     //Main loop finished. Cleanup resources
     TaskScheduler::Shutdown();
+    delete Log;
 }
 
 void Application::Init()

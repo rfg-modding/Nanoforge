@@ -142,6 +142,17 @@ private:
     //Scroll to this object next time the outliner is drawn. Only works if that objects outliner node is visible. It won't open that object node.
     ObjectHandle _scrollToObjectInOutliner = NullObjectHandle;
 
+    bool _handledImport = false;
+    bool _zoneInitialized = false;
+    string _exportResultString = "";
+    bool _inspectorEditingName = false;
+    string _inspectorNameEditBuffer = "";
+    string _inspectorObjectClassSelectorSearch = "";
+    u16 _inspectorManualFlagSetter = 0;
+    string _inspectorNewPropName = "";
+    string _inspectorNewPropType = "uint";
+    string _inspectorParentSelectorSearch = "";
+
     //Confirmation popups + relevant object for several operations. Kinda gross but Dear ImGui popups operate in a strange order
     Popup deleteObjectPopup_ = { "Delete object?", "Are you sure you want to delete the object? Any children will be orphaned " ICON_FA_HEART_BROKEN, PopupType::YesCancel, true };
     ObjectHandle deleteObjectPopupHandle_ = NullObjectHandle;

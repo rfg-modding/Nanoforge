@@ -53,6 +53,13 @@ CVar CVar_MapExportPath("Map export path", ConfigType::String,
     true, //IsFolderPath
     false //IsFilePath
 );
+CVar CVar_HideBoundingBoxes("Hide binding boxes", ConfigType::Bool,
+    "Hide all binding boxes in the map editor",
+    ConfigValue(false),
+    false,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
 
 TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territoryName, std::string_view territoryShortname)
     : TerritoryName(territoryName), TerritoryShortname(territoryShortname)
@@ -111,18 +118,16 @@ void TerritoryDocument::Update(GuiState* state)
     Scene->NeedsRedraw = ImGui::IsWindowFocused();
 
     //Used to mark the document as having unsaved changes if Territory::LoadAsync() is called for the first time and does a succesful import. This is mainly so players don't close the project after import without saving and wipe the import
-    static bool handledImport = false;
-    if (Territory.JustImported && TerritoryLoadTask && !TerritoryLoadTask->Running() && !handledImport)
+    if (Territory.JustImported && TerritoryLoadTask && !TerritoryLoadTask->Running() && !_handledImport)
     {
         UnsavedChanges = true;
-        handledImport = true;
+        _handledImport = true;
     }
 
     //Initialize zone edit tracking for zones which don't have the variable. Projects from older versions don't have this
-    static bool zoneInitialized = false;
-    if (Territory.Ready() || Territory.Object && !zoneInitialized)
+    if (Territory.Ready() || Territory.Object && !_zoneInitialized)
     {
-        zoneInitialized = true;
+        _zoneInitialized = true;
         for (ObjectHandle zone : Territory.Object.GetObjectList("Zones"))
             if (!zone.Has("ChildObjectEdited"))
                 zone.Set<bool>("ChildObjectEdited", true);
@@ -564,7 +569,6 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             }
 
             //Disable map export button if export is disabled
-            static string resultString = "";
             const bool canExport = Territory.Ready() && Territory.Object;
             if (!canExport)
             {
@@ -615,7 +619,7 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             }
 
             ImGui::SameLine();
-            ImGui::TextColored(gui::SecondaryTextColor, resultString);
+            ImGui::TextColored(gui::SecondaryTextColor, _exportResultString);
         }
 
         ImGui::EndPopup();
@@ -827,10 +831,13 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                 lineEnd.y += 300.0f;
 
                 //Draw object bounding box and line from it's bottom into the sky
-                if (objectClass.DrawSolid)
-                    Scene->DrawBoxLit(bmin, bmax, color);
-                else
-                    Scene->DrawBox(bmin, bmax, color);
+                if (!CVar_HideBoundingBoxes.Get<bool>())
+                {
+                    if (objectClass.DrawSolid)
+                        Scene->DrawBoxLit(bmin, bmax, color);
+                    else
+                        Scene->DrawBox(bmin, bmax, color);
+                }
 
                 //Draw long vertical line to help locate the selected object
                 if (ImGui::IsKeyDown(0x52) /*R key*/) //Only show when R key is down
@@ -853,10 +860,13 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
             }
             else //If not selected just draw bounding box with static color
             {
-                if (objectClass.DrawSolid)
-                    Scene->DrawBoxLit(bmin, bmax, objectClass.Color);
-                else
-                    Scene->DrawBox(bmin, bmax, objectClass.Color);
+                if (!CVar_HideBoundingBoxes.Get<bool>() && object.Has("Orient"))
+                {
+                    if (objectClass.DrawSolid)
+                        Scene->DrawBoxLit(bmin, bmax, objectClass.Color);
+                    else
+                        Scene->DrawBox(bmin, bmax, objectClass.Color);
+                }
             }
         }
     }
@@ -1583,18 +1593,16 @@ void TerritoryDocument::Inspector(GuiState* state)
         name = "Unnamed";// selectedObject_.Property("Type").Get<string>();
 
     //Name
-    static bool editingName = false;
-    static string nameEditStr = "";
     state->FontManager->FontMedium.Push();
-    if (editingName)
+    if (_inspectorEditingName)
     {
         auto applyEdit = [&]()
         {
-            selectedObject_.Set<string>("Name", nameEditStr);
-            editingName = false;
+            selectedObject_.Set<string>("Name", _inspectorNameEditBuffer);
+            _inspectorEditingName = false;
             ObjectEdited(selectedObject_);
         };
-        if (ImGui::InputText("##ObjectNameEdit", &nameEditStr, ImGuiInputTextFlags_EnterReturnsTrue))
+        if (ImGui::InputText("##ObjectNameEdit", &_inspectorNameEditBuffer, ImGuiInputTextFlags_EnterReturnsTrue))
         {
             applyEdit();
         }
@@ -1606,7 +1614,7 @@ void TerritoryDocument::Inspector(GuiState* state)
         ImGui::SameLine();
         if (ImGui::Button("Cancel"))
         {
-            editingName = false;
+            _inspectorEditingName = false;
         }
     }
     else
@@ -1615,23 +1623,22 @@ void TerritoryDocument::Inspector(GuiState* state)
         ImGui::SameLine();
         if (ImGui::Button("Edit name"))
         {
-            editingName = true;
-            nameEditStr = selectedObject_.Get<string>("Name");
+            _inspectorEditingName = true;
+            _inspectorNameEditBuffer = selectedObject_.Get<string>("Name");
         }
     }
     state->FontManager->FontMedium.Pop();
 
     //Object class selector
-    static string objectClassSelectorSearch = "";
     string objectClassname = selectedObject_.Get<string>("Type");
     if (ImGui::BeginCombo("##ClassnameCombo", objectClassname.c_str()))
     {
         //Search bar
-        ImGui::InputText("Search", &objectClassSelectorSearch);
+        ImGui::InputText("Search", &_inspectorObjectClassSelectorSearch);
         ImGui::SameLine();
         if (ImGui::Button(ICON_VS_CHROME_CLOSE))
         {
-            objectClassSelectorSearch = "";
+            _inspectorObjectClassSelectorSearch = "";
         }
         ImGui::Separator();
 
@@ -1640,7 +1647,7 @@ void TerritoryDocument::Inspector(GuiState* state)
         {
             if (objectClass.Name == "unknown")
                 continue;
-            if (objectClassSelectorSearch != "" && !String::Contains(String::ToLower(objectClass.Name), String::ToLower(objectClassSelectorSearch)))
+            if (_inspectorObjectClassSelectorSearch != "" && !String::Contains(String::ToLower(objectClass.Name), String::ToLower(_inspectorObjectClassSelectorSearch)))
                 continue;
 
             bool selected = (objectClass.Name == objectClassname);
@@ -1753,11 +1760,10 @@ void TerritoryDocument::Inspector(GuiState* state)
         ImGui::Indent(15.0f);
 
         //Option to edit flags as a single integer
-        static u16 manualFlagSetter = 0;
-        manualFlagSetter = selectedObject_.Get<u16>("Flags");
-        if (ImGui::InputScalar("Merged##FlagsSingleInt", ImGuiDataType_U16, &manualFlagSetter))
+        _inspectorManualFlagSetter = selectedObject_.Get<u16>("Flags");
+        if (ImGui::InputScalar("Merged##FlagsSingleInt", ImGuiDataType_U16, &_inspectorManualFlagSetter))
         {
-            selectedObject_.Set<u16>("Flags", manualFlagSetter);
+            selectedObject_.Set<u16>("Flags", _inspectorManualFlagSetter);
             ObjectEdited(selectedObject_);
         }
 
@@ -2047,18 +2053,15 @@ void TerritoryDocument::Inspector(GuiState* state)
         "string", "bool", "float", "uint", "vec3", "matrix33" //Only types used by MP properties. There's a few other used by SP but it'll need other changes to support
     };
 
-    static string newPropName = "";
-    static string newPropType = "uint";
-
-    ImGui::InputText("Name", &newPropName);
-    if (ImGui::BeginCombo("Type", newPropType.c_str()))
+    ImGui::InputText("Name", &_inspectorNewPropName);
+    if (ImGui::BeginCombo("Type", _inspectorNewPropType.c_str()))
     {
         for (string& type : types)
         {
-            bool selected = (type == newPropType);
+            bool selected = (type == _inspectorNewPropType);
             if (ImGui::Selectable(type.c_str(), selected))
             {
-                newPropType = type;
+                _inspectorNewPropType = type;
             }
         }
 
@@ -2066,12 +2069,12 @@ void TerritoryDocument::Inspector(GuiState* state)
     }
     if (ImGui::Button("Add"))
     {
-        if (String::TrimWhitespace(newPropName) == "")
+        if (String::TrimWhitespace(_inspectorNewPropName) == "")
         {
             ShowMessageBox("You must enter a name.", "Name not set", MB_OK, MB_ICONWARNING);
             return;
         }
-        if (String::TrimWhitespace(newPropType) == "")
+        if (String::TrimWhitespace(_inspectorNewPropType) == "")
         {
             ShowMessageBox("You must choose a type.", "Name not set", MB_OK, MB_ICONWARNING);
             return;
@@ -2081,50 +2084,50 @@ void TerritoryDocument::Inspector(GuiState* state)
         bool alreadyExists = false;
         for (PropertyHandle prop : selectedObject_.Properties())
         {
-            if (prop.Name() == newPropName)
+            if (prop.Name() == _inspectorNewPropName)
             {
-                ShowMessageBox(fmt::format("This object already has a property named '{}'", newPropName), "Property already exists", MB_OK);
+                ShowMessageBox(fmt::format("This object already has a property named '{}'", _inspectorNewPropName), "Property already exists", MB_OK);
                 return;
             }
         }
 
-        PropertyHandle newProp = selectedObject_.Property(newPropName);
-        if (newPropType == "string")
+        PropertyHandle newProp = selectedObject_.Property(_inspectorNewPropName);
+        if (_inspectorNewPropType == "string")
         {
             newProp.Set<string>("");
         }
-        else if (newPropType == "bool")
+        else if (_inspectorNewPropType == "bool")
         {
             newProp.Set<bool>(false);
         }
-        else if (newPropType == "float")
+        else if (_inspectorNewPropType == "float")
         {
             newProp.Set<f32>(0.0f);
         }
-        else if (newPropType == "uint")
+        else if (_inspectorNewPropType == "uint")
         {
             newProp.Set<u32>(0);
         }
-        else if (newPropType == "vec3")
+        else if (_inspectorNewPropType == "vec3")
         {
             newProp.Set<Vec3>({});
         }
-        else if (newPropType == "matrix33")
+        else if (_inspectorNewPropType == "matrix33")
         {
             newProp.Set<Mat3>({});
         }
 
         //Add property to RfgPropertyNames list if it isn't already in there
-        if (std::ranges::count_if(selectedObject_.GetStringList("RfgPropertyNames"), [&](const string& str) { return str == newPropName; }) == 0)
+        if (std::ranges::count_if(selectedObject_.GetStringList("RfgPropertyNames"), [&](const string& str) { return str == _inspectorNewPropName; }) == 0)
         {
-            selectedObject_.AppendStringList("RfgPropertyNames", newPropName);
+            selectedObject_.AppendStringList("RfgPropertyNames", _inspectorNewPropName);
         }
         else
         {
-            Log->warn("Didn't add {} to RfgPropertyNames. Already in the list.", newPropName);
+            Log->warn("Didn't add {} to RfgPropertyNames. Already in the list.", _inspectorNewPropName);
         }
         ObjectEdited(selectedObject_);
-        newPropName = ""; //Reset afterwards
+        _inspectorNewPropName = ""; //Reset afterwards
     }
 }
 
@@ -2266,17 +2269,16 @@ void TerritoryDocument::Inspector_DrawRelativeEditor()
 
     //Parent combo selector
     {
-        static string parentSelectorSearch = "";
         ObjectHandle currentParent = selectedObject_.Get<ObjectHandle>("Parent");
         string currentParentName = currentParent ? GetObjectHandleName(currentParent) : "Not set";
         if (ImGui::BeginCombo("Parent", currentParentName.c_str()))
         {
             //Search bar
-            ImGui::InputText("Search", &parentSelectorSearch);
+            ImGui::InputText("Search", &_inspectorParentSelectorSearch);
             ImGui::SameLine();
             if (ImGui::Button(ICON_VS_CHROME_CLOSE))
             {
-                parentSelectorSearch = "";
+                _inspectorParentSelectorSearch = "";
             }
             ImGui::Separator();
 
@@ -2289,7 +2291,7 @@ void TerritoryDocument::Inspector_DrawRelativeEditor()
                     continue; //Parent must be alive
 
                 string name = GetObjectHandleName(newParent);
-                if (parentSelectorSearch != "" && !String::Contains(String::ToLower(name), String::ToLower(parentSelectorSearch)))
+                if (_inspectorParentSelectorSearch != "" && !String::Contains(String::ToLower(name), String::ToLower(_inspectorParentSelectorSearch)))
                     continue;
 
                 bool selected = (newParent == currentParent);
@@ -2929,6 +2931,8 @@ void TerritoryDocument::Outliner_DrawFilters(GuiState* state)
         ImGui::Checkbox("Highlight objects", &_highlightHoveredObject);
         ImGui::SameLine();
         gui::HelpMarker("Draw a solid box over objects when they're moused over in the outliner. Can also be toggled with the G key", ImGui::GetDefaultFont());
+
+        ImGui::Checkbox("Hide bounding boxes", &CVar_HideBoundingBoxes.Get<bool>());
 
         //Set custom highlight colors for the table
         ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
