@@ -2932,7 +2932,10 @@ void TerritoryDocument::Outliner_DrawFilters(GuiState* state)
         ImGui::SameLine();
         gui::HelpMarker("Draw a solid box over objects when they're moused over in the outliner. Can also be toggled with the G key", ImGui::GetDefaultFont());
 
-        ImGui::Checkbox("Hide bounding boxes", &CVar_HideBoundingBoxes.Get<bool>());
+        if (ImGui::Checkbox("Hide bounding boxes", &CVar_HideBoundingBoxes.Get<bool>()))
+        {
+            Config::Get()->Save();
+        }
 
         //Set custom highlight colors for the table
         ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
