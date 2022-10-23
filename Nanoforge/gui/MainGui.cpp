@@ -26,6 +26,10 @@
 #include "rfg/xtbl/XtblManager.h"
 #include "util/TaskScheduler.h"
 #include "common/filesystem/Path.h"
+#include "rfg/PackfileVFS.h"
+#include <tinyxml2/tinyxml2.h>
+#include <RfgTools++/formats/packfiles/Packfile3.h>
+#include "common/Defer.h"
 
 CVar CVar_ShowFPS("Show FPS", ConfigType::Bool,
     "If enabled an FPS meter is shown on the main menu bar.",
@@ -38,63 +42,6 @@ CVar CVar_UI_Theme("UI Theme", ConfigType::String,
                    ConfigValue("dark"), //Default value
                    false //Show in settings
 );
-
-//Used in MainGui::DrawMainMenuBar()
-std::vector<const char*> TerritoryList =
-{
-    "terr01",
-    "dlc01",
-    "mp_cornered",
-    "mp_crashsite",
-    "mp_crescent",
-    "mp_crevice",
-    "mp_deadzone",
-    "mp_downfall",
-    "mp_excavation",
-    "mp_fallfactor",
-    "mp_framework",
-    "mp_garrison",
-    "mp_gauntlet",
-    "mp_overpass",
-    "mp_pcx_assembly",
-    "mp_pcx_crossover",
-    "mp_pinnacle",
-    "mp_quarantine",
-    "mp_radial",
-    "mp_rift",
-    "mp_sandpit",
-    "mp_settlement",
-    "mp_warlords",
-    "mp_wasteland",
-    "mp_wreckage",
-    "mpdlc_broadside",
-    "mpdlc_division",
-    "mpdlc_islands",
-    "mpdlc_landbridge",
-    "mpdlc_minibase",
-    "mpdlc_overhang",
-    "mpdlc_puncture",
-    "mpdlc_ruins",
-    "wc1",
-    "wc2",
-    "wc3",
-    "wc4",
-    "wc5",
-    "wc6",
-    "wc7",
-    "wc8",
-    "wc9",
-    "wc10",
-    "wcdlc1",
-    "wcdlc2",
-    "wcdlc3",
-    "wcdlc4",
-    "wcdlc5",
-    "wcdlc6",
-    "wcdlc7",
-    "wcdlc8",
-    "wcdlc9"
-};
 
 //Titles for outliner and inspector windows. Used when drawing the windows, but also needed when setting their default docking positions
 const char* OutlinerIdentifier = ICON_FA_LIST " Outliner";
@@ -146,6 +93,12 @@ void MainGui::Update()
     {
         lastFrameScale = CVar_UIScale.Get<f32>();
         ImGui::GetIO().FontGlobalScale = lastFrameScale;
+    }
+
+    //Load level definitions from xtbls when possible
+    if (!levelDefinitionsLoaded_ && State.PackfileVFS->Ready())
+    {
+        LoadLevelDefinitions();
     }
 
     //Draw always visible UI elements
@@ -500,6 +453,30 @@ void MainGui::DrawMainMenuBar()
                 }
                 ImGui::EndMenu();
             }
+            if (ImGui::BeginMenu("Theme"))
+            {
+
+                if (ImGui::MenuItem("Dark"))
+                {
+                    gui::SetThemePreset(Dark);
+                    CVar_UI_Theme.Get<string>() = "dark";
+                    Config::Get()->Save();
+        }
+                if (ImGui::MenuItem("Orange"))
+                {
+                    gui::SetThemePreset(Orange);
+                    CVar_UI_Theme.Get<string>() = "orange";
+                    Config::Get()->Save();
+                }
+                if (ImGui::MenuItem("Blue"))
+                {
+                    gui::SetThemePreset(Blue);
+                    CVar_UI_Theme.Get<string>() = "blue";
+                    Config::Get()->Save();
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::Separator();
 #ifdef DEVELOPMENT_BUILD
             if (ImGui::MenuItem("ImGui Demo", nullptr, &imguiDemoWindowOpen_))
             {
@@ -524,32 +501,6 @@ void MainGui::DrawMainMenuBar()
         //Draw tools menu
         if (ImGui::BeginMenu("Tools"))
         {
-            bool canOpenTerritory = State.CurrentProject && State.CurrentProject->Loaded();
-            if (ImGui::BeginMenu("Open territory", canOpenTerritory))
-            {
-                for (const char* territory : TerritoryList)
-                {
-                    string territoryShortname = string(territory);
-                    string territoryFilename = territoryShortname;
-                    if (territoryFilename == "terr01") territoryFilename = "zonescript_terr01";
-                    else if (territoryFilename == "dlc01") territoryFilename = "zonescript_dlc01";
-                    territoryFilename += ".vpp_pc";
-
-                    bool overrideOpenCheck = (ImGui::IsKeyDown(ImGuiKey_RightCtrl) || ImGui::IsKeyDown(ImGuiKey_LeftCtrl)) && (ImGui::IsKeyDown(ImGuiKey_RightShift) || ImGui::IsKeyDown(ImGuiKey_LeftShift));
-                    bool alreadyOpen = false;
-                    for (Handle<IDocument> doc : State.Documents)
-                    {
-                        if (doc->Title == territoryShortname)
-                            alreadyOpen = true;
-                    }
-
-                    if (ImGui::MenuItem(territory, "", nullptr, overrideOpenCheck || !alreadyOpen))
-                    {
-                        State.CreateDocument(territoryShortname, CreateHandle<TerritoryDocument>(&State, territoryFilename, territoryShortname));
-                    }
-                }
-                ImGui::EndMenu();
-            }
             if (ImGui::BeginMenu("Localization"))
             {
                 if (ImGui::MenuItem("View localized strings"))
@@ -582,29 +533,35 @@ void MainGui::DrawMainMenuBar()
             ImGui::EndMenu();
         }
 
-        //Draw themes menu
-        if (ImGui::BeginMenu("Theme"))
+        bool canOpenTerritory = State.CurrentProject && State.CurrentProject->Loaded();
+        if (canOpenTerritory)
         {
+            if (ImGui::BeginMenu("Maps", canOpenTerritory))
+            {
+                for (LevelDefinition& definition : levelDefinitions_)
+                {
+                    bool overrideOpenCheck = (ImGui::IsKeyDown(ImGuiKey_RightCtrl) || ImGui::IsKeyDown(ImGuiKey_LeftCtrl)) && (ImGui::IsKeyDown(ImGuiKey_RightShift) || ImGui::IsKeyDown(ImGuiKey_LeftShift));
+                    bool alreadyOpen = false;
+                    for (Handle<IDocument> doc : State.Documents)
+                    {
+                        if (doc->Title == definition.Name)
+                            alreadyOpen = true;
+                    }
 
-            if (ImGui::MenuItem("Dark"))
-            {
-                gui::SetThemePreset(Dark);
-                CVar_UI_Theme.Get<string>() = "dark";
-                Config::Get()->Save();
+                    if (ImGui::MenuItem(definition.Name.c_str(), (definition.Filename + ".vpp_pc").c_str(), nullptr, overrideOpenCheck || !alreadyOpen))
+                    {
+                        State.CreateDocument(definition.Name, CreateHandle<TerritoryDocument>(&State, definition.Filename + ".vpp_pc", definition.Name));
+                    }
+                }
+                ImGui::EndMenu();
             }
-            if (ImGui::MenuItem("Orange"))
+        }
+        else
+        {
+            if (ImGui::BeginMenu("Open a project to edit maps", false))
             {
-                gui::SetThemePreset(Orange);
-                CVar_UI_Theme.Get<string>() = "orange";
-                Config::Get()->Save();
+                ImGui::EndMenu();
             }
-            if (ImGui::MenuItem("Blue"))
-            {
-                gui::SetThemePreset(Blue);
-                CVar_UI_Theme.Get<string>() = "blue";
-                Config::Get()->Save();
-            }
-            ImGui::EndMenu();
         }
 
         bool showFPS = CVar_ShowFPS.Get<bool>();
@@ -961,6 +918,109 @@ void MainGui::DrawProjectSaveLoadDialogs()
         }
     }
     State.FontManager->FontMedium.Pop();
+}
+
+bool LoadLevelDefinitionsFromXml(tinyxml2::XMLDocument* doc, std::vector<LevelDefinition>& definitions)
+{
+    tinyxml2::XMLElement* root = doc->FirstChildElement();
+    tinyxml2::XMLElement* table = root->FirstChildElement("Table");
+    tinyxml2::XMLElement* current = table->FirstChildElement("mp_level_list");
+    while (current)
+    {
+        LevelDefinition definition;
+        tinyxml2::XMLElement* nameXml = current->FirstChildElement("Name");
+        tinyxml2::XMLElement* filenameXml = current->FirstChildElement("Filename");
+        if (!nameXml)
+        {
+            LOG_ERROR("Level definition is missing <Name>. Skipping definition...");
+            return false;
+        }
+        if (!filenameXml)
+        {
+            LOG_ERROR("Level definition is missing <Filename>. Skipping definition...");
+            return false;
+        }
+
+        definition.Name = nameXml->GetText();
+        definition.Filename = filenameXml->GetText();
+        definitions.push_back(definition);
+        current = current->NextSiblingElement("mp_level_list");
+    }
+
+    return true;
+}
+
+void MainGui::LoadLevelDefinitions()
+{
+    //Wait for packfiles to be parsed
+    if (!State.PackfileVFS->Ready() || levelDefinitionsLoaded_)
+        return;
+
+    //Add hardcoded definitions
+    levelDefinitions_.push_back({ "Terr01", "zonescript_terr01" });
+    levelDefinitions_.push_back({ "Dlc01", "zonescript_dlc01" });
+
+    //Get misc.vpp_pc
+    Handle<Packfile3> misc = State.PackfileVFS->GetPackfile("misc.vpp_pc");
+    if (!misc)
+    {
+        LOG_ERROR("Failed to get misc.vpp_pc for level definition loading! Cannot load level list.");
+        levelDefinitionsLoaded_ = true; //Set true on failure so it doesn't spam the error log
+        return;
+    }
+
+    //Extract xtbls from misc
+    auto mpLevels = misc->ExtractSingleFile("mp_levels.xtbl");
+    auto dlcMpLevels = misc->ExtractSingleFile("dlc02_mp_levels.xtbl");
+    if (!mpLevels)
+    {
+        LOG_ERROR("Failed to extract mp_levels.xtbl from misc.vpp_pc. Can't load level list.");
+        levelDefinitionsLoaded_ = true;
+        return;
+    }
+    if (!dlcMpLevels)
+    {
+        LOG_ERROR("Failed to extract dlc02_mp_levels.xtbl from misc.vpp_pc. Can't load level list.");
+        levelDefinitionsLoaded_ = true;
+        return;
+    }
+
+    //Parse xtbls
+    tinyxml2::XMLDocument* mpLevelsXml = new tinyxml2::XMLDocument();
+    tinyxml2::XMLDocument* dlcMpLevelsXml = new tinyxml2::XMLDocument();
+    defer(delete mpLevelsXml);
+    defer(delete dlcMpLevelsXml);
+    if (mpLevelsXml->Parse((const char*)mpLevels.value().data(), mpLevels.value().size()) != tinyxml2::XML_SUCCESS)
+    {
+        LOG_ERROR("Failed to parse mp_levels.xtbl. Can't load level list.");
+        levelDefinitionsLoaded_ = true;
+        return;
+    }
+    if (dlcMpLevelsXml->Parse((const char*)dlcMpLevels.value().data(), dlcMpLevels.value().size()) != tinyxml2::XML_SUCCESS)
+    {
+        LOG_ERROR("Failed to parse dlc02_mp_levels.xtbl. Can't load level list.");
+        levelDefinitionsLoaded_ = true;
+        return;
+    }
+
+    //Read definitions from xtbls
+    if (!LoadLevelDefinitionsFromXml(mpLevelsXml, levelDefinitions_))
+    {
+        LOG_ERROR("Failed to load level definitions from mp_levels.xtbl. Can't load level list.");
+        levelDefinitionsLoaded_ = true;
+        return;
+    }
+    if (!LoadLevelDefinitionsFromXml(dlcMpLevelsXml, levelDefinitions_))
+    {
+        LOG_ERROR("Failed to load level definitions from dlc02_mp_levels.xtbl. Can't load level list.");
+        levelDefinitionsLoaded_ = true;
+        return;
+    }
+
+    //Sort alphabetically
+    std::ranges::sort(levelDefinitions_, [](LevelDefinition& a, LevelDefinition& b) -> bool { return a.Name < b.Name; });
+
+    levelDefinitionsLoaded_ = true;
 }
 
 void MainGui::SaveAll()

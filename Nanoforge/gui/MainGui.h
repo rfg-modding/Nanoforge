@@ -20,6 +20,12 @@ using ImGuiID = unsigned int;
 
 #define ToolbarEnabled false //Currently disabled since there's no use for it yet. It has undo/redo buttons but support for that hasn't been added yet
 
+struct LevelDefinition
+{
+    string Name;
+    string Filename;
+};
+
 //Todo: Split the gui out into multiple files and/or classes. Will be a mess if it's all in one file
 class MainGui
 {
@@ -46,9 +52,12 @@ private:
     MenuItem* GetMenu(std::string_view text);
     void DrawOutlinerAndInspector();
     void DrawProjectSaveLoadDialogs();
+    void LoadLevelDefinitions();
 
     std::vector<Handle<IGuiPanel>> panels_ = {};
     std::vector<MenuItem> menuItems_ = {}; //Main menu bar items
+    std::vector<LevelDefinition> levelDefinitions_ = {};
+    bool levelDefinitionsLoaded_ = false;
 
     ImGuiID dockspaceId = 0;
     ImGuiID dockspaceCentralNodeId = 0;
