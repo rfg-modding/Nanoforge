@@ -31,14 +31,26 @@ int GenerateMinidump(EXCEPTION_POINTERS* pExceptionPointers)
     ExpParam.ExceptionPointers = pExceptionPointers;
     ExpParam.ClientPointers = TRUE;
 
-    MINIDUMP_TYPE dumpType = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory | MiniDumpIgnoreInaccessibleMemory |
-        MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithFullMemoryInfo |
-        MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
+    MINIDUMP_TYPE dumpType = (MINIDUMP_TYPE)(MiniDumpNormal | MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs | MiniDumpFilterModulePaths);
 
-    //Write dmp file
+    //Create .dmp file
     hDumpFile = CreateFile(outPath.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
-    bool success = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, dumpType, &ExpParam, NULL, NULL);
-    return EXCEPTION_EXECUTE_HANDLER;
+    if (!hDumpFile)
+    {
+        int lastError = GetLastError();
+        LOG_ERROR("Failed to create minidump file. LastError: {}", lastError);
+        return lastError;
+    }
+
+    //Write .dmp file
+    if (MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, dumpType, &ExpParam, NULL, NULL) != TRUE)
+    {
+        int lastError = GetLastError();
+        LOG_ERROR("Failed to write minidump file. LastError: {}", lastError);
+        return lastError;
+    }
+    
+    return 0;
 }
 
 //Override windows crash handler to catch unhandled SEH exceptions
@@ -48,11 +60,18 @@ LONG WINAPI CrashHandler(EXCEPTION_POINTERS* exceptions)
     PEXCEPTION_RECORD& record = exceptions->ExceptionRecord;
     bool continuable = record->ExceptionFlags == 0;
     string errorCodeString = ExceptionCodeToString(record->ExceptionCode);
-    string errorMessage = fmt::format("A fatal error has occurred! Nanoforge will crash once you press \"OK\". Please wait for the window to close so the crash dump can save. After that send MasterLog.log and the most recent CrashDump file to moneyl on the RF discord. If you're not on the RF discord you can join it by making a discord account and going to RFChat.com. Exception code: {}. Continuable: {}", errorCodeString, continuable);
+    string errorMessage = fmt::format("A fatal error has occurred! Nanoforge will crash once you press \"OK\". Please wait for the window to close so the crash dump can save. After that send MasterLog.log and the most recent .dmp file to moneyl on the RF discord. If you're not on the RF discord you can join it by making a discord account and going to RFChat.com. Exception code: {}", errorCodeString);
 
     //Log crash data, generate minidump, and notify user via message box
-    GenerateMinidump(exceptions);
-    ShowMessageBox(errorMessage, "Unhandled exception encountered!", MB_OK);
+    int minidumpResult = GenerateMinidump(exceptions);
+    if (minidumpResult == 0)
+    {
+        ShowMessageBox(errorMessage, "Unhandled exception encountered!", MB_OK);
+    }
+    else
+    {
+        ShowMessageBox("Failed to create minidump after fatal error! Please send MasterLog.log to moneyl on the RF discord (RFChat.com). Nanoforge will exit after you click OK.", "Failed to create minidump.", MB_OK);
+    }
     LOG_ERROR(errorMessage);
     return EXCEPTION_CONTINUE_SEARCH; //Crash regardless of continuability. In testing I found it'd endlessly call the crash handler when continuing after some continuable exceptions
 }
