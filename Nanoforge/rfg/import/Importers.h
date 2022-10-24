@@ -1,5 +1,6 @@
 #pragma once
 #include "application/Registry.h"
+#include <tinyxml2/tinyxml2.h>
 #include <span>
 
 class ZoneFile;
@@ -22,6 +23,8 @@ namespace Importers
 	ObjectHandle ImportPegFromPath(std::string_view pegPath, TextureIndex* textureIndex, bool useExistingTextures = true);
 	//Imports rfg chunk file (destructible mesh). Has extension .cchk_pc
 	ObjectHandle ImportChunk(std::string_view chunkFilename, PackfileVFS* packfileVFS, TextureIndex* textureIndex, bool* stopSignal = nullptr, ObjectHandle textureCache = NullObjectHandle);
+	//Xml containing additional map data used by the editor which is stripped from the RFG zone files
+	bool ImportEditorMapData(ObjectHandle territory, tinyxml2::XMLDocument* doc);
 }
 
 //Helpers for dealing with registry objects

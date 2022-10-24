@@ -577,27 +577,17 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             }
 
             bool exportPressed = false;
-            bool exportPatchPressed = false;
             bool exportBinaryPatchPressed = false;
 
             exportPressed = ImGui::Button("Export");
-            if (!isSPMap)
-            {
-                exportPatchPressed = ImGui::Button("Export patch");
-                ImGui::SameLine();
-                gui::HelpMarker("This option is going away in future versions. You should use 'Export binary patch (SyncFaction)' instead.", ImGui::GetIO().FontDefault);
-                exportBinaryPatchPressed = ImGui::Button("Export binary patch (SyncFaction)");
-            }
 
             MapExportType exportType;
             if (exportPressed)
                 exportType = MapExportType::Vpp;
-            else if (exportPatchPressed)
-                exportType = MapExportType::RfgPatch;
             else if (exportBinaryPatchPressed)
                 exportType = MapExportType::BinaryPatch;
 
-            if (exportPressed || exportPatchPressed || exportBinaryPatchPressed)
+            if (exportPressed || exportBinaryPatchPressed)
             {
                 exportTask_ = Task::Create("Export map");
                 if (std::filesystem::exists(CVar_MapExportPath.Get<string>()))
@@ -1667,6 +1657,11 @@ void TerritoryDocument::Inspector(GuiState* state)
     u32 handle = selectedObject_.Property("Handle").Get<u32>();
     u32 num = selectedObject_.Property("Num").Get<u32>();
     ImGui::Text(fmt::format("{}, {}", handle, num).c_str());
+    
+    //Description
+    string description = selectedObject_.Get<string>("Description");
+    ImGui::InputText("Description", &description);
+    selectedObject_.Set<string>("Description", description);
     ImGui::Separator();
 
     if (ImGui::CollapsingHeader("Bounding box"))
@@ -2325,11 +2320,6 @@ void TerritoryDocument::ExportTask(GuiState* state, MapExportType exportType)
         {
             exportResult = ExportMapSP(state, CVar_MapExportPath.Get<string>());
         }
-        else if (exportType == MapExportType::RfgPatch)
-        {
-            Log->error("Failed to export {}. RfgPatch export isn't supported for SP maps.", mapName);
-            exportResult = false;
-        }
         else if (exportType == MapExportType::BinaryPatch)
         {
             Log->error("Failed to export {}. Binary patch export isn't supported for SP maps.", mapName);
@@ -2341,10 +2331,6 @@ void TerritoryDocument::ExportTask(GuiState* state, MapExportType exportType)
         if (exportType == MapExportType::Vpp)
         {
             exportResult = ExportMap(state, CVar_MapExportPath.Get<string>());
-        }
-        else if (exportType == MapExportType::RfgPatch)
-        {
-            exportResult = ExportPatch();
         }
         else if (exportType == MapExportType::BinaryPatch)
         {
@@ -2380,7 +2366,7 @@ bool TerritoryDocument::ExportMap(GuiState* state, const string& exportPath)
     string mapName = Path::GetFileNameNoExtension(Territory.Object.Get<string>("Name"));
 
     //Steps: Export zones, extract vpp_pc, extract containers, copy zones to containers, repack containers, update asm_pc, repack vpp_pc, cleanup
-    const f32 numSteps = 8.0f;
+    const f32 numSteps = 9.0f;
     const f32 percentagePerStep = 1.0f / numSteps;
 
     exportPercentage_ = 0.0f;
@@ -2463,6 +2449,12 @@ bool TerritoryDocument::ExportMap(GuiState* state, const string& exportPath)
     UpdateAsmPc(tempFolderPath + "\\vpp\\" + mapName + ".asm_pc");
 
     exportPercentage_ += percentagePerStep;
+    exportStatus_ = "Exporting editor data...";
+
+    //Write additional editor data that isn't preserved in zone files
+    Exporters::ExportEditorMapData(Territory.Object, tempFolderPath + "vpp\\");
+
+    exportPercentage_ += percentagePerStep;
     exportStatus_ = "Repacking " + terrPackfileName + "...";
 
     //Repack main vpp_pc
@@ -2477,58 +2469,6 @@ bool TerritoryDocument::ExportMap(GuiState* state, const string& exportPath)
 
     exportPercentage_ += percentagePerStep;
     exportStatus_ = "Done!";
-    return true;
-}
-
-constexpr u32 RFG_PATCHFILE_SIGNATURE = 1330528590; //Equals ASCII string "NANO"
-constexpr u32 RFG_PATCHFILE_VERSION = 1;
-bool TerritoryDocument::ExportPatch()
-{
-    exportPercentage_ = 0.0f;
-
-    //Export zone files
-    string terrPackfileName = Territory.Object.Get<string>("Name"); //Name of the map vpp_pc
-    string mapName = Path::GetFileNameNoExtension(terrPackfileName); //Name of the map
-    string exportFolderPath = CVar_MapExportPath.Get<string>(); //Folder to write final patch file to
-    if (!Exporters::ExportTerritory(Territory.Object, exportFolderPath))
-    {
-        LOG_ERROR("Map patch export failed! Map export failed for '{}'", mapName);
-        return false;
-    }
-
-    string zoneFilePath = fmt::format("{}\\{}.rfgzone_pc", exportFolderPath, mapName);
-    string pZoneFilePath = fmt::format("{}\\p_{}.rfgzone_pc", exportFolderPath, mapName);
-    std::vector<u8> zoneBytes = File::ReadAllBytes(zoneFilePath);
-    std::vector<u8> pZoneBytes = File::ReadAllBytes(pZoneFilePath);
-    if (zoneBytes.size() == 0 || pZoneBytes.size() == 0)
-    {
-        LOG_ERROR("Map patch export failed! More or both exported zone files are empty. Sizes: {}, {}", zoneBytes.size(), pZoneBytes.size());
-        return false;
-    }
-
-    //Merge zone files into single patch file. Meant to be used with the separate RfgMapPatcher tool. Makes the final exports much smaller.
-    //Write patch file header
-    BinaryWriter patch(fmt::format("{}\\{}.RfgPatch", exportFolderPath, mapName));
-    patch.Write<u32>(RFG_PATCHFILE_SIGNATURE);
-    patch.Write<u32>(RFG_PATCHFILE_VERSION);
-    patch.WriteNullTerminatedString(terrPackfileName);
-    patch.Align(4);
-    
-    //Write zone file sizes
-    patch.Write<size_t>(zoneBytes.size());
-    patch.Write<size_t>(pZoneBytes.size());
-
-    //Write zone file data
-    patch.WriteSpan<u8>(zoneBytes);
-    patch.Align(4);
-    patch.WriteSpan<u8>(pZoneBytes);
-    patch.Align(4);
-
-    //Remove zone files. We only care about the final patch file with this option
-    std::filesystem::remove(zoneFilePath);
-    std::filesystem::remove(pZoneFilePath);
-
-    exportPercentage_ = 1.0f;
     return true;
 }
 

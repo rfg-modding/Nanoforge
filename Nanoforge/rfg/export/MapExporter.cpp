@@ -1,4 +1,5 @@
 #include "Exporters.h"
+#include <tinyxml2/tinyxml2.h>
 
 bool Exporters::ExportTerritory(ObjectHandle territory, std::string_view outputPath, bool skipUneditedZones)
 {
@@ -49,5 +50,33 @@ bool Exporters::ExportTerritory(ObjectHandle territory, std::string_view outputP
 		}
 	}
 
+	return true;
+}
+
+bool Exporters::ExportEditorMapData(ObjectHandle territory, const string& outputFolder)
+{
+	tinyxml2::XMLDocument doc;
+	auto* editorData = doc.NewElement("EditorData");
+	doc.InsertFirstChild(editorData);
+	auto* zones = editorData->InsertNewChildElement("Zones");
+
+	//Store additional map data that typically isn't stored in RFG zone files (e.g. names, descriptions). This way it's preserved through map import/export
+	for (ObjectHandle zone : territory.GetObjectList("Zones"))
+	{
+		auto* zoneXml = zones->InsertNewChildElement("Zone");
+		zoneXml->InsertNewChildElement("Name")->SetText(zone.Get<string>("Name").c_str());
+		auto* objectsXml = zoneXml->InsertNewChildElement("Objects");
+		for (ObjectHandle object : zone.GetObjectList("Objects"))
+		{
+			auto* objectXml = objectsXml->InsertNewChildElement("Object");
+			objectXml->InsertNewChildElement("Name")->SetText(object.Get<string>("Name").c_str());
+			objectXml->InsertNewChildElement("Handle")->SetText(object.Get<u32>("Handle"));
+			objectXml->InsertNewChildElement("Num")->SetText(object.Get<u32>("Num"));
+			if (object.Has("Description"))
+				objectXml->InsertNewChildElement("Description")->SetText(object.Get<string>("Description").c_str());
+		}
+	}
+
+	doc.SaveFile((outputFolder + "EditorData.xml").c_str());
 	return true;
 }

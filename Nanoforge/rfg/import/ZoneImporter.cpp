@@ -92,6 +92,7 @@ ObjectHandle Importers::ImportZoneFile(ZoneFile& zoneFile, ZoneFile& persistentZ
         string classname = current->Classname();
         ObjectHandle zoneObject = registry.CreateObject(classname);
         zone.AppendObjectList("Objects", zoneObject);
+        zoneObject.Set<string>("Description", "");
         //TODO: Strip properties not needed by the editor
         zoneObject.Property("ClassnameHash").Set<u32>(current->ClassnameHash);
         zoneObject.Property("Handle").Set<u32>(current->Handle);

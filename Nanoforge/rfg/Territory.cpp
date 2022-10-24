@@ -133,6 +133,18 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         }
     }
 
+    //Add description to objects missing them
+    for (ObjectHandle zone : Object.GetObjectList("Zones"))
+    {
+        for (ObjectHandle obj : zone.GetObjectList("Objects"))
+        {
+            if (!obj.Has("Description"))
+            {
+                obj.Set<string>("Description", "");
+            }
+        }
+    }
+
     //Get zone name with most characters for UI purposes
     u32 longest = 0;
     for (ObjectHandle zone : Object.GetObjectList("Zones"))

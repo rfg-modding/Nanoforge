@@ -14,7 +14,6 @@ class GuiState;
 enum MapExportType
 {
     Vpp,
-    RfgPatch,
     BinaryPatch
 };
 
@@ -79,7 +78,6 @@ private:
 
     void ExportTask(GuiState* state, MapExportType exportType);
     bool ExportMap(GuiState* state, const string& exportPath);
-    bool ExportPatch();
     bool ExportBinaryPatch(GuiState* state);
     bool ExportMapSP(GuiState* state, const string& exportPath);
 

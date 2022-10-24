@@ -8,6 +8,7 @@
 #include "util/TaskScheduler.h"
 #include "Log.h"
 #include <RfgTools++/formats/packfiles/Packfile3.h>
+#include <tinyxml2/tinyxml2.h>
 
 //Used to stop the import process early by the calling code setting stopSignal to true. Does nothing if stopSignal is nullptr
 #define EarlyStopCheck() if(stopSignal && *stopSignal) \
@@ -104,6 +105,17 @@ ObjectHandle Importers::ImportTerritory(std::string_view territoryFilename, Pack
                     loadTask->Wait();
             }
         }
+    }
+
+    //Load additional map data if present
+    if (packfile->Contains("EditorData.xml"))
+    {
+        auto editorDataBytes = packfile->ExtractSingleFile("EditorData.xml", true);
+        std::vector<u8>& bytes = editorDataBytes.value();
+
+        tinyxml2::XMLDocument doc;
+        doc.Parse((char*)bytes.data(), bytes.size());
+        ImportEditorMapData(territory, &doc);
     }
 
     return territory;
@@ -210,4 +222,80 @@ void LoadChunks(ObjectHandle zone, ObjectHandle territory, PackfileVFS* packfile
             obj.Set<ObjectHandle>("ChunkMesh", chunkMesh);
         }
     }
+}
+
+bool Importers::ImportEditorMapData(ObjectHandle territory, tinyxml2::XMLDocument* doc)
+{
+    auto* editorData = doc->FirstChildElement("EditorData");
+    if (!editorData)
+    {
+        LOG_ERROR("<EditorData> not found in map editor data file.");
+        return false;
+    }
+
+    auto* zonesXml = editorData->FirstChildElement("Zones");
+    if (!zonesXml)
+    {
+        LOG_ERROR("<EditorData/Zones> not found in map editor data file.");
+        return false;
+    }
+
+    //Load zone data
+    for (auto* zoneXml = zonesXml->FirstChildElement("Zone"); zoneXml; zoneXml = zoneXml->NextSiblingElement())
+    {
+        const char* zoneName = zoneXml->FirstChildElement("Name")->GetText();
+        if (!zoneName)
+        {
+            LOG_ERROR("<EditorData/Zones/Zone> missing <Name> in map editor data file.");
+            continue;
+        }
+
+        //Find zone
+        auto search = std::ranges::find_if(territory.GetObjectList("Zones"), [&](ObjectHandle zone) -> bool { return zone.Get<string>("Name") == zoneName; });
+        if (search == territory.GetObjectList("Zones").end())
+        {
+            LOG_ERROR("Failed to find zone with name '{}'", zoneName);
+            continue;
+        }
+        ObjectHandle zone = *search;
+
+        //Load object data
+        auto* objectsXml = zoneXml->FirstChildElement("Objects");
+        for (auto* objectXml = objectsXml->FirstChildElement("Object"); objectXml; objectXml = objectXml->NextSiblingElement("Object"))
+        {
+            auto* handleXml = objectXml->FirstChildElement("Handle");
+            auto* numXml = objectXml->FirstChildElement("Num");
+            if (!handleXml || !handleXml->GetText())
+            {
+                LOG_ERROR("<Object/Handle> missing in map editor data file.");
+                continue;
+            }
+            if (!numXml || !numXml->GetText())
+            {
+                LOG_ERROR("<Object/Num> missing in map editor data file.");
+                continue;
+            }
+
+            //Find object in registry
+            u32 handle = handleXml->UnsignedText();
+            u32 num = numXml->UnsignedText();
+            auto objectSearch = std::ranges::find_if(zone.GetObjectList("Objects"), [&](ObjectHandle obj) -> bool { return obj.Get<u32>("Handle") == handle && obj.Get<u32>("Num") == num; });
+            if (objectSearch == zone.GetObjectList("Objects").end())
+            {
+                LOG_ERROR("Failed to find zone object [{}, {}]", handle, num);
+                continue;
+            }
+            ObjectHandle obj = *objectSearch;
+
+            //Set name + description if present
+            auto* nameXml = objectXml->FirstChildElement("Name");
+            auto* descriptionXml = objectXml->FirstChildElement("Description");
+            if (nameXml && nameXml->GetText())
+                obj.Set<string>("Name", nameXml->GetText());
+            if (descriptionXml && descriptionXml->GetText())
+                obj.Set<string>("Description", descriptionXml->GetText());
+        }
+    }
+
+    return true;
 }
