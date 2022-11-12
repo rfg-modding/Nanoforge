@@ -60,6 +60,45 @@ CVar CVar_HideBoundingBoxes("Hide binding boxes", ConfigType::Bool,
     false, //IsFolderPath
     false //IsFilePath
 );
+CVar CVar_DiffuseIntensity("Diffuse intensity", ConfigType::Float,
+    "Diffuse light intensity in the map editor",
+    ConfigValue(1.2f),
+    false,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
+CVar CVar_ZoneObjectDistance("Zone object distance", ConfigType::Float,
+    "Zone objects aren't draw past this distance",
+    ConfigValue(1200.0f),
+    false,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
+CVar CVar_HighLodTerrainDistance("High lod terrain distance", ConfigType::Float,
+    "High lod terrain isn't drawn past this distance",
+    ConfigValue(1200.0f),
+    false,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
+CVar CVar_BuildingDistance("Building draw distance", ConfigType::Float,
+    "Buildings aren't drawn past this distance",
+    ConfigValue(500.0f),
+    false,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
+CVar CVar_CameraSpeed("Camera speed", ConfigType::Float,
+    "Movement speed of the camera",
+    ConfigValue(5.0f),
+    false,  //ShowInSettings
+    false, //IsFolderPath
+    false //IsFilePath
+);
+
+//Only allow one map to export at a time
+static std::mutex MapExportLock;
+static string MapCurrentlyExporting = "";
 
 TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territoryName, std::string_view territoryShortname)
     : TerritoryName(territoryName), TerritoryShortname(territoryShortname)
@@ -79,7 +118,8 @@ TerritoryDocument::TerritoryDocument(GuiState* state, std::string_view territory
 
     //Init scene camera
     Scene->Cam.Init({ 250.0f, 500.0f, 250.0f }, 80.0f, { (f32)Scene->Width(), (f32)Scene->Height() }, 1.0f, 10000.0f);
-    Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2f;
+    Scene->Cam.Speed = CVar_CameraSpeed.Get<f32>();
+    Scene->perFrameStagingBuffer_.DiffuseIntensity = CVar_DiffuseIntensity.Get<f32>();
 
     //Start territory loading thread
     Territory.Init(state->PackfileVFS, TerritoryName, TerritoryShortname, useHighLodTerrain_, loadBuildings);
@@ -117,6 +157,9 @@ void TerritoryDocument::Update(GuiState* state)
     //Only redraw scene if window is focused
     Scene->NeedsRedraw = ImGui::IsWindowFocused();
 
+    //Update scene settings tied to cvars every frame
+    Scene->perFrameStagingBuffer_.DiffuseIntensity = CVar_DiffuseIntensity.Get<f32>();
+
     //Used to mark the document as having unsaved changes if Territory::LoadAsync() is called for the first time and does a succesful import. This is mainly so players don't close the project after import without saving and wipe the import
     if (Territory.JustImported && TerritoryLoadTask && !TerritoryLoadTask->Running() && !_handledImport)
     {
@@ -125,12 +168,34 @@ void TerritoryDocument::Update(GuiState* state)
     }
 
     //Initialize zone edit tracking for zones which don't have the variable. Projects from older versions don't have this
-    if (Territory.Ready() || Territory.Object && !_zoneInitialized)
+    if (Territory.Ready() && Territory.Object && !_zoneInitialized)
     {
         _zoneInitialized = true;
         for (ObjectHandle zone : Territory.Object.GetObjectList("Zones"))
             if (!zone.Has("ChildObjectEdited"))
                 zone.Set<bool>("ChildObjectEdited", true);
+
+        //Auto center the camera on the zone closest to the map origin. Useful when trying to transfer single SP maps to MP since they're often far from the origin
+        f32 closestZoneDistanceFromOrigin = 10000000000.0f; //Very high distance from origin that no zone should ever have
+        ObjectHandle closestZone = NullObjectHandle;
+        for (ObjectHandle zone : Territory.Object.GetObjectList("Zones"))
+        {
+            Vec3 zonePos = zone.Get<Vec3>("Position");
+            f32 distanceFromOrigin = zonePos.Magnitude();
+            if (distanceFromOrigin < closestZoneDistanceFromOrigin)
+            {
+                closestZoneDistanceFromOrigin = distanceFromOrigin;
+                closestZone = zone;
+            }
+        }
+        if (closestZone)
+        {
+            Vec3 zonePos = closestZone.Get<Vec3>("Position");
+            zonePos.x += 250.0f;
+            zonePos.z += 250.0f;
+            zonePos.y = 500.0f;
+            Scene->Cam.SetPosition(zonePos.x, zonePos.y, zonePos.z);
+        }
     }
 
     //Set current territory to most recently focused territory window
@@ -157,7 +222,7 @@ void TerritoryDocument::Update(GuiState* state)
     {
         PROFILER_SCOPED("Update mesh visibility");
         std::lock_guard<std::shared_mutex> lock(Territory.TerrainLock);
-        f32 highLodTerrainDistance = highLodTerrainEnabled_ ? highLodTerrainDistance_ : -1.0f;
+        f32 highLodTerrainDistance = highLodTerrainEnabled_ ? CVar_HighLodTerrainDistance.Get<f32>() : -1.0f;
         for (TerrainInstance& terrain : Territory.TerrainInstances)
         {
             if (!terrain.Loaded)
@@ -201,7 +266,7 @@ void TerritoryDocument::Update(GuiState* state)
         Vec2 chunkPos = chunk->Position.XZ();
         Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
         f32 distanceFromCamera = chunkPos.Distance(cameraPos);
-        chunk->Visible = distanceFromCamera <= chunkDistance_ && CVar_DrawChunkMeshes.Get<bool>();
+        chunk->Visible = distanceFromCamera <= CVar_BuildingDistance.Get<f32>() && CVar_DrawChunkMeshes.Get<bool>();
     }
 
     //Update debug draw regardless of focus state since we'll never be focused when using the other panels which control debug draw
@@ -415,15 +480,22 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             if (ImGui::Button("Default"))
             {
                 Scene->perFrameStagingBuffer_.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-                Scene->perFrameStagingBuffer_.DiffuseIntensity = 1.2f;
+                CVar_DiffuseIntensity.Get<f32>() = 1.2f;
+                Config::Get()->Save();
                 Scene->perFrameStagingBuffer_.ElevationFactorBias = 0.8f;
             }
 
             ImGui::ColorEdit3("Diffuse", reinterpret_cast<f32*>(&Scene->perFrameStagingBuffer_.DiffuseColor));
-            ImGui::SliderFloat("Diffuse intensity", &Scene->perFrameStagingBuffer_.DiffuseIntensity, 0.0f, 2.0f);
+            if (ImGui::SliderFloat("Diffuse intensity", &CVar_DiffuseIntensity.Get<f32>(), 0.0f, 2.0f))
+            {
+                Config::Get()->Save();
+            }
         }
 
-        ImGui::SliderFloat("Zone object distance", &zoneObjDistance_, 0.0f, 10000.0f);
+        if(ImGui::SliderFloat("Zone object distance", &CVar_ZoneObjectDistance.Get<f32>(), 0.0f, 10000.0f))
+        {
+            Config::Get()->Save();
+        }
         ImGui::SameLine();
         gui::HelpMarker("Zone object bounding boxes and meshes aren't drawn beyond this distance from the camera.", ImGui::GetIO().FontDefault);
 
@@ -435,7 +507,10 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             }
             if (highLodTerrainEnabled_)
             {
-                ImGui::SliderFloat("High lod distance", &highLodTerrainDistance_, 0.0f, 10000.0f);
+                if (ImGui::SliderFloat("High lod distance", &CVar_HighLodTerrainDistance.Get<f32>(), 0.0f, 10000.0f))
+                {
+
+                }
                 ImGui::SameLine();
                 gui::HelpMarker("Beyond this distance from the camera low lod terrain is used.", ImGui::GetIO().FontDefault);
                 terrainVisiblityUpdateNeeded_ = true;
@@ -447,7 +522,10 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             CVar_DrawChunkMeshes.Get<bool>() = drawChunkMeshes;
         if (drawChunkMeshes)
         {
-            ImGui::SliderFloat("Building distance", &chunkDistance_, 0.0f, 10000.0f);
+            if (ImGui::SliderFloat("Building distance", &CVar_BuildingDistance.Get<f32>(), 0.0f, 10000.0f))
+            {
+                Config::Get()->Save();
+            }
             ImGui::SameLine();
             gui::HelpMarker("Beyond this distance from the camera buildings won't be drawn.", ImGui::GetIO().FontDefault);
             terrainVisiblityUpdateNeeded_ = true;
@@ -463,6 +541,13 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
         ImGui::Text(ICON_FA_CAMERA " Camera");
         state->FontManager->FontL.Pop();
 
+        //Sync cvar with camera speed in case it was changed with the scrollbar
+        if (CVar_CameraSpeed.Get<f32>() != Scene->Cam.Speed)
+        {
+            CVar_CameraSpeed.Get<f32>() = Scene->Cam.Speed;
+            Config::Get()->Save();
+        }
+
         //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
         Scene->NeedsRedraw = true;
 
@@ -471,19 +556,22 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
         f32 farPlane = Scene->Cam.GetFarPlane();
         f32 lookSensitivity = Scene->Cam.GetLookSensitivity();
 
-        if (ImGui::Button("0.1")) Scene->Cam.Speed = 0.1f;
+        if (ImGui::Button("0.1")) CVar_CameraSpeed.Get<f32>() = 0.1f;
         ImGui::SameLine();
-        if (ImGui::Button("1.0")) Scene->Cam.Speed = 1.0f;
+        if (ImGui::Button("1.0")) CVar_CameraSpeed.Get<f32>() = 1.0f;
         ImGui::SameLine();
-        if (ImGui::Button("10.0")) Scene->Cam.Speed = 10.0f;
+        if (ImGui::Button("10.0")) CVar_CameraSpeed.Get<f32>() = 10.0f;
         ImGui::SameLine();
-        if (ImGui::Button("25.0")) Scene->Cam.Speed = 25.0f;
+        if (ImGui::Button("25.0")) CVar_CameraSpeed.Get<f32>() = 25.0f;
         ImGui::SameLine();
-        if (ImGui::Button("50.0")) Scene->Cam.Speed = 50.0f;
+        if (ImGui::Button("50.0")) CVar_CameraSpeed.Get<f32>() = 50.0f;
         ImGui::SameLine();
-        if (ImGui::Button("100.0")) Scene->Cam.Speed = 100.0f;
+        if (ImGui::Button("100.0")) CVar_CameraSpeed.Get<f32>() = 100.0f;
 
-        ImGui::InputFloat("Speed", &Scene->Cam.Speed);
+        if (ImGui::InputFloat("Speed", &CVar_CameraSpeed.Get<f32>()))
+        {
+            Config::Get()->Save();
+        }
         ImGui::InputFloat("Sprint speed", &Scene->Cam.SprintSpeed);
 
         if (ImGui::SliderFloat("Fov", &fov, 40.0f, 120.0f))
@@ -500,6 +588,13 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             Scene->Cam.UpdateViewMatrix();
         }
 
+        //Sync camera speed with cvar
+        if (Scene->Cam.Speed != CVar_CameraSpeed.Get<f32>())
+        {
+            Scene->Cam.Speed = CVar_CameraSpeed.Get<f32>();
+            Config::Get()->Save();
+        }
+
         gui::LabelAndValue("Pitch:", std::to_string(Scene->Cam.GetPitchDegrees()));
         gui::LabelAndValue("Yaw:", std::to_string(Scene->Cam.GetYawDegrees()));
         ImGui::EndPopup();
@@ -513,16 +608,20 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
         state->FontManager->FontL.Pop();
         ImGui::Separator();
 
+        bool anotherMapIsExporting = !MapExportLock.try_lock();
+        if (!anotherMapIsExporting)
+            MapExportLock.unlock(); //We're just checking if it's locked, so unlock for now if not.
+
         if (!Territory.Ready() || !Territory.Object)
             ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Still loading map...");
         else if (!Territory.Object)
             ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Map data failed to load.");
         else if (!state->CurrentProject || !state->CurrentProject->Loaded())
             ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "No project open. Must have one open to export maps.");
+        else if (anotherMapIsExporting)
+            ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, fmt::format("{} is being exported. You must wait for that to finish before you can export this map.", MapCurrentlyExporting));
         else if (exportTask_ && (exportTask_->Running() || !exportTask_->Completed()))
             ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Export in progress. Please wait...");
-        //else if (string mapName = Territory.Object.Get<string>("Name"); mapName == "zonescript_terr01.vpp_pc" || mapName == "zonescript_dlc01.vpp_pc")
-        //    ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.0f }, "Export only supports MP and WC maps currently.");
         else
         {
             string mapName = Territory.Object.Get<string>("Name");
@@ -587,15 +686,17 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
             else if (exportBinaryPatchPressed)
                 exportType = MapExportType::BinaryPatch;
 
-            if (exportPressed || exportBinaryPatchPressed)
+            if ((exportPressed || exportBinaryPatchPressed) && MapExportLock.try_lock())
             {
                 exportTask_ = Task::Create("Export map");
                 if (std::filesystem::exists(CVar_MapExportPath.Get<string>()))
                 {
+                    MapCurrentlyExporting = Territory.Object.Get<string>("Name");
                     TaskScheduler::QueueTask(exportTask_, std::bind(&TerritoryDocument::ExportTask, this, state, exportType));
                 }
                 else
                 {
+                    MapExportLock.unlock();
                     exportStatus_ = "Export path doesn't exist. Please select a valid folder.";
                 }
                 ImGui::CloseCurrentPopup();
@@ -758,7 +859,7 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
         Vec2 subzonePos = zone.Property("Position").Get<Vec3>().XZ();
         Vec2 cameraPos = Scene->Cam.PositionVec3().XZ();
         f32 distanceFromCamera = subzonePos.Distance(cameraPos);
-        zone.Property("RenderBoundingBoxes").Set<bool>(distanceFromCamera <= zoneObjDistance_);
+        zone.Property("RenderBoundingBoxes").Set<bool>(distanceFromCamera <= CVar_ZoneObjectDistance.Get<f32>());
     }
 
     //Draw bounding boxes
@@ -1859,6 +1960,12 @@ void TerritoryDocument::Inspector(GuiState* state)
             chunk->Position += delta;
         }
 
+        //Auto move children if that setting is enabled
+        if (_autoMoveChildren)
+        {
+            MoveObjectChildrenRecursive(selectedObject_, delta);
+        }
+
         ObjectEdited(selectedObject_);
     }
     if (selectedObject_.Has("Orient") && Inspector_DrawMat3Editor(selectedObject_.Property("Orient")))
@@ -2368,6 +2475,9 @@ void TerritoryDocument::ExportTask(GuiState* state, MapExportType exportType)
     {
         exportStatus_ = "Failed to export map. Check log.";
     }
+
+    MapExportLock.unlock();
+    MapCurrentlyExporting = "";
 }
 
 void UpdateAsmPc(const string& asmPath);
@@ -2888,6 +2998,10 @@ void TerritoryDocument::Outliner_DrawFilters(GuiState* state)
             Config::Get()->Save();
         }
 
+        ImGui::Checkbox("Auto move children", &_autoMoveChildren);
+        ImGui::SameLine();
+        gui::HelpMarker("Automatically move child objects by the same amount when moving their parents", ImGui::GetDefaultFont());
+
         //Set custom highlight colors for the table
         ImVec4 selectedColor = { 0.157f, 0.350f, 0.588f, 1.0f };
         ImVec4 highlightColor = { selectedColor.x * 1.1f, selectedColor.y * 1.1f, selectedColor.z * 1.1f, 1.0f };
@@ -3183,4 +3297,22 @@ void TerritoryDocument::ObjectEdited(ObjectHandle object)
     //This should be true if any child object was edited and never set back to false
     //Used during SP map export so it can selectively export zones
     zone.Set<bool>("ChildObjectEdited", true);
+}
+
+void TerritoryDocument::MoveObjectChildrenRecursive(ObjectHandle obj, Vec3 delta)
+{
+    for (ObjectHandle child : obj.GetObjectList("Children"))
+    {
+        MoveObjectChildrenRecursive(child, delta);
+        ObjectEdited(child);
+        if (child.Has("Position"))
+        {
+            child.Set<Vec3>("Position", child.Get<Vec3>("Position") + delta);
+        }
+        //Auto update bounding box positions when position is changed
+        if (child.Has("Bmin"))
+            child.Set<Vec3>("Bmin", child.Get<Vec3>("Bmin") + delta);
+        if (child.Has("Bmax"))
+            child.Set<Vec3>("Bmax", child.Get<Vec3>("Bmax") + delta);
+    }
 }

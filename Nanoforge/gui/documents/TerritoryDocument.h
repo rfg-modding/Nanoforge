@@ -85,6 +85,9 @@ private:
     void ObjectEdited(ObjectHandle object);
     void SetObjectParent(ObjectHandle object, ObjectHandle oldParent, ObjectHandle newParent);
 
+    //Move an objects children and their children by the provided offset
+    void MoveObjectChildrenRecursive(ObjectHandle obj, Vec3 delta);
+
     Handle<Scene> Scene = nullptr;
     Handle<Task> TerritoryLoadTask = nullptr;
     bool WorkerResourcesFreed = false;
@@ -93,15 +96,10 @@ private:
     ObjectHandle selectedObject_ = NullObjectHandle;
 
     //High/low terrain visibility settings
-    f32 highLodTerrainDistance_ = 1200.0f; //Low lod terrain will be used past this distance
     bool highLodTerrainEnabled_ = true;
     bool terrainVisiblityUpdateNeeded_ = true;
     u32 numLoadedTerrainInstances_ = 0;
     bool useHighLodTerrain_ = true;
-    f32 chunkDistance_ = 500.0f;
-
-    //Zone object visibility range
-    f32 zoneObjDistance_ = 1200.0f;
 
     //Object creation popup data
     bool showObjectCreationPopup_ = false;
@@ -162,4 +160,6 @@ private:
     ObjectHandle orphanObjectPopupHandle_ = NullObjectHandle;
     Popup orphanChildrenPopup_ = { "Orphan children?", "Are you sure you'd like to orphan all the children of this object? You'll need to manually add the children to parent if you want to undo this.", PopupType::YesCancel, true };
     ObjectHandle orphanChildrenPopupHandle_ = NullObjectHandle;
+
+    bool _autoMoveChildren = true; //Automatically move child objects when their parents are moved
 };
