@@ -23,7 +23,7 @@ PopupResult Popup::Update(GuiState* state)
 		if (type_ == PopupType::Ok)
 		{
 			if (firstFrame_) ImGui::SetKeyboardFocusHere(); //Auto focus on default option on first frame so you don't need to switch to the mouse
-			if (ImGui::Button("Ok"))
+			if (ImGui::Button("Ok") || (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
 			{
 				popupResult = PopupResult::Ok;
 				ImGui::CloseCurrentPopup();
@@ -33,14 +33,15 @@ PopupResult Popup::Update(GuiState* state)
 		else if (type_ == PopupType::YesCancel)
 		{
 			if (firstFrame_) ImGui::SetKeyboardFocusHere(); //Auto focus on default option on first frame so you don't need to switch to the mouse
-			if (ImGui::Button("Yes"))
+			if (ImGui::Button("Yes") || (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter)))
 			{
 				popupResult = PopupResult::Yes;
 				ImGui::CloseCurrentPopup();
 				Close();
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Cancel"))
+			if (ImGui::Button("Cancel") || (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter))
+				)
 			{
 				popupResult = PopupResult::Cancel;
 				ImGui::CloseCurrentPopup();
