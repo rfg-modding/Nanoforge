@@ -99,11 +99,10 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         if (!state->MainWindowFocused)
             ToastNotification(fmt::format("Finished importing {}", territoryShortname_), "Map import complete");
 
-        for (ObjectHandle zone : Object.GetObjectList("Zones"))
-            SetZoneShortName(zone); //Set shorthand names for each zone (used in UI to save space). E.g. terr01_04_07.rfgzone_pc -> 04_07 (xz coords)
-
         Log->info("Imported {} in {}s", territoryShortname_, timer.ElapsedSecondsPrecise());
     }
+    for (ObjectHandle zone : Object.GetObjectList("Zones"))
+        SetZoneShortName(zone); //Set shorthand names for each zone (used in UI to save space). E.g. terr01_04_07.rfgzone_pc -> 04_07 (xz coords)
     EarlyStopCheck();
 
     state->SetStatus(ICON_FA_SYNC " Loading " + territoryShortname_ + "...", Working);
@@ -740,7 +739,7 @@ void Territory::SetZoneShortName(ObjectHandle zone)
         return;
 
     //Make sure the name starts with the expected prefix
-    if (!String::StartsWith(fullName, expectedPrefix))
+    if (!String::StartsWith(String::ToLower(fullName), String::ToLower(expectedPrefix)))
         return;
 
     //For some files there is nothing between the prefix and postfix. We preserve the prefix in this case so something remains
