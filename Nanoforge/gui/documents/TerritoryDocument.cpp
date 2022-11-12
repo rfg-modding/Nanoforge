@@ -1212,6 +1212,12 @@ ObjectHandle TerritoryDocument::DeepCloneObject(ObjectHandle object, bool select
     }
     ObjectEdited(newObject);
 
+    //Clear parent if depth == 0. The object being cloned becomes a root object
+    if (depth == 0)
+    {
+        newObject.Set<ObjectHandle>("Parent", NullObjectHandle);
+    }
+
     if (selectNewObject)
     {
         selectedObject_ = newObject;
