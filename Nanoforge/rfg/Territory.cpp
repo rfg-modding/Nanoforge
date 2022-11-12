@@ -694,21 +694,30 @@ void Territory::InitObjectClassData()
             {
                 ZoneObjectClasses.push_back({ object.Property("Type").Get<string>(), object.Property("ClassnameHash").Get<u32>(), 0, Vec3{ 1.0f, 1.0f, 1.0f }, true });
                 Log->warn("Found unknown object class with hash {} and name \"{}\"", object.Property("ClassnameHash").Get<u32>(), object.Property("Type").Get<string>());
+                ShowMessageBox(fmt::format("Unrecognized object classname hash {}! Please notify moneyl that this happened and send a copy of your currently opened NF project to me over discord. I'm trying to fix this bug and need a project where it happens to investigate further.", object.Get<u32>("ClassnameHash")), "Unrecognized object classname hash");
             }
         }
     }
 }
 
-ZoneObjectClass& Territory::GetObjectClass(u32 classnameHash)
+ZoneObjectClass* Territory::GetObjectClass(u32 classnameHash)
 {
     for (auto& objectClass : ZoneObjectClasses)
     {
         if (objectClass.Hash == classnameHash)
-            return objectClass;
+            return &objectClass;
     }
 
-    //Todo: Handle case of invalid hash. Returning std::optional would work
-    THROW_EXCEPTION("Failed to find object class with classname hash {}", classnameHash);
+    //Unrecognized classname hash. Have we seen this one before?
+    if (std::ranges::find(unrecognizedClassnameHashes_, classnameHash) == unrecognizedClassnameHashes_.end())
+    {
+        //Haven't seen this one yet. Report to user and add to list so the error isn't spammed
+        unrecognizedClassnameHashes_.push_back(classnameHash);
+        LOG_ERROR("Unrecognized classname hash {}. Please send this nanoforge project to moneyl so this bug can be investigated.", classnameHash);
+        ShowMessageBox(fmt::format("Unrecognized object classname hash {}! Please notify moneyl that this happened and send a copy of your currently opened NF project to me over discord. I'm trying to fix this bug and need a project where it happens to investigate further.", classnameHash), "Unrecognized object classname hash");
+    }
+
+    return nullptr;
 }
 
 void Territory::SetZoneShortName(ObjectHandle zone)

@@ -36,7 +36,7 @@ public:
     bool ObjectClassRegistered(u32 classnameHash, u32& outIndex); //Returns true if the object type with this classname hash is known
     void UpdateObjectClassInstanceCounts(); //Update number of instances of each object class for visible zones
     void InitObjectClassData(); //Initialize object class data. Used for identification and filtering.
-    ZoneObjectClass& GetObjectClass(u32 classnameHash);
+    ZoneObjectClass* GetObjectClass(u32 classnameHash); //Get object class data. Returns nullptr if the class isn't known.
 
     ObjectHandle Object = NullObjectHandle;
     std::vector<ObjectHandle> Zones = {};
@@ -74,6 +74,9 @@ private:
     std::unordered_map<string, Texture2D> textureCache_; //Textures loaded during territory load are cached to prevent repeat loads. Cleared once territory is done loading.
     std::mutex chunkMeshCacheLock_;
     std::unordered_map<string, Mesh> chunkMeshCache_; //Chunk meshes. Some chunks are used dozens of times. Quickly gets out of hand if you make separate meshes/buffers per instance (10GB+ memory usage on mp_crescent)
+
+    //List of unrecognized classname hashes passed to GetObjectClass(). Recorded so an error message is only shown once per classname hash instead of getting spammed.
+    std::vector<u32> unrecognizedClassnameHashes_ = {};
 };
 
 //Used by Territory to filter objects list by class type

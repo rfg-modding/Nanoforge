@@ -769,8 +769,10 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
 
         for (ObjectHandle object : zone.Property("Objects").GetObjectList())
         {
-            auto objectClass = Territory.GetObjectClass(object.Property("ClassnameHash").Get<u32>());
-            if (!objectClass.Show)
+            ZoneObjectClass* objectClass = Territory.GetObjectClass(object.Property("ClassnameHash").Get<u32>());
+            if (!objectClass)
+                continue;
+            if (!objectClass->Show)
                 continue;
             if (object.Has("Deleted") && object.Get<bool>("Deleted"))
                 continue;
@@ -794,13 +796,13 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                 }
 
                 //Calculate color that changes with time
-                Vec3 color = objectClass.Color;
-                f32 colorMagnitude = objectClass.Color.Magnitude();
+                Vec3 color = objectClass->Color;
+                f32 colorMagnitude = objectClass->Color.Magnitude();
                 //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
                 f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
-                color.x = objectClass.Color.x + powf(sin(Scene->TotalTime * 2.0f), 2.0f) * multiplier;
-                color.y = objectClass.Color.y + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
-                color.z = objectClass.Color.z + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+                color.x = objectClass->Color.x + powf(sin(Scene->TotalTime * 2.0f), 2.0f) * multiplier;
+                color.y = objectClass->Color.y + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+                color.z = objectClass->Color.z + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
 
                 //Keep color in a certain range so it stays visible against the terrain
                 f32 magnitudeMin = 0.20f;
@@ -823,7 +825,7 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
                 //Draw object bounding box and line from it's bottom into the sky
                 if (!CVar_HideBoundingBoxes.Get<bool>())
                 {
-                    if (objectClass.DrawSolid)
+                    if (objectClass->DrawSolid)
                         Scene->DrawBoxLit(bmin, bmax, color);
                     else
                         Scene->DrawBox(bmin, bmax, color);
@@ -852,10 +854,10 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
             {
                 if (!CVar_HideBoundingBoxes.Get<bool>() && object.Has("Orient"))
                 {
-                    if (objectClass.DrawSolid)
-                        Scene->DrawBoxLit(bmin, bmax, objectClass.Color);
+                    if (objectClass->DrawSolid)
+                        Scene->DrawBoxLit(bmin, bmax, objectClass->Color);
                     else
-                        Scene->DrawBox(bmin, bmax, objectClass.Color);
+                        Scene->DrawBox(bmin, bmax, objectClass->Color);
                 }
             }
         }
@@ -915,14 +917,17 @@ void TerritoryDocument::UpdateDebugDraw(GuiState* state)
         Vec3 pos = _hoveredObject.Has("Position") ? _hoveredObject.Property("Position").Get<Vec3>() : Vec3{ 0.0f, 0.0f, 0.0f };
 
         //Calculate color that changes with time so it's easy to find in dense maps
-        auto objectClass = Territory.GetObjectClass(_hoveredObject.Property("ClassnameHash").Get<u32>());
-        Vec3 color = objectClass.Color; 
-        f32 colorMagnitude = objectClass.Color.Magnitude();
-        //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
-        f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
-        color.x = objectClass.Color.x + powf(sin(Scene->TotalTime * 2.0f), 2.0f) * multiplier;
-        color.y = objectClass.Color.y + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
-        color.z = objectClass.Color.z + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+        Vec3 color = { 0.7f, 0.0f, 0.5f };
+        ZoneObjectClass* objectClass = Territory.GetObjectClass(_hoveredObject.Property("ClassnameHash").Get<u32>());
+        if (objectClass)
+        {
+            f32 colorMagnitude = objectClass->Color.Magnitude();
+            //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
+            f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
+            color.x = objectClass->Color.x + powf(sin(Scene->TotalTime * 2.0f), 2.0f) * multiplier;
+            color.y = objectClass->Color.y + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+            color.z = objectClass->Color.z + powf(sin(Scene->TotalTime), 2.0f) * multiplier;
+        }
 
         //Keep color in a certain range so it stays visible against the terrain
         f32 magnitudeMin = 0.20f;
@@ -2951,8 +2956,6 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
     if (!visible)
         return;
 
-    auto& objectClass = Territory.GetObjectClass(object.Property("ClassnameHash").Get<u32>());
-
     //Update node index and selection state
     bool selected = (object == selectedObject_);
 
@@ -3094,11 +3097,15 @@ void TerritoryDocument::Outliner_DrawObjectNode(GuiState* state, ObjectHandle ob
         _hoveredObject = object;
     }
 
+    ZoneObjectClass* objectClass = Territory.GetObjectClass(object.Property("ClassnameHash").Get<u32>());
+    Vec3 color = objectClass ? objectClass->Color : Vec3{1.0f, 1.0f, 1.0f};
+    const char* labelIcon = objectClass ? objectClass->LabelIcon : ICON_FA_EXCLAMATION_TRIANGLE;
+
     //Draw node icon
-    ImGui::PushStyleColor(ImGuiCol_Text, { objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f });
+    ImGui::PushStyleColor(ImGuiCol_Text, { color.x, color.y, color.z, 1.0f });
     ImGui::SameLine();
     ImGui::SetCursorPosX(nodeXPos + 22.0f);
-    ImGui::Text(objectClass.LabelIcon);
+    ImGui::Text(labelIcon);
     ImGui::PopStyleColor();
 
     //Flags
@@ -3136,8 +3143,8 @@ bool TerritoryDocument::Outliner_ZoneAnyChildObjectsVisible(ObjectHandle zone)
 
 bool TerritoryDocument::Outliner_ShowObjectOrChildren(ObjectHandle object)
 {
-    auto& objectClass = Territory.GetObjectClass(object.Property("ClassnameHash").Get<u32>());
-    if (objectClass.Show)
+    ZoneObjectClass* objectClass = Territory.GetObjectClass(object.Property("ClassnameHash").Get<u32>());
+    if (objectClass && objectClass->Show)
     {
         if (outliner_OnlyShowPersistentObjects_)
             return object.Get<bool>("Persistent");
