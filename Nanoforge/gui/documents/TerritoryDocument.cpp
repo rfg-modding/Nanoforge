@@ -519,7 +519,10 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
 
         bool drawChunkMeshes = CVar_DrawChunkMeshes.Get<bool>();
         if (ImGui::Checkbox("Show buildings", &drawChunkMeshes))
+        {
             CVar_DrawChunkMeshes.Get<bool>() = drawChunkMeshes;
+            Config::Get()->Save();
+        }
         if (drawChunkMeshes)
         {
             if (ImGui::SliderFloat("Building distance", &CVar_BuildingDistance.Get<f32>(), 0.0f, 10000.0f))
