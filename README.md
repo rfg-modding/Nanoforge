@@ -27,7 +27,7 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - Map editor supports adding dummy objects: these are blank objects that can be used to create objects from scratch by referencing objects already on maps. Be careful because it gives you a lot of freedom and if you make a mistake it can cause issues. This is a stopgap measure until a proper object creation UI can be added in the Rewrite.
 - Map editor has partial support for singleplayer maps: highlighting zones and objects in the outliner, checkboxes in the filters panel or you can press f to toggle zone highlighting or g to toggle object highlighitng. Things to note: you must start a new game to see all edits apply, importing/exporting the main map (terr01) takes a very long time and it's recommended to either keep your project for the base game backed up after import or edit the DLC SP map instead (dlc01) as it's faster and less demanding. Some SP specific properties can't be added to objects yet without hand editing your project file including constraints, road paths and navpoints & cloning doesn't work yet but you can edit/move existing objects fine.  
 
-## Useful things to know 
+## Keybinds 
 - CTRL + S: save the project.
 - CTRL + D: clone selected object.
 - CTRL + I : copy scriptx reference from selected object.
@@ -35,7 +35,12 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - CTRL + N: remove dynamic link from selected object.
 - DEL : delete selected object. 
 - F: toggle hovered highlighting for selected zone.
-- G: toggle hovered highlighting for selected object. 
+- G: toggle hovered highlighting for selected object.
+- R: vertical line indicating the position of the currently selected object
+- Mousewheel : change camera speed
+- Hold shift while moving camera : faster movement
+ 
+ ## Useful info
 - Outliner and inspector are opened by default.
 - Double clicking or clicking the arrow next to the name for an object in the outliner opens/closes it.
 - To highlight zones and objects in the map when mousing over them you can use the checkbox in the filters panel or press F to toggle zone highlighting and G to toggle object highlighting. 
