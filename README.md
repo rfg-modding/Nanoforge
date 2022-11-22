@@ -36,9 +36,9 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - DEL : delete selected object. 
 - F: toggle hovered highlighting for selected zone.
 - G: toggle hovered highlighting for selected object.
-- R: vertical line indicating the position of the currently selected object
-- Mousewheel : change camera speed
-- Hold shift while moving camera : faster movement
+- R: vertical line indicating the position of the currently selected object.
+- Mousewheel : change camera speed.
+- Hold shift while moving camera : faster movement.
  
  ## Useful info
 - Outliner and inspector are opened by default.
