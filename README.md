@@ -41,6 +41,7 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - Hold shift while moving camera : faster movement.
  
  ## Useful info
+- You can remove recent projects from the list (without deleting the actual project folder or having to delete settings.xml) by right clicking them under "Recent projects" and selecting "Remove from list"
 - Outliner and inspector are opened by default.
 - Double clicking or clicking the arrow next to the name for an object in the outliner opens/closes it.
 - To highlight zones and objects in the map when mousing over them you can use the checkbox in the filters panel or press F to toggle zone highlighting and G to toggle object highlighting. 
