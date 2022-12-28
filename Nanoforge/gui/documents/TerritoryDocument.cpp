@@ -519,7 +519,10 @@ void TerritoryDocument::DrawMenuBar(GuiState* state)
 
         bool drawChunkMeshes = CVar_DrawChunkMeshes.Get<bool>();
         if (ImGui::Checkbox("Show buildings", &drawChunkMeshes))
+        {
             CVar_DrawChunkMeshes.Get<bool>() = drawChunkMeshes;
+            Config::Get()->Save();
+        }
         if (drawChunkMeshes)
         {
             if (ImGui::SliderFloat("Building distance", &CVar_BuildingDistance.Get<f32>(), 0.0f, 10000.0f))
@@ -1771,6 +1774,9 @@ void TerritoryDocument::Inspector(GuiState* state)
     ImGui::Text(fmt::format("{}, {}", handle, num).c_str());
     
     //Description
+    if (!selectedObject_.Has("Description") || !selectedObject_.IsType<string>("Description"))
+        selectedObject_.Set<string>("Description", ""); //Hacky fix for crash where description somehow ends up being a std::monostate. Not worth properly fixing with the rewrite incoming.
+
     string description = selectedObject_.Get<string>("Description");
     ImGui::InputText("Description", &description);
     selectedObject_.Set<string>("Description", description);
