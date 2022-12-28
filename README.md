@@ -26,6 +26,9 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - Map editor supports editing parent/child references: adding dummy children, orphaning children, changing parents etc. 
 - Map editor supports adding dummy objects: these are blank objects that can be used to create objects from scratch by referencing objects already on maps. Be careful because it gives you a lot of freedom and if you make a mistake it can cause issues. This is a stopgap measure until a proper object creation UI can be added in the Rewrite.
 - Map editor has partial support for singleplayer maps: highlighting zones and objects in the outliner, checkboxes in the filters panel or you can press f to toggle zone highlighting or g to toggle object highlighitng. Things to note: you must start a new game to see all edits apply, importing/exporting the main map (terr01) takes a very long time and it's recommended to either keep your project for the base game backed up after import or edit the DLC SP map instead (dlc01) as it's faster and less demanding. Some SP specific properties can't be added to objects yet without hand editing your project file including constraints, road paths and navpoints & cloning doesn't work yet but you can edit/move existing objects fine.  
+- Partial support for persistent settings: diffuse intensity, zone object distance, high lod terrain distance, camera speed, and building distance settings, They're currently the same across all maps..
+- By default child objects are now auto moved by the same amount when their parents position is changed. This is recursive.
+- Map editor: camera now auto centers on the zone closest to the map origin. In most maps this doesn't change much. It's meant for people who are trying to convert single SP zones to MP maps (not yet working), since those zones are often very far from the map origin.
 
 ## Keybinds 
 - CTRL + S: save the project.
@@ -39,8 +42,9 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - R: vertical line indicating the position of the currently selected object.
 - Mousewheel : change camera speed.
 - Hold shift while moving camera : faster movement.
+- Popup buttons are clickable with the enter key. 
  
- ## Useful info
+## Useful info
 - You can remove recent projects from the list (without deleting the actual project folder or having to delete settings.xml) by right clicking them under "Recent projects" and selecting "Remove from list"
 - Outliner and inspector are opened by default.
 - Double clicking or clicking the arrow next to the name for an object in the outliner opens/closes it.
@@ -50,6 +54,11 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - You can add properties to objects by using the "Add property" at the bottom of the inspector.
 - Axis lines for selected objects are drawn at the object position and not the center of the bbox. 
 - The texture editor is incomplete, it can crash if you have multiple textures open and it can be unreliable and prone to corruption with some files like always_loaded.cpeg_pc/gpeg_pc. Recommened to edit a single texture at a time, save your project and restart Nanoforge in-between edits to minimize issues. 
+
+## Tutorials
+- Useful tutorials such as transferring assets, adding new map files and other advanced uses of the current Nanoforge version will be added here. This is a stopgap measure and we'll move to the wiki for the rewrite.
+
+[Tutorials](https://github.com/Moneyl/Nanoforge/blob/current/TUTORIALS.txt)
 
 ## Screenshots
 Nanoforge can view and export RFG meshes as obj files.
@@ -74,3 +83,4 @@ To build Nanoforge from source you'll need these programs:
 3) Open the project in VS2019 by right clicking the folder you cloned it in and selecting "Open in Visual Studio". Alternatively select the folder with `File > Open > Folder...` in VS2019.
 4) Build the project with `Build > Build Nanoforge.exe` (Ctrl + B). Make sure Nanoforge.exe is selected as the build target. The first time opening the project you might need to wait for CMake config to finish before the option becomes available. I recommend using the "x64-RelWithDebInfo" build option since it'll be optimized but still have some debug info so you can use the debugger. Nanoforge is very slow when built with the normal debug option.
 5) Once it's done building you can run it with the debugger attached using F5 or without using Ctrl + F5.
+
