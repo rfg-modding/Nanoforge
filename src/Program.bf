@@ -15,11 +15,10 @@ namespace Nanoforge
 		{
             //TODO: Fix needing to manually set this. Should auto set using build system
 #if DEBUG
-            StringView assetsBasePath = "C:/Users/moneyl/source/repos/Nanoforge/assets/";
+            StringView assetsBasePath = "C:/Users/lukem/source/repos/Nanoforge/assets/";
 #else
             StringView assetsBasePath = "./assets/";
 #endif
-
             App.Build!(AppState.Running)
                 ..AddResource<BuildConfig>(new .("Project 80", assetsBasePath))
                 ..AddSystem<Window>(isResource: true)
