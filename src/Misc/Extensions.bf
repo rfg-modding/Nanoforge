@@ -46,6 +46,11 @@ namespace System
         }
     }
 
+    extension Span<T>
+    {
+        public static Span<T> Empty = .(null, 0);
+    }
+
     namespace IO
     {
         extension FileFindEntry
@@ -73,5 +78,11 @@ static
     public static void ZeroMemory<T>(T* value) where T : struct
     {
         Internal.MemSet(value, 0, sizeof(T));
+    }
+
+    public static mixin ScopedLock(System.Threading.Monitor monitor)
+    {
+        monitor.Enter();
+        defer:: monitor.Exit();
     }
 }
