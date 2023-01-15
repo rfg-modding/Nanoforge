@@ -27,7 +27,7 @@ namespace Nanoforge.Gui
     }
 
     ///Base class for all gui documents. Has fields and functions that all documents should have
-    public class GuiDocumentBase : IGuiPanel
+    public class GuiDocumentBase : IGuiDocument
     {
         public append String Title;
         public append String UID; //Unique ID for the document. Usually will be the document path if its a real file

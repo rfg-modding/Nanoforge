@@ -158,10 +158,8 @@ namespace Nanoforge.Gui.Panels
                 ImGui.DockBuilderDockWindow("File explorer", dockLeftId);
                 ImGui.DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
                 ImGui.DockBuilderDockWindow(StateViewer.ID.Ptr, dockLeftId);
-                ImGui.DockBuilderDockWindow(gui.OutlinerIdentifier, dockRightUp);
+                ImGui.DockBuilderDockWindow(gui.OutlinerIdentifier, dockLeftId);
                 ImGui.DockBuilderDockWindow(gui.InspectorIdentifier, dockRightId);
-                ImGui.DockBuilderDockWindow("Render settings", dockRightId);
-                ImGui.DockBuilderDockWindow("Scriptx viewer", DockspaceCentralNodeId);
                 ImGui.DockBuilderDockWindow("Log", dockCentralDownSplitId);
             }
         }

@@ -56,7 +56,7 @@ namespace Nanoforge.Gui.Panels
                     ImGui.PushStyleVar(.IndentSpacing, ImGui.GetFontSize() * 2.0f);
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    if (ImGui.TreeNodeEx("Startup", .DefaultOpen))
+                    if (ImGui.TreeNodeEx("Startup"))
                     {
                         for (SystemFunction system in app.[Friend]_startupSystems)
                             DrawSystem(system);
@@ -76,7 +76,7 @@ namespace Nanoforge.Gui.Panels
                     ImGui.TableNextColumn();
                     ImGui.Separator();
 
-                    for (int stageIndex in 0 ..< Enum.Count<SystemStage>() - 1)
+                    for (int stageIndex in 0 ..< Enum.Count<SystemStage>())
                     {
                         Stage stage = app.[Friend]_stages[stageIndex];
                         ImGui.TableNextRow();

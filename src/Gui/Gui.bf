@@ -47,7 +47,8 @@ namespace Nanoforge.Gui
                 panel.Update(app, this);
                 panel.FirstDraw = false;
             }
-            DrawOutlinerAndInspector(app);
+            DrawOutliner(app);
+            DrawInspector(app);
 
             for (GuiDocumentBase document in Documents.ToList(.. scope .())) //Iterate temporary list to we can delete documents from main list while iterating
             {
@@ -94,43 +95,36 @@ namespace Nanoforge.Gui
             DrawDocumentCloseConfirmationPopup(app);
 		}
 
-        void DrawOutlinerAndInspector(App app)
+        void DrawOutliner(App app)
         {
-            bool useCustom = FocusedDocument != null && FocusedDocument.HasCustomOutlinerAndInspector;
-
-            //Draw outliner
-            if (OutlinerOpen)
+            if (!ImGui.Begin(OutlinerIdentifier, &OutlinerOpen))
             {
-                if (!ImGui.Begin(OutlinerIdentifier, &OutlinerOpen))
-                {
-                    ImGui.End();
-                    return;
-                }
-
-                if (useCustom)
-                {
-					FocusedDocument.Outliner(app, this);
-				}
-
                 ImGui.End();
+                return;
             }
 
-            //Draw inspector
-            if (InspectorOpen)
+            if (FocusedDocument != null && FocusedDocument.HasCustomOutlinerAndInspector)
             {
-                if (!ImGui.Begin(InspectorIdentifier, &InspectorOpen))
-                {
-                    ImGui.End();
-                    return;
-                }
-
-                if (useCustom)
-                {
-					FocusedDocument.Inspector(app, this);
-				}
-
-                ImGui.End();
+            	FocusedDocument.Outliner(app, this);
             }
+
+            ImGui.End();
+        }
+
+        void DrawInspector(App app)
+        {
+            if (!ImGui.Begin(InspectorIdentifier, &InspectorOpen))
+            {
+                ImGui.End();
+                return;
+            }
+
+            if (FocusedDocument != null && FocusedDocument.HasCustomOutlinerAndInspector)
+            {
+            	FocusedDocument.Inspector(app, this);
+            }
+
+            ImGui.End();
         }
 
         ///Confirms that the user wants to close documents with unsaved changes
@@ -238,8 +232,6 @@ namespace Nanoforge.Gui
                 {
                     //Just crash when a duplicate is found. These are set at compile time currently so it'll always happen if theres a duplicate
                     Runtime.FatalError(scope $"Duplicate GuiPanel menu path. Fix this before release. Type = {panel.GetType().ToString(.. scope .())}. Path = '{menuPos}'");
-                    delete panel;
-                    return;
                 }
             }
 
