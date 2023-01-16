@@ -1,0 +1,58 @@
+# Stopgap location for advanced Nanoforge usage.
+
+--------------------
+ADDING NEW MAP FILES
+--------------------
+
+In this example we're cloning mp_excavation and naming our map mp_test. 
+
+1. First make a new project in Nanoforge and import the map you want to clone. 
+
+2. Change the obj zone "terrain_file_name" to the map name you want; eg "mp_test".
+
+3. I recommend disabling the gamemode flags for spawns and killboxes and adding a player spawn out of bounds so it's easier to tell the difference between
+the original map and the fresh state of the clone. 
+
+4. Save and export the map. 
+
+5. Unpack the map with RfgUtil
+
+6. Rename "p_mp_excavation.rfgzone_pc" to "p_mp_test" or whatever map name you chose. 
+
+7. Also rename "mp_excavation.asm_pc" and "mp_excavation.rfgzone" to "mp_test" or whatever map name you chose. 
+
+8. Finally rename "mp_excavation_map.str2". 
+
+9. Unpack "ns_base.str2"
+
+10. Sort by name and rename all files that start with "mp_excavation" to "mp_test", make sure you preserve the suffix and extension. Eg "_0.ctmesh_pc", "comb.gvbm_pc" "_ovl", "_alpha00" etc. You can use the program Bulk Rename Utility to make this both faster and easier.
+
+11. Open @streams.xml in the same directory and rename the file names the same way.  You can use Notepad++ with the Replace feature to make this both faster and easier. Save the file when done.
+
+12. Repack ns_base with the -c and -e flags, I've included a .cmd script to automate this. If it repacked correctly it won't be 0kb, if it is 0kb you renamed something wrong. 
+
+13. Replace the original ns_base.str2 in the mp_excavation root folder.
+
+14. Unpack "mp_test_map.str2" and rename both "mp_excavation_map" files to "mp_test_map", update @streams.xml the same way you did with ns_base and then repack it. Replace the original in the mp_excavation root folder. 
+
+15. Convert mp_test.asm_pc to XML using mTools and again rename all instances of "excavation" to "test" and save the file. Again notepad++'s replace feature will make this easier. 
+
+16. Convert the XML back to asm_pc with mTools by dragging and dropping onto "Drag drop an XML file here", remove the packed extension so it's actually an asm_pc file. Delete the original first if it's in the same folder. 
+
+17. Place RFGUtil in the same folder as ns_base, the asm_pc file etc (map root folder) and then drag and drop the asm_pc file onto RfgUtil to make sure it's properly updated. 
+
+18. Rename the map root folder to mp_test and repack it with RfgUtil
+
+Things to note: 
+
+- The new map must be added to mp_levels.xtbl.
+- Weather files (.gtodx & .dtodx) must be added with the same name as the map .vpp_pc file or the map will use generic weather.
+- Nanoforge crashes when loading the map with the changed obj_zone but if you don't change the obj_zone the map will crash when loading in game.
+- We're still unsure if territories.xtbl is important since not all maps have an entry there and most of the values seem related to singleplayer, it might only be needed for adding tint but this has yet to be confirmed.
+- Required tools: mTools, RfgUtil, Nanoforge, Notepad++. 
+
+---------------------------------
+TRANSFERRING ASSETS BETWEEN MAPS
+---------------------------------
+
+https://discord.com/channels/416631942738346008/1000442170702045276/1039265107647152149

@@ -40,7 +40,7 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - Mousewheel : change camera speed.
 - Hold shift while moving camera : faster movement.
  
- ## Useful info
+## Useful info
 - You can remove recent projects from the list (without deleting the actual project folder or having to delete settings.xml) by right clicking them under "Recent projects" and selecting "Remove from list"
 - Outliner and inspector are opened by default.
 - Double clicking or clicking the arrow next to the name for an object in the outliner opens/closes it.
@@ -50,6 +50,11 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - You can add properties to objects by using the "Add property" at the bottom of the inspector.
 - Axis lines for selected objects are drawn at the object position and not the center of the bbox. 
 - The texture editor is incomplete, it can crash if you have multiple textures open and it can be unreliable and prone to corruption with some files like always_loaded.cpeg_pc/gpeg_pc. Recommened to edit a single texture at a time, save your project and restart Nanoforge in-between edits to minimize issues. 
+
+## Tutorials
+- Useful tutorials such as transferring assets, adding new map files and other advanced uses of the current Nanoforge version will be added here. This is a stopgap measure and we'll move to the wiki for the rewrite.
+
+[Tutorials](https://github.com/Moneyl/Nanoforge/blob/current/TUTORIALS.txt)
 
 ## Screenshots
 Nanoforge can view and export RFG meshes as obj files.
@@ -74,3 +79,4 @@ To build Nanoforge from source you'll need these programs:
 3) Open the project in VS2019 by right clicking the folder you cloned it in and selecting "Open in Visual Studio". Alternatively select the folder with `File > Open > Folder...` in VS2019.
 4) Build the project with `Build > Build Nanoforge.exe` (Ctrl + B). Make sure Nanoforge.exe is selected as the build target. The first time opening the project you might need to wait for CMake config to finish before the option becomes available. I recommend using the "x64-RelWithDebInfo" build option since it'll be optimized but still have some debug info so you can use the debugger. Nanoforge is very slow when built with the normal debug option.
 5) Once it's done building you can run it with the debugger attached using F5 or without using Ctrl + F5.
+
