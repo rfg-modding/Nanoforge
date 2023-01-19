@@ -1,13 +1,21 @@
+using System.Threading;
 using Nanoforge.App;
+using Nanoforge.Rfg;
 using Nanoforge;
 using System;
 using ImGui;
+using Nanoforge.Rfg.Import;
+using Nanoforge.Misc;
 
 namespace Nanoforge.Gui.Documents
 {
 	public class MapEditorDocument : GuiDocumentBase
 	{
-        append String MapName;
+        public readonly append String MapName;
+        public bool Loading { get; private set; } = true;
+        private bool _loadFailure = false;
+        private StringView _loadFailureReason = .();
+        public Territory Map = null;
 
         public this(StringView mapName)
         {
@@ -15,13 +23,43 @@ namespace Nanoforge.Gui.Documents
             HasMenuBar = false;
             NoWindowPadding = true;
             HasCustomOutlinerAndInspector = true;
-            UnsavedChanges = true;
+        }
+
+        private void Load(App app)
+        {
+            Loading = true;
+            defer { Loading = false; }
+
+            //Check if the map was already imported
+            Territory findResult = ProjectDB.Find<Territory>(MapName);
+            if (findResult != null)
+            {
+                Map = findResult;
+                Map.Load();
+                return;
+            }
+
+            //Map needs to be imported
+            switch (MapImporter.ImportMap(MapName))
+            {
+                case .Ok(var newMap):
+            		Map = newMap;
+                    Map.Load();
+                    Log.Info("Finished importing map '{}'", MapName);
+                case .Err(StringView err):
+            		_loadFailure = true;
+                    _loadFailureReason = err;
+                    Log.Error("Failed to import map '{}'. {}. See the log for more details.", MapName, err);
+                    return;
+            }
         }
 
         public override void Update(App app, Gui gui)
         {
-            ImGui.Text("MapEditorDocument main panel...");
-            return;
+            if (FirstDraw)
+            {
+                ThreadPool.QueueUserWorkItem(new () => { this.Load(app); });
+            }
         }
 
         public override void Save(App app, Gui gui)
@@ -41,14 +79,12 @@ namespace Nanoforge.Gui.Documents
 
         public override void Outliner(App app, Gui gui)
         {
-            ImGui.Text("MapEditorDocument Outliner...");
-            return;
+
         }
 
         public override void Inspector(App app, Gui gui)
         {
-            ImGui.Text("MapEditorDocument Inspector...");
-            return;
+
         }
 	}
 }
