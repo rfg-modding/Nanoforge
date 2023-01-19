@@ -214,7 +214,10 @@ namespace Nanoforge.Gui
             //Make sure document ID is unique
             for (GuiDocumentBase doc in Documents)
                 if (StringView.Equals(doc.UID, id, true))
-                    return false;
+                {
+                    delete newDoc;
+					return false;
+				}
 
             newDoc.Title.Set(title);
             newDoc.UID.Set(id);
