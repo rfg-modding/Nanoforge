@@ -4,6 +4,7 @@ using System;
 using ImGui;
 using System.Collections;
 using Nanoforge.Gui.Documents;
+using System.Linq;
 
 namespace Nanoforge.Gui.Panels
 {
@@ -44,18 +45,48 @@ namespace Nanoforge.Gui.Panels
             {
                 if (ImGui.BeginMenu("File"))
                 {
-                    if (ImGui.MenuItem("Open file...")) { }
-                    if (ImGui.MenuItem("Save file...")) { }
+                    if (ImGui.MenuItem("New project... (NOT IMPLEMENTED YET)"))
+					{
+
+					}
+                    if (ImGui.MenuItem("Open project... (NOT IMPLEMENTED YET)"))
+					{
+
+					}
+                    if (ImGui.MenuItem("Save project (NOT IMPLEMENTED YET)"))
+					{
+
+					}
+                    if (ImGui.MenuItem("Close project (NOT IMPLEMENTED YET)"))
+					{
+
+					}
+                    if (ImGui.BeginMenu("Recent projects (NOT IMPLEMENTED YET)"))
+                    {
+
+                        ImGui.EndMenu();
+                    }
+
+                    ImGui.Separator();
+
+                    if (ImGui.MenuItem("Save file (NOT IMPLEMENTED YET)", "Ctrl + S"))
+                    {
+
+                    }
+
+                    ImGui.Separator();
+
+                    if (ImGui.MenuItem("Settings (NOT IMPLEMENTED YET)"))
+                    {
+
+                    }
+
                     if (ImGui.MenuItem("Exit"))
 					{
                         gui.CloseNanoforgeRequested = true;
                         for (GuiDocumentBase doc in gui.Documents)
                             doc.Open = false; //Close all documents so save confirmation modal appears for them
 				    }
-                    ImGui.EndMenu();
-                }
-                if (ImGui.BeginMenu("Edit"))
-                {
                     ImGui.EndMenu();
                 }
 
@@ -69,18 +100,18 @@ namespace Nanoforge.Gui.Panels
                     ImGui.MenuItem(gui.InspectorIdentifier, "", &gui.InspectorOpen);
                     ImGui.EndMenu();
                 }
-                if (ImGui.BeginMenu("Tools"))
+                //ImGui.TextEx(Icons.ICON_FA_MAP);
+                ImGui.SetNextWindowSize(.(-1.0f, 600.0f));
+                if (ImGui.BeginMenu("Maps"))
                 {
-                    if (ImGui.BeginMenu("Map editor"))
+                    for (StringView map in MapList)
                     {
-                        for (StringView map in MapList)
+                        bool supported = map != "terr01" && map != "dlc01";
+                        bool alreadyOpen = gui.Documents.Any((doc) => doc.Title == map);
+                        if (ImGui.MenuItem(supported ? map : scope $"{map} (SP maps not supported yet)", "", null, supported && !alreadyOpen))
                         {
-                            if (ImGui.MenuItem(map, "", null))
-                            {
-                                gui.OpenDocument(map, map, new MapEditorDocument(map));
-                            }
+                            gui.OpenDocument(map, map, new MapEditorDocument(map));
                         }
-                        ImGui.EndMenu();
                     }
                     ImGui.EndMenu();
                 }
