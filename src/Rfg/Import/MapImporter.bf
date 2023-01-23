@@ -1,3 +1,4 @@
+using Nanoforge.App.Project;
 using Nanoforge.App;
 using Nanoforge;
 using System;
@@ -9,9 +10,13 @@ namespace Nanoforge.Rfg.Import
         //Import all assets used by an RFG territory
         public static Result<Territory, StringView> ImportMap(StringView name)
         {
-            Territory map = ProjectDB.CreateObject<Territory>(name);
+            using (var changes = BeginCommit!(scope $"Import map - {name}"))
+            {
+                Territory map = changes.CreateObject<Territory>(name);
 
-            return .Ok(map);
+
+                return .Ok(map);
+            }
         }
 	}
 }

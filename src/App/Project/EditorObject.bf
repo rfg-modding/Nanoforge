@@ -14,16 +14,8 @@ namespace Nanoforge.App
 
     public class EditorObject
     {
-        public String Name
-        {
-            get
-            {
-                return ProjectDB.GetObjectName(this);
-            }
-            set
-            {
-                ProjectDB.SetObjectName(this, value);
-            }
-        }
+        public bool HasName => ProjectDB.GetObjectName(this) case .Ok;
+        public Result<String> GetName() => ProjectDB.GetObjectName(this);
+        public void SetName(StringView name) => ProjectDB.SetObjectName(this, name);
     }
 }

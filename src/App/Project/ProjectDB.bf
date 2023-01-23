@@ -1,3 +1,4 @@
+using Nanoforge.App.Project;
 using System.Diagnostics;
 using System.Collections;
 using System.Threading;
@@ -23,25 +24,49 @@ namespace Nanoforge.App
         static Dictionary<EditorObject, String> _objectNames = new .() ~DeleteDictionaryAndValues!(_); //Names owned by Project so we don't add unnecessary bloat to unnamed objects
         static append Monitor _objectNameDictionaryLock;
         static append Monitor _objectCreationLock;
+        static append Monitor _commitLock;
 
-        public static T CreateObject<T>() where T : EditorObject, new
+        //Undo/redo stacks. Just using plain lists + Add() & PopBack() to handle pushing onto the stack and popping off it.
+        //Eventually should replace with a Stack<T> class that inherits List<T> and hides non stack function. At the moment Beef doesn't have a standard stack class.
+        public static List<Commit> UndoStack = new .() ~DeleteContainerAndItems!(_);
+        public static List<Commit> RedoStack = new .() ~DeleteContainerAndItems!(_);
+         
+        public static T CreateObject<T>(StringView name = "") where T : EditorObject, new
         {
             ScopedLock!(_objectCreationLock);
             T obj = new T();
             _objects.Add(obj);
+            if (name != "")
+                SetObjectName(obj, name);
             return obj;
         }
 
-        public static String GetObjectName(EditorObject object)
+        //Used to add objects created by DiffUtil when it commits changes. It creates its own objects so they can be destroyed on rollback and don't exist program wide until commit.
+        public static void AddObject(EditorObject obj)
+        {
+            ScopedLock!(_objectCreationLock);
+            _objects.Add(obj);
+        }
+
+        //Removes object from ProjectDB. Not recommended for direct use. Doesn't delete the object. That way transactions can still hold object info on the redo stack to restore it as required
+        //Currently doesn't remove any references to this object that others might have. If used in the undo/redo stack that shouldn't frequently be a problem.
+        public static void RemoveObject(EditorObject obj)
+        {
+            ScopedLock!(_objectCreationLock);
+            _objects.Remove(obj);
+            _objectNames.Remove(obj);
+        }
+
+        public static Result<String> GetObjectName(EditorObject object)
         {
             ScopedLock!(_objectNameDictionaryLock);
             if (_objectNames.ContainsKey(object))
             {
-                return _objectNames[object];
+                return .Ok(_objectNames[object]);
             }
             else
             {
-                return null;
+                return .Err;
             }
         }
 
@@ -58,7 +83,7 @@ namespace Nanoforge.App
             }
         }
 
-        public static EditorObject GetObjectByName(StringView name)
+        public static EditorObject Find(StringView name)
         {
             for (var kv in _objectNames)
                 if (StringView.Equals(kv.value, name))
@@ -67,10 +92,10 @@ namespace Nanoforge.App
             return null;
         }
 
-        public static T GetObjectByName<T>(StringView name) where T : EditorObject
+        public static T Find<T>(StringView name) where T : EditorObject
         {
-            Object obj = GetObjectByName(name);
-            return obj.GetType() == typeof(T) ? (T)obj : null;
+            Object obj = Find(name);
+            return (obj != null && obj.GetType() == typeof(T)) ? (T)obj : null;
         }
 
         public static void Reset()
@@ -85,6 +110,43 @@ namespace Nanoforge.App
             _objects.Clear();
             _objectNames.Clear();
             Ready = false;
+        }
+
+        //Commit changes to undo stack. ProjectDB takes ownership of the transactions
+        public static void Commit(Span<ITransaction> transactions, StringView commitName)
+        {
+            ScopedLock!(_commitLock);
+            UndoStack.Add(new Commit(commitName, transactions));
+        }
+
+        //Undo single commit
+        public static void Undo()
+        {
+            ScopedLock!(_commitLock);
+            if (UndoStack.Count > 0)
+            {
+                Commit undo = UndoStack.PopBack();
+                for (ITransaction transaction in undo.Transactions)
+                {
+                    transaction.Revert();
+                }
+                RedoStack.Add(undo);
+            }
+        }
+
+        //Redo single commit
+        public static void Redo()
+        {
+            ScopedLock!(_commitLock);
+            if (RedoStack.Count > 0)
+            {
+                Commit redo = RedoStack.PopBack();
+                for (ITransaction transaction in redo.Transactions)
+                {
+                    transaction.Apply();
+                }
+                UndoStack.Add(redo);
+            }
         }
 	}
 }
