@@ -6,11 +6,14 @@ Unlocked = ["Zlib"]
 StartupProject = "Nanoforge"
 
 [Configs.Debug.Win64]
-Toolset = "LLVM"
 BfSIMDSetting = "SSE4"
 
 [Configs.Release.Win64]
+Toolset = "Microsoft"
 BfSIMDSetting = "SSE4"
+
+[Configs.Release.Win32]
+Toolset = "Microsoft"
 
 [Configs.Paranoid.Win64]
 BfSIMDSetting = "SSE4"

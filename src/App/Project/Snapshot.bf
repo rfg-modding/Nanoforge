@@ -115,18 +115,22 @@ namespace Nanoforge.App.Project
         {
             Type selfType = typeof(Self);
             var genericTypeName = typeof(T).GetFullName(.. scope .());
+
             Compiler.EmitTypeBody(selfType, scope $"\npublic virtual void Apply(EditorObject target)");
             Compiler.EmitTypeBody(selfType, "\n{\n");
-            Compiler.EmitTypeBody(selfType, scope $"    {genericTypeName} targetTyped = ({genericTypeName})target;\n");
-            for (var field in typeof(T).GetFields())
+            if (typeof(T).FieldCount > 0)
             {
-                //Only track fields with [EditorProperty] attribute
-                var result = field.GetCustomAttribute<EditorPropertyAttribute>();
-                if (result == .Err)
-                    continue;
+                Compiler.EmitTypeBody(selfType, scope $"    {genericTypeName} targetTyped = ({genericTypeName})target;\n");
+                for (var field in typeof(T).GetFields())
+                {
+                    //Only track fields with [EditorProperty] attribute
+                    var result = field.GetCustomAttribute<EditorPropertyAttribute>();
+                    if (result == .Err)
+                        continue;
 
-                StringView fieldName = field.Name;
-                Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName} = this.{fieldName};\n");
+                    StringView fieldName = field.Name;
+                    Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName} = this.{fieldName};\n");
+                }
             }
             Compiler.EmitTypeBody(selfType, "}");
         }
