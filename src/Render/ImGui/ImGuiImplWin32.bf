@@ -158,10 +158,10 @@ namespace Nanoforge.Render.ImGui
         private void UpdateKeyModifiers()
         {
             ImGui.IO* io = ImGui.GetIO();
-            io.AddKeyEvent(.ModCtrl, IsVkDown((i32)KeyCode.LeftControl));
-            io.AddKeyEvent(.ModShift, IsVkDown((i32)KeyCode.LeftShift));
-            io.AddKeyEvent(.ModAlt, IsVkDown((i32)KeyCode.LeftAlt));
-            io.AddKeyEvent(.ModSuper, IsVkDown((i32)KeyCode.Applications));
+            io.AddKeyEvent(.Mod_Ctrl, IsVkDown((i32)KeyCode.LeftControl));
+            io.AddKeyEvent(.Mod_Shift, IsVkDown((i32)KeyCode.LeftShift));
+            io.AddKeyEvent(.Mod_Alt, IsVkDown((i32)KeyCode.LeftAlt));
+            io.AddKeyEvent(.Mod_Super, IsVkDown((i32)KeyCode.Applications));
         }
 
         public void UpdateMouseData()
@@ -250,16 +250,16 @@ namespace Nanoforge.Render.ImGui
                 case (int)KeyCode.RightAlt: return ImGui.Key.RightAlt;
                 case (int)KeyCode.WindowsRight: return ImGui.Key.RightSuper;
                 case (int)KeyCode.Applications: return ImGui.Key.Menu;
-                case (int)KeyCode.Zero: return ImGui.Key.Number0;
-                case (int)KeyCode.One: return ImGui.Key.Number1;
-                case (int)KeyCode.Two: return ImGui.Key.Number2;
-                case (int)KeyCode.Three: return ImGui.Key.Number3;
-                case (int)KeyCode.Four: return ImGui.Key.Number4;
-                case (int)KeyCode.Five: return ImGui.Key.Number5;
-                case (int)KeyCode.Six: return ImGui.Key.Number6;
-                case (int)KeyCode.Seven: return ImGui.Key.Number7;
-                case (int)KeyCode.Eight: return ImGui.Key.Number8;
-                case (int)KeyCode.Nine: return ImGui.Key.Number9;
+                case (int)KeyCode.Zero: return ImGui.Key.N0;
+                case (int)KeyCode.One: return ImGui.Key.N1;
+                case (int)KeyCode.Two: return ImGui.Key.N2;
+                case (int)KeyCode.Three: return ImGui.Key.N3;
+                case (int)KeyCode.Four: return ImGui.Key.N4;
+                case (int)KeyCode.Five: return ImGui.Key.N5;
+                case (int)KeyCode.Six: return ImGui.Key.N6;
+                case (int)KeyCode.Seven: return ImGui.Key.N7;
+                case (int)KeyCode.Eight: return ImGui.Key.N8;
+                case (int)KeyCode.Nine: return ImGui.Key.N9;
                 case (int)KeyCode.A: return ImGui.Key.A;
                 case (int)KeyCode.B: return ImGui.Key.B;
                 case (int)KeyCode.C: return ImGui.Key.C;
