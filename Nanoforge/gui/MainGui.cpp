@@ -56,7 +56,7 @@ void MainGui::Init(ImGuiFontManager* fontManager, PackfileVFS* packfileVFS, DX11
     AddMenuItem("", true, CreateHandle<StatusBar>());
     AddMenuItem("View/Start page", true, CreateHandle<StartPanel>());
     AddMenuItem("View/Log", false, CreateHandle<LogPanel> ());
-    AddMenuItem("View/File explorer", true, CreateHandle<FileExplorer>());
+    AddMenuItem("View/File explorer", false, CreateHandle<FileExplorer>());
     AddMenuItem("View/Scriptx viewer (WIP)", false, CreateHandle<ScriptxEditor>(&State));
 
     //Not added to the menu. Only available through key shortcut so people don't go messing with the registry unless they know what they're doing
@@ -895,8 +895,8 @@ void MainGui::DrawProjectSaveLoadDialogs()
     if (State.CurrentProject->Loaded() && State.CurrentProject->Saving)
     {
         ImGui::OpenPopup(saveDialogName);
-        ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
-        ImGui::SetNextWindowPos({ viewportSize.x / 2.7f, viewportSize.y / 2.7f }, ImGuiCond_Appearing); //Auto center
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f)); //Auto center
         if (ImGui::BeginPopupModal(saveDialogName, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
             ImGui::Text(State.CurrentProject->SaveThreadState.c_str());
@@ -910,6 +910,8 @@ void MainGui::DrawProjectSaveLoadDialogs()
     if (State.CurrentProject->Loading)
     {
         ImGui::OpenPopup(loadDialogName);
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f)); //Auto center
         if (ImGui::BeginPopupModal(loadDialogName, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
             ImGui::Text(State.CurrentProject->LoadThreadState.c_str());

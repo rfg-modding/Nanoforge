@@ -16,6 +16,8 @@ PopupResult Popup::Update(GuiState* state)
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.0f, 8.0f }); //Manually set padding since the parent window might be a document with padding disabled
 	PopupResult popupResult = PopupResult::None;
+	ImGuiIO& io = ImGui::GetIO();
+	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f)); //Auto center
 	bool openResult = modal_ ? ImGui::BeginPopupModal(title_.c_str(), &open_) : ImGui::BeginPopup(title_.c_str());
 	if (openResult)
 	{
