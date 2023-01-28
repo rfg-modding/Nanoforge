@@ -4,18 +4,20 @@ namespace Nanoforge.App
 {
 	public class BuildConfig
 	{
-		public String ProjectName = new .() ~delete _;
-		public String AssetsBasePath = new .() ~delete _;
+		public append readonly String ProjectName;
+		public append readonly String AssetsBasePath;
+        public append readonly String Version;
 
 		public this()
 		{
 
 		}
 
-		public this(StringView projectName, StringView assetsBasePath)
+		public this(StringView projectName, StringView assetsBasePath, StringView version)
 		{
 			ProjectName.Set(projectName);
 			AssetsBasePath.Set(assetsBasePath);
+            Version.Set(version);
 		}
 	}
 }

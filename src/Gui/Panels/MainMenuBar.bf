@@ -40,6 +40,7 @@ namespace Nanoforge.Gui.Panels
         private void DrawMainMenuBar(App app, Gui gui)
         {
             FrameData frameData = app.GetResource<FrameData>();
+            const f32 mainMenuContentStartY = 5.0f;
 
             if (ImGui.BeginMainMenuBar())
             {
@@ -130,6 +131,18 @@ namespace Nanoforge.Gui.Panels
                 var textSize = ImGui.CalcTextSize("|    Frametime (ms): ");
                 drawList.AddText(.(ImGui.GetCursorPosX() + (f32)textSize.x, 5.0f), ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), realFrameTime.CStr());
                 drawList.AddText(.(ImGui.GetCursorPosX() + (f32)textSize.x + 42.0f, 5.0f), ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), totalFrameTime.CStr());
+
+                //Draw NF version on the right side
+                ImGui.Vec2 cursorPos = .();
+                {
+                    var buildConfig = app.GetResource<BuildConfig>().Value;
+                    String version = buildConfig.Version;
+                    f32 versionTextWidth = ImGui.CalcTextSize(version.CStr()).x;
+                    f32 padding = 8.0f;
+                    f32 rightPadding = -0.0f;
+                    cursorPos = .(ImGui.GetWindowWidth() - versionTextWidth - padding - rightPadding, mainMenuContentStartY);
+                    drawList.AddText(cursorPos, 0xF2F5FAFF, version.CStr(), version.CStr() + version.Length);
+                }
 
                 ImGui.EndMainMenuBar();
             }
