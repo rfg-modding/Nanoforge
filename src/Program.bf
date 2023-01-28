@@ -20,7 +20,7 @@ namespace Nanoforge
             StringView assetsBasePath = "./assets/";
 #endif
             App.Build!(AppState.Running)
-                ..AddResource<BuildConfig>(new .("Nanoforge", assetsBasePath, "v1.0.0"))
+                ..AddResource<BuildConfig>(new .("Nanoforge", assetsBasePath, "v1.0.0_pre0"))
                 ..AddSystem<Window>(isResource: true)
                 ..AddSystem<Input>(isResource: true)
                 ..AddSystem<Renderer>()
