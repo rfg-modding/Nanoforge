@@ -7,7 +7,7 @@ namespace Nanoforge.App.Project
     //A named group of transactions. These are what's listed in the history UI and the level that undo/redo operates on
     public class Commit
     {
-        public readonly String Name = new .();
+        public readonly String Name = new .() ~delete _;
         public List<ITransaction> Transactions = new .() ~DeleteContainerAndItems!(_);
 
         public this(StringView name, Span<ITransaction> transactions)
@@ -26,7 +26,7 @@ namespace Nanoforge.App.Project
     public class CreateObjectTransaction : ITransaction
     {
         private EditorObject _target;
-        private String _name = new .();
+        private String _name = new .() ~delete _;
 
         public this(EditorObject target, StringView name = "")
         {
