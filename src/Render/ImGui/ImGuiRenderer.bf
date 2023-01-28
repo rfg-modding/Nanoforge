@@ -69,8 +69,8 @@ namespace Nanoforge.Render.ImGui
             _factory = factory;
             _hwnd = window.Handle;
 
-            if (!ImGui.CHECKVERSION())
-                return false;
+            /*if (!ImGui.CHECKVERSION())
+                return false;*/
             if (ImGui.CreateContext() == null)
                 return false;
             //ImplWin32.EnableDpiAwareness();
