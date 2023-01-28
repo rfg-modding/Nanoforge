@@ -132,14 +132,27 @@ void Territory::LoadThread(Handle<Task> task, Handle<Scene> scene, GuiState* sta
         }
     }
 
-    //Add description to objects missing them
+    //Fix issues on objects that caused bugs in the past
+    //Typically done here and in the importers so existing maps don't need to be re-imported
     for (ObjectHandle zone : Object.GetObjectList("Zones"))
     {
         for (ObjectHandle obj : zone.GetObjectList("Objects"))
         {
+            //Add description to objects missing them
             if (!obj.Has("Description"))
             {
                 obj.Set<string>("Description", "");
+            }
+            //Add missing position and orient
+            if (!obj.Has("Orient"))
+            {
+                obj.Set<Mat3>("Orient", Mat3());
+            }
+            if (!obj.Has("Position"))
+            {
+                Vec3 bboxSize = obj.Get<Vec3>("Bmax") - obj.Get<Vec3>("Bmin");
+                Vec3 position = obj.Get<Vec3>("Bmin") + (bboxSize / 2.0f);
+                obj.Set<Vec3>("Position", position);
             }
         }
     }
