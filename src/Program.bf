@@ -3,9 +3,9 @@ using Nanoforge.Render;
 using Nanoforge.Misc;
 using Nanoforge.App;
 using Nanoforge.Gui;
-using Nanoforge;
-using Win32;
+using Common;
 using System;
+using Win32;
 
 namespace Nanoforge
 {

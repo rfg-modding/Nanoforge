@@ -1,6 +1,6 @@
 using Nanoforge.Misc;
 using Nanoforge.App;
-using Nanoforge;
+using Common;
 using System;
 
 namespace Nanoforge.App

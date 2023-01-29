@@ -3,7 +3,8 @@ using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
 using Nanoforge.Misc;
-using Nanoforge.Math;
+using Common.Math;
+using Common;
 using System;
 
 namespace Nanoforge.App

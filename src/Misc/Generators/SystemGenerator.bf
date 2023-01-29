@@ -1,4 +1,4 @@
-using Nanoforge;
+using Common;
 using System;
 using static System.Compiler;
 
@@ -25,7 +25,7 @@ namespace Nanoforge.Generators
 			outText.AppendF(
 				$"""
 				using Nanoforge.App;
-				using Nanoforge;
+				using Common;
 				using System;
 
 				namespace {Namespace}

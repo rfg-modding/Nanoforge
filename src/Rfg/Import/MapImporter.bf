@@ -1,6 +1,10 @@
 using Nanoforge.App.Project;
+using Nanoforge.FileSystem;
+using RfgTools.Formats;
+using Nanoforge.Misc;
 using Nanoforge.App;
-using Nanoforge;
+using System.IO;
+using Common;
 using System;
 
 namespace Nanoforge.Rfg.Import

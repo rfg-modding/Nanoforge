@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.Collections;
 using System.Threading;
 using Nanoforge.Misc;
-using Nanoforge.Math;
+using Common.Math;
 using System.Linq;
-using Nanoforge;
+using Common;
 using System.IO;
 using System;
 

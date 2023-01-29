@@ -1,7 +1,7 @@
 using System.Collections;
-using Nanoforge.Math;
 using Nanoforge.App;
-using Nanoforge;
+using Common.Math;
+using Common;
 using System;
 using Win32;
 

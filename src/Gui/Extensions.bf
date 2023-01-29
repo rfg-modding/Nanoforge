@@ -1,6 +1,6 @@
-using Nanoforge.Math;
+using Common.Math;
 using Nanoforge.Gui;
-using Nanoforge;
+using Common;
 using System;
 
 namespace ImGui

@@ -1,8 +1,8 @@
 using Nanoforge.Misc;
 using Nanoforge.Gui;
 using Nanoforge.App;
-using Nanoforge;
 using Direct3D;
+using Common;
 using System;
 using ImGui;
 using Win32;

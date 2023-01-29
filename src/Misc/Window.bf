@@ -1,8 +1,8 @@
 using Nanoforge.Render;
-using Nanoforge.Math;
 using Nanoforge.App;
 using System.Text;
-using Nanoforge;
+using Common.Math;
+using Common;
 using System;
 using Win32;
 

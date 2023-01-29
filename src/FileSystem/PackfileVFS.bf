@@ -1,6 +1,6 @@
 using System.Collections;
 using RfgTools.Formats;
-using Nanoforge;
+using Common;
 using System.IO;
 using System;
 
@@ -41,13 +41,11 @@ namespace Nanoforge.FileSystem
                 {
                     delete packfile;
                     Runtime.FatalError(scope $"Failed to read packfile. Error: '{err}'"); //TODO: Add proper error logging instead of crashing
-                    continue;
                 }
                 if (packfile.ReadAsmFiles() case .Err(let err))
                 {
                     delete packfile;
                     Runtime.FatalError(scope $"Failed to read asm_pc file in packfile. Error: '{err}'"); //TODO: Add proper error logging instead of crashing
-                    continue;
                 }
                 Packfiles.Add(packfile);
             }

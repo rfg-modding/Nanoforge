@@ -1,5 +1,5 @@
 using Nanoforge.App;
-using Nanoforge;
+using Common;
 using System;
 
 namespace Nanoforge.Gui

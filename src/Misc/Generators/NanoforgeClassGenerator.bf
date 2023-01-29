@@ -1,4 +1,4 @@
-using Nanoforge;
+using Common;
 using System;
 
 namespace Nanoforge.Generators
@@ -12,6 +12,7 @@ namespace Nanoforge.Generators
 			AddEdit("Name", "Class name", "");
 			AddCheckbox("AddConstructor", "Add constructor", false);
 			AddCheckbox("AddDestructor", "Add destructor", false);
+            AddCheckbox("Static", "Static", false);
 		}
 
 		public override void Generate(String outFileName, String outText, ref Flags generateFlags)
@@ -19,18 +20,21 @@ namespace Nanoforge.Generators
 			StringView name = mParams["Name"];
 			bool addConstructor = mParams["AddConstructor"].Equals("True", true);
 			bool addDestructor = mParams["AddDestructor"].Equals("True", true);
+            bool isStatic = mParams["Static"].Equals("True", true);
 			if (name.EndsWith(".bf", .OrdinalIgnoreCase))
 				name.RemoveToEnd(3);
+
+            String specifiers = isStatic ? " static" : "";
 
 			outFileName.Append(name);
 			outText.Append(
 				scope $"""
-				using Nanoforge;
+				using Common;
 				using System;
 
 				namespace {Namespace}
 				{{
-					public class {name}
+					public{specifiers} class {name}
 					{{
 				"""
 			);

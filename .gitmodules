@@ -7,3 +7,6 @@
 [submodule "Dependencies/Beef.Linq"]
 	path = Dependencies/Beef.Linq
 	url = https://github.com/xposure/Beef.Linq.git
+[submodule "Dependencies/Common"]
+	path = Dependencies/Common
+	url = https://github.com/Moneyl/NF_Common.git

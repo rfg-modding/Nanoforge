@@ -1,10 +1,10 @@
 using System.Collections;
 using Nanoforge.Gui.Panels;
-using Nanoforge.Math;
+using Common.Math;
 using System.Threading;
 using Nanoforge.App;
 using System.Linq;
-using Nanoforge;
+using Common;
 using System;
 using ImGui;
 

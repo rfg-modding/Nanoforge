@@ -1,5 +1,5 @@
-using Nanoforge.Math;
-using Nanoforge;
+using Common.Math;
+using Common;
 using System;
 
 namespace Nanoforge.Misc
