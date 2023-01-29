@@ -19,6 +19,10 @@ namespace Nanoforge
 #else
             StringView assetsBasePath = "./assets/";
 #endif
+
+            //Initialize utility for determining origin string of hashes used in game files
+            RfgTools.Hashing.HashDictionary.Initialize();
+
             App.Build!(AppState.Running)
                 ..AddResource<BuildConfig>(new .("Nanoforge", assetsBasePath, "v1.0.0_pre0"))
                 ..AddSystem<Window>(isResource: true)
