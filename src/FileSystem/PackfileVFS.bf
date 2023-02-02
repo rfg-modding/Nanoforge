@@ -50,5 +50,14 @@ namespace Nanoforge.FileSystem
                 Packfiles.Add(packfile);
             }
         }
+
+        public static Result<PackfileV3, StringView> GetPackfile(StringView packfileName)
+        {
+            for (PackfileV3 packfile in Packfiles)
+                if (StringView.Equals(packfile.Name, packfileName, true))
+                    return packfile;
+
+            return .Err("Failed to find packfile with the provided name");
+        }
 	}
 }
