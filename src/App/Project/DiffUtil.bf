@@ -104,7 +104,7 @@ namespace Nanoforge.App.Project
             }
         }
 
-        public T CreateObject<T>(StringView name) where T : EditorObject
+        public T CreateObject<T>(StringView name = "") where T : EditorObject
         {
             T obj = new T();
             _newObjects.Add(obj);

@@ -63,32 +63,50 @@ namespace Nanoforge.App.Project
         }
 
         [OnCompile(.TypeInit), Comptime]
-        public static void GenerateCode()
+        public static void EmitCode()
         {
             if (V != null)
             {
-				GenerateApply();
-                GenerateRevert();
+				EmitApply();
+                EmitRevert();
             }
         }
 
         [Comptime]
-        public static void GenerateApply()
+        public static void EmitApply()
         {
             Type selfType = typeof(Self);
             Compiler.EmitTypeBody(selfType, scope $"\npublic virtual void Apply()");
             Compiler.EmitTypeBody(selfType, "\n{\n");
-            Compiler.EmitTypeBody(selfType, scope $"    _target.{V} = _finalValue;\n");
+            switch (typeof(U))
+            {
+                case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
+                     typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect):
+                    Compiler.EmitTypeBody(selfType, scope $"    _target.{V} = _finalValue;\n");
+                case typeof(String):
+                    Compiler.EmitTypeBody(selfType, scope $"    _target.{V}.Set(_finalValue);\n");
+                default:
+                    Runtime.FatalError(scope $"Unsupported type '{typeof(U).GetFullName(.. scope .())}' used in editor property {typeof(T).GetFullName(.. scope .())}.{V}. Please implement in Snapshot<T>.GenerateCommit()");
+            }
             Compiler.EmitTypeBody(selfType, "}\n");
         }
 
         [Comptime]
-        public static void GenerateRevert()
+        public static void EmitRevert()
         {
             Type selfType = typeof(Self);
             Compiler.EmitTypeBody(selfType, scope $"\npublic virtual void Revert()");
             Compiler.EmitTypeBody(selfType, "\n{\n");
-            Compiler.EmitTypeBody(selfType, scope $"    _target.{V} = _initialValue;\n");
+            switch (typeof(U))
+            {
+                case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
+                     typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect):
+                    Compiler.EmitTypeBody(selfType, scope $"    _target.{V} = _initialValue;\n");
+                case typeof(String):
+                    Compiler.EmitTypeBody(selfType, scope $"    _target.{V}.Set(_initialValue);\n");
+                default:
+                    Runtime.FatalError(scope $"Unsupported type '{typeof(U).GetFullName(.. scope .())}' used in editor property {typeof(T).GetFullName(.. scope .())}.{V}. Please implement in Snapshot<T>.GenerateRevert()");
+            }
             Compiler.EmitTypeBody(selfType, "}\n");
         }
     }

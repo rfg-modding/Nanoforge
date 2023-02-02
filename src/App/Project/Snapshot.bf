@@ -30,17 +30,17 @@ namespace Nanoforge.App.Project
         }
 
         [OnCompile(.TypeInit), Comptime]
-        public static void GenerateCode()
+        public static void EmitCode()
         {
-            GenerateTypeFields();
-            GenerateCreate();
-            GenerateCommit();
-            GenerateApply();
+            EmitTypeFields();
+            EmitCreate();
+            EmitGenerateDiffTransactions();
+            EmitApply();
         }
 
         //Generate fields for holding snapshot of the state for an object with the type of T
         [Comptime]
-        public static void GenerateTypeFields()
+        public static void EmitTypeFields()
         {
             Type selfType = typeof(Self);
             for (var field in typeof(T).GetFields())
@@ -58,7 +58,7 @@ namespace Nanoforge.App.Project
 
         //Generate ISnapshot.Create()
         [Comptime]
-        public static void GenerateCreate()
+        public static void EmitCreate()
         {
             Type selfType = typeof(Self);
             Compiler.EmitTypeBody(selfType, scope $"\npublic virtual void Create()");
@@ -78,7 +78,7 @@ namespace Nanoforge.App.Project
 
         //Generate ISnapshot.Commit()
         [Comptime]
-        public static void GenerateCommit()
+        public static void EmitGenerateDiffTransactions()
         {
             Type selfType = typeof(Self);
             var genericTypeName = typeof(T).GetFullName(.. scope .());
@@ -97,14 +97,17 @@ namespace Nanoforge.App.Project
                 StringView fieldTypeName = fieldType.GetFullName(.. scope .());
                 switch (fieldType)
                 {
-                    case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
-						 typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(StringView), typeof(char8*):
+                    case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
+						 typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(String):
                         Compiler.EmitTypeBody(selfType, scope $"    if (this.{fieldName} != S_Target.{fieldName})\n");
                         Compiler.EmitTypeBody(selfType, "    {\n");
                         Compiler.EmitTypeBody(selfType, scope $"        transactions.Add(new SetPropertyTransaction<{genericTypeName}, {fieldTypeName}, \"{fieldName}\">(S_Target, this.{fieldName}, S_Target.{fieldName}));\n");
                         Compiler.EmitTypeBody(selfType, "    }\n");
                     default:
-                        Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. Please implement in Snapshot<T>.GenerateCommit()");
+                        Compiler.EmitTypeBody(selfType, scope $"    //Failed to emit code for {field.FieldType.GetFullName(.. scope .())} {fieldName}");
+                        Compiler.EmitTypeBody(selfType, "\n");
+                        //Note: Temporarily disabled while the zone importers and projectDB are being developed
+                        //Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. Please implement in Snapshot<T>.GenerateCommit()");
                 }
             }
             Compiler.EmitTypeBody(selfType, "}\n");
@@ -112,7 +115,7 @@ namespace Nanoforge.App.Project
 
         //Generate ISnapshot.Apply()
         [Comptime]
-        public static void GenerateApply()
+        public static void EmitApply()
         {
             Type selfType = typeof(Self);
             var genericTypeName = typeof(T).GetFullName(.. scope .());
@@ -130,7 +133,22 @@ namespace Nanoforge.App.Project
                         continue;
 
                     StringView fieldName = field.Name;
-                    Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName} = this.{fieldName};\n");
+                    StringView fieldTypeName = field.FieldType.GetFullName(.. scope .());
+                    switch (field.FieldType)
+                    {
+                        case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
+                             typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect):
+                            Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName} = this.{fieldName};\n");
+                        case typeof(String):
+                            Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName}.Set(this.{fieldName});\n");
+                        case typeof(List<Zone>), typeof(List<ZoneObject>):
+                            Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName}.Set(this.{fieldName});\n");
+                        default:
+                            Compiler.EmitTypeBody(selfType, scope $"    //Failed to emit code for {field.FieldType.GetFullName(.. scope .())} {fieldName}");
+                            Compiler.EmitTypeBody(selfType, "\n");
+                            //Note: Temporarily disabled while the zone importers and projectDB are being developed
+                            //Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. Please implement in Snapshot<T>.GenerateApply()");
+                    }
                 }
             }
             Compiler.EmitTypeBody(selfType, "}");
