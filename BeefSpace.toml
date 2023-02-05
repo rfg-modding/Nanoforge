@@ -11,6 +11,7 @@ BfSIMDSetting = "SSE4"
 [Configs.Release.Win64]
 Toolset = "Microsoft"
 BfSIMDSetting = "SSE4"
+LTOType = "None"
 
 [Configs.Release.Win32]
 Toolset = "Microsoft"
