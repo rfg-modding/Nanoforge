@@ -13,11 +13,10 @@ namespace Nanoforge
 	{
 		public static void Main(String[] args)
 		{
-            //TODO: Fix needing to manually set this. Should auto set using build system
 #if DEBUG
-            StringView assetsBasePath = "C:/Users/lukem/source/repos/Nanoforge/assets/";
+            StringView assetsBasePath = scope $@"{Workspace.Directory}\assets\";
 #else
-            StringView assetsBasePath = "./assets/";
+            StringView assetsBasePath = @".\assets\";
 #endif
 
             //Initialize utility for determining origin string of hashes used in game files
