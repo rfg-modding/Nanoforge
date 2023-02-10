@@ -28,7 +28,7 @@ namespace Nanoforge.Misc.Generators
         		$"""
 using System;
 
-namespace {Namespace}
+namespace Nanoforge
 {{
     public static class {name}
     {{
