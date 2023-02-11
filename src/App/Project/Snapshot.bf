@@ -76,12 +76,12 @@ namespace Nanoforge.App.Project
             Compiler.EmitTypeBody(selfType, "}\n");
         }
 
-        //Generate ISnapshot.Commit()
+        //Generate ISnapshot.GenerateDiffTransactions()
         [Comptime]
         public static void EmitGenerateDiffTransactions()
         {
             Type selfType = typeof(Self);
-            var genericTypeName = typeof(T).GetFullName(.. scope .());
+            StringView genericTypeName = typeof(T).GetFullName(.. scope .());
 
             Compiler.EmitTypeBody(selfType, scope $"\npublic virtual void GenerateDiffTransactions(List<ITransaction> transactions)");
             Compiler.EmitTypeBody(selfType, "\n{\n");
@@ -98,16 +98,37 @@ namespace Nanoforge.App.Project
                 switch (fieldType)
                 {
                     case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
-						 typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(String):
+						 typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox), typeof(String):
                         Compiler.EmitTypeBody(selfType, scope $"    if (this.{fieldName} != S_Target.{fieldName})\n");
                         Compiler.EmitTypeBody(selfType, "    {\n");
                         Compiler.EmitTypeBody(selfType, scope $"        transactions.Add(new SetPropertyTransaction<{genericTypeName}, {fieldTypeName}, \"{fieldName}\">(S_Target, this.{fieldName}, S_Target.{fieldName}));\n");
                         Compiler.EmitTypeBody(selfType, "    }\n");
                     default:
-                        Compiler.EmitTypeBody(selfType, scope $"    //Failed to emit code for {field.FieldType.GetFullName(.. scope .())} {fieldName}");
-                        Compiler.EmitTypeBody(selfType, "\n");
-                        //Note: Temporarily disabled while the zone importers and projectDB are being developed
-                        //Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. Please implement in Snapshot<T>.GenerateCommit()");
+                        if (fieldType.HasInterface(typeof(IList)))
+                        {
+                            Compiler.EmitTypeBody(selfType, scope $"    if (this.{fieldName} != S_Target.{fieldName})\n");
+                            Compiler.EmitTypeBody(selfType, "    {\n");
+                            Compiler.EmitTypeBody(selfType, scope $"        {genericTypeName} target = S_Target;\n");
+                            Compiler.EmitTypeBody(selfType, scope $"        {fieldTypeName} initialValue = this.{fieldName}.ShallowClone(.. new {fieldTypeName}());\n");
+                            Compiler.EmitTypeBody(selfType, scope $"        {fieldTypeName} finalValue = S_Target.{fieldName}.ShallowClone(.. new {fieldTypeName}());\n");
+                            Compiler.EmitTypeBody(selfType, scope $"        var transaction = new SetPropertyTransaction<{genericTypeName}, {fieldTypeName}, \"{fieldName}\">(target, initialValue, finalValue);\n");
+                            Compiler.EmitTypeBody(selfType, scope $"        transactions.Add(transaction);\n");
+                            Compiler.EmitTypeBody(selfType, "    }\n");
+                        }
+                        else if (fieldType.BaseType == typeof(Enum) || fieldType.BaseType == typeof(EditorObject))
+                        {
+                            Compiler.EmitTypeBody(selfType, scope $"    if (this.{fieldName} != S_Target.{fieldName})\n");
+                            Compiler.EmitTypeBody(selfType, "    {\n");
+                            Compiler.EmitTypeBody(selfType, scope $"        transactions.Add(new SetPropertyTransaction<{genericTypeName}, {fieldTypeName}, \"{fieldName}\">(S_Target, this.{fieldName}, S_Target.{fieldName}));\n");
+                            Compiler.EmitTypeBody(selfType, "    }\n");
+                        }
+                        else
+                        {
+                            Compiler.EmitTypeBody(selfType, scope $"    //Failed to emit ISnapshot.GenerateDiffTransactions() for {field.FieldType.GetFullName(.. scope .())} {fieldName}\n");
+                            StringView baseTypeName = fieldType.BaseType != null ? fieldType.BaseType.GetFullName(.. scope .()) : "";
+                            Compiler.EmitTypeBody(selfType, "}\n");
+                            Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. BaseTypeName = {baseTypeName}. Please implement in Snapshot<T>.GenerateDiffTransactions()");
+                        }
                 }
             }
             Compiler.EmitTypeBody(selfType, "}\n");
@@ -132,22 +153,32 @@ namespace Nanoforge.App.Project
                     if (result == .Err)
                         continue;
 
+                    Type fieldType = field.FieldType;
                     StringView fieldName = field.Name;
-                    StringView fieldTypeName = field.FieldType.GetFullName(.. scope .());
+                    StringView fieldTypeName = fieldType.GetFullName(.. scope .());
                     switch (field.FieldType)
                     {
                         case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
-                             typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect):
+                             typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox):
                             Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName} = this.{fieldName};\n");
                         case typeof(String):
                             Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName}.Set(this.{fieldName});\n");
-                        case typeof(List<Zone>), typeof(List<ZoneObject>):
-                            Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName}.Set(this.{fieldName});\n");
                         default:
-                            Compiler.EmitTypeBody(selfType, scope $"    //Failed to emit code for {field.FieldType.GetFullName(.. scope .())} {fieldName}");
-                            Compiler.EmitTypeBody(selfType, "\n");
-                            //Note: Temporarily disabled while the zone importers and projectDB are being developed
-                            //Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. Please implement in Snapshot<T>.GenerateApply()");
+                            if (fieldType.HasInterface(typeof(IList)))
+                            {
+                                Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName}.Set(this.{fieldName});\n");
+                            }
+                            else if (fieldType.BaseType == typeof(Enum) || fieldType.BaseType == typeof(EditorObject))
+                            {
+                                Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName} = this.{fieldName};\n");
+                            }
+                            else
+                            {
+                                Compiler.EmitTypeBody(selfType, scope $"    //Failed to emit code for {field.FieldType.GetFullName(.. scope .())} {fieldName}\n");
+                                StringView baseTypeName = fieldType.BaseType != null ? fieldType.BaseType.GetFullName(.. scope .()) : "";
+                                Compiler.EmitTypeBody(selfType, "}\n");
+                                Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. BaseTypeName = {baseTypeName}. Please implement in Snapshot<T>.GenerateApply()");
+                            }
                     }
                 }
             }
