@@ -49,13 +49,13 @@ namespace Nanoforge.Rfg.Import
             ZoneFile36 zoneFile = scope .();
             if (zoneFile.Load(fileBytes, useInPlace: true) case .Err(let err))
             {
-                Log.Error(scope $"Failed to parse zone file '{zoneFilename}'. {err}");
+                Logger.Error(scope $"Failed to parse zone file '{zoneFilename}'. {err}");
                 return .Err("Failed to parse zone file");
             }
             ZoneFile36 persistentZoneFile = scope .();
             if (persistentZoneFile.Load(persistentFileBytes, useInPlace: true) case .Err(let err)) //Note: useInPlace is true so the Span<u8> must stay alive as long as the ZoneFile is alive
             {
-                Log.Error(scope $"Failed to parse persistent zone file 'p_{zoneFilename}'. {err}");
+                Logger.Error(scope $"Failed to parse persistent zone file 'p_{zoneFilename}'. {err}");
                 return .Err("Failed to parse persistent zone file");
             }
 
@@ -77,13 +77,13 @@ namespace Nanoforge.Rfg.Import
                         case .Ok(let obj):
                             zone.Objects.Add(obj);
                         case .Err(let err):
-                            Log.Error(scope $"Zone object reader for class '{rfgObj.Classname}' failed. {err}");
+                            Logger.Error(scope $"Zone object reader for class '{rfgObj.Classname}' failed. {err}");
                             return .Err("Zone object read error.");
                     }
                 }
                 else
                 {
-                    Log.Error(scope $"Encountered an unsupported zone object class '{rfgObj.Classname}'. Please write an importer for that class and try again.");
+                    Logger.Error(scope $"Encountered an unsupported zone object class '{rfgObj.Classname}'. Please write an importer for that class and try again.");
                     return .Err("Encountered an unsupported zone object class.");
                 }
             }
@@ -108,7 +108,7 @@ namespace Nanoforge.Rfg.Import
 #if DEBUG
                         if (!StringView.Equals(obj.Classname, rfgObj.Classname, true))
                         {
-                            Log.Error(scope $"Object type mismatch between primary and persistent zone files for {zone.Name}");
+                            Logger.Error(scope $"Object type mismatch between primary and persistent zone files for {zone.Name}");
                             return .Err("Object type mismatch between primary and persistent zone files");
                         }
 #endif

@@ -23,7 +23,7 @@ namespace Nanoforge.Rfg.Import
                 var packfileSearch = PackfileVFS.GetPackfile(map.PackfileName);
                 if (packfileSearch case .Err(let err))
                 {
-                    Log.Error(scope $"Map importer failed to locate primary packfile '{map.PackfileName}'");
+                    Logger.Error(scope $"Map importer failed to locate primary packfile '{map.PackfileName}'");
                     changes.Rollback();
 					return .Err("Failed to find the maps primary packfile. Check the log.");
 				}
@@ -33,18 +33,18 @@ namespace Nanoforge.Rfg.Import
                 for (int i in 0..<packfile.Entries.Count)
                 {
                     StringView entryName = packfile.EntryNames[i];
-                    if (Path.GetExtension(entryName, .. scope .()) == ".rfgzone_pc" && !entryName.StartsWith("p_", .OrdinalIgnoreCase))
+                    if (Path.GetExtension(entryName, .. scope .()) != ".rfgzone_pc" || entryName.StartsWith("p_", .OrdinalIgnoreCase))
+                        continue;
+
+                    Result<Zone, StringView> zoneImportResult = ImportZone(packfile, entryName, changes);
+                    switch (zoneImportResult)
                     {
-                        Result<Zone, StringView> zoneImportResult = ImportZone(packfile, entryName, changes);
-                        switch(zoneImportResult)
-                        {
-                            case .Ok(let zone):
-                                map.Zones.Add(zone);
-                            case .Err(let err):
-                                Log.Error(scope $"Failed to import zone '{entryName}' for '{name}'. {err}");
-                                changes.Rollback();
-                                return .Err("Failed to import a zone. Check the log.");
-                        }
+                        case .Ok(let zone):
+                            map.Zones.Add(zone);
+                        case .Err(let err):
+                            Logger.Error(scope $"Failed to import zone '{entryName}' for '{name}'. {err}");
+                            changes.Rollback();
+                            return .Err("Failed to import a zone. Check the log.");
                     }
                 }
 
@@ -57,7 +57,7 @@ namespace Nanoforge.Rfg.Import
             var zoneBytes = packfile.ReadSingleFile(filename);
             if (zoneBytes case .Err(let err))
             {
-                Log.Error("Failed to extract '{}'. {}", filename, err);
+                Logger.Error("Failed to extract '{}'. {}", filename, err);
                 return .Err("Failed to extract zone file bytes");
             }
             defer delete zoneBytes.Value;
@@ -65,7 +65,7 @@ namespace Nanoforge.Rfg.Import
             var persistentZoneBytes = packfile.ReadSingleFile(scope $"p_{filename}");
             if (persistentZoneBytes case .Err(let err))
             {
-                Log.Error("Failed to extract '{}'. {}", filename, err);
+                Logger.Error("Failed to extract '{}'. {}", filename, err);
                 return .Err("Failed to extract persistent zone file bytes");
             }
             defer delete persistentZoneBytes.Value;

@@ -45,11 +45,11 @@ namespace Nanoforge.Gui.Documents
                 case .Ok(var newMap):
             		Map = newMap;
                     Map.Load();
-                    Log.Info("Finished importing map '{}'", MapName);
+                    Logger.Info("Finished importing map '{}'", MapName);
                 case .Err(StringView err):
             		_loadFailure = true;
                     _loadFailureReason = err;
-                    Log.Error("Failed to import map '{}'. {}. See the log for more details.", MapName, err);
+                    Logger.Error("Failed to import map '{}'. {}. See the log for more details.", MapName, err);
                     return;
             }
         }
