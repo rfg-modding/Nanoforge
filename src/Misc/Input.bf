@@ -75,6 +75,8 @@ namespace Nanoforge.Misc
             MouseButtonPressed = false;
             MouseMoved = false;
             MouseScrollY = 0.0f;
+            MouseDeltaX = 0;
+            MouseDeltaY = 0;
         }
 
         //Takes WndProc WM_KEYDOWN message parameters as input

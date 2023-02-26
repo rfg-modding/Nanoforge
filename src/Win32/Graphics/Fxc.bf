@@ -104,7 +104,7 @@ namespace Direct3D
         [Import("d3dcompiler_47.dll"), CLink, CallingConvention(.Stdcall)]
         public static extern HRESULT D3DCompile2(void* pSrcData, uint SrcDataSize, PSTR pSourceName, D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude, PSTR pEntrypoint, PSTR pTarget, uint32 Flags1, uint32 Flags2, uint32 SecondaryDataFlags, void* pSecondaryData, uint SecondaryDataSize, out ID3DBlob* ppCode, ID3DBlob** ppErrorMsgs);
         [Import("d3dcompiler_47.dll"), CLink, CallingConvention(.Stdcall)]
-        public static extern HRESULT D3DCompileFromFile(PWSTR pFileName, D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude, PSTR pEntrypoint, PSTR pTarget, uint32 Flags1, uint32 Flags2, out ID3DBlob* ppCode, ID3DBlob** ppErrorMsgs);
+        public static extern HRESULT D3DCompileFromFile(PWSTR pFileName, D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude, char8* pEntrypoint, char8* pTarget, uint32 Flags1, uint32 Flags2, ID3DBlob** ppCode, ID3DBlob** ppErrorMsgs);
         [Import("d3dcompiler_47.dll"), CLink, CallingConvention(.Stdcall)]
         public static extern HRESULT D3DPreprocess(void* pSrcData, uint SrcDataSize, PSTR pSourceName, D3D_SHADER_MACRO* pDefines, ID3DInclude* pInclude, out ID3DBlob* ppCodeText, ID3DBlob** ppErrorMsgs);
         [Import("d3dcompiler_47.dll"), CLink, CallingConvention(.Stdcall)]

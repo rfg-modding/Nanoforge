@@ -753,16 +753,12 @@ namespace Direct3D
     public struct ID3DInclude
     {
     	protected VTable* vt;
-    	public new VTable* VT { get => (.)vt; }
-    	
-    	public HRESULT Open(D3D_INCLUDE_TYPE IncludeType, PSTR pFileName, void* pParentData, void** ppData, out uint32 pBytes) mut => VT.Open(ref this, IncludeType, pFileName, pParentData, ppData, out pBytes);
-    	public HRESULT Close(void* pData) mut => VT.Close(ref this, pData);
 
     	[CRepr]
     	public struct VTable
     	{
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3DInclude self, D3D_INCLUDE_TYPE IncludeType, PSTR pFileName, void* pParentData, void** ppData, out uint32 pBytes) Open;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3DInclude self, void* pData) Close;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ID3DInclude* self, D3D_INCLUDE_TYPE IncludeType, char8* pFileName, void* pParentData, void** ppData, out uint32 pBytes) Open;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ID3DInclude* self, void* pData) Close;
     	}
     }
 #endregion Structs

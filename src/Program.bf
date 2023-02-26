@@ -13,20 +13,13 @@ namespace Nanoforge
 	{
 		public static void Main(String[] args)
 		{
-#if DEBUG
-            StringView assetsBasePath = scope $@"{Workspace.Directory}\assets\";
-#else
-            StringView assetsBasePath = @".\assets\";
-#endif
-
             //Initialize utility for determining origin string of hashes used in game files
             RfgTools.Hashing.HashDictionary.Initialize();
 
             App.Build!(AppState.Running)
-                ..AddResource<BuildConfig>(new .("Nanoforge", assetsBasePath, "v1.0.0_pre0"))
                 ..AddSystem<Window>(isResource: true)
                 ..AddSystem<Input>(isResource: true)
-                ..AddSystem<Renderer>()
+                ..AddSystem<Renderer>(isResource: true)
                 ..AddSystem<Gui>(isResource: true)
                 ..AddSystem<AppLogic>()
 				.Run();

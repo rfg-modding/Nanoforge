@@ -83,9 +83,9 @@ namespace Nanoforge.Render.ImGui
         {
             ImGui.IO* io = ImGui.GetIO();
             InvalidateDeviceObjects();
-            ReleaseCOM!(Factory);
-            ReleaseCOM!(Device);
-            ReleaseCOM!(Context);
+            ReleaseCOM(&Factory);
+            ReleaseCOM(&Device);
+            ReleaseCOM(&Context);
             io.BackendRendererName = null;
             io.BackendRendererUserData = null;
         }
@@ -104,7 +104,7 @@ namespace Nanoforge.Render.ImGui
             //Create and grow vertex/index buffers if needed
             if (VertexBuffer == null || VertexBufferSize < drawData.TotalVtxCount)
             {
-                ReleaseCOM!(VertexBuffer);
+                ReleaseCOM(&VertexBuffer);
                 VertexBufferSize = drawData.TotalVtxCount + 5000;
 
                 D3D11_BUFFER_DESC desc = .();
@@ -114,11 +114,11 @@ namespace Nanoforge.Render.ImGui
                 desc.BindFlags = (u32)D3D11_BIND_FLAG.VERTEX_BUFFER;
                 desc.CPUAccessFlags = (u32)D3D11_CPU_ACCESS_FLAG.WRITE;
                 desc.MiscFlags = 0;
-                DxRequired!(Device.CreateBuffer(desc, null, &VertexBuffer), "Failed to create Dear ImGui vertex buffer");
+                DxRequired!(Device.CreateBuffer(&desc, null, &VertexBuffer), "Failed to create Dear ImGui vertex buffer");
             }
             if (IndexBuffer == null || IndexBufferSize < drawData.TotalIdxCount)
             {
-                ReleaseCOM!(IndexBuffer);
+                ReleaseCOM(&IndexBuffer);
                 IndexBufferSize = drawData.TotalIdxCount + 10000;
 
                 D3D11_BUFFER_DESC desc = .();
@@ -128,7 +128,7 @@ namespace Nanoforge.Render.ImGui
                 desc.BindFlags = (u32)D3D11_BIND_FLAG.INDEX_BUFFER;
                 desc.CPUAccessFlags = (u32)D3D11_CPU_ACCESS_FLAG.WRITE;
                 desc.MiscFlags = 0;
-                DxRequired!(Device.CreateBuffer(desc, null, &IndexBuffer), "Failed to create Dear ImGui index buffer");
+                DxRequired!(Device.CreateBuffer(&desc, null, &IndexBuffer), "Failed to create Dear ImGui index buffer");
             }
 
             //Upload indices & vertices to GPU
@@ -252,37 +252,37 @@ namespace Nanoforge.Render.ImGui
             Context.RSSetScissorRects(old.ScissorRectsCount, &old.ScissorRects[0]);
             Context.RSSetViewports(old.ViewportsCount, &old.Viewports[0]);
             Context.RSSetState(old.RS);
-            ReleaseCOM!(old.RS);
+            ReleaseCOM(&old.RS);
             Context.OMSetBlendState(old.BlendState, &old.BlendFactor[0], old.SampleMask);
-            ReleaseCOM!(old.BlendState);
+            ReleaseCOM(&old.BlendState);
             Context.OMSetDepthStencilState(old.DepthStencilState, old.StencilRef);
-            ReleaseCOM!(old.DepthStencilState);
+            ReleaseCOM(&old.DepthStencilState);
 
             Context.PSSetShaderResources(0, 1, &old.PSShaderResource);
-            ReleaseCOM!(old.PSShaderResource);
+            ReleaseCOM(&old.PSShaderResource);
             Context.PSSetSamplers(0, 1, &old.PSSampler);
-            ReleaseCOM!(old.PSSampler);
+            ReleaseCOM(&old.PSSampler);
             Context.PSSetShader(old.PS, &old.PSInstances[0], old.PSInstancesCount);
-            ReleaseCOM!(old.PS);
+            ReleaseCOM(&old.PS);
             for (int i in 0..<256)
-                ReleaseCOM!(old.PSInstances[i]);
+                ReleaseCOM(&old.PSInstances[i]);
 
             Context.VSSetShader(old.VS, &old.VSInstances[0], old.VSInstancesCount);
-            ReleaseCOM!(old.VS);
+            ReleaseCOM(&old.VS);
             Context.VSSetConstantBuffers(0, 1, &old.VSConstantBuffer);
-            ReleaseCOM!(old.VSConstantBuffer);
+            ReleaseCOM(&old.VSConstantBuffer);
             Context.GSSetShader(old.GS, &old.GSInstances[0], old.GSInstancesCount);
-            ReleaseCOM!(old.GS);
+            ReleaseCOM(&old.GS);
             for (int i in 0..<256)
-                ReleaseCOM!(old.VSInstances[i]);
+                ReleaseCOM(&old.VSInstances[i]);
 
             Context.IASetPrimitiveTopology(old.PrimitiveTopology);
             Context.IASetIndexBuffer(old.IndexBuffer, old.IndexBufferFormat, old.IndexBufferOffset);
-            ReleaseCOM!(old.IndexBuffer);
+            ReleaseCOM(&old.IndexBuffer);
             Context.IASetVertexBuffers(0, 1, &old.VertexBuffer, &old.VertexBufferStride, &old.VertexBufferOffset);
-            ReleaseCOM!(old.VertexBuffer);
+            ReleaseCOM(&old.VertexBuffer);
             Context.IASetInputLayout(old.InputLayout);
-            ReleaseCOM!(old.InputLayout);
+            ReleaseCOM(&old.InputLayout);
         }
 
         private bool CreateDeviceObjects()
@@ -360,7 +360,7 @@ namespace Nanoforge.Render.ImGui
                     desc.BindFlags = (u32)D3D11_BIND_FLAG.CONSTANT_BUFFER;
                     desc.CPUAccessFlags = (u32)D3D11_CPU_ACCESS_FLAG.WRITE;
                     desc.MiscFlags = 0;
-                    Device.CreateBuffer(desc, null, &VertexConstantBuffer);
+                    Device.CreateBuffer(&desc, null, &VertexConstantBuffer);
                 }
             }
 
@@ -372,7 +372,7 @@ namespace Nanoforge.Render.ImGui
                     {
                         float4 pos : SV_POSITION;
                         float4 col : COLOR0;
-                        float4 uv : TEXCOORD0;
+                        float2 uv : TEXCOORD0;
                     };
 
                     sampler sampler0;
@@ -419,7 +419,7 @@ namespace Nanoforge.Render.ImGui
                 desc.CullMode = .NONE;
                 desc.ScissorEnable = 1;
                 desc.DepthClipEnable = 1;
-                Device.CreateRasterizerState(desc, &RasterizerState);
+                Device.CreateRasterizerState(&desc, &RasterizerState);
             }
 
             //Create the depth stencil state
@@ -469,7 +469,7 @@ namespace Nanoforge.Render.ImGui
                 subResource.pSysMem = pixels;
                 subResource.SysMemPitch = desc.Width * 4;
                 subResource.SysMemSlicePitch = 0;
-                DxRequired!(Device.CreateTexture2D(desc, &subResource, &texture), "Failed to create Dear ImGui font texture");
+                DxRequired!(Device.CreateTexture2D(&desc, &subResource, &texture), "Failed to create Dear ImGui font texture");
 
                 //Create texture view
                 D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = .();
@@ -497,7 +497,7 @@ namespace Nanoforge.Render.ImGui
                 desc.ComparisonFunc = .ALWAYS;
                 desc.MinLOD = 0.0f;
                 desc.MaxLOD = 0.0f;
-                Device.CreateSamplerState(desc, &FontSampler);
+                Device.CreateSamplerState(&desc, &FontSampler);
             }
         }
 
@@ -506,21 +506,21 @@ namespace Nanoforge.Render.ImGui
             if (Device == null)
                 return;
 
-            ReleaseCOM!(FontSampler);
+            ReleaseCOM(&FontSampler);
             if (FontTextureView == null)
             {
-                ReleaseCOM!(FontTextureView);
+                ReleaseCOM(&FontTextureView);
                 ImGui.GetIO().Fonts.SetTexID(null);
             }
-            ReleaseCOM!(IndexBuffer);
-            ReleaseCOM!(VertexBuffer);
-            ReleaseCOM!(BlendState);
-            ReleaseCOM!(DepthStencilState);
-            ReleaseCOM!(RasterizerState);
-            ReleaseCOM!(PixelShader);
-            ReleaseCOM!(VertexConstantBuffer);
-            ReleaseCOM!(InputLayout);
-            ReleaseCOM!(VertexShader);
+            ReleaseCOM(&IndexBuffer);
+            ReleaseCOM(&VertexBuffer);
+            ReleaseCOM(&BlendState);
+            ReleaseCOM(&DepthStencilState);
+            ReleaseCOM(&RasterizerState);
+            ReleaseCOM(&PixelShader);
+            ReleaseCOM(&VertexConstantBuffer);
+            ReleaseCOM(&InputLayout);
+            ReleaseCOM(&VertexShader);
         }
 
         private void SetupRenderState(ImGui.DrawData* drawData)

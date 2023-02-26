@@ -135,8 +135,7 @@ namespace Nanoforge.Gui.Panels
                 //Draw NF version on the right side
                 ImGui.Vec2 cursorPos = .();
                 {
-                    var buildConfig = app.GetResource<BuildConfig>().Value;
-                    String version = buildConfig.Version;
+                    String version = BuildConfig.Version;
                     f32 versionTextWidth = ImGui.CalcTextSize(version.CStr()).x;
                     f32 padding = 8.0f;
                     f32 rightPadding = -0.0f;

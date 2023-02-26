@@ -1801,17 +1801,23 @@ namespace Direct3D
     	public new VTable* VT { get => (.)vt; }
     	
     	public void GetDevice(out ID3D11Device* ppDevice) mut => VT.GetDevice(ref this, out ppDevice);
-    	public HRESULT GetPrivateData(in Guid guid, out uint32 pDataSize, void* pData) mut => VT.GetPrivateData(ref this, guid, out pDataSize, pData);
-    	public HRESULT SetPrivateData(in Guid guid, uint32 DataSize, void* pData) mut => VT.SetPrivateData(ref this, guid, DataSize, pData);
-    	public HRESULT SetPrivateDataInterface(in Guid guid, IUnknown* pData) mut => VT.SetPrivateDataInterface(ref this, guid, pData);
+    	public HRESULT GetPrivateData(ref Guid guid, out uint32 pDataSize, void* pData) mut => VT.GetPrivateData(ref this, ref guid, out pDataSize, pData);
+    	public HRESULT SetPrivateData(ref Guid guid, uint32 DataSize, void* pData) mut => VT.SetPrivateData(ref this, ref guid, DataSize, pData);
+    	public HRESULT SetPrivateDataInterface(ref Guid guid, IUnknown* pData) mut => VT.SetPrivateDataInterface(ref this, ref guid, pData);
+
+        public void SetDebugName(StringView name) mut
+        {
+            Guid guid = Direct3D.WKPDID_D3DDebugObjectName;
+            SetPrivateData(ref guid, (uint32)name.Length, name.Ptr);
+        }
 
     	[CRepr]
     	public struct VTable : IUnknown.VTable
     	{
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceChild self, out ID3D11Device* ppDevice) GetDevice;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11DeviceChild self, in Guid guid, out uint32 pDataSize, void* pData) GetPrivateData;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11DeviceChild self, in Guid guid, uint32 DataSize, void* pData) SetPrivateData;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11DeviceChild self, in Guid guid, IUnknown* pData) SetPrivateDataInterface;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11DeviceChild self, ref Guid guid, out uint32 pDataSize, void* pData) GetPrivateData;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11DeviceChild self, ref Guid guid, uint32 DataSize, void* pData) SetPrivateData;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11DeviceChild self, ref Guid guid, IUnknown* pData) SetPrivateDataInterface;
     	}
     }
     [CRepr]
@@ -2254,12 +2260,12 @@ namespace Direct3D
     	public void RSSetScissorRects(uint32 NumRects, RECT* pRects) mut => VT.RSSetScissorRects(ref this, NumRects, pRects);
     	public void CopySubresourceRegion(ref ID3D11Resource pDstResource, uint32 DstSubresource, uint32 DstX, uint32 DstY, uint32 DstZ, ref ID3D11Resource pSrcResource, uint32 SrcSubresource, D3D11_BOX* pSrcBox) mut => VT.CopySubresourceRegion(ref this, ref pDstResource, DstSubresource, DstX, DstY, DstZ, ref pSrcResource, SrcSubresource, pSrcBox);
     	public void CopyResource(ref ID3D11Resource pDstResource, ref ID3D11Resource pSrcResource) mut => VT.CopyResource(ref this, ref pDstResource, ref pSrcResource);
-    	public void UpdateSubresource(ref ID3D11Resource pDstResource, uint32 DstSubresource, D3D11_BOX* pDstBox, void* pSrcData, uint32 SrcRowPitch, uint32 SrcDepthPitch) mut => VT.UpdateSubresource(ref this, ref pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch);
+    	public void UpdateSubresource(ID3D11Resource* pDstResource, uint32 DstSubresource, D3D11_BOX* pDstBox, void* pSrcData, uint32 SrcRowPitch, uint32 SrcDepthPitch) mut => VT.UpdateSubresource(ref this, pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch);
     	public void CopyStructureCount(ref ID3D11Buffer pDstBuffer, uint32 DstAlignedByteOffset, ref ID3D11UnorderedAccessView pSrcView) mut => VT.CopyStructureCount(ref this, ref pDstBuffer, DstAlignedByteOffset, ref pSrcView);
     	public void ClearRenderTargetView(ID3D11RenderTargetView* pRenderTargetView, float* ColorRGBA) mut => VT.ClearRenderTargetView(ref this, pRenderTargetView, ColorRGBA);
     	public void ClearUnorderedAccessViewUint(ref ID3D11UnorderedAccessView pUnorderedAccessView, in uint32 Values) mut => VT.ClearUnorderedAccessViewUint(ref this, ref pUnorderedAccessView, Values);
     	public void ClearUnorderedAccessViewFloat(ref ID3D11UnorderedAccessView pUnorderedAccessView, in float Values) mut => VT.ClearUnorderedAccessViewFloat(ref this, ref pUnorderedAccessView, Values);
-    	public void ClearDepthStencilView(ref ID3D11DepthStencilView pDepthStencilView, uint32 ClearFlags, float Depth, uint8 Stencil) mut => VT.ClearDepthStencilView(ref this, ref pDepthStencilView, ClearFlags, Depth, Stencil);
+    	public void ClearDepthStencilView(ID3D11DepthStencilView* pDepthStencilView, D3D11_CLEAR_FLAG ClearFlags, float Depth, uint8 Stencil) mut => VT.ClearDepthStencilView(ref this, pDepthStencilView, ClearFlags, Depth, Stencil);
     	public void GenerateMips(ref ID3D11ShaderResourceView pShaderResourceView) mut => VT.GenerateMips(ref this, ref pShaderResourceView);
     	public void SetResourceMinLOD(ref ID3D11Resource pResource, float MinLOD) mut => VT.SetResourceMinLOD(ref this, ref pResource, MinLOD);
     	public float GetResourceMinLOD(ref ID3D11Resource pResource) mut => VT.GetResourceMinLOD(ref this, ref pResource);
@@ -2366,12 +2372,12 @@ namespace Direct3D
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, uint32 NumRects, RECT* pRects) RSSetScissorRects;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11Resource pDstResource, uint32 DstSubresource, uint32 DstX, uint32 DstY, uint32 DstZ, ref ID3D11Resource pSrcResource, uint32 SrcSubresource, D3D11_BOX* pSrcBox) CopySubresourceRegion;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11Resource pDstResource, ref ID3D11Resource pSrcResource) CopyResource;
-    		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11Resource pDstResource, uint32 DstSubresource, D3D11_BOX* pDstBox, void* pSrcData, uint32 SrcRowPitch, uint32 SrcDepthPitch) UpdateSubresource;
+    		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ID3D11Resource* pDstResource, uint32 DstSubresource, D3D11_BOX* pDstBox, void* pSrcData, uint32 SrcRowPitch, uint32 SrcDepthPitch) UpdateSubresource;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11Buffer pDstBuffer, uint32 DstAlignedByteOffset, ref ID3D11UnorderedAccessView pSrcView) CopyStructureCount;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ID3D11RenderTargetView* pRenderTargetView, float* ColorRGBA) ClearRenderTargetView;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11UnorderedAccessView pUnorderedAccessView, in uint32 Values) ClearUnorderedAccessViewUint;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11UnorderedAccessView pUnorderedAccessView, in float Values) ClearUnorderedAccessViewFloat;
-    		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11DepthStencilView pDepthStencilView, uint32 ClearFlags, float Depth, uint8 Stencil) ClearDepthStencilView;
+    		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ID3D11DepthStencilView* pDepthStencilView, D3D11_CLEAR_FLAG ClearFlags, float Depth, uint8 Stencil) ClearDepthStencilView;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11ShaderResourceView pShaderResourceView) GenerateMips;
     		public new function [CallingConvention(.Stdcall)] void(ref ID3D11DeviceContext self, ref ID3D11Resource pResource, float MinLOD) SetResourceMinLOD;
     		public new function [CallingConvention(.Stdcall)] float(ref ID3D11DeviceContext self, ref ID3D11Resource pResource) GetResourceMinLOD;
@@ -2764,9 +2770,9 @@ namespace Direct3D
     	
     	public new VTable* VT { get => (.)vt; }
     	
-    	public HRESULT CreateBuffer(in D3D11_BUFFER_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Buffer** ppBuffer) mut => VT.CreateBuffer(ref this, pDesc, pInitialData, ppBuffer);
+    	public HRESULT CreateBuffer(D3D11_BUFFER_DESC* pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Buffer** ppBuffer) mut => VT.CreateBuffer(ref this, pDesc, pInitialData, ppBuffer);
     	public HRESULT CreateTexture1D(in D3D11_TEXTURE1D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture1D** ppTexture1D) mut => VT.CreateTexture1D(ref this, pDesc, pInitialData, ppTexture1D);
-    	public HRESULT CreateTexture2D(in D3D11_TEXTURE2D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture2D** ppTexture2D) mut => VT.CreateTexture2D(ref this, pDesc, pInitialData, ppTexture2D);
+    	public HRESULT CreateTexture2D(D3D11_TEXTURE2D_DESC* pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture2D** ppTexture2D) mut => VT.CreateTexture2D(ref this, pDesc, pInitialData, ppTexture2D);
     	public HRESULT CreateTexture3D(in D3D11_TEXTURE3D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture3D** ppTexture3D) mut => VT.CreateTexture3D(ref this, pDesc, pInitialData, ppTexture3D);
     	public HRESULT CreateShaderResourceView(ID3D11Resource* pResource, D3D11_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D11ShaderResourceView** ppSRView) mut => VT.CreateShaderResourceView(ref this, pResource, pDesc, ppSRView);
     	public HRESULT CreateUnorderedAccessView(ID3D11Resource* pResource, D3D11_UNORDERED_ACCESS_VIEW_DESC* pDesc, ID3D11UnorderedAccessView** ppUAView) mut => VT.CreateUnorderedAccessView(ref this, pResource, pDesc, ppUAView);
@@ -2783,8 +2789,8 @@ namespace Direct3D
     	public HRESULT CreateClassLinkage(out ID3D11ClassLinkage* ppLinkage) mut => VT.CreateClassLinkage(ref this, out ppLinkage);
     	public HRESULT CreateBlendState(in D3D11_BLEND_DESC pBlendStateDesc, ID3D11BlendState** ppBlendState) mut => VT.CreateBlendState(ref this, pBlendStateDesc, ppBlendState);
     	public HRESULT CreateDepthStencilState(in D3D11_DEPTH_STENCIL_DESC pDepthStencilDesc, ID3D11DepthStencilState** ppDepthStencilState) mut => VT.CreateDepthStencilState(ref this, pDepthStencilDesc, ppDepthStencilState);
-    	public HRESULT CreateRasterizerState(in D3D11_RASTERIZER_DESC pRasterizerDesc, ID3D11RasterizerState** ppRasterizerState) mut => VT.CreateRasterizerState(ref this, pRasterizerDesc, ppRasterizerState);
-    	public HRESULT CreateSamplerState(in D3D11_SAMPLER_DESC pSamplerDesc, ID3D11SamplerState** ppSamplerState) mut => VT.CreateSamplerState(ref this, pSamplerDesc, ppSamplerState);
+    	public HRESULT CreateRasterizerState(D3D11_RASTERIZER_DESC* pRasterizerDesc, ID3D11RasterizerState** ppRasterizerState) mut => VT.CreateRasterizerState(ref this, pRasterizerDesc, ppRasterizerState);
+    	public HRESULT CreateSamplerState(D3D11_SAMPLER_DESC* pSamplerDesc, ID3D11SamplerState** ppSamplerState) mut => VT.CreateSamplerState(ref this, pSamplerDesc, ppSamplerState);
     	public HRESULT CreateQuery(in D3D11_QUERY_DESC pQueryDesc, ID3D11Query** ppQuery) mut => VT.CreateQuery(ref this, pQueryDesc, ppQuery);
     	public HRESULT CreatePredicate(in D3D11_QUERY_DESC pPredicateDesc, ID3D11Predicate** ppPredicate) mut => VT.CreatePredicate(ref this, pPredicateDesc, ppPredicate);
     	public HRESULT CreateCounter(in D3D11_COUNTER_DESC pCounterDesc, ID3D11Counter** ppCounter) mut => VT.CreateCounter(ref this, pCounterDesc, ppCounter);
@@ -2808,9 +2814,9 @@ namespace Direct3D
     	[CRepr]
     	public struct VTable : IUnknown.VTable
     	{
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_BUFFER_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Buffer** ppBuffer) CreateBuffer;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, D3D11_BUFFER_DESC* pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Buffer** ppBuffer) CreateBuffer;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_TEXTURE1D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture1D** ppTexture1D) CreateTexture1D;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_TEXTURE2D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture2D** ppTexture2D) CreateTexture2D;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, D3D11_TEXTURE2D_DESC* pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture2D** ppTexture2D) CreateTexture2D;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_TEXTURE3D_DESC pDesc, D3D11_SUBRESOURCE_DATA* pInitialData, ID3D11Texture3D** ppTexture3D) CreateTexture3D;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ID3D11Resource* pResource, D3D11_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D11ShaderResourceView** ppSRView) CreateShaderResourceView;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, ID3D11Resource* pResource, D3D11_UNORDERED_ACCESS_VIEW_DESC* pDesc, ID3D11UnorderedAccessView** ppUAView) CreateUnorderedAccessView;
@@ -2827,8 +2833,8 @@ namespace Direct3D
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, out ID3D11ClassLinkage* ppLinkage) CreateClassLinkage;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_BLEND_DESC pBlendStateDesc, ID3D11BlendState** ppBlendState) CreateBlendState;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_DEPTH_STENCIL_DESC pDepthStencilDesc, ID3D11DepthStencilState** ppDepthStencilState) CreateDepthStencilState;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_RASTERIZER_DESC pRasterizerDesc, ID3D11RasterizerState** ppRasterizerState) CreateRasterizerState;
-    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_SAMPLER_DESC pSamplerDesc, ID3D11SamplerState** ppSamplerState) CreateSamplerState;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, D3D11_RASTERIZER_DESC* pRasterizerDesc, ID3D11RasterizerState** ppRasterizerState) CreateRasterizerState;
+    		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, D3D11_SAMPLER_DESC* pSamplerDesc, ID3D11SamplerState** ppSamplerState) CreateSamplerState;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_QUERY_DESC pQueryDesc, ID3D11Query** ppQuery) CreateQuery;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_QUERY_DESC pPredicateDesc, ID3D11Predicate** ppPredicate) CreatePredicate;
     		public new function [CallingConvention(.Stdcall)] HRESULT(ref ID3D11Device self, in D3D11_COUNTER_DESC pCounterDesc, ID3D11Counter** ppCounter) CreateCounter;
@@ -4128,7 +4134,7 @@ namespace Direct3D
     {
     	FLAG_DRIVER_INTERNAL_ERROR = 1,
     }
-    public enum D3D11_CLEAR_FLAG : int32
+    public enum D3D11_CLEAR_FLAG : uint32
     {
     	DEPTH = 1,
     	STENCIL = 2,

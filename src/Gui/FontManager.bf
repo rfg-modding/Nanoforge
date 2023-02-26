@@ -16,7 +16,7 @@ namespace Nanoforge.Gui
         private static append List<u16> _iconRanges = .();
         public static bool EnableNonLatinGlyphs = false; //Currently disabled by default since I (only dev) only use english & enabling these increases boot time. Will enable when necessary
 
-		public static void LoadFonts(BuildConfig buildConfig)
+		public static void LoadFonts()
 		{
             static bool firstRun = true;
             if (firstRun) //Build glyph list the first time this is called
@@ -74,10 +74,10 @@ namespace Nanoforge.Gui
 			iconConfig.MergeMode = true;
 			iconConfig.PixelSnapH = true;
 
-			FontSmall.Load(buildConfig, 16.0f, &iconConfig, _iconRanges.Ptr);
-			FontDefault.Load(buildConfig, 18.0f, &iconConfig, _iconRanges.Ptr);
-			FontL.Load(buildConfig, 26.0f, &iconConfig, _iconRanges.Ptr);
-			FontXL.Load(buildConfig, 33.5f, &iconConfig, _iconRanges.Ptr);
+			FontSmall.Load(16.0f, &iconConfig, _iconRanges.Ptr);
+			FontDefault.Load(18.0f, &iconConfig, _iconRanges.Ptr);
+			FontL.Load(26.0f, &iconConfig, _iconRanges.Ptr);
+			FontXL.Load(33.5f, &iconConfig, _iconRanges.Ptr);
 
 			ImGui.GetIO().FontDefault = FontDefault.Font;
 		}
@@ -93,14 +93,14 @@ namespace Nanoforge.Gui
 
 			public void Push() { ImGui.PushFont(_font); }
 			public void Pop() { ImGui.PopFont(); }
-			public void Load(BuildConfig buildConfig, float size, ImGui.FontConfig* fontConfig, uint16* glyphRanges) mut
+			public void Load(float size, ImGui.FontConfig* fontConfig, uint16* glyphRanges) mut
 			{
 				_size = size;
 				var io = ImGui.GetIO();
 				//Load font
-				io.Fonts.AddFontFromFileTTF(scope $"{buildConfig.AssetsBasePath}fonts/NotoSans-SemiBold.ttf", _size, null, glyphRanges);
+				io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/NotoSans-SemiBold.ttf", _size, null, glyphRanges);
 				//Load FontAwesome image font
-				_font = io.Fonts.AddFontFromFileTTF(scope $"{buildConfig.AssetsBasePath}fonts/fa-solid-900.ttf", _size, fontConfig, glyphRanges);
+				_font = io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/fa-solid-900.ttf", _size, fontConfig, glyphRanges);
 			}
 		}
 	}

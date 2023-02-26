@@ -23,7 +23,7 @@ namespace Nanoforge.Render
 		public Vec4<f32> ClearColor = .(0.0f, 0.0f, 0.0f, 1.0f);
         public ID3D11Device* Device => _device;
         public ID3D11DeviceContext* Context => _context;
-        public List<Scene> Scenes = new .() ~delete _;
+        public List<Scene> Scenes = new .() ~DeleteContainerAndItems!(_);
 
         private append ImGuiRenderer _imguiRenderer;
         private ID3D11Device* _device = null;
@@ -48,10 +48,10 @@ namespace Nanoforge.Render
                 return;
 
             _imguiRenderer.Shutdown();
-            ReleaseCOM!(_swapchain);
-            ReleaseCOM!(_device);
-            ReleaseCOM!(_context);
-            ReleaseCOM!(_dxgiFactory);
+            ReleaseCOM(&_swapchain);
+            ReleaseCOM(&_device);
+            ReleaseCOM(&_context);
+            ReleaseCOM(&_dxgiFactory);
         }
 
 		static void ISystem.Build(App app)
@@ -75,7 +75,7 @@ namespace Nanoforge.Render
                 Runtime.FatalError("Failed to initialize dear imgui backend.");
 
             window.Maximize();
-
+            RenderMaterials.Init(_device, _context);
             _initialized = true;
 		}
 
@@ -88,7 +88,8 @@ namespace Nanoforge.Render
 		[SystemStage(.Update)]
 		public void Update(App app)
 		{
-            
+            for (Scene scene in Scenes)
+                scene.Camera.Update(app);
 		}
 
 		[SystemStage(.EndFrame)]
@@ -101,7 +102,7 @@ namespace Nanoforge.Render
             _context.RSSetState(_rasterizerState);
 
             for (Scene scene in Scenes)
-                if (scene.NeedsRedraw)
+                if (scene.Active)
 	                scene.Draw(frameData.DeltaTime);
 
             _context.OMSetRenderTargets(1, &_renderTargetView, null);
@@ -122,9 +123,22 @@ namespace Nanoforge.Render
             _windowHeight = event.Height;
 
             //Recreate swapchain and render target view
-            ReleaseCOM!(_swapchain);
+            ReleaseCOM(&_swapchain);
             if (!InitSwapchainAndResources())
                 Runtime.FatalError("Failed to create swapchain following window resize");
+        }
+
+        public Scene CreateScene()
+        {
+            Scene scene = new .(_device, _context);
+            Scenes.Add(scene);
+            return scene;
+        }
+
+        public void DestroyScene(Scene scene)
+        {
+            Scenes.Remove(scene);
+            delete scene;
         }
 
         private bool InitD3D11()
@@ -187,7 +201,7 @@ namespace Nanoforge.Render
             rasterizer.ScissorEnable = 0;
             rasterizer.MultisampleEnable = 0;
             rasterizer.AntialiasedLineEnable = 0;
-            DxRequired!(_device.CreateRasterizerState(rasterizer, &_rasterizerState), "Failed to create ID3D11RasterizerState");
+            DxRequired!(_device.CreateRasterizerState(&rasterizer, &_rasterizerState), "Failed to create ID3D11RasterizerState");
 
             return true;
         }
@@ -230,7 +244,7 @@ namespace Nanoforge.Render
             DxRequired!(_device.CreateRenderTargetView(backbuffer, null, &_renderTargetView), "Failed to create ID3D11RenderTargetView");
 
             //Release backbuffer reference
-            ReleaseCOM!(backbuffer);
+            ReleaseCOM(&backbuffer);
             return true;
         }
 
@@ -247,8 +261,8 @@ namespace Nanoforge.Render
             DxRequired!(dxgiAdapter.GetParent(IDXGIFactory.IID, (void**)&_dxgiFactory), "Failed to create IDXGIFactory");
 
             //Release references
-	        ReleaseCOM!(dxgiDevice);
-	        ReleaseCOM!(dxgiAdapter);
+	        ReleaseCOM(&dxgiDevice);
+	        ReleaseCOM(&dxgiAdapter);
             return true;
         }
 	}

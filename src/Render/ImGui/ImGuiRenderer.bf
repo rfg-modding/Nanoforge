@@ -61,7 +61,6 @@ namespace Nanoforge.Render.ImGui
 
         public bool Init(App app, ID3D11DeviceContext* context, ID3D11Device* device, IDXGIFactory* factory)
         {
-            BuildConfig buildConfig = app.GetResource<BuildConfig>();
             Window window = app.GetResource<Window>();
 
             _device = device;
@@ -89,7 +88,7 @@ namespace Nanoforge.Render.ImGui
                 return false;
 
             SetupStyles(app);
-            FontManager.LoadFonts(buildConfig);
+            FontManager.LoadFonts();
             return true;
         }
 
