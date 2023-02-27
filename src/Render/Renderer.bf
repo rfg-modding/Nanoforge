@@ -12,9 +12,6 @@ using System;
 using ImGui;
 using Win32;
 
-//Uncomment to enable more debug features. Disabled by default due to (sometimes major) performance penalties
-//#define ENABLE_D3D11_DEBUG_FEATURES
-
 namespace Nanoforge.Render
 {
 	[System]
@@ -149,9 +146,11 @@ namespace Nanoforge.Render
         private bool CreateDevice()
         {
             D3D11_CREATE_DEVICE_FLAG createDeviceFlags = 0;
-#if ENABLE_D3D11_DEBUG_FEATURES
-            createDeviceFlags |= .DEBUG;
-#endif
+            if (BuildConfig.EnableD3D11DebugFeatures)
+            {
+                createDeviceFlags |= .DEBUG;
+            }
+
             D3D_FEATURE_LEVEL featureLevel = 0;
             DxRequired!(D3D11.D3D11CreateDevice(null, .HARDWARE, 0, createDeviceFlags, null, 0, D3D11.D3D11_SDK_VERSION, &_device, &featureLevel, &_context), "Failed to create ID3D11Device");
             if (featureLevel != ._11_0) //Note: To use versions greater than 11.0 we'll need to specify it in an array and pass that to create device. See pFeatureLevels here: https://docs.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice#parameters

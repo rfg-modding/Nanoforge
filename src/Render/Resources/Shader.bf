@@ -9,9 +9,6 @@ using System.Text;
 using Nanoforge.Misc;
 using System.Threading;
 
-//Enable here and in Renderer.bf to enable addition d3d11 debug features. Disabled by default since it can impact performance significantly
-#define ENABLE_D3D11_DEBUG_FEATURES
-
 namespace Nanoforge.Render.Resources
 {
 	public class Shader
@@ -134,10 +131,11 @@ namespace Nanoforge.Render.Resources
             using (ShaderIncludeHandler includeHandler = .(_includePaths, _includeFileWriteTimes))
             {
                 u32 shaderFlags = Direct3D.D3DCOMPILE_ENABLE_STRICTNESS;
-#if ENABLE_D3D11_DEBUG_FEATURES
-                shaderFlags |= Direct3D.D3DCOMPILE_DEBUG;
-                shaderFlags |= Direct3D.D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
+                if (BuildConfig.EnableD3D11DebugFeatures)
+                {
+                    shaderFlags |= Direct3D.D3DCOMPILE_DEBUG;
+                    shaderFlags |= Direct3D.D3DCOMPILE_SKIP_OPTIMIZATION;
+                }
 
                 //Convert path to wide string
                 char16[] pathWide = scope char16[UTF16.GetEncodedLen(_shaderPath) + 1];
