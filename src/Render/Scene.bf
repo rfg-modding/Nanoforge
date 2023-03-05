@@ -6,6 +6,8 @@ using Direct3D;
 using Common;
 using System;
 using Win32;
+using Common.Misc;
+using System.Threading;
 
 namespace Nanoforge.Render
 {
@@ -21,6 +23,10 @@ namespace Nanoforge.Render
         public u32 ViewHeight { get; private set; } = 512;
         public ID3D11ShaderResourceView* View => _viewTexture.ShaderResourceView;
         public bool ErrorOccurred { get; private set; } = false;
+
+        public append List<RenderObject> RenderObjects ~ClearAndDeleteItems!(_);
+        public append Dictionary<Material, List<RenderObject>> ObjectsByMaterial ~ClearDictionaryAndDeleteValues!(_);
+        private append Monitor _renderObjectCreationLock;
 
         private ID3D11Device* _device = null;
         private ID3D11DeviceContext* _context = null;
@@ -50,6 +56,7 @@ namespace Nanoforge.Render
         private bool _primitiveBufferNeedsUpdate = true; //Set to true when the cpu side buffers have changed and need to be sent to the GPU
         public bool PrimitiveMaterialsSet => _lineListMaterial != null && _triangleListMaterial != null && _litTriangleListMaterial != null;
 
+        [CRepr, RequiredSize(16)]
         private struct ColoredVertex
         {
             public Vec3<f32> Position;
@@ -65,6 +72,7 @@ namespace Nanoforge.Render
             }
         }
 
+        [CRepr, RequiredSize(28)]
         private struct ColoredVertexLit
         {
             public Vec3<f32> Position;
@@ -85,16 +93,10 @@ namespace Nanoforge.Render
         [OnCompile(.TypeInit)]
         private static void ComptimeSizeChecks()
         {
-            //Make sure vertex structs are the expected size
-            Runtime.Assert(sizeof(ColoredVertex) == 16);
-            Runtime.Assert(sizeof(ColoredVertexLit) == 28);
-
             //D3D11 constant buffers must align to 16 bytes
             Runtime.Assert(strideof(PerFrameConstants) % 16 == 0);
             Runtime.Assert(strideof(PerObjectConstants) % 16 == 0);
         }
-
-        //TODO: Add drawing functions
 
         public this(ID3D11Device* device, ID3D11DeviceContext* context)
         {
@@ -106,11 +108,6 @@ namespace Nanoforge.Render
                 Logger.Fatal("An error occurred during scene initialization. Rendering for that scene is now disabled.");
 
             Camera.Init(.(312.615f, 56.846f, -471.078f), 80.0f, .(ViewWidth, ViewHeight), 1.0f, 10000.0f); 
-        }
-
-        public ~this()
-        {
-
         }
 
         public void Draw(f32 deltaTime)
@@ -137,9 +134,18 @@ namespace Nanoforge.Render
 
             //Prepare state to render triangle strip meshes
             _context.VSSetConstantBuffers(0, 1, &_perObjectConstantsBuffer.Ptr);
-            //_context.RSSetState(_meshRasterizerState);
-            //_context.IASetPrimitiveTopology(.D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-            //TODO: Add render objects tied to meshes and draw them here. Use to draw buildings, rocks, terrain, etc
+            _context.RSSetState(_meshRasterizerState);
+            _context.IASetPrimitiveTopology(.D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+            //Render meshes
+            for (var kv in ObjectsByMaterial)
+            {
+                //Batch render objects by material
+                Material material = kv.key;
+                material.Use(_context);
+                for (RenderObject renderObject in kv.value)
+                    renderObject.Draw(_context, _perObjectConstantsBuffer, Camera);
+            }
 
             //Prepare state to render primitives
             _context.RSSetState(_primitiveRasterizerState);
@@ -190,6 +196,25 @@ namespace Nanoforge.Render
             _context.Draw((u32)_litTriangleListVertices.Count, 0);
 
             ClearPrimitiveVertexBuffers();
+        }
+
+        public Result<RenderObject> CreateRenderObject(StringView materialName, Mesh mesh, Vec3<f32> position, Mat3 rotation)
+        {
+            ScopedLock!(_renderObjectCreationLock);
+            if (RenderMaterials.GetMaterial(materialName) case .Ok(Material material))
+            {
+                RenderObject renderObject = new .(mesh, position, rotation);
+                RenderObjects.Add(renderObject);
+                if (!ObjectsByMaterial.ContainsKey(material))
+                    ObjectsByMaterial[material] = new List<RenderObject>();
+
+                ObjectsByMaterial[material].Add(renderObject);
+                return renderObject;
+            }
+            else
+            {
+                return .Err;
+            }
         }
 
         private void UpdatePrimitiveBuffers()
@@ -510,13 +535,5 @@ namespace Nanoforge.Render
         public i32 ShadeMode = 1;
         public f32 Time = 0.0f;
         public Vec2<f32> ViewportDimensions = .Zero;
-    }
-
-    [Align(16), CRepr]
-    public struct PerObjectConstants
-    {
-        public Mat4 MVP;
-        public Mat4 Rotation;
-        public Vec4<f32> WorldPosition;
     }
 }

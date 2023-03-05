@@ -177,7 +177,7 @@ namespace Nanoforge.Render
             //Blending
             D3D11_BLEND_DESC blend = .();
             ZeroMemory(&blend);
-            blend.RenderTarget[0].BlendEnable = 1;
+            blend.RenderTarget[0].BlendEnable = 0;
             blend.RenderTarget[0].SrcBlend = .SRC_COLOR;
             blend.RenderTarget[0].DestBlend = .BLEND_FACTOR;
             blend.RenderTarget[0].BlendOp = .ADD;
