@@ -13,24 +13,34 @@ namespace Nanoforge.App
 {
     ///Project database. Tracks editor objects and changes made to them through transactions.
     ///If you're comparing this to the C++ codebase this is really the Project + Registry classes combined. They only ever exist together so they were merged.
-    ///This implementation the more generic data model used by the C++ codebase for ease of use and type checks.
+    ///This implementation was exchanged was chosen over the more generic data model used by the C++ codebase for ease of use and comptime type checks.
 	public static class ProjectDB
 	{
         public static String ProjectFilePath { get; private set; } = new .() ~delete _; //Path of project file
         public static String ProjectFolderPath { get; private set; } = new .() ~delete _;
         public static bool Ready { get; private set; } = false;
 
-        static List<EditorObject> _objects = new .() ~DeleteContainerAndItems!(_);
-        static Dictionary<EditorObject, String> _objectNames = new .() ~DeleteDictionaryAndValues!(_); //Names owned by Project so we don't add unnecessary bloat to unnamed objects
+        static append List<EditorObject> _objects ~ClearAndDeleteItems!(_);
+        static append Dictionary<EditorObject, String> _objectNames ~ClearDictionaryAndDeleteValues!(_); //Names owned by Project so we don't add unnecessary bloat to unnamed objects
         static append Monitor _objectNameDictionaryLock;
         static append Monitor _objectCreationLock;
+        static append Monitor _bufferCreationLock;
         static append Monitor _commitLock;
+
+        static u64 _nextBufferUID = 0;
+        static append Dictionary<u64, ProjectBuffer> _buffers ~ClearDictionaryAndDeleteValues!(_);
 
         //Undo/redo stacks. Just using plain lists + Add() & PopBack() to handle pushing onto the stack and popping off it.
         //Eventually should replace with a Stack<T> class that inherits List<T> and hides non stack function. At the moment Beef doesn't have a standard stack class.
         public static List<Commit> UndoStack = new .() ~DeleteContainerAndItems!(_);
         public static List<Commit> RedoStack = new .() ~DeleteContainerAndItems!(_);
-         
+
+        public static this()
+        {
+            //Temporary hardcoded project folder while porting from C++. Will replace once I add project loading and saving
+            ProjectFolderPath.Set(@"D:\_NFRewriteProjectDBTest\");
+        }
+
         public static T CreateObject<T>(StringView name = "") where T : EditorObject, new
         {
             ScopedLock!(_objectCreationLock);
@@ -39,6 +49,19 @@ namespace Nanoforge.App
             if (name != "")
                 SetObjectName(obj, name);
             return obj;
+        }
+
+        public static ProjectBuffer CreateBuffer(Span<u8> bytes = .Empty, StringView name = "")
+        {
+            _bufferCreationLock.Enter();
+            u64 uid = _nextBufferUID++;
+            ProjectBuffer buffer = new .(uid, bytes.Length, name);
+            _buffers[uid] = buffer;
+            _bufferCreationLock.Exit();
+
+            if (!bytes.IsEmpty)
+                buffer.Save(bytes);
+            return buffer;
         }
 
         //Used to add objects created by DiffUtil when it commits changes. It creates its own objects so they can be destroyed on rollback and don't exist program wide until commit.
@@ -149,4 +172,52 @@ namespace Nanoforge.App
             }
         }
 	}
+
+    //Binary blob of data attached to the project. Useful for bulk binary data such as textures and meshes.
+    public class ProjectBuffer
+    {
+        public const u64 NullUID = u64.MaxValue;
+
+        public readonly u64 UID = NullUID;
+        public int Size { get; private set; };
+        public append String Name;
+        private append Monitor _lock;
+
+        public this(u64 uid, int size = 0, StringView name = "")
+        {
+            UID = uid;
+            Size = size;
+            Name.Set(name);
+        }
+
+        public void GetPath(String path)
+        {
+            path.Set(scope $@"{ProjectDB.ProjectFolderPath}Buffers\{Name}.{UID}.buffer");
+        }
+
+        //Read buffer from hard drive. Caller takes ownership of the result if it returns .Ok
+        public Result<List<u8>> Load()
+        {
+            ScopedLock!(_lock);
+            var bytes = new List<u8>();
+            if (File.ReadAll(GetPath(.. scope .()), bytes) case .Ok)
+            {
+                return .Ok(bytes);
+            }
+            else
+            {
+                delete bytes;
+                return .Err;
+            }
+        }
+
+        public Result<void> Save(Span<u8> data)
+        {
+            //TODO: Port tiny buffer merge optimization from the C++ version. Prevents having 1000s of 1KB or less files in the buffers folder since that causes performance issues.
+            ScopedLock!(_lock);
+            String path = GetPath(.. scope .());
+            Directory.CreateDirectory(Path.GetDirectoryPath(path, .. scope .()));
+            return File.WriteAll(path, data, false);
+        }
+    }
 }
