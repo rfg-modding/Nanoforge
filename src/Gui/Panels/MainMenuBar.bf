@@ -191,7 +191,8 @@ namespace Nanoforge.Gui.Panels
             if (FirstDraw)
             {
                 ImGui.ID dockLeftId = ImGui.DockBuilderSplitNode(DockspaceId, .Left, 0.20f, var outIdLeft, out DockspaceId);
-                ImGui.ID dockRightId = ImGui.DockBuilderSplitNode(DockspaceId, .Right, 0.28f, var outIdRight, out DockspaceId);
+                ImGui.ID dockLeftBottomId = ImGui.DockBuilderSplitNode(dockLeftId, .Down, 0.5f, var outIdBottom, out dockLeftId);
+                //ImGui.ID dockRightId = ImGui.DockBuilderSplitNode(DockspaceId, .Right, 0.28f, var outIdRight, out DockspaceId);
                 //ImGui.ID dockRightUp = ImGui.DockBuilderSplitNode(dockRightId, .Up, 0.35f, var outIdRightUp, out dockRightId);
                 DockspaceCentralNodeId = ImGui.DockBuilderGetCentralNode(DockspaceId).ID;
                 ImGui.ID dockCentralDownSplitId = ImGui.DockBuilderSplitNode(DockspaceCentralNodeId, .Down, 0.20f, var outIdCentralDown, out DockspaceCentralNodeId);
@@ -202,7 +203,7 @@ namespace Nanoforge.Gui.Panels
                 ImGui.DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
                 ImGui.DockBuilderDockWindow(StateViewer.ID.Ptr, dockLeftId);
                 ImGui.DockBuilderDockWindow(gui.OutlinerIdentifier, dockLeftId);
-                ImGui.DockBuilderDockWindow(gui.InspectorIdentifier, dockRightId);
+                ImGui.DockBuilderDockWindow(gui.InspectorIdentifier, dockLeftBottomId);
                 ImGui.DockBuilderDockWindow("Log", dockCentralDownSplitId);
             }
         }
