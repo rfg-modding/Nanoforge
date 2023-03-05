@@ -146,8 +146,8 @@ namespace Nanoforge.Rfg.Import
                     {
                         if (secondaryObj.Handle == firstChildHandle)
                         {
-                            primaryObj.Children.Add(child);
                             child = secondaryObj;
+                            primaryObj.Children.Add(child);
                             break;
                         }
                     }
