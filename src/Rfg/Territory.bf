@@ -3,6 +3,8 @@ using Nanoforge.App;
 using Common.Math;
 using Common;
 using System;
+using Nanoforge.Render.Resources;
+using RfgTools.Formats.Meshes;
 
 namespace Nanoforge.Rfg
 {
@@ -35,5 +37,18 @@ namespace Nanoforge.Rfg
         public bool MissionLayer = false;
         [EditorProperty]
         public append List<ZoneObject> Objects = .();
+
+        [EditorProperty]
+        public Vec3<f32> TerrainPosition = .Zero;
+
+        public ProjectBuffer[9] LowLodTerrainIndexBuffers;
+        public ProjectBuffer[9] LowLodTerrainVertexBuffers;
+        public MeshDataBlock[9] LowLodTerrainMeshConfig;
+
+        public ~this()
+        {
+            for (int i in 0 ... 8)
+                delete LowLodTerrainMeshConfig[i];
+        }
     }
 }

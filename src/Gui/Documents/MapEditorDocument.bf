@@ -1,3 +1,4 @@
+#pragma warning disable 168
 using System.Threading;
 using Nanoforge.App;
 using Nanoforge.Rfg;
@@ -8,6 +9,8 @@ using Nanoforge.Rfg.Import;
 using Nanoforge.Misc;
 using Nanoforge.Render;
 using Common.Math;
+using Nanoforge.Render.Resources;
+using System.Collections;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -33,6 +36,10 @@ namespace Nanoforge.Gui.Documents
             Loading = true;
             defer { Loading = false; }
 
+            //Create scene for rendering
+            Renderer renderer = app.GetResource<Renderer>();
+            _scene = renderer.CreateScene();
+
             //Check if the map was already imported
             Territory findResult = ProjectDB.Find<Territory>(MapName);
             if (findResult != null)
@@ -56,9 +63,50 @@ namespace Nanoforge.Gui.Documents
                     return;
             }
 
-            //Create scene for rendering
-            Renderer renderer = app.GetResource<Renderer>();
-            _scene = renderer.CreateScene();
+            //Create render objects for meshes
+            for (Zone zone in Map.Zones)
+            {
+                for (int i in 0 ... 8)
+                {
+                    List<u8> indexBuffer = null;
+                    List<u8> vertexBuffer = null;
+                    defer { DeleteIfSet!(indexBuffer); }
+                    defer { DeleteIfSet!(vertexBuffer); }
+                    if (zone.LowLodTerrainIndexBuffers[i].Load() case .Ok(let val))
+                    {
+						indexBuffer = val;
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to load index buffer for low lod terrain submesh {} of {}.", i, zone.Name);
+                        continue;
+                    }
+                    if (zone.LowLodTerrainVertexBuffers[i].Load() case .Ok(let val))
+                    {
+                    	vertexBuffer = val;
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to load vertex buffer for low lod terrain submesh {} of {}.", i, zone.Name);
+                        continue;
+                    }
+
+                    Mesh mesh = new .();
+                    if (mesh.Init(renderer.Device, zone.LowLodTerrainMeshConfig[i], indexBuffer, vertexBuffer) case .Ok)
+                    {
+                        if (_scene.CreateRenderObject("TerrainLowLod", mesh, zone.TerrainPosition, .Identity) case .Err)
+                        {
+                            Logger.Error("Failed to create render object for low lod terrain submesh {} of {}", i, zone.Name);
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to create render object for low lod terrain submesh {} of {}", i, zone.Name);
+                        delete mesh;
+                    }
+                }
+            }
         }
 
         public override void Update(App app, Gui gui)
@@ -68,6 +116,31 @@ namespace Nanoforge.Gui.Documents
                 ThreadPool.QueueUserWorkItem(new () => { this.Load(app); });
             }
 
+            if (_scene != null)
+            {
+                //Update scene viewport size
+                ImGui.Vec2 contentAreaSize;
+                contentAreaSize.x = ImGui.GetWindowContentRegionMax().x - ImGui.GetWindowContentRegionMin().x;
+                contentAreaSize.y = ImGui.GetWindowContentRegionMax().y - ImGui.GetWindowContentRegionMin().y;
+                if (contentAreaSize.x > 0.0f && contentAreaSize.y > 0.0f)
+                {
+                    _scene.Resize((u32)contentAreaSize.x, (u32)contentAreaSize.y);
+                }
+
+                //Store initial position so we can draw buttons over the scene texture after drawing it
+                ImGui.Vec2 initialPos = ImGui.GetCursorPos();
+
+                //Render scene texture
+                ImGui.PushStyleColor(.WindowBg, .(_scene.ClearColor.x, _scene.ClearColor.y, _scene.ClearColor.z, _scene.ClearColor.w));
+                ImGui.Image(_scene.View, .(_scene.ViewWidth, _scene.ViewHeight));
+                ImGui.PopStyleColor();
+
+                //Set cursor pos to top left corner to draw buttons over scene texture
+                ImGui.Vec2 adjustedPos = initialPos;
+                adjustedPos.x += 10.0f;
+                adjustedPos.y += 10.0f;
+                ImGui.SetCursorPos(adjustedPos);
+            }
             if (Loading)
                 return;
 
@@ -82,29 +155,6 @@ namespace Nanoforge.Gui.Documents
                     _scene.DrawBox(obj.BBox.Min, obj.BBox.Max, color);
                 }
             }
-
-            //Update scene viewport size
-            ImGui.Vec2 contentAreaSize;
-            contentAreaSize.x = ImGui.GetWindowContentRegionMax().x - ImGui.GetWindowContentRegionMin().x;
-            contentAreaSize.y = ImGui.GetWindowContentRegionMax().y - ImGui.GetWindowContentRegionMin().y;
-            if (contentAreaSize.x > 0.0f && contentAreaSize.y > 0.0f)
-            {
-                _scene.Resize((u32)contentAreaSize.x, (u32)contentAreaSize.y);
-            }
-
-            //Store initial position so we can draw buttons over the scene texture after drawing it
-            ImGui.Vec2 initialPos = ImGui.GetCursorPos();
-
-            //Render scene texture
-            ImGui.PushStyleColor(.WindowBg, .(_scene.ClearColor.x, _scene.ClearColor.y, _scene.ClearColor.z, _scene.ClearColor.w));
-            ImGui.Image(_scene.View, .(_scene.ViewWidth, _scene.ViewHeight));
-            ImGui.PopStyleColor();
-
-            //Set cursor pos to top left corner to draw buttons over scene texture
-            ImGui.Vec2 adjustedPos = initialPos;
-            adjustedPos.x += 10.0f;
-            adjustedPos.y += 10.0f;
-            ImGui.SetCursorPos(adjustedPos);
         }
 
         public override void Save(App app, Gui gui)
@@ -114,6 +164,12 @@ namespace Nanoforge.Gui.Documents
 
         public override void OnClose(App app, Gui gui)
         {
+            if (_scene != null)
+            {
+                Renderer renderer = app.GetResource<Renderer>();
+                renderer.DestroyScene(_scene);
+            }
+            
             return;
         }
 

@@ -6,6 +6,10 @@ using Nanoforge.App;
 using System.IO;
 using Common;
 using System;
+using Common.IO;
+using RfgTools.Formats.Meshes;
+using Nanoforge.Render.Resources;
+using Nanoforge.Render;
 
 namespace Nanoforge.Rfg.Import
 {
@@ -36,8 +40,7 @@ namespace Nanoforge.Rfg.Import
                     if (Path.GetExtension(entryName, .. scope .()) != ".rfgzone_pc" || entryName.StartsWith("p_", .OrdinalIgnoreCase))
                         continue;
 
-                    Result<Zone, StringView> zoneImportResult = ImportZone(packfile, entryName, changes);
-                    switch (zoneImportResult)
+                    switch (ImportZone(packfile, entryName, changes))
                     {
                         case .Ok(let zone):
                             map.Zones.Add(zone);
@@ -46,6 +49,18 @@ namespace Nanoforge.Rfg.Import
                             changes.Rollback();
                             return .Err("Failed to import a zone. Check the log.");
                     }
+                }
+
+                //Import terrain, roads, and rocks
+                for (Zone zone in map.Zones)
+                {
+                    if (LoadTerrain(packfile, zone, changes, name) case .Err)
+                    {
+                        Logger.Error("Failed to import terrain for zone '{}'", zone.Name);
+                        //TODO: RE-ENABLE AND MAKE SURE IT WORKS BEFORE COMMIT
+                        //changes.Rollback();
+                        return .Err("Failed to import terrain. Check the log.");
+                    }    
                 }
 
                 return .Ok(map);
@@ -77,6 +92,84 @@ namespace Nanoforge.Rfg.Import
                 case .Err(let err):
                     return .Err(err);
             }
+        }
+
+        public static Result<void> LoadTerrain(PackfileV3 packfile, Zone zone, DiffUtil changes, StringView name)
+        {
+            //Determine terrain position from obj_zone center
+            for (ZoneObject obj in zone.Objects)
+            {
+                if (obj.Classname == "obj_zone")
+                {
+                    zone.TerrainPosition = obj.BBox.Center();
+                    break;
+                }
+            }
+
+            //Load ns_base.str2_pc. Contains the terrain meshes. This will need to be changed when SP support is added since SP vpp structure is more complex
+            var str2ReadResult = packfile.ReadSingleFile("ns_base.str2_pc");
+            if (str2ReadResult case .Err(StringView err))
+            {
+                Logger.Error("Failed to load ns_base.str2_pc for terrain import. Error: {}", err);
+                return .Err;
+            }
+
+            //Parse ns_base.str2_pc
+            defer delete str2ReadResult.Value;
+            PackfileV3 nsBase = scope .(new ByteSpanStream(str2ReadResult.Value), "ns_base.str2_pc");
+            if (nsBase.ReadMetadata() case .Err(StringView err))
+            {
+                Logger.Info("Failed to parse ns_base.str2_pc for terrain import. Error: {}", err);
+                return .Err;
+            }
+
+            //Get cterrain_pc and gterrain_pc files
+            u8[] cpuFile = null;
+            u8[] gpuFile = null;
+            defer { DeleteIfSet!(cpuFile); }
+            defer { DeleteIfSet!(gpuFile); }
+
+            switch (nsBase.ReadSingleFile(scope $"{name}.cterrain_pc"))
+            {
+                case .Ok(u8[] bytes):
+                    cpuFile = bytes;
+                case .Err(StringView err):
+                    Logger.Error("Failed to extract cterrain_pc file. Error: {}", err);
+                    return .Err;
+            }
+            switch (nsBase.ReadSingleFile(scope $"{name}.gterrain_pc"))
+            {
+                case .Ok(u8[] bytes):
+                    gpuFile = bytes;
+                case .Err(StringView err):
+                    Logger.Error("Failed to extract gterrain_pc file. Error: {}", err);
+                    return .Err;
+            }
+
+            TerrainLowLod terrain = scope .();
+            if (terrain.Load(cpuFile, gpuFile, false) case .Err(StringView err))
+            {
+                Logger.Error("Failed to parse cterrain_pc file. Error: {}", err);
+                return .Err;
+            }
+
+            for (int i in 0 ... 8)
+            {
+                switch (terrain.GetMeshData(i))
+                {
+                    case .Ok(MeshInstanceData meshData):
+                        ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_low_lod_{i}");
+                        ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_low_lod_{i}");
+                        zone.LowLodTerrainMeshConfig[i] = meshData.Config.Clone(.. new .());
+                        zone.LowLodTerrainIndexBuffers[i] = indexBuffer;
+                        zone.LowLodTerrainVertexBuffers[i] = vertexBuffer;
+                    case .Err(StringView err):
+                        Logger.Error("Failed to get mesh data from gterrain_pc file. Error: {}", err);
+                        return .Err;
+                }
+            }
+
+            return .Ok;
         }
 	}
 }
