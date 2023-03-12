@@ -96,7 +96,10 @@ namespace Nanoforge.Render.Resources
                 String shaderFileName = Path.GetFileName(_shaderPath, .. scope .());
                 Logger.Info("Reloading '{}'", shaderFileName);
                 Thread.Sleep(250); //Wait a moment to make sure the shader isn't being saved by another process while we're loading it. Stupid fix, but it works.
-                Load(shaderFileName, _device, _useGeometryShaders);
+                if (Load(shaderFileName, _device, _useGeometryShaders) case .Err)
+                {
+                    Logger.Error("Failed to reload {}", shaderFileName);
+                }
             }
         }
 

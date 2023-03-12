@@ -45,10 +45,18 @@ namespace Nanoforge.Rfg
         public ProjectBuffer[9] LowLodTerrainVertexBuffers;
         public MeshDataBlock[9] LowLodTerrainMeshConfig;
 
+        //TODO: Move this data into structs
+        public ProjectBuffer[9] HighLodTerrainIndexBuffers;
+        public ProjectBuffer[9] HighLodTerrainVertexBuffers;
+        public MeshDataBlock[9] HighLodTerrainMeshConfig;
+        public Vec3<f32>[9] HighLodTerrainMeshPositions;
+
         public ~this()
         {
             for (int i in 0 ... 8)
                 delete LowLodTerrainMeshConfig[i];
+            for (int i in 0 ... 8)
+	            delete HighLodTerrainMeshConfig[i];
         }
     }
 }

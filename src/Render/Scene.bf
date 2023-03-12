@@ -445,6 +445,59 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
+        public void DrawBoxRotated(Vec3<f32> min, Vec3<f32> max, Mat3 orient, Vec3<f32> position, Vec4<f32> color)
+        {
+            Vec3<f32> size = max - min;
+            Vec3<f32> bottomLeftFront = min;
+            Vec3<f32> bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
+            Vec3<f32> bottomRightFront = min + .(0.0f, 0.0f, size.z);
+            Vec3<f32> bottomRightBack = min + .(size.x, 0.0f, size.z);
+
+            Vec3<f32> topRightBack = max;
+            Vec3<f32> topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
+            Vec3<f32> topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
+            Vec3<f32> topLeftFront = .(min.x, max.y, min.z);
+
+            bottomLeftFront -= position;
+            bottomLeftBack -= position;
+            bottomRightFront -= position;
+            bottomRightBack -= position;
+            topRightBack -= position;
+            topLeftBack -= position;
+            topRightFront -= position;
+            topLeftFront -= position;
+
+            bottomLeftFront = orient.RotatePoint(bottomLeftFront);
+            bottomLeftBack = orient.RotatePoint(bottomLeftBack);
+            bottomRightFront = orient.RotatePoint(bottomRightFront);
+            bottomRightBack = orient.RotatePoint(bottomRightBack);
+            topRightBack = orient.RotatePoint(topRightBack);
+            topLeftBack = orient.RotatePoint(topLeftBack);
+            topRightFront = orient.RotatePoint(topRightFront);
+            topLeftFront = orient.RotatePoint(topLeftFront);
+
+            bottomLeftFront += position;
+            bottomLeftBack += position;
+            bottomRightFront += position;
+            bottomRightBack += position;
+            topRightBack += position;
+            topLeftBack += position;
+            topRightFront += position;
+            topLeftFront += position;
+
+            //Draw quads for the front and back faces
+            DrawQuad(bottomLeftFront, topLeftFront, topRightFront, bottomRightFront, color);
+            DrawQuad(bottomLeftBack, topLeftBack, topRightBack, bottomRightBack, color);
+
+            //Draw lines connecting the two faces
+            DrawLine(bottomLeftFront, bottomLeftBack, color);
+            DrawLine(topLeftFront, topLeftBack, color);
+            DrawLine(topRightFront, topRightBack, color);
+            DrawLine(bottomRightFront, bottomRightBack, color);
+
+            _primitiveBufferNeedsUpdate = true;
+        }
+
         public void DrawQuadSolid(Vec3<f32> bottomLeft, Vec3<f32> topLeft, Vec3<f32> topRight, Vec3<f32> bottomRight, Vec4<f32> color)
         {
             //First triangle

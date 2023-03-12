@@ -199,21 +199,25 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     //Get weight of each texture from alpha00 texture
     float4 blendWeights = Texture0.Sample(Sampler0, input.UvBase);
     float4 finalColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
-    float4 finalNormal = float4(1.0f, 1.0f, 1.0f, 1.0f);
 
-    if (UseTriplanarMapping)
-    {
-        finalColor = CalcTerrainColorTriplanar(input, blendWeights);
-        finalNormal = CalcTerrainNormalTriplanar(input, blendWeights);
-    }
-    else
-    {
-        finalColor = CalcTerrainColorOld(input, blendWeights);
-        finalNormal = CalcTerrainNormalOld(input, blendWeights);
-    }
+    //Note: Normal maps temporarily disabled until texture importers ported
+    //float4 finalNormal = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    float4 finalNormal = float4(input.Normal.xyz, 1.0f);
+
+    // if (UseTriplanarMapping)
+    // {
+    //     finalColor = CalcTerrainColorTriplanar(input, blendWeights);
+    //     finalNormal = CalcTerrainNormalTriplanar(input, blendWeights);
+    // }
+    // else
+    // {
+    //     finalColor = CalcTerrainColorOld(input, blendWeights);
+    //     finalNormal = CalcTerrainNormalOld(input, blendWeights);
+    // }
 
     //Sun direction for diffuse lighting
-    float3 sunDir = float3(0.3f, -1.0f, -1.0f);
+    //float3 sunDir = float3(0.3f, -1.0f, -1.0f);
+    float3 sunDir = float3(-0.3f, -1.0f, 0.5f);
 
     //Ambient
     float ambientIntensity = 0.10f;
@@ -222,7 +226,10 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     //Diffuse
     float3 lightDir = -normalize(sunDir);
     float diff = max(dot(lightDir, finalNormal), 0.0f);
-    float3 diffuse = diff * finalColor * DiffuseColor * DiffuseIntensity;
+    //float3 diffuse = diff * finalColor * DiffuseColor * DiffuseIntensity;
+    //Note: Temporarily disabled diffuse + normal texture code until texture importing is ported to the rewrite
+    float3 diffuse = diff * DiffuseColor * DiffuseIntensity;
+
 
     //Normalized elevation for ShadeMode 0. [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0]
     float elevationNormalized = (input.ZonePos.y + 255.5f) / 511.0f;

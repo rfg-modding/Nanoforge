@@ -11,6 +11,7 @@ using Nanoforge.Render;
 using Common.Math;
 using Nanoforge.Render.Resources;
 using System.Collections;
+using System.Diagnostics;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -41,34 +42,41 @@ namespace Nanoforge.Gui.Documents
             Loading = true;
             defer { Loading = false; }
 
+            Logger.Info("Opening {}...", MapName);
+            Stopwatch loadTimer = scope .(true);
+
             //Create scene for rendering
             Renderer renderer = app.GetResource<Renderer>();
             _scene = renderer.CreateScene();
 
             //Check if the map was already imported
             Territory findResult = ProjectDB.Find<Territory>(MapName);
-            if (findResult != null)
+            if (findResult == null)
+            {
+                //Map needs to be imported
+                Logger.Info("First time opening {} in this project. Importing...", MapName);
+                Stopwatch importTimer = scope .(true);
+                switch (MapImporter.ImportMap(MapName))
+                {
+                    case .Ok(var newMap):
+                		Map = newMap;
+                        Logger.Info("Finished importing map {} in {}s", MapName, importTimer.Elapsed.TotalSeconds);
+                    case .Err(StringView err):
+                		_loadFailure = true;
+                        _loadFailureReason = err;
+                        Logger.Error("Failed to import map {}. {}. See the log for more details.", MapName, err);
+                        return;
+                }
+            }
+            else
             {
                 Map = findResult;
-                Map.Load();
-                return;
             }
 
-            //Map needs to be imported
-            switch (MapImporter.ImportMap(MapName))
-            {
-                case .Ok(var newMap):
-            		Map = newMap;
-                    Map.Load();
-                    Logger.Info("Finished importing map '{}'", MapName);
-                case .Err(StringView err):
-            		_loadFailure = true;
-                    _loadFailureReason = err;
-                    Logger.Error("Failed to import map '{}'. {}. See the log for more details.", MapName, err);
-                    return;
-            }
+            //Import complete. Now load
+            Map.Load();
 
-            //Create render objects for meshes
+            //Create render objects for low lod meshes
             for (Zone zone in Map.Zones)
             {
                 for (int i in 0 ... 8)
@@ -99,10 +107,13 @@ namespace Nanoforge.Gui.Documents
                     Mesh mesh = new .();
                     if (mesh.Init(renderer.Device, zone.LowLodTerrainMeshConfig[i], indexBuffer, vertexBuffer) case .Ok)
                     {
-                        if (_scene.CreateRenderObject("TerrainLowLod", mesh, zone.TerrainPosition, .Identity) case .Err)
+                        switch (_scene.CreateRenderObject("TerrainLowLod", mesh, zone.TerrainPosition, .Identity))
                         {
-                            Logger.Error("Failed to create render object for low lod terrain submesh {} of {}", i, zone.Name);
-                            continue;
+                            case .Ok(RenderObject obj):
+                                obj.Visible = false; //Hide low lod terrain by default
+                            case .Err:
+                                Logger.Error("Failed to create render object for low lod terrain submesh {} of {}", i, zone.Name);
+                                continue;
                         }
                     }
                     else
@@ -112,6 +123,61 @@ namespace Nanoforge.Gui.Documents
                     }
                 }
             }
+
+            //Create render objects for high lod meshes
+            for (Zone zone in Map.Zones)
+            {
+                for (int i in 0 ... 8)
+                {
+                    List<u8> indexBuffer = null;
+                    List<u8> vertexBuffer = null;
+                    defer { DeleteIfSet!(indexBuffer); }
+                    defer { DeleteIfSet!(vertexBuffer); }
+                    if (zone.HighLodTerrainIndexBuffers[i].Load() case .Ok(let val))
+                    {
+            			indexBuffer = val;
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to load index buffer for high lod terrain submesh {} of {}.", i, zone.Name);
+                        continue;
+                    }
+                    if (zone.HighLodTerrainVertexBuffers[i].Load() case .Ok(let val))
+                    {
+                    	vertexBuffer = val;
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to load vertex buffer for high lod terrain submesh {} of {}.", i, zone.Name);
+                        continue;
+                    }
+
+                    Mesh mesh = new .();
+                    if (mesh.Init(renderer.Device, zone.HighLodTerrainMeshConfig[i], indexBuffer, vertexBuffer) case .Ok)
+                    {
+                        switch (_scene.CreateRenderObject("Terrain", mesh, zone.HighLodTerrainMeshPositions[i], .Identity))
+                        {
+                            case .Ok(RenderObject obj):
+                                obj.Visible = true; //Show high lod terrain by default
+                            case .Err:
+                                Logger.Error("Failed to create render object for high lod terrain submesh {} of {}", i, zone.Name);
+                                continue;
+                        }
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to create render object for high lod terrain submesh {} of {}", i, zone.Name);
+                        delete mesh;
+                    }
+                }
+            }
+
+            //Temporary hardcoded settings for high lod terrain rendering. Will be removed once config gui is added
+            _scene.PerFrameConstants.ShadeMode = 1;
+            _scene.PerFrameConstants.DiffuseIntensity = 0.75f;
+            _scene.PerFrameConstants.DiffuseColor = Colors.RGBA.White;
+
+            Logger.Info("{} loaded in {}s", MapName, loadTimer.Elapsed.TotalSeconds);
         }
 
         public override void Update(App app, Gui gui)

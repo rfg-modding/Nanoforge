@@ -146,7 +146,7 @@ namespace Nanoforge.Rfg.Import
                     return .Err;
             }
 
-            TerrainLowLod terrain = scope .();
+            Terrain terrain = scope .();
             if (terrain.Load(cpuFile, gpuFile, false) case .Err(StringView err))
             {
                 Logger.Error("Failed to parse cterrain_pc file. Error: {}", err);
@@ -165,6 +165,54 @@ namespace Nanoforge.Rfg.Import
                         zone.LowLodTerrainVertexBuffers[i] = vertexBuffer;
                     case .Err(StringView err):
                         Logger.Error("Failed to get mesh data from gterrain_pc file. Error: {}", err);
+                        return .Err;
+                }
+            }
+
+            //Load subzones (ctmesh_pc|gtmesh_pc files). These have the high lod terrain meshes
+            for (int i in 0 ... 8)
+            {
+                u8[] subzoneCpuFile = null;
+                u8[] subzoneGpuFile = null;
+                defer { DeleteIfSet!(subzoneCpuFile); }
+                defer { DeleteIfSet!(subzoneGpuFile); }
+
+                switch (nsBase.ReadSingleFile(scope $"{name}_{i}.ctmesh_pc"))
+                {
+                    case .Ok(u8[] bytes):
+                        subzoneCpuFile = bytes;
+                    case .Err(StringView err):
+                        Logger.Error("Failed to extract terrain subzone {}_{}.ctmesh_pc. Error: {}", name, i, err);
+                        return .Err;
+                }
+                switch (nsBase.ReadSingleFile(scope $"{name}_{i}.gtmesh_pc"))
+                {
+                    case .Ok(u8[] bytes):
+                        subzoneGpuFile = bytes;
+                    case .Err(StringView err):
+                        Logger.Error("Failed to extract terrain subzone {}_{}.gtmesh_pc. Error: {}", name, i, err);
+                        return .Err;
+                }
+
+                TerrainSubzone subzone = scope .();
+                if (subzone.Load(subzoneCpuFile, subzoneGpuFile, false) case .Err(StringView err))
+                {
+                    Logger.Error("Failed to parse {}_{}.ctmesh_pc. Error: {}", name, i, err);
+                    return .Err;
+                }
+
+                //Load terrain mesh
+                switch (subzone.GetTerrainMeshData())
+                {
+                    case .Ok(MeshInstanceData meshData):
+                        ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}");
+                        ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}");
+                        zone.HighLodTerrainMeshConfig[i] = meshData.Config.Clone(.. new .());
+                        zone.HighLodTerrainIndexBuffers[i] = indexBuffer;
+                        zone.HighLodTerrainVertexBuffers[i] = vertexBuffer;
+                        zone.HighLodTerrainMeshPositions[i] = subzone.Data.Position;
+                    case .Err(StringView err):
+                        Logger.Error("Failed to get high lod terrain mesh data from {}_{}.gtmesh_pc. Error: {}", name, i, err);
                         return .Err;
                 }
             }
