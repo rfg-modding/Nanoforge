@@ -16,7 +16,7 @@ namespace Nanoforge.Render
 	{
         public bool Active = true; //Gets redrawn each frame if active
         public Camera3D Camera = new .() ~delete _;
-        public Vec4<f32> ClearColor = .(0.0f, 0.0f, 0.0f, 1.0f);
+        public Vec4 ClearColor = .(0.0f, 0.0f, 0.0f, 1.0f);
         public PerFrameConstants PerFrameConstants;
         public f32 TotalTime { get; private set; } = 0.0f;
         public u32 ViewWidth { get; private set; } = 512;
@@ -59,10 +59,10 @@ namespace Nanoforge.Render
         [CRepr, RequiredSize(16)]
         private struct ColoredVertex
         {
-            public Vec3<f32> Position;
+            public Vec3 Position;
             public u8 r, g, b, a;
 
-            public this(Vec3<f32> position, Vec4<f32> color)
+            public this(Vec3 position, Vec4 color)
             {
                 Position = position;
                 r = (u8)(color.x * 255.0f);
@@ -75,11 +75,11 @@ namespace Nanoforge.Render
         [CRepr, RequiredSize(28)]
         private struct ColoredVertexLit
         {
-            public Vec3<f32> Position;
-            public Vec3<f32> Normal;
+            public Vec3 Position;
+            public Vec3 Normal;
             public u8 r, g, b, a;
 
-            public this(Vec3<f32> position, Vec3<f32> normal, Vec4<f32> color)
+            public this(Vec3 position, Vec3 normal, Vec4 color)
             {
                 Position = position;
                 Normal = normal;
@@ -198,7 +198,7 @@ namespace Nanoforge.Render
             ClearPrimitiveVertexBuffers();
         }
 
-        public Result<RenderObject> CreateRenderObject(StringView materialName, Mesh mesh, Vec3<f32> position, Mat3 rotation)
+        public Result<RenderObject> CreateRenderObject(StringView materialName, Mesh mesh, Vec3 position, Mat3 rotation)
         {
             ScopedLock!(_renderObjectCreationLock);
             if (RenderMaterials.GetMaterial(materialName) case .Ok(Material material))
@@ -404,14 +404,14 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawLine(Vec3<f32> start, Vec3<f32> end, Vec4<f32> color)
+        public void DrawLine(Vec3 start, Vec3 end, Vec4 color)
         {
             _lineVertices.Add(.(start, color));
             _lineVertices.Add(.(end, color));
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawQuad(Vec3<f32> bottomLeft, Vec3<f32> topLeft, Vec3<f32> topRight, Vec3<f32> bottomRight, Vec4<f32> color)
+        public void DrawQuad(Vec3 bottomLeft, Vec3 topLeft, Vec3 topRight, Vec3 bottomRight, Vec4 color)
         {
             DrawLine(bottomLeft, topLeft, color);
             DrawLine(topLeft, topRight, color);
@@ -419,18 +419,18 @@ namespace Nanoforge.Render
             DrawLine(bottomRight, bottomLeft, color);
         }
 
-        public void DrawBox(Vec3<f32> min, Vec3<f32> max, Vec4<f32> color)
+        public void DrawBox(Vec3 min, Vec3 max, Vec4 color)
         {
-            Vec3<f32> size = max - min;
-            Vec3<f32> bottomLeftFront = min;
-            Vec3<f32> bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
-            Vec3<f32> bottomRightFront = min + .(0.0f, 0.0f, size.z);
-            Vec3<f32> bottomRightBack = min + .(size.x, 0.0f, size.z);
+            Vec3 size = max - min;
+            Vec3 bottomLeftFront = min;
+            Vec3 bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
+            Vec3 bottomRightFront = min + .(0.0f, 0.0f, size.z);
+            Vec3 bottomRightBack = min + .(size.x, 0.0f, size.z);
 
-            Vec3<f32> topRightBack = max;
-            Vec3<f32> topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
-            Vec3<f32> topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
-            Vec3<f32> topLeftFront = .(min.x, max.y, min.z);
+            Vec3 topRightBack = max;
+            Vec3 topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
+            Vec3 topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
+            Vec3 topLeftFront = .(min.x, max.y, min.z);
 
             //Draw quads for the front and back faces
             DrawQuad(bottomLeftFront, topLeftFront, topRightFront, bottomRightFront, color);
@@ -445,18 +445,18 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawBoxRotated(Vec3<f32> min, Vec3<f32> max, Mat3 orient, Vec3<f32> position, Vec4<f32> color)
+        public void DrawBoxRotated(Vec3 min, Vec3 max, Mat3 orient, Vec3 position, Vec4 color)
         {
-            Vec3<f32> size = max - min;
-            Vec3<f32> bottomLeftFront = min;
-            Vec3<f32> bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
-            Vec3<f32> bottomRightFront = min + .(0.0f, 0.0f, size.z);
-            Vec3<f32> bottomRightBack = min + .(size.x, 0.0f, size.z);
+            Vec3 size = max - min;
+            Vec3 bottomLeftFront = min;
+            Vec3 bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
+            Vec3 bottomRightFront = min + .(0.0f, 0.0f, size.z);
+            Vec3 bottomRightBack = min + .(size.x, 0.0f, size.z);
 
-            Vec3<f32> topRightBack = max;
-            Vec3<f32> topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
-            Vec3<f32> topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
-            Vec3<f32> topLeftFront = .(min.x, max.y, min.z);
+            Vec3 topRightBack = max;
+            Vec3 topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
+            Vec3 topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
+            Vec3 topLeftFront = .(min.x, max.y, min.z);
 
             bottomLeftFront -= position;
             bottomLeftBack -= position;
@@ -498,7 +498,7 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawQuadSolid(Vec3<f32> bottomLeft, Vec3<f32> topLeft, Vec3<f32> topRight, Vec3<f32> bottomRight, Vec4<f32> color)
+        public void DrawQuadSolid(Vec3 bottomLeft, Vec3 topLeft, Vec3 topRight, Vec3 bottomRight, Vec4 color)
         {
             //First triangle
             _triangleListVertices.Add(.(bottomLeft, color));
@@ -513,18 +513,18 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawBoxSolid(Vec3<f32> min, Vec3<f32> max, Vec4<f32> color)
+        public void DrawBoxSolid(Vec3 min, Vec3 max, Vec4 color)
         {
-            Vec3<f32> size = max - min;
-            Vec3<f32> bottomLeftFront = min;
-            Vec3<f32> bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
-            Vec3<f32> bottomRightFront = min + .(0.0f, 0.0f, size.z);
-            Vec3<f32> bottomRightBack = min + .(size.x, 0.0f, size.z);
+            Vec3 size = max - min;
+            Vec3 bottomLeftFront = min;
+            Vec3 bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
+            Vec3 bottomRightFront = min + .(0.0f, 0.0f, size.z);
+            Vec3 bottomRightBack = min + .(size.x, 0.0f, size.z);
 
-            Vec3<f32> topRightBack = max;
-            Vec3<f32> topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
-            Vec3<f32> topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
-            Vec3<f32> topLeftFront = .(min.x, max.y, min.z);
+            Vec3 topRightBack = max;
+            Vec3 topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
+            Vec3 topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
+            Vec3 topLeftFront = .(min.x, max.y, min.z);
 
             //Draw quads for each face
             DrawQuadSolid(bottomLeftFront, topLeftFront, topRightFront, bottomRightFront, color);     //Front
@@ -537,7 +537,7 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawQuadLit(Vec3<f32> bottomLeft, Vec3<f32> topLeft, Vec3<f32> topRight, Vec3<f32> bottomRight, Vec4<f32> color)
+        public void DrawQuadLit(Vec3 bottomLeft, Vec3 topLeft, Vec3 topRight, Vec3 bottomRight, Vec4 color)
         {
             //First triangle
             _litTriangleListVertices.Add(.(bottomLeft, color));
@@ -552,18 +552,18 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawBoxLit(Vec3<f32> min, Vec3<f32> max, Vec4<f32> color)
+        public void DrawBoxLit(Vec3 min, Vec3 max, Vec4 color)
         {
-            Vec3<f32> size = max - min;
-            Vec3<f32> bottomLeftFront = min;
-            Vec3<f32> bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
-            Vec3<f32> bottomRightFront = min + .(0.0f, 0.0f, size.z);
-            Vec3<f32> bottomRightBack = min + .(size.x, 0.0f, size.z);
+            Vec3 size = max - min;
+            Vec3 bottomLeftFront = min;
+            Vec3 bottomLeftBack = min + .(size.x, 0.0f, 0.0f);
+            Vec3 bottomRightFront = min + .(0.0f, 0.0f, size.z);
+            Vec3 bottomRightBack = min + .(size.x, 0.0f, size.z);
 
-            Vec3<f32> topRightBack = max;
-            Vec3<f32> topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
-            Vec3<f32> topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
-            Vec3<f32> topLeftFront = .(min.x, max.y, min.z);
+            Vec3 topRightBack = max;
+            Vec3 topLeftBack = .(bottomLeftBack.x, max.y, bottomLeftBack.z);
+            Vec3 topRightFront = .(bottomRightFront.x, max.y, bottomRightFront.z);
+            Vec3 topLeftFront = .(min.x, max.y, min.z);
 
             //Draw quads for each face
             DrawQuadLit(bottomLeftFront, topLeftFront, topRightFront, bottomRightFront, color);     //Front
@@ -581,12 +581,12 @@ namespace Nanoforge.Render
     [Align(16), CRepr]
     public struct PerFrameConstants
     {
-        public Vec4<f32> ViewPos = .Zero;
-        public Vec4<f32> DiffuseColor = .(1.0f, 1.0f, 1.0f, 1.0f);
+        public Vec4 ViewPos = .Zero;
+        public Vec4 DiffuseColor = .(1.0f, 1.0f, 1.0f, 1.0f);
         public f32 DiffuseIntensity = 1.0f;
         public f32 ElevationFactorBias = 0.8f;
         public i32 ShadeMode = 1;
         public f32 Time = 0.0f;
-        public Vec2<f32> ViewportDimensions = .Zero;
+        public Vec2 ViewportDimensions = .Zero;
     }
 }

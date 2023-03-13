@@ -82,7 +82,7 @@ namespace Nanoforge.App.Project
             switch (fieldType)
             {
                 case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
-                     typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox):
+                     typeof(Vec2), typeof(Vec3), typeof(Vec4), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox):
                     Compiler.EmitTypeBody(selfType, scope $"    _target.{V} = _finalValue;\n");
                 case typeof(String):
                     Compiler.EmitTypeBody(selfType, scope $"    _target.{V}.Set(_finalValue);\n");
@@ -115,7 +115,7 @@ namespace Nanoforge.App.Project
             switch (typeof(U))
             {
                 case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
-                     typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox):
+                     typeof(Vec2), typeof(Vec3), typeof(Vec4), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox):
                     Compiler.EmitTypeBody(selfType, scope $"    _target.{V} = _initialValue;\n");
                 case typeof(String):
                     Compiler.EmitTypeBody(selfType, scope $"    _target.{V}.Set(_initialValue);\n");

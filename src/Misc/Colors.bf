@@ -8,24 +8,24 @@ namespace Nanoforge.Misc
 	{
 		public static class RGB
 		{
-			public static Vec3<f32> Red => .(1.0f, 0.0f, 0.0f);
-			public static Vec3<f32> Green => .(0.0f, 1.0f, 0.0f);
-			public static Vec3<f32> Blue => .(0.0f, 0.0f, 1.0f);
-			public static Vec3<f32> Pink => .(1.0f, 0.0f, 1.0f);
-			public static Vec3<f32> Black => .(0.0f, 0.0f, 0.0f);
-			public static Vec3<f32> White => .(1.0f, 1.0f, 1.0f);
-			public static Vec3<f32> Invisible => .(0.0f, 0.0f, 0.0f);
+			public static Vec3 Red => .(1.0f, 0.0f, 0.0f);
+			public static Vec3 Green => .(0.0f, 1.0f, 0.0f);
+			public static Vec3 Blue => .(0.0f, 0.0f, 1.0f);
+			public static Vec3 Pink => .(1.0f, 0.0f, 1.0f);
+			public static Vec3 Black => .(0.0f, 0.0f, 0.0f);
+			public static Vec3 White => .(1.0f, 1.0f, 1.0f);
+			public static Vec3 Invisible => .(0.0f, 0.0f, 0.0f);
 		}
 
 		public static class RGBA
 		{
-			public static Vec4<f32> Red => .(1.0f, 0.0f, 0.0f, 1.0f);
-			public static Vec4<f32> Green => .(0.0f, 1.0f, 0.0f, 1.0f);
-			public static Vec4<f32> Blue => .(0.0f, 0.0f, 1.0f, 1.0f);
-			public static Vec4<f32> Pink => .(1.0f, 0.0f, 1.0f, 1.0f);
-			public static Vec4<f32> Black => .(0.0f, 0.0f, 0.0f, 1.0f);
-			public static Vec4<f32> White => .(1.0f, 1.0f, 1.0f, 1.0f);
-			public static Vec4<f32> Invisible => .(0.0f, 0.0f, 0.0f, 0.0f);
+			public static Vec4 Red => .(1.0f, 0.0f, 0.0f, 1.0f);
+			public static Vec4 Green => .(0.0f, 1.0f, 0.0f, 1.0f);
+			public static Vec4 Blue => .(0.0f, 0.0f, 1.0f, 1.0f);
+			public static Vec4 Pink => .(1.0f, 0.0f, 1.0f, 1.0f);
+			public static Vec4 Black => .(0.0f, 0.0f, 0.0f, 1.0f);
+			public static Vec4 White => .(1.0f, 1.0f, 1.0f, 1.0f);
+			public static Vec4 Invisible => .(0.0f, 0.0f, 0.0f, 0.0f);
 		}
 	}
 }

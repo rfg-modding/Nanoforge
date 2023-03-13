@@ -14,7 +14,7 @@ namespace Nanoforge.Misc
     {
         public i32 Width { get; private set; }
         public i32 Height { get; private set; }
-        public Vec2<i32> Size => .(Width, Height);
+        public Vec2 Size => .(Width, Height);
         public HWND Handle { get; private set; } = 0;
         public bool Focused { get; private set; } = true;
         public bool ShouldClose { get; private set; } = false;

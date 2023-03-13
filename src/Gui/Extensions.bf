@@ -7,16 +7,16 @@ namespace ImGui
 {
     extension ImGui
     {
-        public static Vec4<f32> SecondaryTextColor => .(0.32f, 0.67f, 1.0f, 1.00f);//.(0.2f, 0.7f, 1.0f, 1.00f) * 0.92f; //Light blue;
-        public static Vec4<f32> TertiaryTextColor => .(0.64f, 0.67f, 0.69f, 1.00f); //Light grey;
-        public static Vec4<f32> Red => .(0.784f, 0.094f, 0.035f, 1.0f);
+        public static Vec4 SecondaryTextColor => .(0.32f, 0.67f, 1.0f, 1.00f);//.(0.2f, 0.7f, 1.0f, 1.00f) * 0.92f; //Light blue;
+        public static Vec4 TertiaryTextColor => .(0.64f, 0.67f, 0.69f, 1.00f); //Light grey;
+        public static Vec4 Red => .(0.784f, 0.094f, 0.035f, 1.0f);
 
         [Comptime]
         private static void ComptimeChecks()
         {
             //I'm using Mirror vector types on some ImGui extension methods for convenience. These need to match up with ImGui vectors to work
             //This doesn't check that the fields are stored in the same order, but I'm not too worried about that since I think it's unlikely that either codebase will reorder x,y,z,w
-            Compiler.Assert(sizeof(Vec4<f32>) == sizeof(ImGui.Vec4));
+            Compiler.Assert(sizeof(Vec4) == sizeof(ImGui.Vec4));
         }
 
         //Version of text that takes StringView & doesn't need to be null terminated
@@ -25,7 +25,7 @@ namespace ImGui
             ImGui.TextEx(text.Ptr, text.EndPtr);
         }
 
-        public static void TextColored(StringView text, Vec4<f32> color)
+        public static void TextColored(StringView text, Vec4 color)
         {
             ImGui.PushStyleColor(.Text, .(color.x, color.y, color.z, color.w));
             ImGui.Text(text);
@@ -69,7 +69,7 @@ namespace ImGui
         }
 
         //Draw label and value next to each other with value using secondary color
-        public static void LabelAndValue(StringView label, StringView value, Vec4<f32> color)
+        public static void LabelAndValue(StringView label, StringView value, Vec4 color)
         {
         	ImGui.Text(label);
         	ImGui.SameLine();
@@ -100,8 +100,8 @@ namespace ImGui
 
         extension Vec4
         {
-            //Conversion from Mirror.Math.Vec4<f32> to ImGui.Vec4
-            public static operator ImGui.Vec4(Vec4<f32> value)
+            //Conversion from Mirror.Math.Vec4 to ImGui.Vec4
+            public static operator ImGui.Vec4(Common.Math.Vec4 value)
             {
                 return .(value.x, value.y, value.z, value.w);
             }

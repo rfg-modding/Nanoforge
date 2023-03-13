@@ -98,7 +98,7 @@ namespace Nanoforge.App.Project
                 switch (fieldType)
                 {
                     case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
-						 typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox), typeof(String):
+						 typeof(Vec2), typeof(Vec3), typeof(Vec4), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox), typeof(String):
                         Compiler.EmitTypeBody(selfType, scope $"    if (this.{fieldName} != S_Target.{fieldName})\n");
                         Compiler.EmitTypeBody(selfType, "    {\n");
                         Compiler.EmitTypeBody(selfType, scope $"        transactions.Add(new SetPropertyTransaction<{genericTypeName}, {fieldTypeName}, \"{fieldName}\">(S_Target, this.{fieldName}, S_Target.{fieldName}));\n");
@@ -159,7 +159,7 @@ namespace Nanoforge.App.Project
                     switch (field.FieldType)
                     {
                         case typeof(i8), typeof(i16), typeof(i32), typeof(i64), typeof(int), typeof(u8), typeof(u16), typeof(u32), typeof(u64), typeof(bool), typeof(f32), typeof(f64),
-                             typeof(Vec2<f32>), typeof(Vec3<f32>), typeof(Vec4<f32>), typeof(Mat2), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox):
+                             typeof(Vec2), typeof(Vec3), typeof(Vec4), typeof(Mat3), typeof(Mat4), typeof(Rect), typeof(BoundingBox):
                             Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName} = this.{fieldName};\n");
                         case typeof(String):
                             Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName}.Set(this.{fieldName});\n");

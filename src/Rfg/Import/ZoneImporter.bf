@@ -196,7 +196,7 @@ namespace Nanoforge.Rfg.Import
             relatives[obj] = (rfgObj.Parent, rfgObj.Child, rfgObj.Sibling); //Store relations in temporary dictionary. They get applied to the related properties once all objects are loaded
 
             //Position & orient
-            if (rfgObj.GetVec3("just_pos") case .Ok(Vec3<f32> val))
+            if (rfgObj.GetVec3("just_pos") case .Ok(Vec3 val))
             {
                 obj.Position = val;
                 obj.Orient = .Identity;

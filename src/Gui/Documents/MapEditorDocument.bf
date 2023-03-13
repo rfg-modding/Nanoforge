@@ -221,7 +221,7 @@ namespace Nanoforge.Gui.Documents
             {
                 for (ZoneObject obj in zone.Objects)
                 {
-                    Vec4<f32> color = .((f32)(rand.NextI32() % 255) / 255.0f, (f32)(rand.NextI32() % 255) / 255.0f, (f32)(rand.NextI32() % 255) / 255.0f, 1.0f);
+                    Vec4 color = .((f32)(rand.NextI32() % 255) / 255.0f, (f32)(rand.NextI32() % 255) / 255.0f, (f32)(rand.NextI32() % 255) / 255.0f, 1.0f);
                     color *= 1.9f;
                     _scene.DrawBox(obj.BBox.Min, obj.BBox.Max, color);
                 }
@@ -258,8 +258,8 @@ namespace Nanoforge.Gui.Documents
             }
 
             //Set custom highlight colors for the table
-            Vec4<f32> selectedColor = .(0.157f, 0.350f, 0.588f, 1.0f);
-            Vec4<f32> highlightedColor = selectedColor * 1.1f;
+            Vec4 selectedColor = .(0.157f, 0.350f, 0.588f, 1.0f);
+            Vec4 highlightedColor = selectedColor * 1.1f;
             ImGui.PushStyleColor(.Header, selectedColor);
             ImGui.PushStyleColor(.HeaderHovered, highlightedColor);
             ImGui.PushStyleColor(.HeaderActive, highlightedColor);

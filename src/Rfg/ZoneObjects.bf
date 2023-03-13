@@ -44,7 +44,7 @@ namespace Nanoforge.Rfg
         }
 
         [EditorProperty]
-        public Vec3<f32> Position = .Zero;
+        public Vec3 Position = .Zero;
         [EditorProperty]
         public Mat3 Orient = .Identity;
 
@@ -351,15 +351,15 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public LightTypeEnum LightType;
         [EditorProperty]
-        public Vec3<f32> Color;
+        public Vec3 Color;
         [EditorProperty]
         public f32 HotspotSize;
         [EditorProperty]
         public f32 HotspotFalloffSize;
         [EditorProperty]
-        public Vec3<f32> MinClip;
+        public Vec3 MinClip;
         [EditorProperty]
-        public Vec3<f32> MaxClip;
+        public Vec3 MaxClip;
         [EditorProperty]
         public i32 ClipMesh;
 

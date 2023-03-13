@@ -10,18 +10,18 @@ namespace Nanoforge.Render.Resources
     {
         public Mat4 MVP;
         public Mat4 Rotation;
-        public Vec4<f32> WorldPosition;
+        public Vec4 WorldPosition;
     }
 
 	public class RenderObject
 	{
         public Mesh ObjectMesh ~delete _;
-        public Vec3<f32> Scale = .(1.0f, 1.0f, 1.0f);
-        public Vec3<f32> Position = .Zero;
+        public Vec3 Scale = .(1.0f, 1.0f, 1.0f);
+        public Vec3 Position = .Zero;
         public Mat3 Rotation = .Identity;
         public bool Visible = true;
 
-        public this(Mesh mesh, Vec3<f32> position, Mat3 rotation = .Identity)
+        public this(Mesh mesh, Vec3 position, Mat3 rotation = .Identity)
         {
             ObjectMesh = mesh;
             Position = position;

@@ -9,8 +9,8 @@ namespace Nanoforge.Render
 {
     public class Camera3D
     {
-        public Vec3<f32> Position = .Zero;
-        public Vec3<f32> TargetPosition;
+        public Vec3 Position = .Zero;
+        public Vec3 TargetPosition;
         public Mat4 View = .Identity;
         public Mat4 Projection = .Identity;
         public f32 Speed = 10.0f;
@@ -22,16 +22,16 @@ namespace Nanoforge.Render
         private f32 _fovRadians = 0.0f;
         private f32 _pitchRadians = 0.0f;
         private f32 _yawRadians = 0.0f;
-        private Vec2<f32> _viewportDimensions;
+        private Vec2 _viewportDimensions;
         private f32 _aspectRatio = 0.0f;
         private f32 _nearPlane = 0.0f;
         private f32 _farPlane = 0.0f;
 
-        private Vec3<f32> _camUp = .Zero;
-        private Vec3<f32> _camRight = .Zero;
-        private Vec3<f32> _camForward = .Zero;
+        private Vec3 _camUp = .Zero;
+        private Vec3 _camRight = .Zero;
+        private Vec3 _camForward = .Zero;
 
-        public void Init(Vec3<f32> initialPos, f32 initialFovDegrees, Vec2<f32> viewportDimensions, f32 nearPlane, f32 farPlane)
+        public void Init(Vec3 initialPos, f32 initialFovDegrees, Vec2 viewportDimensions, f32 nearPlane, f32 farPlane)
         {
             Position = initialPos;
             TargetPosition = initialPos;
@@ -41,7 +41,7 @@ namespace Nanoforge.Render
             _nearPlane = nearPlane;
             _farPlane = farPlane;
 
-            Vec3<f32> forward = (-1.0f * initialPos).Normalized();
+            Vec3 forward = (-1.0f * initialPos).Normalized();
             _pitchRadians = Math.Asin(-forward.y);
             _yawRadians = 0.0f;
 
@@ -87,8 +87,8 @@ namespace Nanoforge.Render
 
         private void UpdateViewMatrix()
         {
-            Vec3<f32> defaultForward = .(0.0f, 0.0f, 1.0f);
-            Vec3<f32> defaultRight = .(1.0f, 0.0f, 0.0f);
+            Vec3 defaultForward = .(0.0f, 0.0f, 1.0f);
+            Vec3 defaultRight = .(1.0f, 0.0f, 0.0f);
 
             //Form rotation matrix
             Mat4 rotation = Mat4.RotationPitchYawRoll(_pitchRadians, _yawRadians, 0.0f);
@@ -99,7 +99,7 @@ namespace Nanoforge.Render
             _camUp = _camForward.Cross(_camRight);
 
             //Recalculate view matrix
-            Vec3<f32> focus = Position + DirectXMath.Transform(defaultForward, rotation).Normalized();
+            Vec3 focus = Position + DirectXMath.Transform(defaultForward, rotation).Normalized();
             View = Mat4.LookAtLH(Position, focus, _camUp);
         }
 
@@ -125,32 +125,32 @@ namespace Nanoforge.Render
             }
         }
 
-        private Vec3<f32> Up()
+        private Vec3 Up()
         {
             return _camUp;
         }
 
-        private Vec3<f32> Down()
+        private Vec3 Down()
         {
             return -1.0f * Up();
         }
 
-        private Vec3<f32> Left()
+        private Vec3 Left()
         {
             return -1.0f * Right();
         }
 
-        private Vec3<f32> Right()
+        private Vec3 Right()
         {
             return _camRight;
         }
 
-        private Vec3<f32> Forward()
+        private Vec3 Forward()
         {
             return _camForward;
         }
 
-        private Vec3<f32> Backward()
+        private Vec3 Backward()
         {
             return -1.0f * Forward();
         }

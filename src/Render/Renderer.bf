@@ -17,7 +17,7 @@ namespace Nanoforge.Render
 	[System]
 	public class Renderer : ISystem
 	{
-		public Vec4<f32> ClearColor = .(0.0f, 0.0f, 0.0f, 1.0f);
+		public Vec4 ClearColor = .(0.0f, 0.0f, 0.0f, 1.0f);
         public ID3D11Device* Device => _device;
         public ID3D11DeviceContext* Context => _context;
         public List<Scene> Scenes = new .() ~DeleteContainerAndItems!(_);

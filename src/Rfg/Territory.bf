@@ -39,7 +39,7 @@ namespace Nanoforge.Rfg
         public append List<ZoneObject> Objects = .();
 
         [EditorProperty]
-        public Vec3<f32> TerrainPosition = .Zero;
+        public Vec3 TerrainPosition = .Zero;
 
         public ProjectBuffer[9] LowLodTerrainIndexBuffers;
         public ProjectBuffer[9] LowLodTerrainVertexBuffers;
@@ -49,7 +49,7 @@ namespace Nanoforge.Rfg
         public ProjectBuffer[9] HighLodTerrainIndexBuffers;
         public ProjectBuffer[9] HighLodTerrainVertexBuffers;
         public MeshDataBlock[9] HighLodTerrainMeshConfig;
-        public Vec3<f32>[9] HighLodTerrainMeshPositions;
+        public Vec3[9] HighLodTerrainMeshPositions;
 
         public ~this()
         {

@@ -23,7 +23,7 @@ namespace Nanoforge.Tests
             public f32 Float0;
 
             [EditorProperty]
-            public Vec3<f32> Vec3F0 = .Zero;
+            public Vec3 Vec3F0 = .Zero;
 
             [EditorProperty]
             public bool Boolean1;
@@ -59,7 +59,7 @@ namespace Nanoforge.Tests
                 obj.Int0 = 400;
             }
 
-            Vec3<f32> obj2Vec3F0_initialState = obj2.Vec3F0;
+            Vec3 obj2Vec3F0_initialState = obj2.Vec3F0;
             using (var changes = BeginCommit!("Change tracking for multiple objects"))
             {
                 changes.Track(obj);
@@ -71,11 +71,11 @@ namespace Nanoforge.Tests
 
             //TODO: Put this in a separate function & add asserts to confirm undo/redo worked correctly
             //TODO: Maybe make helpers to make undo/redo validation for a ton of properties simpler
-            Vec3<f32> obj2Vec3F0_finalState = obj2.Vec3F0;
+            Vec3 obj2Vec3F0_finalState = obj2.Vec3F0;
             ProjectDB.Undo();
-            Vec3<f32> obj2Vec3F0_postUndoState = obj2.Vec3F0;
+            Vec3 obj2Vec3F0_postUndoState = obj2.Vec3F0;
             ProjectDB.Redo();
-            Vec3<f32> obj2Vec3F0_postRedoState = obj2.Vec3F0;
+            Vec3 obj2Vec3F0_postRedoState = obj2.Vec3F0;
             var debug3 = 0;
         }
 
