@@ -1,6 +1,5 @@
 FileVersion = 1
-Projects = {Nanoforge = {Path = "."}, RfgTools = {Path = "Dependencies/RfgTools"}, "Beef.Linq" = {Path = "Dependencies/Beef.Linq/src"}, ImGui = {Path = "Dependencies/imgui-beef"}, Common = {Path = "Dependencies/Common"}}
-Unlocked = ["Zlib"]
+Projects = {Nanoforge = {Path = "."}, RfgTools = {Path = "Dependencies/RfgTools"}, "Beef.Linq" = {Path = "Dependencies/Beef.Linq/src"}, ImGui = {Path = "Dependencies/imgui-beef"}, Common = {Path = "Dependencies/Common"}, Zlib={Path = "Dependencies/RfgTools/Dependencies/ZlibBeef"}}
 
 [Workspace]
 StartupProject = "Nanoforge"
