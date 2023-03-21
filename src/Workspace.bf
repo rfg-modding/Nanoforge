@@ -1,14 +1,15 @@
-// Generator=Nanoforge:Nanoforge.Misc.Generators.WorkspaceGenerator
-// Name=Workspace
-// GenHash=507BD6D2A1411B5EF920C5DD8F3E3005
-
+using Common;
 using System;
 
 namespace Nanoforge
 {
-    public static class Workspace
-    {
-        public static StringView Directory = @"C:\Users\lukem\source\repos\Nanoforge";
-        public static StringView Name = @"Nanoforge";
-    }
+	public static class Workspace
+	{
+        [OnCompile(.TypeInit), Comptime]
+        private static void EmitWorkspaceFields()
+        {
+            Compiler.EmitTypeBody(typeof(Workspace), scope $"public static StringView Directory = @\"{System.IO.Directory.GetCurrentDirectory(.. scope .())}\\\";\n");
+            Compiler.EmitTypeBody(typeof(Workspace), scope $"public static StringView Name = \"{Compiler.CallerProject}\";");
+        }
+	}
 }
