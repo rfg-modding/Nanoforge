@@ -43,7 +43,7 @@ namespace Nanoforge.App
         {
             var instances = new List<T>();
             var listeners = new List<delegate void(ref T event)>();
-            delegate void() updateListeners = new [&] () =>
+            delegate void() updateListeners = new [?] () =>
                 {
                     for (var instance in ref instances)
                         for (var listener in listeners)
@@ -51,7 +51,7 @@ namespace Nanoforge.App
 
                     instances.Clear();
                 };
-            delegate void() destroy = new [&] () =>
+            delegate void() destroy = new [?] () =>
                 {
                     for (var listener in listeners)
                         delete listener;
