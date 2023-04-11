@@ -74,107 +74,17 @@ namespace Nanoforge.Gui.Documents
             }
 
             //Import complete. Now load
-            Map.Load();
-
-            //Create render objects for low lod meshes
-            for (Zone zone in Map.Zones)
+            if (Map.Load(renderer, _scene) case .Err(StringView err))
             {
-                for (int i in 0 ... 8)
-                {
-                    List<u8> indexBuffer = null;
-                    List<u8> vertexBuffer = null;
-                    defer { DeleteIfSet!(indexBuffer); }
-                    defer { DeleteIfSet!(vertexBuffer); }
-                    if (zone.LowLodTerrainIndexBuffers[i].Load() case .Ok(let val))
-                    {
-						indexBuffer = val;
-                    }
-                    else
-                    {
-                        Logger.Error("Failed to load index buffer for low lod terrain submesh {} of {}.", i, zone.Name);
-                        continue;
-                    }
-                    if (zone.LowLodTerrainVertexBuffers[i].Load() case .Ok(let val))
-                    {
-                    	vertexBuffer = val;
-                    }
-                    else
-                    {
-                        Logger.Error("Failed to load vertex buffer for low lod terrain submesh {} of {}.", i, zone.Name);
-                        continue;
-                    }
-
-                    Mesh mesh = new .();
-                    if (mesh.Init(renderer.Device, zone.LowLodTerrainMeshConfig[i], indexBuffer, vertexBuffer) case .Ok)
-                    {
-                        switch (_scene.CreateRenderObject("TerrainLowLod", mesh, zone.TerrainPosition, .Identity))
-                        {
-                            case .Ok(RenderObject obj):
-                                obj.Visible = false; //Hide low lod terrain by default
-                            case .Err:
-                                Logger.Error("Failed to create render object for low lod terrain submesh {} of {}", i, zone.Name);
-                                continue;
-                        }
-                    }
-                    else
-                    {
-                        Logger.Error("Failed to create render object for low lod terrain submesh {} of {}", i, zone.Name);
-                        delete mesh;
-                    }
-                }
-            }
-
-            //Create render objects for high lod meshes
-            for (Zone zone in Map.Zones)
-            {
-                for (int i in 0 ... 8)
-                {
-                    List<u8> indexBuffer = null;
-                    List<u8> vertexBuffer = null;
-                    defer { DeleteIfSet!(indexBuffer); }
-                    defer { DeleteIfSet!(vertexBuffer); }
-                    if (zone.HighLodTerrainIndexBuffers[i].Load() case .Ok(let val))
-                    {
-            			indexBuffer = val;
-                    }
-                    else
-                    {
-                        Logger.Error("Failed to load index buffer for high lod terrain submesh {} of {}.", i, zone.Name);
-                        continue;
-                    }
-                    if (zone.HighLodTerrainVertexBuffers[i].Load() case .Ok(let val))
-                    {
-                    	vertexBuffer = val;
-                    }
-                    else
-                    {
-                        Logger.Error("Failed to load vertex buffer for high lod terrain submesh {} of {}.", i, zone.Name);
-                        continue;
-                    }
-
-                    Mesh mesh = new .();
-                    if (mesh.Init(renderer.Device, zone.HighLodTerrainMeshConfig[i], indexBuffer, vertexBuffer) case .Ok)
-                    {
-                        switch (_scene.CreateRenderObject("Terrain", mesh, zone.HighLodTerrainMeshPositions[i], .Identity))
-                        {
-                            case .Ok(RenderObject obj):
-                                obj.Visible = true; //Show high lod terrain by default
-                            case .Err:
-                                Logger.Error("Failed to create render object for high lod terrain submesh {} of {}", i, zone.Name);
-                                continue;
-                        }
-                    }
-                    else
-                    {
-                        Logger.Error("Failed to create render object for high lod terrain submesh {} of {}", i, zone.Name);
-                        delete mesh;
-                    }
-                }
+                Logger.Error("An error occurred while loading {}. Halting loading. Error: {}", MapName, err);
+                _loadFailure = true;
+                _loadFailureReason = err;
+                return;
             }
 
             //Temporary hardcoded settings for high lod terrain rendering. Will be removed once config gui is added
             _scene.PerFrameConstants.ShadeMode = 1;
-            _scene.PerFrameConstants.DiffuseIntensity = 0.75f;
+            _scene.PerFrameConstants.DiffuseIntensity = 1.2f;
             _scene.PerFrameConstants.DiffuseColor = Colors.RGBA.White;
 
             Logger.Info("{} loaded in {}s", MapName, loadTimer.Elapsed.TotalSeconds);
@@ -254,6 +164,11 @@ namespace Nanoforge.Gui.Documents
             if (Loading)
             {
                 ImGui.Text("Map is loading...");
+                return;
+            }
+            else if (_loadFailure)
+            {
+                ImGui.Text(scope $"Load error! {_loadFailureReason}");
                 return;
             }
 

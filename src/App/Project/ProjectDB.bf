@@ -51,16 +51,24 @@ namespace Nanoforge.App
             return obj;
         }
 
-        public static ProjectBuffer CreateBuffer(Span<u8> bytes = .Empty, StringView name = "")
+        public static Result<ProjectBuffer> CreateBuffer(Span<u8> bytes = .Empty, StringView name = "")
         {
             _bufferCreationLock.Enter();
-            u64 uid = _nextBufferUID++;
+            u64 uid = _nextBufferUID;
             ProjectBuffer buffer = new .(uid, bytes.Length, name);
-            _buffers[uid] = buffer;
-            _bufferCreationLock.Exit();
-
             if (!bytes.IsEmpty)
-                buffer.Save(bytes);
+            {
+                if (buffer.Save(bytes) case .Err)
+                {
+                    Logger.Error("Error creating new project buffer '{}'. Failed to save.", name);
+                    delete buffer;
+                    return .Err;
+                }
+            }
+
+            _buffers[uid] = buffer;
+            _nextBufferUID++;
+            _bufferCreationLock.Exit();
             return buffer;
         }
 
@@ -119,6 +127,16 @@ namespace Nanoforge.App
         {
             Object obj = Find(name);
             return (obj != null && obj.GetType() == typeof(T)) ? (T)obj : null;
+        }
+
+        public static T FindOrCreate<T>(StringView name) where T : EditorObject
+        {
+            T find = Find<T>(name);
+            if (find == null)
+            {
+                find = CreateObject<T>(name);
+            }
+            return find;
         }
 
         public static void Reset()

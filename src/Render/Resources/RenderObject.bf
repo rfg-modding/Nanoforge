@@ -20,6 +20,8 @@ namespace Nanoforge.Render.Resources
         public Vec3 Position = .Zero;
         public Mat3 Rotation = .Identity;
         public bool Visible = true;
+        public bool UseTextures = false;
+        public Texture2D[10] Textures;
 
         public this(Mesh mesh, Vec3 position, Mat3 rotation = .Identity)
         {
@@ -52,6 +54,18 @@ namespace Nanoforge.Render.Resources
 
             //Set constants
             perObjectBuffer.SetData(context, &constants);
+
+            //Bind textures
+            if (UseTextures)
+            {
+                for (u32 i in 0 ... 9)
+                {
+                    if (Textures[i] != null)
+                    {
+                        Textures[i].Bind(context, i);
+                    }
+                }
+            }
 
             ObjectMesh.Draw(context);
         }
