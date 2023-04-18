@@ -15,7 +15,7 @@ namespace Nanoforge.Rfg.Import
 {
 	public static class TerrainImporter
 	{
-        public static Result<void> LoadTerrain(PackfileV3 packfile, Zone zone, DiffUtil changes, StringView name)
+        public static Result<void> LoadTerrain(StringView packfileName, Zone zone, DiffUtil changes, StringView name)
         {
             Logger.Info("Importing primary terrain files...");
 
@@ -31,48 +31,23 @@ namespace Nanoforge.Rfg.Import
                 }
             }
 
-            //Load ns_base.str2_pc. Contains the terrain meshes. This will need to be changed when SP support is added since SP vpp structure is more complex
-            var str2ReadResult = packfile.ReadSingleFile("ns_base.str2_pc");
-            if (str2ReadResult case .Err(StringView err))
-            {
-                Logger.Error("Failed to load ns_base.str2_pc for terrain import. Error: {}", err);
-                return .Err;
-            }
-
-            //Parse ns_base.str2_pc
-            defer delete str2ReadResult.Value;
-            PackfileV3 nsBase = scope .(new ByteSpanStream(str2ReadResult.Value), "ns_base.str2_pc");
-            if (nsBase.ReadMetadata() case .Err(StringView err))
-            {
-                Logger.Info("Failed to parse ns_base.str2_pc for terrain import. Error: {}", err);
-                return .Err;
-            }
-
             //Get cterrain_pc and gterrain_pc files
-            u8[] cpuFile = null;
-            u8[] gpuFile = null;
-            defer { DeleteIfSet!(cpuFile); }
-            defer { DeleteIfSet!(gpuFile); }
+            Result<u8[]> cpuFile = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/ns_base.str2_pc/{name}.cterrain_pc");
+            if (cpuFile case .Err)
+            {
+				return .Err;
+			}
+            defer delete cpuFile.Value;
 
-            switch (nsBase.ReadSingleFile(scope $"{name}.cterrain_pc"))
+            Result<u8[]> gpuFile = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/ns_base.str2_pc/{name}.gterrain_pc");
+            if (gpuFile case .Err)
             {
-                case .Ok(u8[] bytes):
-                    cpuFile = bytes;
-                case .Err(StringView err):
-                    Logger.Error("Failed to extract cterrain_pc file. Error: {}", err);
-                    return .Err;
+                return .Err;
             }
-            switch (nsBase.ReadSingleFile(scope $"{name}.gterrain_pc"))
-            {
-                case .Ok(u8[] bytes):
-                    gpuFile = bytes;
-                case .Err(StringView err):
-                    Logger.Error("Failed to extract gterrain_pc file. Error: {}", err);
-                    return .Err;
-            }
+            defer delete gpuFile.Value;
 
             Terrain terrainFile = scope .();
-            if (terrainFile.Load(cpuFile, gpuFile, false) case .Err(StringView err))
+            if (terrainFile.Load(cpuFile.Value, gpuFile.Value, false) case .Err(StringView err))
             {
                 Logger.Error("Failed to parse cterrain_pc file. Error: {}", err);
                 return .Err;
@@ -97,7 +72,7 @@ namespace Nanoforge.Rfg.Import
             Logger.Info("Done importing primary terrain files");
 
             //Index textures in this maps packfile + common file
-            TextureIndex.IndexVpp(packfile.Name).IgnoreError();
+            TextureIndex.IndexVpp(packfileName).IgnoreError();
             TextureIndex.IndexVpp("mp_common.vpp_pc").IgnoreError(); //TODO: Do this based on precache file name instead of hardcoding it
 
             //Load zone-wide textures
@@ -120,32 +95,26 @@ namespace Nanoforge.Rfg.Import
             for (int i in 0 ... 8)
             {
                 Logger.Info("Importing subzone {}...", i);
-                u8[] subzoneCpuFile = null;
-                u8[] subzoneGpuFile = null;
-                defer { DeleteIfSet!(subzoneCpuFile); }
-                defer { DeleteIfSet!(subzoneGpuFile); }
-
                 Logger.Info("Loading subzone files...");
-                switch (nsBase.ReadSingleFile(scope $"{name}_{i}.ctmesh_pc"))
+                Result<u8[]> subzoneCpuFile = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/ns_base.str2_pc/{name}_{i}.ctmesh_pc");
+                if (subzoneCpuFile case .Err)
                 {
-                    case .Ok(u8[] bytes):
-                        subzoneCpuFile = bytes;
-                    case .Err(StringView err):
-                        Logger.Error("Failed to extract terrain subzone {}_{}.ctmesh_pc. Error: {}", name, i, err);
-                        return .Err;
+                    Logger.Error("Failed to extract terrain subzone {}_{}.ctmesh_pc.", name, i);
+                    return .Err;
                 }
-                switch (nsBase.ReadSingleFile(scope $"{name}_{i}.gtmesh_pc"))
+                defer delete subzoneCpuFile.Value;
+
+                Result<u8[]> subzoneGpuFile = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/ns_base.str2_pc/{name}_{i}.gtmesh_pc");
+                if (subzoneGpuFile case .Err)
                 {
-                    case .Ok(u8[] bytes):
-                        subzoneGpuFile = bytes;
-                    case .Err(StringView err):
-                        Logger.Error("Failed to extract terrain subzone {}_{}.gtmesh_pc. Error: {}", name, i, err);
-                        return .Err;
+                    Logger.Error("Failed to extract terrain subzone {}_{}.gtmesh_pc.", name, i);
+                    return .Err;
                 }
+                defer delete subzoneGpuFile.Value;
 
                 Logger.Info("Parsing subzone files...");
                 TerrainSubzone subzoneFile = scope .();
-                if (subzoneFile.Load(subzoneCpuFile, subzoneGpuFile, false) case .Err(StringView err))
+                if (subzoneFile.Load(subzoneCpuFile.Value, subzoneGpuFile.Value, false) case .Err(StringView err))
                 {
                     Logger.Error("Failed to parse {}_{}.ctmesh_pc. Error: {}", name, i, err);
                     return .Err;
@@ -301,20 +270,20 @@ namespace Nanoforge.Rfg.Import
             //Extract cpu file & gpu file
             u8[] cpuFileBytes = null; defer { DeleteIfSet!(cpuFileBytes); }
             u8[] gpuFileBytes = null; defer { DeleteIfSet!(gpuFileBytes); }
-            switch (PackfileVFS.GetFileBytes(pegCpuFilePath))
+            switch (PackfileVFS.ReadAllBytes(pegCpuFilePath))
             {
                 case .Ok(u8[] bytes):
                     cpuFileBytes = bytes;
-                case .Err(StringView err):
-                    Logger.Error("Failed to extract cpu file for rfg texture {} during map import. Error: {}", tgaName, err);
+                case .Err:
+                    Logger.Error("Failed to extract cpu file for rfg texture {} during map import.", tgaName);
                     return .Err;
             }
-            switch (PackfileVFS.GetFileBytes(pegGpuFilePath))
+            switch (PackfileVFS.ReadAllBytes(pegGpuFilePath))
             {
                 case .Ok(u8[] bytes):
                     gpuFileBytes = bytes;
-                case .Err(StringView err):
-                    Logger.Error("Failed to extract gpu file for rfg texture {} during map import. Error: {}", tgaName, err);
+                case .Err:
+                    Logger.Error("Failed to extract gpu file for rfg texture {} during map import.", tgaName);
                     return .Err;
             }
 

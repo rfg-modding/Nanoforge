@@ -19,7 +19,7 @@ namespace Nanoforge.Systems
 		[SystemInit]
 		void Init(App app)
 		{
-            PackfileVFS.SetDataFolder(DataFolderPath);
+            PackfileVFS.InitFromDirectory("//data/", DataFolderPath);
 		}
 
 		[SystemStage]

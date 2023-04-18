@@ -47,79 +47,37 @@ namespace Nanoforge.Rfg
 
             Logger.Info("Indexing {}...", vppName);
 
-            PackfileV3 vpp = null;
-            switch (PackfileVFS.GetPackfile(vppName))
-            {
-                case .Ok(PackfileV3 packfile):
-                    vpp = packfile;
-                case .Err(StringView err):
-                    Logger.Error("Failed to find packfile '{}' for texture indexing", vppName);
-                    return .Err(err);
-            }
-
             PackfileTextureIndex vppIndex = new .(vppName);
             bool success = false;
             defer { if (!success) delete vppIndex; }
 
-            for (int i in 0 ..< vpp.Entries.Count)
+            for (var entry in PackfileVFS.Enumerate(scope $"//data/{vppName}/"))
             {
-                StringView entryName = vpp.EntryNames[i];
-                String ext = Path.GetExtension(entryName, .. scope .())..ToLower();
+                String ext = Path.GetExtension(entry.Name, .. scope .())..ToLower();
                 if (ext == ".cpeg_pc" || ext == ".cvbm_pc") //Index pegs
                 {
-                    switch (vpp.ReadSingleFile(entryName))
+                    if (IndexPeg(entry as PackfileVFS.FileEntry, vppIndex) case .Err(StringView err))
                     {
-                        case .Ok(u8[] cpuFileBytes):
-                            defer delete cpuFileBytes;
-                            if (IndexPeg(cpuFileBytes, entryName, vppIndex) case .Err(StringView err))
-                            {
-                                Logger.Error("Failed to index {}/{}. Error: {}", vpp.Name, entryName);
-                                return .Err(err);
-                            }
-
-                        case .Err(StringView err):
-                            Logger.Error("Failed to extract {}/{}.", vpp.Name, entryName);
-                            return .Err(err);
+                        Logger.Error("Failed to index {}/{}. Error: {}", vppName, entry.Name);
+                        return .Err(err);
                     }
                 }
                 else if (ext == ".str2_pc") //Index pegs in asset containers
                 {
                     //Extract and parse str2_pc, then load all its subfiles
-                    MemoryFileList subfiles = null;
-                    defer { if (subfiles != null) delete subfiles; }
-                    switch (vpp.ReadSingleFile(entryName))
+                    PackfileVFS.DirectoryEntry container = entry as PackfileVFS.DirectoryEntry;
+                    PackfileTextureIndex str2Index = new .(scope $"{vppName}/{entry.Name}");
+                    for (var subEntry in container)
                     {
-                        case .Ok(u8[] str2Bytes):
-                            defer delete str2Bytes;
-                            PackfileV3 str2 = scope .(new ByteSpanStream(str2Bytes), entryName);
-                            if (str2.ReadMetadata() case .Err(StringView err))
-                            {
-                                Logger.Error("Failed to parse {} for texturing indexing. Error: {}", entryName, err);
-                                return .Err(err);
-                            }
+                        if (!subEntry.IsFile)
+                            continue;
 
-                            switch (str2.ExtractSubfilesToMemory())
-                            {
-                                case .Ok(MemoryFileList files):
-                                    subfiles = files;
-                                case .Err(StringView err):
-                                    Logger.Error("Failed to extract {} subfiles for texture indexing. Error: {}", entryName, err);
-                                    return .Err(err);
-                            }
-                        case .Err(StringView err):
-                            Logger.Error("Failed to extract {} for texture indexing. Error: {}", entryName, err);
-                            return .Err(err);
-                    }
-
-                    PackfileTextureIndex str2Index = new .(scope $"{vpp.Name}/{entryName}");
-                    for (var file in subfiles.Files)
-                    {
-                        String subfileExt = Path.GetExtension(file.Name, .. scope .())..ToLower();
+                        String subfileExt = Path.GetExtension(subEntry.Name, .. scope .())..ToLower();
                         if (subfileExt == ".cpeg_pc" || subfileExt == ".cvbm_pc")
                         {
-                            if (IndexPeg(file.Data, file.Name, str2Index) case .Err(StringView err))
+                            if (IndexPeg(subEntry as PackfileVFS.FileEntry, str2Index) case .Err(StringView err))
                             {
-                                Logger.Error("Failed to index {}/{}. Error: {}", vpp.Name, entryName);
+                                Logger.Error("Failed to index {}/{}. Error: {}", vppName, entry.Name, err);
                                 delete str2Index;
                                 return .Err(err);
                             }
@@ -142,18 +100,27 @@ namespace Nanoforge.Rfg
             ScopedLock!(_indexLock);
             _packfileIndices.Add(vppIndex);
 
+            Logger.Info("Done indexing {}", vppName);
             success = true;
             return .Ok;
         }
 
-        private static Result<void, StringView> IndexPeg(Span<u8> cpuFileBytes, StringView pegName, PackfileTextureIndex packfileIndex)
+        private static Result<void, StringView> IndexPeg(PackfileVFS.FileEntry entry, PackfileTextureIndex packfileIndex)//(Span<u8> cpuFileBytes, StringView pegName, PackfileTextureIndex packfileIndex)
         {
             PegV10 peg = scope .();
-            switch (peg.Load(cpuFileBytes, .Empty, true))
+            Result<u8[]> cpuFileBytes = PackfileVFS.ReadAllBytes(entry);
+            if (cpuFileBytes case .Err)
+            {
+                Logger.Error("Texture indexer failed to read bytes for {}", entry.Name);
+                return .Err("Failed to read peg cpu file bytes");
+            }
+            defer delete cpuFileBytes.Value;
+
+            switch (peg.Load(cpuFileBytes.Value, .Empty, true))
             {
                 case .Ok:
                     PegTextureIndex pegIndex = new .();
-                    pegIndex.Name.Set(pegName);
+                    pegIndex.Name.Set(entry.Name);
                     for (int i in 0 ..< peg.Entries.Length)
                     {
                         if (peg.GetEntryName(i) case .Ok(char8* entryName))
@@ -173,23 +140,6 @@ namespace Nanoforge.Rfg
             }
 
             return .Ok;
-        }
-
-        public static void TestIndexAllVpps()
-        {
-            Stopwatch totalTimer = scope .(true);
-            for (PackfileV3 packfile in PackfileVFS.Packfiles)
-            {
-                Stopwatch timer = scope .(true);
-                switch (IndexVpp(packfile.Name))
-                {
-                    case .Ok:
-                        Logger.Info("Done indexing textures in {}. Took {}s", packfile.Name, timer.Elapsed.TotalSeconds);
-                    case .Err(StringView err):
-                        Logger.Error("Failed to index {}. Error: {}", packfile.Name, err);
-                }
-            }
-            Logger.Info("Finished indexing textures for all packfiles in the data folder. Took {}s", totalTimer.Elapsed.TotalSeconds);
         }
 
         public static bool IsPackfileIndexed(StringView path)
@@ -214,7 +164,7 @@ namespace Nanoforge.Rfg
                         if (hash == tgaNameHash)
                         {
                             //Sets 'path' to the path of the peg file on success. PackfileVFS can extract the peg with that path.
-                            path.Set(scope $"{packfileIndex.Path}/{pegIndex.Name}");
+                            path.Set(scope $"//data/{packfileIndex.Path}/{pegIndex.Name}");
                             return .Ok;
                         }
                     }

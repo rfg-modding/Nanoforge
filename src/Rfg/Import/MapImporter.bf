@@ -25,31 +25,24 @@ namespace Nanoforge.Rfg.Import
                 Territory map = changes.CreateObject<Territory>(name);
                 map.PackfileName.Set(scope $"{name}.vpp_pc");
 
-                //Find primary packfile
-                var packfileSearch = PackfileVFS.GetPackfile(map.PackfileName);
-                if (packfileSearch case .Err(let err))
-                {
-                    Logger.Error(scope $"Map importer failed to locate primary packfile '{map.PackfileName}'");
-                    changes.Rollback();
-					return .Err("Failed to find the maps primary packfile. Check the log.");
-				}
+                //Preload all files in this map. Most important for str2_pc files since they require full unpack even for a single file
+                PackfileVFS.PreloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
+                defer PackfileVFS.UnloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
 
                 //Import zones
                 Logger.Info("Importing zones...");
-                PackfileV3 packfile = packfileSearch.Value;
-                for (int i in 0..<packfile.Entries.Count)
+                for (var entry in PackfileVFS.Enumerate(scope $"//data/{map.PackfileName}/"))
                 {
-                    StringView entryName = packfile.EntryNames[i];
-                    if (Path.GetExtension(entryName, .. scope .()) != ".rfgzone_pc" || entryName.StartsWith("p_", .OrdinalIgnoreCase))
-                        continue;
+                    if (Path.GetExtension(entry.Name, .. scope .()) != ".rfgzone_pc" || entry.Name.StartsWith("p_", .OrdinalIgnoreCase))
+	                    continue;
 
-                    switch (ImportZone(packfile, entryName, changes))
+                    switch (ImportZone(map.PackfileName, entry.Name, changes))
                     {
                         case .Ok(let zone):
                             map.Zones.Add(zone);
                         case .Err(let err):
-                            Logger.Error(scope $"Failed to import zone '{entryName}' for '{name}'. {err}");
-                            changes.Rollback();
+                            Logger.Error(scope $"Failed to import zone '{entry.Name}' for '{name}'. {err}");
+                            //changes.Rollback();
                             return .Err("Failed to import a zone. Check the log.");
                     }
                 }
@@ -59,7 +52,7 @@ namespace Nanoforge.Rfg.Import
                 Logger.Info("Importing terrain...");
                 for (Zone zone in map.Zones)
                 {
-                    if (TerrainImporter.LoadTerrain(packfile, zone, changes, name) case .Err)
+                    if (TerrainImporter.LoadTerrain(map.PackfileName, zone, changes, name) case .Err)
                     {
                         Logger.Error("Failed to import terrain for zone '{}'", zone.Name);
                         changes.Rollback();
@@ -75,7 +68,7 @@ namespace Nanoforge.Rfg.Import
                 }
 
                 //Load additional map data if present
-                if (packfile.Contains("EditorData.xml"))
+                if (PackfileVFS.Exists(scope $"//data/{map.PackfileName}/EditorData.xml"))
                 {
                     //TODO: Implement
                 }
@@ -84,9 +77,9 @@ namespace Nanoforge.Rfg.Import
             }
         }
 
-        public static Result<Zone, StringView> ImportZone(PackfileV3 packfile, StringView filename, DiffUtil changes)
+        public static Result<Zone, StringView> ImportZone(StringView packfileName, StringView filename, DiffUtil changes)
         {
-            var zoneBytes = packfile.ReadSingleFile(filename);
+            Result<u8[]> zoneBytes = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/{filename}");
             if (zoneBytes case .Err(let err))
             {
                 Logger.Error("Failed to extract '{}'. {}", filename, err);
@@ -94,7 +87,7 @@ namespace Nanoforge.Rfg.Import
             }
             defer delete zoneBytes.Value;
 
-            var persistentZoneBytes = packfile.ReadSingleFile(scope $"p_{filename}");
+            Result<u8[]> persistentZoneBytes = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/p_{filename}");
             if (persistentZoneBytes case .Err(let err))
             {
                 Logger.Error("Failed to extract '{}'. {}", filename, err);

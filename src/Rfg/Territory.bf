@@ -15,7 +15,7 @@ namespace Nanoforge.Rfg
 	{
         public append String PackfileName;
 
-        [EditorProperty]
+        //[EditorProperty]
         public append List<Zone> Zones = .();
 
         public Result<void, StringView> Load(Renderer renderer, Scene _scene)
