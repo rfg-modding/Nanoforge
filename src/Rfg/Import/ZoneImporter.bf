@@ -174,8 +174,6 @@ namespace Nanoforge.Rfg.Import
                 }
             }
 
-            //TODO: Determine user friendly name based on properties. Maybe fold that into the typed object loaders. See NF++ for property list + concatenation rules
-
             return .Ok(zone);
         }
 
@@ -317,6 +315,7 @@ namespace Nanoforge.Rfg.Import
                     case default:
                         obj.DummyType = .None;
                 }
+                obj.SetName(val);
             }
 
             return obj;
@@ -350,7 +349,21 @@ namespace Nanoforge.Rfg.Import
             {
                 RemoveNullTerminator!(val);
 				obj.MissionInfo.Set(val);
+                obj.SetName(val);
 			}
+
+            //Use mp team as name instead of mission_info if no mission is set
+            if (obj.HasName && obj.GetName().GetValueOrDefault("none") == "none")
+            {
+                if (obj.MpTeam == .None)
+                {
+                    obj.SetName("player start");
+                }
+                else
+                {
+                    obj.SetName(scope $"{obj.MpTeam.ToString(.. scope .())} player start");
+                }
+            }    
 
             return obj;
         }
@@ -415,6 +428,7 @@ namespace Nanoforge.Rfg.Import
                     default:
                         obj.KillType = .Cliff;
                 }
+                obj.SetName(val);
             }
             else
             {
@@ -551,6 +565,7 @@ namespace Nanoforge.Rfg.Import
             {
                 RemoveNullTerminator!(val);
 				obj.ChunkName.Set(val);
+                obj.SetName(val);
 			}
 
             if (rfgObj.GetU32("uid") case .Ok(u32 val))
@@ -671,6 +686,7 @@ namespace Nanoforge.Rfg.Import
             {
                 RemoveNullTerminator!(val);
 				obj.ItemType.Set(val);
+                obj.SetName(val);
             }
 
             return obj;
@@ -689,6 +705,7 @@ namespace Nanoforge.Rfg.Import
                 {
                     RemoveNullTerminator!(val);
                     obj.WeaponType.Set(val);
+                    obj.SetName(val);
                 }
             }
 
@@ -805,6 +822,7 @@ namespace Nanoforge.Rfg.Import
                     default:
                         obj.MarkerType = .None;
                 }
+                obj.SetName(val);
             }
 
             obj.MpTeam = ReadTeamProperty(rfgObj, "mp_team");
