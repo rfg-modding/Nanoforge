@@ -125,7 +125,7 @@ namespace Nanoforge.Rfg
                     {
                         if (peg.GetEntryName(i) case .Ok(char8* entryName))
                         {
-                            pegIndex.SubtextureNameHashes.Add(StringView(entryName).GetHashCode());
+                            pegIndex.SubtextureNameHashes.Add(StringView(entryName).ToLower(.. scope .()).GetHashCode());
                         }
                         else
                         {
@@ -154,7 +154,7 @@ namespace Nanoforge.Rfg
 
         public static Result<void> GetTexturePegPath(StringView tgaName, String path)
         {
-            int tgaNameHash = tgaName.GetHashCode();
+            int tgaNameHash = tgaName.ToLower(.. scope .()).GetHashCode();
             for (PackfileTextureIndex packfileIndex in _packfileIndices)
             {
                 for (PegTextureIndex pegIndex in packfileIndex.Pegs)
