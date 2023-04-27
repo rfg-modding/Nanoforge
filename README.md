@@ -47,5 +47,4 @@ To build Nanoforge from source you'll need these programs:
 2) Use `cd` to move to the directory you want to clone NF into. Clone the repo with `git clone https://github.com/Moneyl/Nanoforge.git`.
 3) `cd` into the directory you cloned the repo to then download the dependencies with `git submodule update --init --recursive`.
 4) Open the project in the Beef IDE via `File > Open > Open Workspace...`.
-5) Find the workspace tab in the Beef IDE. It should be on the left side of the screen by default. Expand the Nanoforge section and look for `Workspace.bf`. Right click that file and click Regenerate. This will ensure that NF uses your local copy of the assets folder in debug builds.
-6) Build and run the project with F5.
+6) Build and run the project with F5. You may have to build it twice the first time you run it. Try building again if you see errors on the first attempt. If issues persist create an issue or contact a dev on discord.
