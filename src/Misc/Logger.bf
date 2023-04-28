@@ -86,4 +86,33 @@ namespace Nanoforge.Misc
             _writer.Flush();
         }
 	}
+
+    //Inserts code into a function at comptime to optionally log when the function enters, exits, and the time it takes to run.
+    [AttributeUsage(.Method)]
+    public struct TraceAttribute : Attribute, IComptimeMethodApply
+    {
+        public bool LogEnter = false;
+        public bool LogExit = false;
+        public bool LogRuntime = false;
+
+        [Comptime]
+        void IComptimeMethodApply.ApplyToMethod(System.Reflection.MethodInfo methodInfo)
+        {
+            String methodName = scope $"{methodInfo.DeclaringType.GetName(.. scope .())}.{methodInfo.Name}";
+            if (LogEnter)
+            {
+                Compiler.EmitMethodEntry(methodInfo, scope $"Nanoforge.Misc.Logger.Info(""Entered {methodName}"");\n");
+            }
+            if (LogExit)
+            {
+                Compiler.EmitMethodExit(methodInfo, scope $"Nanoforge.Misc.Logger.Info(""Exited {methodName}"");\n");
+            }
+            if (LogRuntime)
+            {
+                Compiler.EmitMethodEntry(methodInfo, scope $"var {methodInfo.Name}_stopwatch = scope System.Diagnostics.Stopwatch(true);\n");
+                Compiler.EmitMethodExit(methodInfo, scope $"{methodInfo.Name}_stopwatch.Stop();\n");
+                Compiler.EmitMethodExit(methodInfo, scope $"Nanoforge.Misc.Logger.Info(""{methodName}() took {{}}ms to run."", {methodInfo.Name}_stopwatch.Elapsed.TotalMilliseconds);\n");
+            }
+        }
+    }
 }

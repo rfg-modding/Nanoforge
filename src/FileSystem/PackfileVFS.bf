@@ -24,6 +24,7 @@ namespace Nanoforge.FileSystem
         }
 
         //Parse all vpp_pc files in this directory. They'll all be accessible as sub-directories of this filesystem
+        [Trace(LogEnter = true, LogExit = true, LogRuntime = true)]
         public static void InitFromDirectory(StringView mount, StringView directoryPath)
         {
             Mount.Set(mount);
