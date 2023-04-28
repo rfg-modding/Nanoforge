@@ -91,23 +91,34 @@ namespace Nanoforge.Misc
     [AttributeUsage(.Method)]
     public struct TraceAttribute : Attribute, IComptimeMethodApply
     {
-        public bool LogEnter = false;
-        public bool LogExit = false;
-        public bool LogRuntime = false;
+        public TraceFlags Flags = .None;
+
+        public enum TraceFlags
+        {
+            None    = 0,
+            Enter   = 1 << 0,
+            Exit    = 1 << 1,
+            RunTime = 1 << 2
+        }
+
+        public this(TraceFlags flags)
+        {
+            Flags = flags;
+        }
 
         [Comptime]
         void IComptimeMethodApply.ApplyToMethod(System.Reflection.MethodInfo methodInfo)
         {
             String methodName = scope $"{methodInfo.DeclaringType.GetName(.. scope .())}.{methodInfo.Name}";
-            if (LogEnter)
+            if (Flags.HasFlag(.Enter))
             {
                 Compiler.EmitMethodEntry(methodInfo, scope $"Nanoforge.Misc.Logger.Info(""Entered {methodName}"");\n");
             }
-            if (LogExit)
+            if (Flags.HasFlag(.Exit))
             {
                 Compiler.EmitMethodExit(methodInfo, scope $"Nanoforge.Misc.Logger.Info(""Exited {methodName}"");\n");
             }
-            if (LogRuntime)
+            if (Flags.HasFlag(.RunTime))
             {
                 Compiler.EmitMethodEntry(methodInfo, scope $"var {methodInfo.Name}_stopwatch = scope System.Diagnostics.Stopwatch(true);\n");
                 Compiler.EmitMethodExit(methodInfo, scope $"{methodInfo.Name}_stopwatch.Stop();\n");
