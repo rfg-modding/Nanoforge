@@ -98,7 +98,7 @@ namespace Nanoforge.Gui
 				_size = size;
 				var io = ImGui.GetIO();
 				//Load font
-				io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/NotoSans-SemiBold.ttf", _size, null, glyphRanges);
+				io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/NotoSansDisplay-Medium.ttf", _size, null, glyphRanges);
 				//Load FontAwesome image font
 				_font = io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/fa-solid-900.ttf", _size, fontConfig, glyphRanges);
 			}
