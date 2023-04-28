@@ -29,7 +29,6 @@ namespace Nanoforge.App.Project
     {
         private Dictionary<EditorObject, ISnapshot> _snapshots = new .() ~DeleteDictionaryAndValues!(_);
         private List<EditorObject> _newObjects = new .() ~delete _;
-        private Dictionary<EditorObject, String> _newObjectNames = new .() ~DeleteDictionaryAndValues!(_);
         public readonly String CommitName = new .() ~delete _;
         public bool Cancelled { get; private set; } = false;
 
@@ -55,10 +54,8 @@ namespace Nanoforge.App.Project
                 //For new objects generate a creation transaction + add the object to the DB
                 if (_newObjects.Contains(target))
                 {
-					transactions.Add(new CreateObjectTransaction(target, _newObjectNames.GetValueOrDefault(target)));
+					transactions.Add(new CreateObjectTransaction(target));
                     ProjectDB.AddObject(target);
-                    if (_newObjectNames.ContainsKey(target))
-                        ProjectDB.SetObjectName(target, _newObjectNames[target]);
                 }
 
                 //Generate transactions describing property changes
@@ -75,8 +72,6 @@ namespace Nanoforge.App.Project
             //Delete new objects + their names
             for (EditorObject obj in _newObjects)
                 delete obj;
-
-            DeleteDictionaryAndValues!(_newObjectNames);
 
             //Apply snapshots to pre-existing objects to undo changes
             for (var kv in _snapshots)
@@ -108,9 +103,7 @@ namespace Nanoforge.App.Project
         {
             T obj = new T();
             _newObjects.Add(obj);
-            if (name != "")
-                _newObjectNames[obj] = new .()..Set(name);
-
+            obj.Name.Set(name);
             Track<T>(obj);
             return obj;
         }

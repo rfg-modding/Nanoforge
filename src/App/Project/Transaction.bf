@@ -27,18 +27,15 @@ namespace Nanoforge.App.Project
     public class CreateObjectTransaction : ITransaction
     {
         private EditorObject _target;
-        private String _name = new .() ~delete _;
 
-        public this(EditorObject target, StringView name = "")
+        public this(EditorObject target)
         {
             _target = target;
-            _name.Set(name);
         }
 
         public virtual void Apply()
         {
             ProjectDB.AddObject(_target);
-            ProjectDB.SetObjectName(_target, _name);
         }
 
         public virtual void Revert()

@@ -3,14 +3,16 @@ using Nanoforge.App;
 using Common.Math;
 using Common;
 using System;
+using Nanoforge.Misc;
 
 namespace Nanoforge.Rfg
 {
     //Most objects seen in game are zone objects. With the exceptions of terrain, rocks, and grass.
+    [ReflectAll]
     public class ZoneObject : EditorObject
     {
         [EditorProperty]
-        public append String Classname;
+        public String Classname = new .() ~delete _;
         [EditorProperty]
         public u32 Handle;
         [EditorProperty]
@@ -22,7 +24,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public ZoneObject Parent = null;
         [EditorProperty]
-        public append List<ZoneObject> Children;
+        public List<ZoneObject> Children = new .() ~delete _;
 
         public bool Persistent
         {
@@ -48,6 +50,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public Mat3 Orient = .Identity;
 
+        [Reflect(.All)]
         public enum Flags : u16
         {
             None                     = 0,
@@ -68,22 +71,29 @@ namespace Nanoforge.Rfg
             SpawnInTeamBagman        = 1 << 14,
             SpawnInDemolition        = 1 << 15
         }
+
+        /*public override void Save(String text)
+        {
+
+        }*/
     }
 
+    [ReflectAll]
     public class ObjZone : ZoneObject
     {
         [EditorProperty]
-        public append String AmbientSpawn;
+        public String AmbientSpawn = new .() ~delete _;
         [EditorProperty]
-        public append String SpawnResource;
+        public String SpawnResource = new .() ~delete _;
         [EditorProperty]
-        public append String TerrainFileName;
+        public String TerrainFileName = new .() ~delete _;
         [EditorProperty]
         public f32 WindMinSpeed = 50.0f;
         [EditorProperty]
         public f32 WindMaxSpeed = 80.0f;
     }
 
+    [ReflectAll]
     public class ObjectBoundingBox : ZoneObject
     {
         [EditorProperty]
@@ -91,6 +101,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public BoundingBoxType BBType;
 
+        [Reflect(.All)]
         public enum BoundingBoxType
         {
             None,
@@ -98,11 +109,13 @@ namespace Nanoforge.Rfg
         }
     }
 
+    [ReflectAll]
     public class ObjectDummy : ZoneObject
     {
         [EditorProperty]
         public DummyType DummyType;
 
+        [Reflect(.All)]
         public enum DummyType
         {
             None,
@@ -119,6 +132,7 @@ namespace Nanoforge.Rfg
         }
     }
 
+    [ReflectAll]
     public class PlayerStart : ZoneObject
     {
         [EditorProperty]
@@ -134,9 +148,10 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public bool ActivityRespawn;
         [EditorProperty]
-        public append String MissionInfo;
+        public String MissionInfo = new .() ~delete _;
     }
 
+    [ReflectAll]
     public class TriggerRegion : ZoneObject
     {
         [EditorProperty]
@@ -154,21 +169,25 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public TriggerRegionFlags TriggerFlags;
 
+        [Reflect(.All)]
         public enum Shape
         {
             Box,
             Sphere
         }
+        [Reflect(.All)]
         public enum RegionTypeEnum
         {
             Default,
             KillHuman
         }
+        [Reflect(.All)]
         public enum KillTypeEnum
         {
             Cliff,
             Mine
         }
+        [Reflect(.All)]
         public enum TriggerRegionFlags
         {
             None = 0,
@@ -177,6 +196,7 @@ namespace Nanoforge.Rfg
         }
     }
 
+    [ReflectAll]
     public class ObjectMover : ZoneObject
     {
         [EditorProperty]
@@ -184,7 +204,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public u32 DestructionChecksum;
         [EditorProperty]
-        public append String GameplayProps; //Name of an entry in gameplay_properties.xtbl
+        public String GameplayProps = new .() ~delete _; //Name of an entry in gameplay_properties.xtbl
         //[EditorProperty]
         //public u32 InternalFlags; //Note: Disabled for the moment since it appears to be for runtime use only. Will add once its tested more thoroughly.
         [EditorProperty]
@@ -194,9 +214,9 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public u32 ChunkUID;
         [EditorProperty]
-        public append String Props; //Name of entry in level_objects.xtbl
+        public String Props = new .() ~delete _; //Name of entry in level_objects.xtbl
         [EditorProperty]
-        public append String ChunkName;
+        public String ChunkName = new .() ~delete _;
         [EditorProperty]
         public u32 DestroyableUID;
         [EditorProperty]
@@ -206,6 +226,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public f32 Control;
 
+        [Reflect(.All)]
         public enum BuildingTypeEnum
         {
             None = 0,
@@ -217,6 +238,7 @@ namespace Nanoforge.Rfg
             PlayerBase = 1 << 5,
             Communications = 1 << 6
         }
+        [Reflect(.All)]
         public enum ChunkFlagsEnum
         {
             None = 0,
@@ -244,6 +266,7 @@ namespace Nanoforge.Rfg
         }
     }
 
+    [ReflectAll]
     public class GeneralMover : ObjectMover
     {
         [EditorProperty]
@@ -264,6 +287,7 @@ namespace Nanoforge.Rfg
         public i32 DislodgeHitpoints;
     }
 
+    [ReflectAll]
     public class RfgMover : ObjectMover
     {
         [EditorProperty]
@@ -287,6 +311,7 @@ namespace Nanoforge.Rfg
         //[EditorProperty]
         //public u8[] DynamicLinks;
 
+        [Reflect(.All)]
         public enum MoveTypeEnum
         {
             Fixed = 0,
@@ -298,6 +323,7 @@ namespace Nanoforge.Rfg
         }
     }
 
+    [ReflectAll]
     public class ShapeCutter : ZoneObject
     {
         [EditorProperty]
@@ -312,24 +338,28 @@ namespace Nanoforge.Rfg
         public u8 ExplosionId;
     }
 
+    [ReflectAll]
     public class ObjectEffect : ZoneObject
     {
         [EditorProperty]
-        public append String EffectType; //Name of an entry in effects.xtbl
+        public String EffectType = new .() ~delete _; //Name of an entry in effects.xtbl
     }
 
+    [ReflectAll]
     public class Item : ZoneObject
     {
         [EditorProperty]
-        public append String ItemType; //Name of an entry in items_3d.xtbl for plain items
+        public String ItemType = new .() ~delete _; //Name of an entry in items_3d.xtbl for plain items
     }
 
+    [ReflectAll]
     public class Weapon : Item
     {
         [EditorProperty]
-        public append String WeaponType; //Name of an entry in weapons.xtbl
+        public String WeaponType = new .() ~delete _; //Name of an entry in weapons.xtbl
     }
 
+    [ReflectAll]
     public class Ladder : ZoneObject
     {
         [EditorProperty]
@@ -338,6 +368,7 @@ namespace Nanoforge.Rfg
         public bool Enabled;
     }
 
+    [ReflectAll]
     public class ObjLight : ZoneObject
     {
         [EditorProperty]
@@ -363,6 +394,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public i32 ClipMesh;
 
+        [Reflect(.All)]
         public enum ObjLightFlags
         {
             None = 0,
@@ -370,6 +402,7 @@ namespace Nanoforge.Rfg
             DayTime = 1 << 1,
             NightTime = 1 << 2
         }
+        [Reflect(.All)]
         public enum LightTypeEnum
         {
             Spot,
@@ -377,6 +410,7 @@ namespace Nanoforge.Rfg
         }
     }
 
+    [ReflectAll]
     public class MultiMarker : ZoneObject
     {
         [EditorProperty]
@@ -396,6 +430,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public i32 Group;
 
+        [Reflect(.All)]
         public enum MultiMarkerType
         {
             None,
@@ -408,21 +443,25 @@ namespace Nanoforge.Rfg
         }
     }
 
+    [ReflectAll]
     public class MultiFlag : Item
     {
         public Team MpTeam;
     }
 
+    [ReflectAll]
     public class NavPoint : ZoneObject
     {
         //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
     }
 
+    [ReflectAll]
     public class CoverNode : ZoneObject
     {
         //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
     }
 
+    [ReflectAll]
     public enum Team
     {
         None,
@@ -433,6 +472,7 @@ namespace Nanoforge.Rfg
         Marauder
     }
 
+    [ReflectAll]
     public enum MultiBackpackType
     {
         Commando,

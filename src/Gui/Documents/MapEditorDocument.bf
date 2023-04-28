@@ -17,6 +17,9 @@ namespace Nanoforge.Gui.Documents
 {
 	public class MapEditorDocument : GuiDocumentBase
 	{
+        public static Stopwatch TotalImportTimer = new Stopwatch(false) ~delete _;
+        public static Stopwatch TotalImportAndLoadTimer = new Stopwatch(false) ~delete _;
+
         public readonly append String MapName;
         public bool Loading { get; private set; } = true;
         private bool _loadFailure = false;
@@ -40,7 +43,8 @@ namespace Nanoforge.Gui.Documents
         private void Load(App app)
         {
             Loading = true;
-            defer { Loading = false; }
+            TotalImportAndLoadTimer.Start();
+            defer { Loading = false; TotalImportAndLoadTimer.Stop(); }
 
             Logger.Info("Opening {}...", MapName);
             Stopwatch loadTimer = scope .(true);
@@ -56,6 +60,7 @@ namespace Nanoforge.Gui.Documents
                 //Map needs to be imported
                 Logger.Info("First time opening {} in this project. Importing...", MapName);
                 Stopwatch importTimer = scope .(true);
+                TotalImportTimer.Start();
                 switch (MapImporter.ImportMap(MapName))
                 {
                     case .Ok(var newMap):
@@ -67,9 +72,11 @@ namespace Nanoforge.Gui.Documents
                         Logger.Error("Failed to import map {}. {}. See the log for more details.", MapName, err);
                         return;
                 }
+                TotalImportTimer.Stop();
             }
             else
             {
+                Logger.Info("{} import found in ProjectDB.", MapName);
                 Map = findResult;
             }
 
@@ -261,8 +268,8 @@ namespace Nanoforge.Gui.Documents
 
             bool selected = (obj == _selectedObject);
             String label = scope .();
-            if (obj.GetName() case .Ok(let name))
-                label.Set(name);
+            if (!obj.Name.IsEmpty)
+                label.Set(obj.Name);
             else
                 label.Set(obj.Classname);
 

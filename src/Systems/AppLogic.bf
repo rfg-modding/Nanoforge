@@ -20,6 +20,7 @@ namespace Nanoforge.Systems
 		void Init(App app)
 		{
             PackfileVFS.InitFromDirectory("//data/", DataFolderPath);
+            ProjectDB.Init(); //TODO: Tried using StaticInitOrder + constructor for this, but it wouldn't init buffer Logger even if I told it to. Do it that way once that Beef bug is fixed.
 		}
 
 		[SystemStage]

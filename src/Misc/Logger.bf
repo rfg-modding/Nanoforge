@@ -98,7 +98,8 @@ namespace Nanoforge.Misc
             None    = 0,
             Enter   = 1 << 0,
             Exit    = 1 << 1,
-            RunTime = 1 << 2
+            RunTime = 1 << 2,
+            All = .Enter | .Exit | .RunTime
         }
 
         public this(TraceFlags flags)
@@ -122,7 +123,7 @@ namespace Nanoforge.Misc
             {
                 Compiler.EmitMethodEntry(methodInfo, scope $"var {methodInfo.Name}_stopwatch = scope System.Diagnostics.Stopwatch(true);\n");
                 Compiler.EmitMethodExit(methodInfo, scope $"{methodInfo.Name}_stopwatch.Stop();\n");
-                Compiler.EmitMethodExit(methodInfo, scope $"Nanoforge.Misc.Logger.Info(""{methodName}() took {{}}ms to run."", {methodInfo.Name}_stopwatch.Elapsed.TotalMilliseconds);\n");
+                Compiler.EmitMethodExit(methodInfo, scope $"Nanoforge.Misc.Logger.Info(""{methodName}() executed in {{}}s | {{}}ms | {{}}us"", {methodInfo.Name}_stopwatch.Elapsed.TotalSeconds, {methodInfo.Name}_stopwatch.Elapsed.TotalMilliseconds, {methodInfo.Name}_stopwatch.Elapsed.TotalSeconds * 1000000);\n");
             }
         }
     }

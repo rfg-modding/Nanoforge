@@ -215,7 +215,7 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("display_name") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                obj.SetName(val);
+                obj.Name.Set(val);
             }
 
             return obj;
@@ -315,7 +315,7 @@ namespace Nanoforge.Rfg.Import
                     case default:
                         obj.DummyType = .None;
                 }
-                obj.SetName(val);
+                obj.Name.Set(val);
             }
 
             return obj;
@@ -349,19 +349,19 @@ namespace Nanoforge.Rfg.Import
             {
                 RemoveNullTerminator!(val);
 				obj.MissionInfo.Set(val);
-                obj.SetName(val);
+                obj.Name.Set(val);
 			}
 
             //Use mp team as name instead of mission_info if no mission is set
-            if (obj.HasName && obj.GetName().GetValueOrDefault("none") == "none")
+            if (obj.Name == "none")
             {
                 if (obj.MpTeam == .None)
                 {
-                    obj.SetName("player start");
+                    obj.Name.Set("player start");
                 }
                 else
                 {
-                    obj.SetName(scope $"{obj.MpTeam.ToString(.. scope .())} player start");
+                    obj.Name.Set(scope $"{obj.MpTeam.ToString(.. scope .())} player start");
                 }
             }    
 
@@ -428,7 +428,7 @@ namespace Nanoforge.Rfg.Import
                     default:
                         obj.KillType = .Cliff;
                 }
-                obj.SetName(val);
+                obj.Name.Set(val);
             }
             else
             {
@@ -565,7 +565,7 @@ namespace Nanoforge.Rfg.Import
             {
                 RemoveNullTerminator!(val);
 				obj.ChunkName.Set(val);
-                obj.SetName(val);
+                obj.Name.Set(val);
 			}
 
             if (rfgObj.GetU32("uid") case .Ok(u32 val))
@@ -686,7 +686,7 @@ namespace Nanoforge.Rfg.Import
             {
                 RemoveNullTerminator!(val);
 				obj.ItemType.Set(val);
-                obj.SetName(val);
+                obj.Name.Set(val);
             }
 
             return obj;
@@ -705,7 +705,7 @@ namespace Nanoforge.Rfg.Import
                 {
                     RemoveNullTerminator!(val);
                     obj.WeaponType.Set(val);
-                    obj.SetName(val);
+                    obj.Name.Set(val);
                 }
             }
 
@@ -822,7 +822,7 @@ namespace Nanoforge.Rfg.Import
                     default:
                         obj.MarkerType = .None;
                 }
-                obj.SetName(val);
+                obj.Name.Set(val);
             }
 
             obj.MpTeam = ReadTeamProperty(rfgObj, "mp_team");

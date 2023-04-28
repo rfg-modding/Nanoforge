@@ -11,12 +11,13 @@ using Nanoforge.Render;
 namespace Nanoforge.Rfg
 {
     //Root structure of any RFG map. Each territory is split into one or more zones which contain the map objects.
+    [ReflectAll]
 	public class Territory : EditorObject
 	{
-        public append String PackfileName;
+        public String PackfileName = new .() ~delete _;
 
-        //[EditorProperty]
-        public append List<Zone> Zones = .();
+        [EditorProperty]
+        public List<Zone> Zones = new .() ~delete _;
 
         public Result<void, StringView> Load(Renderer renderer, Scene _scene)
         {
@@ -120,7 +121,7 @@ namespace Nanoforge.Rfg
                         if (subzoneTextures[textureIndex] == null)
                         {
                             //Doesn't matter if it's null since the renderer will just skip it. It will only cause visual bugs so we let loading continue.
-                            Logger.Warning("Failed to load {} for {} subzone {}", texture.GetName().GetValueOrDefault(""), zone.Name, i);
+                            Logger.Warning("Failed to load {} for {} subzone {}", texture.Name, zone.Name, i);
                         }
                         else
                         {
@@ -235,12 +236,13 @@ namespace Nanoforge.Rfg
 	}
 
     //A cubic section of a map. Contains map objects
+    [ReflectAll]
     public class Zone : EditorObject
     {
         [EditorProperty]
-        public append String Name;
+        public String Name = new .() ~delete _;
         [EditorProperty]
-        public append String District;
+        public String District = new .() ~delete _;
         [EditorProperty]
         public u32 DistrictFlags = 0;
         [EditorProperty]
@@ -248,12 +250,13 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public bool MissionLayer = false;
         [EditorProperty]
-        public append List<ZoneObject> Objects = .();
+        public List<ZoneObject> Objects = new .() ~delete _;
         [EditorProperty]
         public ZoneTerrain Terrain;
     }
 
     //Terrain data for a single map zone
+    [ReflectAll]
     public class ZoneTerrain : EditorObject
     {
         [EditorProperty]
@@ -278,6 +281,7 @@ namespace Nanoforge.Rfg
         }
 
         //Terrain subzone. Each zone consists of 9 subzones
+        [ReflectAll]
         public class Subzone : EditorObject
         {
             //Splat material textures per subzone. The splatmap has 4 channels, so it supports 4 material textures.

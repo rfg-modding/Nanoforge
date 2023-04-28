@@ -12,11 +12,12 @@ namespace Nanoforge.Rfg
 {
     //List of peg subtextures imported and stored in project buffers. Used to prevent repeat imports. Only one instance of this should exist
     //TODO: The key is the subtexture name so it doesn't handle two peg subtextures with the same name but different pixels correctly. This will need to be fixed when texture editing is supported.
+    [ReflectAll]
     public class ImportedTextures : EditorObject
     {
         private append Monitor _newTextureLock;
         [EditorProperty]
-        public append List<ProjectTexture> Textures;
+        public List<ProjectTexture> Textures = new .() ~delete _;
 
         public Result<ProjectTexture> GetTexture(StringView name)
         {
@@ -39,10 +40,9 @@ namespace Nanoforge.Rfg
     }
 
     //Texture contained by the ProjectDB
+    [ReflectAll]
     public class ProjectTexture : EditorObject
     {
-        [EditorProperty]
-        public append String Name;
         //TODO: Add ProjectDB support for ProjectBuffer
         //TODO: Make this an editor property
         public ProjectBuffer Data;
@@ -66,7 +66,7 @@ namespace Nanoforge.Rfg
                 return .Err;
 
             List<D3D11_SUBRESOURCE_DATA> subresourceData = CalcSubresourceData(pixels, .. scope .());
-            Texture2D renderTexture = new .(GetName().GetValueOrDefault(""));
+            Texture2D renderTexture = new .(Name);
             if (renderTexture.Init(device, Width, Height, Format, .SHADER_RESOURCE, subresourceData.Ptr, NumMipLevels) case .Err)
             {
                 delete renderTexture;
