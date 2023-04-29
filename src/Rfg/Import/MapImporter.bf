@@ -52,7 +52,7 @@ namespace Nanoforge.Rfg.Import
                 Logger.Info("Importing terrain...");
                 for (Zone zone in map.Zones)
                 {
-                    if (TerrainImporter.LoadTerrain(map.PackfileName, zone, changes, name) case .Err)
+                    if (TerrainImporter.LoadTerrain(map.PackfileName, map, zone, changes, name) case .Err)
                     {
                         Logger.Error("Failed to import terrain for zone '{}'", zone.Name);
                         changes.Rollback();

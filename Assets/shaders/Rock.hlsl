@@ -38,8 +38,7 @@ VS_OUTPUT VS(float4 inPos : POSITION, float4 inNormal : NORMAL, float4 inTangent
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     float4 color = DiffuseTexture.Sample(DiffuseSampler, input.Uv);
-    //Temporarily disabled normal map until proper code for converting normal maps out of tangent space is added. Is fine for most meshes but makes rock meshes in particular look weird.
-    float4 normal = (input.Normal);// + (NormalTexture.Sample(NormalSampler, input.Uv) * 2.0f - 1.0f));
+    float4 normal = (input.Normal) + (NormalTexture.Sample(NormalSampler, input.Uv) * 2.0f - 1.0f);
 
     //Ambient light
     float ambientIntensity = 0.10f;

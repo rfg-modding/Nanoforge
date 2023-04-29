@@ -7,6 +7,7 @@ using Nanoforge.Render.Resources;
 using RfgTools.Formats.Meshes;
 using Nanoforge.Misc;
 using Nanoforge.Render;
+using Bon;
 
 namespace Nanoforge.Rfg
 {
@@ -19,45 +20,39 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public List<Zone> Zones = new .() ~delete _;
 
-        public Result<void, StringView> Load(Renderer renderer, Scene _scene)
+        [BonKeepUnlessSet]
+        public List<Rock> Rocks = new .() ~delete _;
+
+        public Result<void, StringView> Load(Renderer renderer, Scene scene)
         {
+            //Track textures that've been read from disk during loading so they're only ever loaded once. Lets objects easily share the same texture in gpu memory
+            Dictionary<ProjectTexture, Texture2D> textureCache = scope .();
+
             //Create render objects for low lod meshes
             for (Zone zone in Zones)
             {
                 //Load zonewide terrain textures
-                Texture2D combTexture = null;
-                Texture2D ovlTexture = null;
                 ZoneTerrain terrain = zone.Terrain;
-                if (terrain.CombTexture != null && terrain.OvlTexture != null)
+                Texture2D combTexture = LoadTexture(terrain.CombTexture, textureCache, renderer, scene).GetValueOrDefault(null);
+                if (combTexture == null)
                 {
-                    combTexture = terrain.CombTexture.CreateRenderTexture(renderer.Device).GetValueOrDefault(null);
-                    ovlTexture = terrain.OvlTexture.CreateRenderTexture(renderer.Device).GetValueOrDefault(null);
-                    if (combTexture == null)
-                    {
-                        Logger.Error("Zone loading error. Failed to load comb texture");
-                        return .Err("Failed to load comb texture");
-                    }
-                    if (ovlTexture == null)
-                    {
-                        Logger.Error("Zone loading error. Failed to load ovl texture");
-                        return .Err("Failed to load ovl texture");
-                    }
-                }
-                else
-                {
-                    Logger.Warning("Failed to load comb and ovl textures for {}. They're null in the ProjectDB. Any error must've occurred during zone import.", zone.Name);
+                    Logger.Error("Zone loading error. Failed to load comb texture");
+                    return .Err("Failed to load comb texture");
                 }
 
-                Texture2D splatmap = terrain.Splatmap != null ? terrain.Splatmap.CreateRenderTexture(renderer.Device).GetValueOrDefault(null) : null;
+                Texture2D ovlTexture = LoadTexture(terrain.OvlTexture, textureCache, renderer, scene).GetValueOrDefault(null);
+                if (ovlTexture == null)
+                {
+                    Logger.Error("Zone loading error. Failed to load ovl texture");
+                    return .Err("Failed to load ovl texture");
+                }
+
+                Texture2D splatmap = LoadTexture(terrain.Splatmap, textureCache, renderer, scene).GetValueOrDefault(null);
                 if (splatmap == null)
                 {
                     Logger.Error("Failed to load splatmap while loading {}", zone.Name);
                     continue;
                 }    
-
-                _scene.Textures.Add(splatmap);
-                _scene.Textures.Add(combTexture);
-                _scene.Textures.Add(ovlTexture);
 
                 //Load mesh for each subzone
                 for (int i in 0 ... 8)
@@ -88,7 +83,7 @@ namespace Nanoforge.Rfg
                     Mesh mesh = new .();
                     if (mesh.Init(renderer.Device, terrain.LowLodTerrainMeshConfig[i], indexBuffer, vertexBuffer) case .Ok)
                     {
-                        switch (_scene.CreateRenderObject("TerrainLowLod", mesh, terrain.Position, .Identity))
+                        switch (scene.CreateRenderObject("TerrainLowLod", mesh, terrain.Position, .Identity))
                         {
                             case .Ok(RenderObject obj):
                                 obj.Visible = false; //Hide low lod terrain by default
@@ -115,20 +110,15 @@ namespace Nanoforge.Rfg
                     ZoneTerrain.Subzone subzone = terrain.Subzones[i];
                     for (int textureIndex in 0 ..< 8)
                     {
-                        //TODO: Track which textures have been loaded across all zones and subzones. Only allow each to be loaded once per map to save vram usage + speed up loading.
-                        ProjectTexture texture = subzone.SplatMaterialTextures[textureIndex];
-                        subzoneTextures[textureIndex] = texture.CreateRenderTexture(renderer.Device).GetValueOrDefault(null);
+                        ProjectTexture projectTexture = subzone.SplatMaterialTextures[textureIndex];
+                        subzoneTextures[textureIndex] = LoadTexture(projectTexture, textureCache, renderer, scene).GetValueOrDefault();
                         if (subzoneTextures[textureIndex] == null)
                         {
                             //Doesn't matter if it's null since the renderer will just skip it. It will only cause visual bugs so we let loading continue.
-                            Logger.Warning("Failed to load {} for {} subzone {}", texture.Name, zone.Name, i);
-                        }
-                        else
-                        {
-                            _scene.Textures.Add(subzoneTextures[textureIndex]);
+                            Logger.Warning("Failed to load {} for {} subzone {}", projectTexture.Name, zone.Name, i);
                         }
                     }
-
+                    
                     List<u8> indexBuffer = null;
                     List<u8> vertexBuffer = null;
                     defer { DeleteIfSet!(indexBuffer); }
@@ -155,7 +145,7 @@ namespace Nanoforge.Rfg
                     Mesh mesh = new .();
                     if (mesh.Init(renderer.Device, subzone.MeshConfig, indexBuffer, vertexBuffer) case .Ok)
                     {
-                        switch (_scene.CreateRenderObject("Terrain", mesh, subzone.Position, .Identity))
+                        switch (scene.CreateRenderObject("Terrain", mesh, subzone.Position, .Identity))
                         {
                             case .Ok(RenderObject obj):
                                 obj.Visible = true; //Show high lod terrain by default
@@ -206,7 +196,7 @@ namespace Nanoforge.Rfg
                         Mesh stitchMesh = new .();
                         if (stitchMesh.Init(renderer.Device, subzone.StitchMeshConfig, stitchIndexBuffer, stitchVertexBuffer) case .Ok)
                         {
-                            switch (_scene.CreateRenderObject("TerrainStitch", mesh, subzone.Position, .Identity))
+                            switch (scene.CreateRenderObject("TerrainStitch", mesh, subzone.Position, .Identity))
                             {
                                 case .Ok(RenderObject obj):
                                     obj.Visible = true;
@@ -224,14 +214,101 @@ namespace Nanoforge.Rfg
                         }
                         else
                         {
-                            Logger.Error("Failed to render object for stitch mesh of terrain subzone {} of {}", i, zone.Name);
+                            Logger.Error("Failed to create render object for stitch mesh of terrain subzone {} of {}", i, zone.Name);
                             delete mesh;
                         }
                     }
                 }
             }
 
+            //Create meshes for rocks
+            for (Rock rock in Rocks)
+            {
+                //Load index + vertex buffers
+                List<u8> rockIndexBuffer = null;
+                List<u8> rockVertexBuffer = null;
+                defer { DeleteIfSet!(rockIndexBuffer); }
+                defer { DeleteIfSet!(rockVertexBuffer); }
+                if (rock.IndexBuffer.Load() case .Ok(let val))
+                {
+                	rockIndexBuffer = val;
+                }
+                else
+                {
+                    Logger.Error("Failed to load index buffer for rock mesh {}", rock.Name);
+                    continue;
+                }
+                if (rock.VertexBuffer.Load() case .Ok(let val))
+                {
+                	rockVertexBuffer = val;
+                }
+                else
+                {
+                    Logger.Error("Failed to load vertex buffer for rock mesh {}", rock.Name);
+                    continue;
+                }
+
+                //Load textures
+                Texture2D diffuse = LoadTexture(rock.DiffuseTexture, textureCache, renderer, scene).GetValueOrDefault(null);
+                if (diffuse == null)
+                {
+                    Logger.Error("Failed to load diffuse texture {} for {}", rock.DiffuseTexture.Name, rock.Name);
+                    continue;
+                }
+
+                Texture2D normal = LoadTexture(rock.NormalTexture, textureCache, renderer, scene).GetValueOrDefault(null);
+                if (normal == null)
+                {
+                    Logger.Error("Failed to load normal texture {} for {}", rock.NormalTexture.Name, rock.Name);
+                    continue;
+                }  
+
+                Mesh rockMesh = new .();
+                if (rockMesh.Init(renderer.Device, rock.MeshConfig, rockIndexBuffer, rockVertexBuffer) case .Ok)
+                {
+                    switch (scene.CreateRenderObject("Rock", rockMesh, rock.Position, rock.Rotation))
+                    {
+                        case .Ok(RenderObject obj):
+                            obj.Visible = true;
+                            obj.Textures[0] = diffuse;
+                            obj.Textures[2] = normal;
+                            obj.UseTextures = true;
+                        case .Err:
+                            delete rockMesh;
+                            Logger.Error("Failed to create render object for rock mesh {}", rock.Name);
+                            continue;
+                    }
+                }
+                else
+                {
+                    Logger.Error("Failed to create render object for rock mesh {}", rock.Name);
+                    delete rockMesh;
+                }
+            }
+
             return .Ok;
+        }
+
+        private Result<Texture2D> LoadTexture(ProjectTexture projectTexture, Dictionary<ProjectTexture, Texture2D> textureCache, Renderer renderer, Scene scene)
+        {
+            if (textureCache.ContainsKey(projectTexture))
+            {
+                return textureCache[projectTexture];
+            }
+            else
+            {
+                Texture2D texture = projectTexture != null ? projectTexture.CreateRenderTexture(renderer.Device).GetValueOrDefault(null) : null;
+                if (texture == null)
+                {
+                    return .Err;
+                }
+                else
+                {
+                    textureCache[projectTexture] = texture;
+                    scene.Textures.Add(texture);
+                    return texture;
+                }
+            }
         }
 	}
 
@@ -288,19 +365,25 @@ namespace Nanoforge.Rfg
             public ProjectTexture [8] SplatMaterialTextures;
             public ProjectBuffer IndexBuffer;
             public ProjectBuffer VertexBuffer;
-            public MeshDataBlock MeshConfig;
+            public MeshDataBlock MeshConfig ~delete _;
             public Vec3 Position;
 
             public bool HasStitchMeshes = false;
             public ProjectBuffer StitchMeshIndexBuffer;
             public ProjectBuffer StitchMeshVertexBuffer;
-            public MeshDataBlock StitchMeshConfig;
-
-            public ~this()
-            {
-                delete MeshConfig;
-                delete StitchMeshConfig;
-            }    
+            public MeshDataBlock StitchMeshConfig ~delete _;
         }
+    }
+
+    [ReflectAll]
+    public class Rock : EditorObject
+    {
+        public Vec3 Position = .Zero;
+        public Mat3 Rotation = .Identity;
+        public MeshDataBlock MeshConfig ~DeleteIfSet!(_);
+        public ProjectBuffer IndexBuffer;
+        public ProjectBuffer VertexBuffer;
+        public ProjectTexture DiffuseTexture;
+        public ProjectTexture NormalTexture;
     }
 }

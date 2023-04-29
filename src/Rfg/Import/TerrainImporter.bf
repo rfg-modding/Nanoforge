@@ -10,12 +10,13 @@ using System.Collections;
 using RfgTools.Formats.Meshes;
 using Common.IO;
 using RfgTools.Formats;
+using System.Linq;
 
 namespace Nanoforge.Rfg.Import
 {
 	public static class TerrainImporter
 	{
-        public static Result<void> LoadTerrain(StringView packfileName, Zone zone, DiffUtil changes, StringView name)
+        public static Result<void> LoadTerrain(StringView packfileName, Territory territory, Zone zone, DiffUtil changes, StringView name)
         {
             Logger.Info("Importing primary terrain files...");
 
@@ -47,7 +48,7 @@ namespace Nanoforge.Rfg.Import
             defer delete gpuFile.Value;
 
             Terrain terrainFile = scope .();
-            if (terrainFile.Load(cpuFile.Value, gpuFile.Value, false) case .Err(StringView err))
+            if (terrainFile.Load(cpuFile.Value, gpuFile.Value, true) case .Err(StringView err))
             {
                 Logger.Error("Failed to parse cterrain_pc file. Error: {}", err);
                 return .Err;
@@ -114,7 +115,7 @@ namespace Nanoforge.Rfg.Import
 
                 Logger.Info("Parsing subzone files...");
                 TerrainSubzone subzoneFile = scope .();
-                if (subzoneFile.Load(subzoneCpuFile.Value, subzoneGpuFile.Value, false) case .Err(StringView err))
+                if (subzoneFile.Load(subzoneCpuFile.Value, subzoneGpuFile.Value, true) case .Err(StringView err))
                 {
                     Logger.Error("Failed to parse {}_{}.ctmesh_pc. Error: {}", name, i, err);
                     return .Err;
@@ -158,7 +159,89 @@ namespace Nanoforge.Rfg.Import
                 }
 
                 //TODO: Load road meshes
-                //TODO: Load rock meshes
+
+                //Load rock meshes
+                Logger.Info("Importing rock meshes...");
+                for (int stitchIndex in 0 ..< subzoneFile.StitchInstances.Length)
+                {
+                    ref TerrainStitchInstance stitchInstance = ref subzoneFile.StitchInstances[stitchIndex];
+                    StringView stitchPieceName = subzoneFile.StitchPieceNames2[stitchIndex];
+                    if (stitchPieceName.Contains("_Road", true))
+                        continue; //Skip road stitch instance. Road mesh data is stored in the terrain file and loaded separately
+
+                    var rockSearch = territory.Rocks.Select((rock) => rock).Where((rock) => rock.Name == stitchPieceName);
+                    if (rockSearch.Count() > 0) //Rock mesh was already loaded. Create a new rock instance with the same mesh + textures, but different location & rotation
+                    {
+                        Rock cachedRock = rockSearch.First();
+                        Rock rock = changes.CreateObject<Rock>(stitchPieceName);
+                        rock.Position = stitchInstance.Position;
+                        rock.Rotation = stitchInstance.Rotation;
+                        rock.IndexBuffer = cachedRock.IndexBuffer;
+                        rock.VertexBuffer = cachedRock.VertexBuffer;
+                        rock.DiffuseTexture = cachedRock.DiffuseTexture;
+                        rock.NormalTexture = cachedRock.NormalTexture;
+                        rock.MeshConfig = cachedRock.MeshConfig.Clone(.. new .()); //TODO: Shouldn't be making a copy here once issue #36 completed
+                        territory.Rocks.Add(rock);
+                    }
+                    else //First time loading the rock. Must load the rfg files and extract the meshes + textures
+                    {
+                        Result<u8[]> rockCpuFile = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/ns_base.str2_pc/{stitchPieceName}.cstch_pc");
+                        if (rockCpuFile case .Err)
+                        {
+                            Logger.Error("Failed to extract {}.cstch_pc.", stitchPieceName);
+                            return .Err;
+                        }
+                        defer delete rockCpuFile.Value;
+
+                        Result<u8[]> rockGpuFile = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/ns_base.str2_pc/{stitchPieceName}.gstch_pc");
+                        if (rockGpuFile case .Err)
+                        {
+                            Logger.Error("Failed to extract {}.gstch_pc.", stitchPieceName);
+                            return .Err;
+                        }
+                        defer delete rockGpuFile.Value;
+
+                        //Parse rock mesh cpu file
+                        RockMesh rockMesh = scope .();
+                        if (rockMesh.Load(rockCpuFile.Value, rockGpuFile.Value, true) case .Err(StringView err))
+                        {
+                            Logger.Error("Failed to parse {}.cstch_pc. Error: {}", name, err);
+                            return .Err;
+                        }
+
+                        //Extract rock mesh
+                        Rock rock = changes.CreateObject<Rock>(stitchPieceName);
+                        switch (rockMesh.GetMeshData())
+                        {
+                            case .Ok(MeshInstanceData meshData):
+                                ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{stitchPieceName}");
+                                ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{stitchPieceName}");
+                                rock.Position = stitchInstance.Position;
+                                rock.Rotation = stitchInstance.Rotation;
+                                rock.MeshConfig = meshData.Config.Clone(.. new .());
+                                rock.IndexBuffer = indexBuffer;
+                                rock.VertexBuffer = vertexBuffer;
+                            case .Err(StringView err):
+                                Logger.Error("Failed to extract mesh data from {}.gstch_pc. Error: {}", stitchPieceName, err);
+                                return .Err;
+                        }
+
+                        //Load rock textures
+                        if (rockMesh.TextureNames.Count >= 2)
+                        {
+                            //TODO: See if we need to take a more advanced approach here. Maybe base it off of material data in / around MeshDataBlock
+                            //TODO: One odd case to look at is pkr_lm_spike5 in mp_puncture. Has 2 diffuse and 2 normal maps. Only one submesh so it isn't applying them to different ones. Maybe blends them?
+
+                            //For now we just assume the first texture is diffuse and the second is normal. Since that seems be the general truth for rock meshes.
+                            rock.DiffuseTexture = GetOrLoadTerrainTexture(changes, rockMesh.TextureNames[0]).GetValueOrDefault(null);
+                            rock.NormalTexture = GetOrLoadTerrainTexture(changes, rockMesh.TextureNames[1]).GetValueOrDefault(null);
+                            if (rock.DiffuseTexture == null || rock.NormalTexture == null)
+                                return .Err;
+                        }
+
+                        territory.Rocks.Add(rock);
+                    }
+                }
 
                 //Load subzone textures
                 Logger.Info("Extracting subzone terrain textures...");                
@@ -234,6 +317,7 @@ namespace Nanoforge.Rfg.Import
                         terrainTextureIndex += 2;
         			}
                 }
+
                 terrain.Subzones[i] = subzone;
                 Logger.Info("Done importing subzone {}", i);
             }
