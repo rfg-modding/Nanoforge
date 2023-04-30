@@ -8,6 +8,7 @@ using System;
 using Win32;
 using Common.Misc;
 using System.Threading;
+using Nanoforge.Rfg;
 
 namespace Nanoforge.Render
 {
@@ -213,6 +214,25 @@ namespace Nanoforge.Render
 
                 ObjectsByMaterial[material].Add(renderObject);
                 return renderObject;
+            }
+            else
+            {
+                return .Err;
+            }
+        }
+
+        public Result<RenderChunk> CreateRenderChunk(StringView materialName, Mesh mesh, Vec3 position, Mat3 rotation, ChunkVariant variant)
+        {
+            ScopedLock!(_renderObjectCreationLock);
+            if (RenderMaterials.GetMaterial(materialName) case .Ok(Material material))
+            {
+                RenderChunk renderChunk = new .(mesh, position, rotation, variant);
+                RenderObjects.Add(renderChunk);
+                if (!ObjectsByMaterial.ContainsKey(material))
+                    ObjectsByMaterial[material] = new List<RenderObject>();
+
+                ObjectsByMaterial[material].Add(renderChunk);
+                return renderChunk;
             }
             else
             {

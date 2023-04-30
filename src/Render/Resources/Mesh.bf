@@ -22,6 +22,8 @@ namespace Nanoforge.Render.Resources
         private DXGI_FORMAT _indexBufferFormat = .UNKNOWN;
         private D3D_PRIMITIVE_TOPOLOGY _topology = .D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 
+        public static u16[256] SubmeshOverrideIndices = .();
+
         public Result<void> Init(ID3D11Device* device, MeshDataBlock config, Span<u8> indexBuffer, Span<u8> vertexBuffer, u32 numLods = 1)
 		{
             _config = config.Clone(.. new .());
@@ -52,14 +54,29 @@ namespace Nanoforge.Render.Resources
             return .Ok;
         }
 
-        public void Draw(ID3D11DeviceContext* context)
+        public void Draw(ID3D11DeviceContext* context, int numSubmeshOverrides = -1)
         {
             //Bind buffers
             u32 vertexOffset = 0;
             context.IASetIndexBuffer(_indexBuffer.Ptr, _indexBufferFormat, 0);
             context.IASetVertexBuffers(0, 1, &_vertexBuffer.Ptr, &_vertexStride, &vertexOffset);
 
-            if (NumLods == 1) //In this case the mesh is split into several submeshes
+            if (numSubmeshOverrides != -1)
+            {
+                //Special case used by RenderChunk to draw specific submeshes
+                for (int i in 0 ..< numSubmeshOverrides)
+                {
+                    u32 submeshIndex = SubmeshOverrideIndices[i];
+                    ref SubmeshData submesh = ref _config.Submeshes[submeshIndex];
+                    u32 firstBlock = submesh.RenderBlocksOffset;
+                    for (int i in 0 ..< submesh.NumRenderBlocks)
+                    {
+                        ref RenderBlock block = ref _config.RenderBlocks[firstBlock + i];
+                        context.DrawIndexed(block.NumIndices, block.StartIndex, 0);
+                    }
+                }
+            }
+            else if (NumLods == 1) //In this case the mesh is split into several submeshes
             {
                 for (var submesh in ref _config.Submeshes)
                 {

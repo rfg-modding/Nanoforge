@@ -13,7 +13,7 @@ namespace Nanoforge.Render
         public Vec3 TargetPosition;
         public Mat4 View = .Identity;
         public Mat4 Projection = .Identity;
-        public f32 Speed = 10.0f;
+        public f32 Speed = 3.0f;
         public f32 SprintMultiplier = 2.0f;
         public f32 MovementSmoothing = 0.125f;
         public f32 LookSensitivity = 0.01f;

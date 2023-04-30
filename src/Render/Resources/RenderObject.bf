@@ -30,7 +30,7 @@ namespace Nanoforge.Render.Resources
             Rotation = rotation;
         }
 
-        public void Draw(ID3D11DeviceContext* context, Buffer perObjectBuffer, Camera3D cam)
+        public virtual void Draw(ID3D11DeviceContext* context, Buffer perObjectBuffer, Camera3D cam)
         {
             if (!Visible)
                 return;

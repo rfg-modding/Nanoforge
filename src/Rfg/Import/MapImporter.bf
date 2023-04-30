@@ -12,6 +12,7 @@ using Nanoforge.Render.Resources;
 using Nanoforge.Render;
 using RfgTools.Formats.Textures;
 using System.Collections;
+using System.Linq;
 
 namespace Nanoforge.Rfg.Import
 {
@@ -55,7 +56,7 @@ namespace Nanoforge.Rfg.Import
                     if (TerrainImporter.LoadTerrain(map.PackfileName, map, zone, changes, name) case .Err)
                     {
                         Logger.Error("Failed to import terrain for zone '{}'", zone.Name);
-                        changes.Rollback();
+                        //changes.Rollback();
                         return .Err("Failed to import terrain. Check the log.");
                     }    
                 }
@@ -64,7 +65,36 @@ namespace Nanoforge.Rfg.Import
                 //Import chunks
                 for (Zone zone in map.Zones)
                 {
-                    //TODO: Implement
+                    for (ZoneObject obj in zone.Objects)
+                    {
+                        if (!obj.GetType().HasBaseType(typeof(ObjectMover)))
+                            continue;
+
+                        //Get chunk filename
+                        ObjectMover mover = obj as ObjectMover;
+                        String chunkFilename = scope .()..Append(mover.ChunkName)..Replace(".rfgchunk_pc", ".cchk_pc"); //Replace .rfgchunk_pc extension with the real one
+                        String chunkName = Path.GetFileNameWithoutExtension(chunkFilename, .. scope .());
+
+                        //See if chunk was already imported to prevent repeats
+                        var search = map.Chunks.Select((chunk) => chunk).Where((chunk) => chunk.Name.Equals(chunkName));
+                        if (search.Count() > 0)
+                        {
+                            mover.ChunkData = search.First(); //Already imported
+                        }
+                        else
+                        {
+                            //First time importing the chunk for this map
+                            switch (ChunkImporter.LoadChunk(map.PackfileName, map, zone, changes, chunkName))
+                            {
+                                case .Ok(Chunk chunk):
+                                    map.Chunks.Add(chunk);
+                                    mover.ChunkData = chunk;
+                                case .Err:
+                                    Logger.Error("Failed to import chunk {}", chunkName);
+                            }
+
+                        }
+                    }
                 }
 
                 //Load additional map data if present

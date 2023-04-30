@@ -225,6 +225,8 @@ namespace Nanoforge.Rfg
         public Team Team;
         [EditorProperty]
         public f32 Control;
+        //Data on the chunk mesh, textures, and subpieces
+        public Chunk ChunkData = null;
 
         [Reflect(.All)]
         public enum BuildingTypeEnum

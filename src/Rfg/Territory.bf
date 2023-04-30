@@ -7,6 +7,7 @@ using Nanoforge.Render.Resources;
 using RfgTools.Formats.Meshes;
 using Nanoforge.Misc;
 using Nanoforge.Render;
+using System.Linq;
 using Bon;
 
 namespace Nanoforge.Rfg
@@ -22,6 +23,9 @@ namespace Nanoforge.Rfg
 
         [BonKeepUnlessSet]
         public List<Rock> Rocks = new .() ~delete _;
+
+        [BonKeepUnlessSet]
+        public List<Chunk> Chunks = new .() ~delete _;
 
         public Result<void, StringView> Load(Renderer renderer, Scene scene)
         {
@@ -219,6 +223,96 @@ namespace Nanoforge.Rfg
                         }
                     }
                 }
+
+                //Load chunks
+                for (ZoneObject obj in zone.Objects)
+                {
+                    if (!obj.GetType().HasBaseType(typeof(ObjectMover)))
+                        continue;
+
+                    ObjectMover mover = obj as ObjectMover;
+                    Chunk chunk = mover.ChunkData;
+                    if (chunk == null)
+                    {
+                        continue;
+                    }
+
+                    //Load mesh buffers
+                    List<u8> indexBuffer = null;
+                    List<u8> vertexBuffer = null;
+                    defer { DeleteIfSet!(indexBuffer); }
+                    defer { DeleteIfSet!(vertexBuffer); }
+                    if (chunk.IndexBuffer.Load() case .Ok(let val))
+                    {
+                    	indexBuffer = val;
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to load chunk index buffer for {} in {}.", obj.Name, zone.Name);
+                        continue;
+                    }
+                    if (chunk.VertexBuffer.Load() case .Ok(let val))
+                    {
+                    	vertexBuffer = val;
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to load chunk vertex buffer for {} in {}.", obj.Name, zone.Name);
+                        continue;
+                    }
+
+                    //Load textures
+                    Texture2D diffuse = LoadTexture(chunk.DiffuseTexture, textureCache, renderer, scene).GetValueOrDefault(null);
+                    if (diffuse == null)
+                    {
+                        Logger.Error("Failed to load diffuse texture for {}", chunk.Name);
+                    }
+
+                    Texture2D specular = LoadTexture(chunk.SpecularTexture, textureCache, renderer, scene).GetValueOrDefault(null);
+                    if (specular == null)
+                    {
+                        Logger.Error("Failed to load specular map for {}", chunk.Name);
+                    }
+
+                    Texture2D normal = LoadTexture(chunk.NormalTexture, textureCache, renderer, scene).GetValueOrDefault(null);
+                    if (normal == null)
+                    {
+                        Logger.Error("Failed to load normal map for {}", chunk.Name);
+                    }    
+
+                    //Get variant used by this object
+                    u32 variantUID = mover.ChunkUID;
+                    var variantSearch = chunk.Variants.Select((variant) => variant).Where((variant) => variant.VariantUID == variantUID);
+                    if (variantSearch.Count() == 0)
+                    {
+                        continue;
+                    }
+                    ChunkVariant variant = variantSearch.First();
+
+                    //Create render object
+                    Mesh chunkMesh = new .();
+                    if (chunkMesh.Init(renderer.Device, chunk.MeshConfig, indexBuffer, vertexBuffer) case .Ok)
+                    {
+                        switch (scene.CreateRenderChunk(chunk.MeshConfig.Header.VertexFormat.ToString(.. scope .()), chunkMesh, mover.Position, mover.Orient, variant))
+                        {
+                            case .Ok(RenderChunk obj):
+                                obj.Visible = true;
+                                obj.Textures[0] = diffuse;
+                                obj.Textures[1] = specular;
+                                obj.Textures[2] = normal;
+                                obj.UseTextures = true;
+                            case .Err:
+                                delete chunkMesh;
+                                Logger.Error("Failed to create render chunk for object {}", mover.Name);
+                                continue;
+                        }
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to create render chunk for object {}", mover.Name);
+                        delete chunkMesh;
+                    }
+                }
             }
 
             //Create meshes for rocks
@@ -385,5 +479,45 @@ namespace Nanoforge.Rfg
         public ProjectBuffer VertexBuffer;
         public ProjectTexture DiffuseTexture;
         public ProjectTexture NormalTexture;
+    }
+
+    //Data for a destructible object (mesh, textures, metadata). There's one instance of these per chunk file. Copies of a building RfgMover/ZoneObject would reference this
+    [ReflectAll]
+    public class Chunk : EditorObject
+    {
+        public ProjectBuffer IndexBuffer;
+        public ProjectBuffer VertexBuffer;
+        public ProjectTexture DiffuseTexture;
+        public ProjectTexture SpecularTexture;
+        public ProjectTexture NormalTexture;
+        public MeshDataBlock MeshConfig ~DeleteIfSet!(_);
+        public List<ChunkVariant> Variants = new .() ~delete _;
+    }
+
+    //Chunk files can hold multiple variants made by combining their subpieces in different ways. Referred to as "destroyables" in RfgTools.
+    [ReflectAll]
+    public class ChunkVariant : EditorObject
+    {
+        //TODO: Consider storing these in buffers if they bloat the projectDB files too much. They're only needed when creating the renderer object at the moment
+        public u32 VariantUID; //Used by mover zone objects to identify which variant they're using.
+        public List<PieceData> PieceData = new .() ~delete _;
+        public List<PieceInstance> Pieces = new .() ~delete _;
+
+        //Note: Pulls data from RfgTools Subpiece and Subpiece data. Only has the data NF needs at the moment
+        [ReflectAll]
+        public struct PieceData
+        {
+            public u16 RenderSubmesh; //TODO: Is this a render block index? UPDATE NAME BEFORE COMMIT!
+        }
+
+        //Pulls data from RfgTools Dlod
+        [ReflectAll]
+        public struct PieceInstance
+        {
+            public Vec3 Position;
+            public Mat3 Orient;
+            public u16 FirstSubmesh; //TODO: Update name. Might be first render block
+            public u8 NumSubmeshes; //TODO: Same^^^^
+        }
     }
 }

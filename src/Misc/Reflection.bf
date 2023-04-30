@@ -3,7 +3,7 @@ using System;
 
 namespace Nanoforge.Misc
 {
-    [AttributeUsage(.Class | .Interface | .Enum, .AlwaysIncludeTarget | .ReflectAttribute, ReflectUser = .All, AlwaysIncludeUser = .IncludeAllMethods | .AssumeInstantiated)]
+    [AttributeUsage(.Class | .Struct | .Interface | .Enum, .AlwaysIncludeTarget | .ReflectAttribute, ReflectUser = .All, AlwaysIncludeUser = .IncludeAllMethods | .AssumeInstantiated)]
     public struct ReflectAllAttribute : Attribute
     {
 

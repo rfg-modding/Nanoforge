@@ -60,8 +60,8 @@ namespace Nanoforge.Rfg.Import
                 switch (terrainFile.GetMeshData(i))
                 {
                     case .Ok(MeshInstanceData meshData):
-                        ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_low_lod_{i}");
-                        ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_low_lod_{i}");
+                        ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_low_lod_{i}_indices");
+                        ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_low_lod_{i}_vertices");
                         terrain.LowLodTerrainMeshConfig[i] = meshData.Config.Clone(.. new .());
                         terrain.LowLodTerrainIndexBuffers[i] = indexBuffer;
                         terrain.LowLodTerrainVertexBuffers[i] = vertexBuffer;
@@ -128,8 +128,8 @@ namespace Nanoforge.Rfg.Import
                 switch (subzoneFile.GetTerrainMeshData())
                 {
                     case .Ok(MeshInstanceData meshData):
-                        ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}");
-                        ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}");
+                        ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}_indices");
+                        ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}_vertices");
                         subzone.MeshConfig = meshData.Config.Clone(.. new .());
                         subzone.IndexBuffer = indexBuffer;
                         subzone.VertexBuffer = vertexBuffer;
@@ -147,8 +147,8 @@ namespace Nanoforge.Rfg.Import
                     switch (subzoneFile.GetStitchMeshData())
                     {
                         case .Ok(MeshInstanceData meshData):
-                            ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}");
-                            ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}");
+                            ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}_stitch_indices");
+                            ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}_stitch_vertices");
                             subzone.StitchMeshConfig = meshData.Config.Clone(.. new .());
                             subzone.StitchMeshIndexBuffer = indexBuffer;
                             subzone.StitchMeshVertexBuffer = vertexBuffer;
@@ -214,8 +214,8 @@ namespace Nanoforge.Rfg.Import
                         switch (rockMesh.GetMeshData())
                         {
                             case .Ok(MeshInstanceData meshData):
-                                ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{stitchPieceName}");
-                                ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{stitchPieceName}");
+                                ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{stitchPieceName}_indices");
+                                ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{stitchPieceName}_vertices");
                                 rock.Position = stitchInstance.Position;
                                 rock.Rotation = stitchInstance.Rotation;
                                 rock.MeshConfig = meshData.Config.Clone(.. new .());
