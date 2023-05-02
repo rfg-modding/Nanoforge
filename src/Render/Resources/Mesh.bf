@@ -2,6 +2,9 @@ using Common;
 using System;
 using RfgTools.Formats.Meshes;
 using Direct3D;
+using Nanoforge.Rfg;
+using System.Collections;
+using Nanoforge.Misc;
 
 namespace Nanoforge.Render.Resources
 {
@@ -10,45 +13,62 @@ namespace Nanoforge.Render.Resources
         public u32 NumLods { get; private set; } = 0;
         public u32 LodLevel { get; set; } = 0;
 
-        //TODO: Change this to be shareable between mesh instances. Once chunk meshes are added having separate copies of this for each RenderObject will be a serious memory hog (was a problem in the C++ version)
-        private MeshDataBlock _config = null ~DeleteIfSet!(_);
-
+        private ProjectMesh _config = null;
         private append Buffer _vertexBuffer;
         private append Buffer _indexBuffer;
-        private u32 _numVertices = 0;
-        private u32 _numIndices = 0;
-        private u32 _vertexStride = 0;
-        private u32 _indexStride = 0;
         private DXGI_FORMAT _indexBufferFormat = .UNKNOWN;
-        private D3D_PRIMITIVE_TOPOLOGY _topology = .D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 
         public static u16[256] SubmeshOverrideIndices = .();
 
-        public Result<void> Init(ID3D11Device* device, MeshDataBlock config, Span<u8> indexBuffer, Span<u8> vertexBuffer, u32 numLods = 1)
+        public Result<void> Init(ID3D11Device* device, ProjectMesh config, u32 numLods = 1)
 		{
-            _config = config.Clone(.. new .());
+            _config = config;
 
             //Test the current assumption that each lod level has only 1 submesh when multiple lods exist
             if (numLods != 1)
-                Runtime.Assert(numLods == config.Header.NumSubmeshes);
+                Runtime.Assert(numLods == _config.Submeshes.Count);
 
-            _vertexStride = config.Header.VertexStride0;
-            _indexStride = config.Header.IndexSize;
-            _numVertices = config.Header.NumVertices;
-            _numIndices = config.Header.NumIndices;
-            if (config.Header.IndexSize == 2)
-                _indexBufferFormat = .R16_UINT;
-            else if (config.Header.IndexSize == 4)
-                _indexBufferFormat = .R32_UINT;
-            else
-                return .Err; //Unsupported index format
+            switch (config.IndexSize)
+            {
+                case 2:
+                    _indexBufferFormat = .R16_UINT;
+                case 4:
+                    _indexBufferFormat = .R32_UINT;
+                default:
+                    Logger.Error("Failed to initialize mesh with unsupported index size of {} bytes.", config.IndexSize);
+                    return .Err;
+            }
 
-            _topology = .D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP; //Hardcoded since all RFG meshes have used this so far
             NumLods = numLods;
 
-            if (_indexBuffer.Init(device, (u32)indexBuffer.Length, .INDEX_BUFFER, indexBuffer.Ptr) case .Err)
+            //Load index + vertex buffers from file into RAM
+            List<u8> indexBuffer = null;
+            List<u8> vertexBuffer = null;
+            defer { DeleteIfSet!(indexBuffer); }
+            defer { DeleteIfSet!(vertexBuffer); }
+            if (_config.IndexBuffer.Load() case .Ok(let val))
+            {
+            	indexBuffer = val;
+            }
+            else
+            {
+                Logger.Error("Failed to load index buffer for mesh {}", _config.Name);
                 return .Err;
-            if (_vertexBuffer.Init(device, (u32)vertexBuffer.Length, .VERTEX_BUFFER, vertexBuffer.Ptr) case .Err)
+            }
+            if (_config.VertexBuffer.Load() case .Ok(let val))
+            {
+            	vertexBuffer = val;
+            }
+            else
+            {
+                Logger.Error("Failed to load vertex buffer for mesh {}", _config.Name);
+                return .Err;
+            }
+
+            //Load buffers into GPU memory
+            if (_indexBuffer.Init(device, (u32)indexBuffer.Count, .INDEX_BUFFER, indexBuffer.Ptr) case .Err)
+                return .Err;
+            if (_vertexBuffer.Init(device, (u32)vertexBuffer.Count, .VERTEX_BUFFER, vertexBuffer.Ptr) case .Err)
 	            return .Err;
 
             return .Ok;
@@ -58,8 +78,9 @@ namespace Nanoforge.Render.Resources
         {
             //Bind buffers
             u32 vertexOffset = 0;
+            u32 vertexStride = _config.VertexStride;
             context.IASetIndexBuffer(_indexBuffer.Ptr, _indexBufferFormat, 0);
-            context.IASetVertexBuffers(0, 1, &_vertexBuffer.Ptr, &_vertexStride, &vertexOffset);
+            context.IASetVertexBuffers(0, 1, &_vertexBuffer.Ptr, &vertexStride, &vertexOffset);
 
             if (numSubmeshOverrides != -1)
             {

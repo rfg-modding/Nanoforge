@@ -62,9 +62,11 @@ namespace Nanoforge.Rfg.Import
                     case .Ok(MeshInstanceData meshData):
                         ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_low_lod_{i}_indices");
                         ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_low_lod_{i}_vertices");
-                        terrain.LowLodTerrainMeshConfig[i] = meshData.Config.Clone(.. new .());
-                        terrain.LowLodTerrainIndexBuffers[i] = indexBuffer;
-                        terrain.LowLodTerrainVertexBuffers[i] = vertexBuffer;
+                        ProjectMesh mesh = changes.CreateObject<ProjectMesh>(scope $"{name}_low_lod_{i}_mesh");
+                        mesh.InitFromRfgMeshConfig(meshData.Config);
+                        mesh.IndexBuffer = indexBuffer;
+                        mesh.VertexBuffer = vertexBuffer;
+                        terrain.LowLodTerrainMeshes[i] = mesh;
                     case .Err(StringView err):
                         Logger.Error("Failed to get mesh data from gterrain_pc file. Error: {}", err);
                         return .Err;
@@ -122,6 +124,7 @@ namespace Nanoforge.Rfg.Import
                 }
 
                 ZoneTerrain.Subzone subzone = changes.CreateObject<ZoneTerrain.Subzone>(scope $"{name}_{i}.ctmesh_pc");
+                subzone.Position = subzoneFile.Data.Position;
 
                 //Load terrain mesh
                 Logger.Info("Extracting subzone terrain mesh...");
@@ -130,10 +133,11 @@ namespace Nanoforge.Rfg.Import
                     case .Ok(MeshInstanceData meshData):
                         ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}_indices");
                         ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}_vertices");
-                        subzone.MeshConfig = meshData.Config.Clone(.. new .());
-                        subzone.IndexBuffer = indexBuffer;
-                        subzone.VertexBuffer = vertexBuffer;
-                        subzone.Position = subzoneFile.Data.Position;
+                        ProjectMesh mesh = changes.CreateObject<ProjectMesh>(scope $"{name}_{i}_high_lod_mesh");
+                        mesh.InitFromRfgMeshConfig(meshData.Config);
+                        mesh.IndexBuffer = indexBuffer;
+                        mesh.VertexBuffer = vertexBuffer;
+                        subzone.Mesh = mesh;
                     case .Err(StringView err):
                         Logger.Error("Failed to get high lod terrain mesh data from {}_{}.gtmesh_pc. Error: {}", name, i, err);
                         return .Err;
@@ -149,9 +153,11 @@ namespace Nanoforge.Rfg.Import
                         case .Ok(MeshInstanceData meshData):
                             ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}_stitch_indices");
                             ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}_stitch_vertices");
-                            subzone.StitchMeshConfig = meshData.Config.Clone(.. new .());
-                            subzone.StitchMeshIndexBuffer = indexBuffer;
-                            subzone.StitchMeshVertexBuffer = vertexBuffer;
+                            ProjectMesh stitchMesh = changes.CreateObject<ProjectMesh>(scope $"{name}_{i}_stitch_mesh");
+                            stitchMesh.InitFromRfgMeshConfig(meshData.Config);
+                            stitchMesh.IndexBuffer = indexBuffer;
+                            stitchMesh.VertexBuffer = vertexBuffer;
+                            subzone.StitchMesh = stitchMesh;
                         case .Err(StringView err):
                             Logger.Error("Failed to get terrain stitch mesh data from {}_{}.gtmesh_pc. Error: {}", name, i, err);
                             return .Err;
@@ -176,11 +182,9 @@ namespace Nanoforge.Rfg.Import
                         Rock rock = changes.CreateObject<Rock>(stitchPieceName);
                         rock.Position = stitchInstance.Position;
                         rock.Rotation = stitchInstance.Rotation;
-                        rock.IndexBuffer = cachedRock.IndexBuffer;
-                        rock.VertexBuffer = cachedRock.VertexBuffer;
                         rock.DiffuseTexture = cachedRock.DiffuseTexture;
                         rock.NormalTexture = cachedRock.NormalTexture;
-                        rock.MeshConfig = cachedRock.MeshConfig.Clone(.. new .()); //TODO: Shouldn't be making a copy here once issue #36 completed
+                        rock.Mesh = cachedRock.Mesh;
                         territory.Rocks.Add(rock);
                     }
                     else //First time loading the rock. Must load the rfg files and extract the meshes + textures
@@ -214,13 +218,16 @@ namespace Nanoforge.Rfg.Import
                         switch (rockMesh.GetMeshData())
                         {
                             case .Ok(MeshInstanceData meshData):
-                                ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{stitchPieceName}_indices");
-                                ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{stitchPieceName}_vertices");
                                 rock.Position = stitchInstance.Position;
                                 rock.Rotation = stitchInstance.Rotation;
-                                rock.MeshConfig = meshData.Config.Clone(.. new .());
-                                rock.IndexBuffer = indexBuffer;
-                                rock.VertexBuffer = vertexBuffer;
+
+                                ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{stitchPieceName}_indices");
+                                ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{stitchPieceName}_vertices");
+                                ProjectMesh mesh = changes.CreateObject<ProjectMesh>(scope $"{stitchPieceName}.cstch_pc");
+                                mesh.InitFromRfgMeshConfig(meshData.Config);
+                                mesh.IndexBuffer = indexBuffer;
+                                mesh.VertexBuffer = vertexBuffer;
+                                rock.Mesh = mesh;
                             case .Err(StringView err):
                                 Logger.Error("Failed to extract mesh data from {}.gstch_pc. Error: {}", stitchPieceName, err);
                                 return .Err;

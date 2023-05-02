@@ -15,7 +15,7 @@ namespace Nanoforge.Render.Resources
 
 	public class RenderObject
 	{
-        public Mesh ObjectMesh ~delete _;
+        public Mesh ObjectMesh;
         public Vec3 Scale = .(1.0f, 1.0f, 1.0f);
         public Vec3 Position = .Zero;
         public Mat3 Rotation = .Identity;

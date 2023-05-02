@@ -70,9 +70,11 @@ namespace Nanoforge.Rfg.Import
                 case .Ok(MeshInstanceData meshData):
                     ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{chunkName}_indices");
                     ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{chunkName}_vertices");
-                    chunk.IndexBuffer = indexBuffer;
-                    chunk.VertexBuffer = vertexBuffer;
-                    chunk.MeshConfig = meshData.Config.Clone(.. new .()); //TODO: Should be gone once MeshDataBlock sharing is added. Can be very large per instance of a chunk
+                    ProjectMesh mesh = changes.CreateObject<ProjectMesh>(scope $"{chunkName}.cchk_pc");
+                    mesh.InitFromRfgMeshConfig(meshData.Config);
+                    mesh.IndexBuffer = indexBuffer;
+                    mesh.VertexBuffer = vertexBuffer;
+                    chunk.Mesh = mesh;
                 case .Err(StringView err):
                     Logger.Error("Failed to get mesh data from gterrain_pc file. Error: {}", err);
                     return .Err;

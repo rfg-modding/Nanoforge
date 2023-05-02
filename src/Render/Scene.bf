@@ -57,8 +57,9 @@ namespace Nanoforge.Render
         private bool _primitiveBufferNeedsUpdate = true; //Set to true when the cpu side buffers have changed and need to be sent to the GPU
         public bool PrimitiveMaterialsSet => _lineListMaterial != null && _triangleListMaterial != null && _litTriangleListMaterial != null;
 
-        //We currently only delete textures when we close a map, so we don't need fancy reference counting or anything like that just yet.
+        //We currently only delete resources when we close a map, so we don't need fancy reference counting or anything like that just yet.
         public append List<Texture2D> Textures ~ClearAndDeleteItems(_);
+        public append List<Mesh> Meshes ~ClearAndDeleteItems(_);
 
         [CRepr, RequiredSize(16)]
         private struct ColoredVertex
