@@ -15,7 +15,7 @@ namespace Nanoforge.Render
     //Standalone group of primitives and meshes to render. Each editor tab with a 3D viewport such as the map editor or mesh viewers have their own scene.
 	public class Scene
 	{
-        public bool Active = true; //Gets redrawn each frame if active
+        public bool Active = true;
         public Camera3D Camera = new .() ~delete _;
         public Vec4 ClearColor = .(0.0f, 0.0f, 0.0f, 1.0f);
         public PerFrameConstants PerFrameConstants;
@@ -118,6 +118,8 @@ namespace Nanoforge.Render
         public void Draw(f32 deltaTime)
         {
             if (ErrorOccurred || !PrimitiveMaterialsSet)
+                return;
+            if (!Active)
                 return;
 
             TotalTime += deltaTime;

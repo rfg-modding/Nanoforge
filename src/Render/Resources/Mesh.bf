@@ -90,9 +90,9 @@ namespace Nanoforge.Render.Resources
                     u32 submeshIndex = SubmeshOverrideIndices[i];
                     ref SubmeshData submesh = ref _config.Submeshes[submeshIndex];
                     u32 firstBlock = submesh.RenderBlocksOffset;
-                    for (int i in 0 ..< submesh.NumRenderBlocks)
+                    for (int j in 0 ..< submesh.NumRenderBlocks)
                     {
-                        ref RenderBlock block = ref _config.RenderBlocks[firstBlock + i];
+                        ref RenderBlock block = ref _config.RenderBlocks[firstBlock + j];
                         context.DrawIndexed(block.NumIndices, block.StartIndex, 0);
                     }
                 }

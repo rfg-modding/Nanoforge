@@ -245,6 +245,9 @@ namespace Nanoforge.Rfg
 
         private Result<Texture2D> LoadTexture(ProjectTexture projectTexture, Dictionary<ProjectTexture, Texture2D> textureCache, Renderer renderer, Scene scene)
         {
+            if (projectTexture == null)
+                return .Err;
+
             if (textureCache.ContainsKey(projectTexture))
             {
                 return textureCache[projectTexture];
@@ -267,6 +270,9 @@ namespace Nanoforge.Rfg
 
         private Result<Mesh> LoadMesh(ProjectMesh projectMesh, Dictionary<ProjectMesh, Mesh> meshCache, Renderer renderer, Scene scene)
         {
+            if (projectMesh == null)
+                return .Err;
+
             if (meshCache.ContainsKey(projectMesh))
             {
                 return meshCache[projectMesh];
@@ -336,6 +342,7 @@ namespace Nanoforge.Rfg
         }
     }
 
+    [ReflectAll]
     public class ProjectMesh : EditorObject
     {
         public u32 NumVertices;

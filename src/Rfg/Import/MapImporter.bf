@@ -31,7 +31,6 @@ namespace Nanoforge.Rfg.Import
                 defer PackfileVFS.UnloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
 
                 //Import zones
-                Logger.Info("Importing zones...");
                 for (var entry in PackfileVFS.Enumerate(scope $"//data/{map.PackfileName}/"))
                 {
                     if (Path.GetExtension(entry.Name, .. scope .()) != ".rfgzone_pc" || entry.Name.StartsWith("p_", .OrdinalIgnoreCase))

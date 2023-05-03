@@ -478,12 +478,16 @@ namespace Nanoforge.FileSystem
 				{
                     //TODO: This might need to be improved with some kind of reference counting eventually. It suffices for the current use case of single threaded map imports. But may not work in more complex cases.
                     FileEntry file = entry as FileEntry;
-                    DeleteIfSet!(file.[Friend]_data);
+                    if (file.[Friend]_data != null)
+                    {
+                        delete file.[Friend]_data;
+                        file.[Friend]_data = null;
+                    }
 				}
                 else if (entry.IsDirectory && recursive)
                 {
                     //Unload subdirs if recursive
-                    PreloadDirectory(entry as DirectoryEntry);
+                    UnloadDirectory(entry as DirectoryEntry);
                 }
             }
         }

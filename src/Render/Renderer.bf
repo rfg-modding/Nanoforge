@@ -125,9 +125,10 @@ namespace Nanoforge.Render
                 Runtime.FatalError("Failed to create swapchain following window resize");
         }
 
-        public Scene CreateScene()
+        public Scene CreateScene(bool active = true)
         {
             Scene scene = new .(_device, _context);
+            scene.Active = active;
             Scenes.Add(scene);
             return scene;
         }

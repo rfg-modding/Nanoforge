@@ -206,9 +206,18 @@ namespace Nanoforge.App
             //Write general project metadata
             Bon.Serialize(CurrentProject, nanoprojText);
 
-            File.WriteAllText(scope $"{CurrentProject.Directory}objects.nanodata", objectsText);
-            File.WriteAllText(scope $"{CurrentProject.Directory}buffers.nanodata", buffersText);
-            File.WriteAllText(scope $"{CurrentProject.Directory}{CurrentProject.Name}.nanoproj", nanoprojText);
+            if (File.WriteAllText(scope $"{CurrentProject.Directory}objects.nanodata", objectsText) case .Err)
+            {
+                return .Err("Failed to write objects.nanodata");
+            }
+            if (File.WriteAllText(scope $"{CurrentProject.Directory}buffers.nanodata", buffersText) case .Err)
+            {
+                return .Err("Failed to write buffers.nanodata");
+            }
+            if (File.WriteAllText(scope $"{CurrentProject.Directory}{CurrentProject.Name}.nanoproj", nanoprojText) case .Err)
+            {
+                return .Err("Failed to write .nanoproj file");
+            }
             return .Ok;
         }
 

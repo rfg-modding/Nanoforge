@@ -18,8 +18,6 @@ namespace Nanoforge.Rfg.Import
 	{
         public static Result<void> LoadTerrain(StringView packfileName, Territory territory, Zone zone, DiffUtil changes, StringView name)
         {
-            Logger.Info("Importing primary terrain files...");
-
             ZoneTerrain terrain = changes.CreateObject<ZoneTerrain>(scope $"{name}.cterrain_pc");
             
             //Determine terrain position from obj_zone center
@@ -80,7 +78,6 @@ namespace Nanoforge.Rfg.Import
 
             //Load zone-wide textures
             {
-                Logger.Info("Importing zone-wide textures...");
                 ProjectTexture combTexture = GetOrLoadTerrainTexture(changes, scope $"{name}comb.tga").GetValueOrDefault(null);
                 ProjectTexture ovlTexture = GetOrLoadTerrainTexture(changes, scope $"{name}_ovl.tga").GetValueOrDefault(null);
                 ProjectTexture splatmap = GetOrLoadTerrainTexture(changes, scope $"{name}_alpha00.tga").GetValueOrDefault(null);
@@ -90,15 +87,11 @@ namespace Nanoforge.Rfg.Import
                 terrain.CombTexture = combTexture;
                 terrain.OvlTexture = ovlTexture;
                 terrain.Splatmap = splatmap;
-                Logger.Info("Done importing zone-wide textures");
             }
 
             //Load subzones (ctmesh_pc|gtmesh_pc files). These have the high lod terrain meshes
-            Logger.Info("Importing terrain subzones...");
             for (int i in 0 ... 8)
             {
-                Logger.Info("Importing subzone {}...", i);
-                Logger.Info("Loading subzone files...");
                 Result<u8[]> subzoneCpuFile = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/ns_base.str2_pc/{name}_{i}.ctmesh_pc");
                 if (subzoneCpuFile case .Err)
                 {
@@ -115,7 +108,6 @@ namespace Nanoforge.Rfg.Import
                 }
                 defer delete subzoneGpuFile.Value;
 
-                Logger.Info("Parsing subzone files...");
                 TerrainSubzone subzoneFile = scope .();
                 if (subzoneFile.Load(subzoneCpuFile.Value, subzoneGpuFile.Value, true) case .Err(StringView err))
                 {
@@ -127,7 +119,6 @@ namespace Nanoforge.Rfg.Import
                 subzone.Position = subzoneFile.Data.Position;
 
                 //Load terrain mesh
-                Logger.Info("Extracting subzone terrain mesh...");
                 switch (subzoneFile.GetTerrainMeshData())
                 {
                     case .Ok(MeshInstanceData meshData):
@@ -144,7 +135,6 @@ namespace Nanoforge.Rfg.Import
                 }
 
                 //Load stitch meshes
-                Logger.Info("Extracting subzone terrain stitch mesh...");
                 if (subzoneFile.HasStitchMesh)
                 {
                     subzone.HasStitchMeshes = true;
@@ -167,7 +157,6 @@ namespace Nanoforge.Rfg.Import
                 //TODO: Load road meshes
 
                 //Load rock meshes
-                Logger.Info("Importing rock meshes...");
                 for (int stitchIndex in 0 ..< subzoneFile.StitchInstances.Length)
                 {
                     ref TerrainStitchInstance stitchInstance = ref subzoneFile.StitchInstances[stitchIndex];
@@ -251,7 +240,6 @@ namespace Nanoforge.Rfg.Import
                 }
 
                 //Load subzone textures
-                Logger.Info("Extracting subzone terrain textures...");                
                 {
                     //First we get a list of textures names from the main terrain file (cterrain_pc)
                     int terrainTextureIndex = 0;
@@ -326,7 +314,6 @@ namespace Nanoforge.Rfg.Import
                 }
 
                 terrain.Subzones[i] = subzone;
-                Logger.Info("Done importing subzone {}", i);
             }
             Logger.Info("Done loading terrain subzones");
 

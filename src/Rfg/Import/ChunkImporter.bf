@@ -16,8 +16,6 @@ namespace Nanoforge.Rfg.Import
 	{
         public static Result<Chunk> LoadChunk(StringView packfileName, Territory territory, Zone zone, DiffUtil changes, StringView chunkName)
         {
-            Logger.Info("Importing {}...", chunkName);
-
             //Get files
             Result<u8[]> cpuFile = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/ns_base.str2_pc/{chunkName}.cchk_pc");
             if (cpuFile case .Err)

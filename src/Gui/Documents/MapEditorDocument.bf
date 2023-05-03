@@ -51,7 +51,8 @@ namespace Nanoforge.Gui.Documents
 
             //Create scene for rendering
             Renderer renderer = app.GetResource<Renderer>();
-            _scene = renderer.CreateScene();
+            _scene = renderer.CreateScene(false);
+            defer { _scene.Active = true; }
 
             //Check if the map was already imported
             Territory findResult = ProjectDB.Find<Territory>(MapName);
@@ -129,7 +130,7 @@ namespace Nanoforge.Gui.Documents
                 adjustedPos.y += 10.0f;
                 ImGui.SetCursorPos(adjustedPos);
             }
-            if (Loading)
+            if (Loading || _loadFailure)
                 return;
 
             //Draw object bounding boxes
