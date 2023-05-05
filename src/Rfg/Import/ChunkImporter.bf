@@ -44,6 +44,7 @@ namespace Nanoforge.Rfg.Import
             for (Destroyable destroyable in chunkFile.Destroyables)
             {
                 var variant = changes.CreateObject<ChunkVariant>(destroyable.Name);
+                variant.VariantUID = destroyable.UID;
                 for (var subpieceData in ref destroyable.SubpieceData)
                 {
                     ChunkVariant.PieceData data = .();

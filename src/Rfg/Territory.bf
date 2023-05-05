@@ -175,8 +175,7 @@ namespace Nanoforge.Rfg
                     }    
 
                     //Get variant used by this object
-                    u32 variantUID = mover.ChunkUID;
-                    var variantSearch = chunk.Variants.Select((variant) => variant).Where((variant) => variant.VariantUID == variantUID);
+                    var variantSearch = chunk.Variants.Select((variant) => variant).Where((variant) => variant.VariantUID == mover.DestroyableUID);
                     if (variantSearch.Count() == 0)
                     {
                         continue;
