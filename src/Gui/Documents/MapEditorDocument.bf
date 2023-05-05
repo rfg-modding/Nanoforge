@@ -51,7 +51,6 @@ namespace Nanoforge.Gui.Documents
 
             //Create scene for rendering
             Renderer renderer = app.GetResource<Renderer>();
-            _scene = renderer.CreateScene(false);
             defer { _scene.Active = true; }
 
             //Check if the map was already imported
@@ -102,8 +101,13 @@ namespace Nanoforge.Gui.Documents
         {
             if (FirstDraw)
             {
+                //Start loading process on first draw. We create the scene here to avoid needing to synchronize D3D11DeviceContext usage between multiple threads
+                Renderer renderer = app.GetResource<Renderer>();
+                _scene = renderer.CreateScene(false);
                 ThreadPool.QueueUserWorkItem(new () => { this.Load(app); });
             }
+            if (Loading || _loadFailure)
+	            return;
 
             if (_scene != null)
             {
