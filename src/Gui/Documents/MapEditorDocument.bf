@@ -134,7 +134,10 @@ namespace Nanoforge.Gui.Documents
                 adjustedPos.y += 10.0f;
                 ImGui.SetCursorPos(adjustedPos);
             }
-            if (Loading || _loadFailure)
+
+            //Don't redraw if this document isn't focused by the user. 
+            _scene.Active = (this == gui.FocusedDocument);
+            if (!_scene.Active)
                 return;
 
             //Draw object bounding boxes
