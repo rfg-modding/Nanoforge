@@ -93,7 +93,7 @@ namespace Nanoforge.Rfg
                         if (subzoneTextures[textureIndex] == null)
                         {
                             //Doesn't matter if it's null since the renderer will just skip it. It will only cause visual bugs so we let loading continue.
-                            Logger.Warning("Failed to load {} for {} subzone {}", projectTexture.Name, zone.Name, i);
+                            Logger.Warning("Failed to load {} for {} subzone {}", projectTexture == null ? "NAME_NOT_SET" : projectTexture.Name, zone.Name, i);
                         }
                     }
 
