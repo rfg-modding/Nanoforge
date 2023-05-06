@@ -13,3 +13,6 @@
 [submodule "Dependencies/bon"]
 	path = Dependencies/bon
 	url = https://github.com/EinScott/bon.git
+[submodule "Dependencies/nativefiledialog-beef"]
+	path = Dependencies/nativefiledialog-beef
+	url = https://github.com/jazzbre/nativefiledialog-beef.git

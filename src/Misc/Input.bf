@@ -26,9 +26,6 @@ namespace Nanoforge.Misc
         public bool ShiftDown { get; private set; } = false;
         public bool ControlDown { get; private set; } = false;
         public bool AltDown { get; private set; } = false;
-        public bool CapsLockDown { get; private set; } = false;
-        public bool NumLockDown { get; private set; } = false;
-        public bool SuperDown { get; private set; } = false;
 
         //Returns true if the provided mouse button is down
         public bool MouseButtonDown(MouseButtonCode keyCode) => _mouseDownStates[(int)keyCode];
@@ -77,6 +74,9 @@ namespace Nanoforge.Misc
             MouseScrollY = 0.0f;
             MouseDeltaX = 0;
             MouseDeltaY = 0;
+            ShiftDown = KeyDown(.LeftShift) || KeyDown(.RightShift) || KeyDown(.Shift);
+            ControlDown = KeyDown(.LeftControl) || KeyDown(.RightControl) || KeyDown(.Control);
+            AltDown  = KeyDown(.LeftAlt) || KeyDown(.RightAlt) || KeyDown(.Alt);
         }
 
         //Takes WndProc WM_KEYDOWN message parameters as input

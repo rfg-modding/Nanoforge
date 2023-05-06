@@ -42,6 +42,8 @@ namespace Nanoforge.App
         public class Project
         {
             public String Name = new .()..Append("No project loaded") ~delete _;
+            public String Description = new .() ~delete _;
+            public String Author = new .() ~delete _;
             [BonIgnore]
             public String Directory = new .() ~delete _;
             [BonIgnore]
@@ -139,9 +141,15 @@ namespace Nanoforge.App
         public static void Reset()
         {
             ScopedLock!(_objectCreationLock);
+            ScopedLock!(_bufferCreationLock);
             ClearDictionaryAndDeleteValues!(_objects);
             ClearDictionaryAndDeleteValues!(_buffers);
-            CurrentProject.[Friend]Loaded = false;
+            _nextObjectUID = 0;
+            _nextBufferUID = 0;
+            UndoStack.ClearAndDeleteItems();
+            RedoStack.ClearAndDeleteItems();
+            delete CurrentProject;
+            CurrentProject = new .();
         }
 
         //Commit changes to undo stack. ProjectDB takes ownership of the transactions
@@ -178,6 +186,26 @@ namespace Nanoforge.App
                     transaction.Apply();
                 }
                 UndoStack.Add(redo);
+            }
+        }
+
+        public static Result<void, StringView> NewProject(StringView directory, StringView name, StringView author, StringView description)
+        {
+            Reset();
+            delete CurrentProject;
+            CurrentProject = new .();
+            CurrentProject.Directory.Set(directory);
+            CurrentProject.FilePath.Set(scope $"{directory}{name}.nanoproj");
+            CurrentProject.Author.Set(author);
+            CurrentProject.Name.Set(name);
+            CurrentProject.Description.Set(description);
+            switch (Save())
+            {
+                case .Ok:
+                    CurrentProject.[Friend]Loaded = true;
+                    return .Ok;
+                case .Err(StringView err):
+                    return .Err(err);
             }
         }
 
@@ -221,8 +249,10 @@ namespace Nanoforge.App
             return .Ok;
         }
 
+        [Trace(.All)]
         public static Result<void, StringView> Load(StringView projectFilePath)
         {
+            Reset();
             CurrentProject.FilePath.Set(projectFilePath);
             CurrentProject.Directory..Set(Path.GetDirectoryPath(projectFilePath, .. scope .())).Append("\\");
             _deserializationObjectReferences.Clear();

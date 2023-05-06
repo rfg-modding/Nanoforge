@@ -98,6 +98,161 @@ namespace ImGui
         	return hovered;
         }
 
+        public static bool HelpMarker(StringView tooltip)
+        {
+            ImGui.TextDisabled("(?)");
+            return ImGui.TooltipOnPrevious(tooltip);
+        }
+
+        public static bool Selectable(StringView label, bool selected = false, SelectableFlags flags = (SelectableFlags)0, Vec2 size = Vec2.Zero)
+        {
+            String labelNullTerminated = scope .(label)..Append('\0');
+            return Selectable(labelNullTerminated.Ptr, selected, flags, size);
+        }
+
+        struct InputTextCallback_UserData
+        {
+            public String Buffer;
+            public ImGui.InputTextCallback ChainCallback;
+            public void* ChainCallbackUserData;
+        }
+
+        //Adds extra logic so we can use beef strings with ImGui.InputText
+        private static int InputTextCallback(ImGui.InputTextCallbackData* data)
+        {
+            InputTextCallback_UserData* userData = (InputTextCallback_UserData*)data.UserData;
+            if (data.EventFlag == .CallbackResize)
+            {
+                //Resize string + update length so the string knows that characters were added/removed
+                String buffer = userData.Buffer;
+                buffer.Reserve(data.BufSize);
+                buffer.[Friend]mLength = data.BufTextLen;
+                data.Buf = (char8*)buffer.Ptr;
+            }
+            if (userData.ChainCallback != null)
+            {
+                data.UserData = userData.ChainCallbackUserData;
+                return userData.ChainCallback(data);
+            }
+
+            return 0;
+        }
+
+        public static bool InputText(StringView label, String buffer, ImGui.InputTextFlags flags = .None, ImGui.InputTextCallback callback = null, void* userData = null)
+        {
+            String labelNullTerminated = scope .(label)..Append('\0');
+
+            ImGui.InputTextFlags flagsFinal = flags | .CallbackResize;
+            ImGui.InputTextCallback_UserData cbUserData = .();
+            cbUserData.Buffer = buffer;
+            cbUserData.ChainCallback = callback;
+            cbUserData.ChainCallbackUserData = userData;
+            buffer.EnsureNullTerminator();
+            return ImGui.InputText(labelNullTerminated.Ptr, buffer.CStr(), (u64)buffer.Length + 1, flagsFinal, => InputTextCallback, &cbUserData);
+        }
+
+        public static bool InputTextMultiline(StringView label, String buffer, ImGui.Vec2 size = .(0.0f, 0.0f), ImGui.InputTextFlags flags = .None, ImGui.InputTextCallback callback = null, void* userData = null)
+        {
+            String labelNullTerminated = scope .(label)..Append('\0');
+
+            ImGui.InputTextFlags flagsFinal = flags | .CallbackResize;
+            ImGui.InputTextCallback_UserData cbUserData = .();
+            cbUserData.Buffer = buffer;
+            cbUserData.ChainCallback = callback;
+            cbUserData.ChainCallbackUserData = userData;
+            buffer.EnsureNullTerminator();
+            return InputTextMultiline(labelNullTerminated.Ptr, buffer.CStr(), (u64)buffer.Length + 1, size, flagsFinal, => InputTextCallback, &cbUserData);
+        }
+
+        public static bool InputTextWithHint(StringView label, StringView hint, String buffer, ImGui.InputTextFlags flags = .None, ImGui.InputTextCallback callback = null, void* userData = null)
+        {
+            String labelNullTerminated = scope .(label)..Append('\0');
+            String hintNullTerminated = scope .(hint)..Append('\0');
+
+            ImGui.InputTextFlags flagsFinal = flags | .CallbackResize;
+            ImGui.InputTextCallback_UserData cbUserData = .();
+            cbUserData.Buffer = buffer;
+            cbUserData.ChainCallback = callback;
+            cbUserData.ChainCallbackUserData = userData;
+            buffer.EnsureNullTerminator();
+            return ImGui.InputTextWithHint(labelNullTerminated.Ptr, hintNullTerminated.Ptr, buffer.CStr(), (u64)buffer.Length + 1, flagsFinal, => InputTextCallback, &cbUserData);
+        }
+
+        public static void SetClipboardText(StringView str)
+        {
+            String strNullTerminated = scope .(str, .NullTerminate);
+            ImGui.SetClipboardText(strNullTerminated.Ptr);
+        }
+
+        public static bool Button(StringView label, ImGui.Vec2 size = .Zero)
+        {
+            String strNullTerminated = scope .(label, .NullTerminate);
+            return ImGui.Button(strNullTerminated.Ptr, size);
+        }
+
+        public static bool ToggleButton(StringView label, bool* value, ImGui.Vec2 size = .Zero)
+        {
+            ImGui.PushStyleVar(.FrameBorderSize, *value ? 1.0f : 0.0f);
+            ImGui.PushStyleColor(.Button, *value ? ImGui.GetColorU32(.ButtonHovered) : ImGui.GetColorU32(.WindowBg));
+            bool buttonClicked = ImGui.Button(label, size);
+            ImGui.PopStyleColor();
+            ImGui.PopStyleVar();
+            if (buttonClicked)
+                *value = !(*value);
+
+            return buttonClicked;
+        }
+
+        public struct DisposableImGuiFont : IDisposable
+        {
+            ImGui.Font* _font = null;
+            public this(ImGui.Font* font)
+            {
+                _font = font;
+                ImGui.PushFont(_font);
+            }
+
+            public void Dispose()
+            {
+                ImGui.PopFont();
+            }
+        }
+
+        public static DisposableImGuiFont Font(FontManager.ImGuiFont font)
+        {
+            return .(font.Font);
+        }
+
+        public static mixin ScopedFont(FontManager.ImGuiFont font)
+        {
+            DisposableImGuiFont disposable = .(font.Font);
+            defer disposable.Dispose();
+        }
+
+        public struct DisposableStyleColor : IDisposable
+        {
+            ImGui.Col _idx;
+            ImGui.Vec4 _color;
+
+            public this(Col idx, Vec4 color)
+            {
+                _idx = idx;
+                _color = color;
+                ImGui.PushStyleColor(idx, color);
+            }
+
+            public void Dispose()
+            {
+                ImGui.PopStyleColor();
+            }
+        }
+
+        public static mixin ScopedStyleColor(ImGui.Col idx, Vec4 color)
+        {
+            DisposableStyleColor styleColor = .(idx, color);
+            defer styleColor.Dispose();
+        }
+
         extension Vec4
         {
             //Conversion from Mirror.Math.Vec4 to ImGui.Vec4

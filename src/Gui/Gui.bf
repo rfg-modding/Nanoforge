@@ -7,14 +7,18 @@ using System.Linq;
 using Common;
 using System;
 using ImGui;
+using Nanoforge.Misc;
+using Nanoforge.Gui.Dialogs;
+using NativeFileDialog;
 
 namespace Nanoforge.Gui
 {
-	[System]
+	[System, ReflectAll]
 	public class Gui : ISystem
 	{
         public List<GuiPanelBase> Panels = new .() ~DeleteContainerAndItems!(_);
         public List<GuiDocumentBase> Documents = new .() ~DeleteContainerAndItems!(_);
+        private append Dictionary<Object, List<Dialog>> _guiDialogs ~ClearDictionaryAndDeleteValues!(_); //Dialogs in panels and documents automatically get drawn as long as they have [RegisterPopup]
         public append Monitor DocumentLock;
         public MainMenuBar MainMenuBar = new MainMenuBar();
         public bool OutlinerOpen = true;
@@ -22,7 +26,17 @@ namespace Nanoforge.Gui
         public String OutlinerIdentifier = new .(Icons.ICON_FA_LIST)..Append(" Outliner") ~delete _;
         public String InspectorIdentifier = new .(Icons.ICON_FA_WRENCH)..Append(" Inspector") ~delete _;
         public GuiDocumentBase FocusedDocument = null;
-        public bool CloseNanoforgeRequested = false;
+
+        public int NumUnsavedDocuments => Documents.Select((doc) => doc).Where((doc) => !doc.Open && doc.UnsavedChanges).Count();
+        private bool _closeNanoforgeRequested = false;
+        private bool _createProjectRequested = false;
+        private bool _openProjectRequested = false;
+        private bool _closeProjectRequested = false;
+
+        [RegisterDialog]
+        public append SaveConfirmationDialog SaveConfirmationDialog;
+        [RegisterDialog]
+        private append NewProjectDialog _newProjectDialog;
 
 		static void ISystem.Build(App app)
 		{
@@ -34,6 +48,7 @@ namespace Nanoforge.Gui
 		{
             AddPanel("", true, MainMenuBar);
             AddPanel("View/State viewer", true, new StateViewer());
+            RegisterDialogs(this);
 		}
 
 		[SystemStage(.Update)]
@@ -83,16 +98,61 @@ namespace Nanoforge.Gui
                 }
                 else if (!document.Open && !document.UnsavedChanges && document.CanClose(app, this))
                 {
+                    //Remove references to dialogs owned by this document
+                    List<Dialog> dialogs = _guiDialogs[document];
+                    delete dialogs;
+                    _guiDialogs.Remove(document);
+
                     //Erase the document if it was closed, has no unsaved changes, and is ready to close (not waiting for worker threads to exit)
                     Documents.Remove(document);
                     if (FocusedDocument == document)
                         FocusedDocument = null;
+
                     delete document;
                 }
             }
 
-            //Draw close confirmation dialogs for documents with unsaved changes
-            DrawDocumentCloseConfirmationPopup(app);
+            //Open save confirmation dialog if there's any docs closed with unsaved changes
+            if (NumUnsavedDocuments > 0)
+                SaveConfirmationDialog.Show();
+
+            //Handle open/close/new project logic once any unsaved changes are handled. If canceled SaveConfirmationDialog will set all of these to false.
+            if (!SaveConfirmationDialog.Open)
+            {
+                if (_createProjectRequested)
+                {
+                    _newProjectDialog.Show();
+                    _createProjectRequested = false;
+                }
+                if (_openProjectRequested)
+                {
+                    TryOpenProject();
+                    _openProjectRequested = false;
+                }
+                if (_closeProjectRequested)
+                {
+                    ProjectDB.Reset();
+                    _closeProjectRequested = false;
+                }
+                if (_closeNanoforgeRequested)
+                {
+                    app.Exit = true;
+                }
+            }
+
+            //Draw dialogs
+            for (var kv in _guiDialogs)
+            {
+                for (Dialog dialog in kv.value)
+                {
+                    if (dialog.Open)
+                    {
+                        dialog.Draw(app, this);
+                    }
+                }
+            }
+
+            Keybinds(app);
 		}
 
         void DrawOutliner(App app)
@@ -127,84 +187,7 @@ namespace Nanoforge.Gui
             ImGui.End();
         }
 
-        ///Confirms that the user wants to close documents with unsaved changes
-        void DrawDocumentCloseConfirmationPopup(App app)
-        {
-            int numUnsavedDocs = Documents.Select((doc) => doc).Where((doc) => !doc.Open && doc.UnsavedChanges).Count();
-            if (CloseNanoforgeRequested && numUnsavedDocs == 0)
-            {
-                app.Exit = true; //Signal to App it's ok to close the window (any unsaved changes were saved or cancelled)
-            }
-
-            if (numUnsavedDocs == 0)
-                return;
-
-            if (!ImGui.IsPopupOpen("Save?"))
-                ImGui.OpenPopup("Save?");
-            if (ImGui.BeginPopupModal("Save?", null, .AlwaysAutoResize))
-            {
-                ImGui.Text("Save changes to the following file(s)?");
-                f32 itemHeight = ImGui.GetTextLineHeightWithSpacing();
-                if (ImGui.BeginChildFrame(ImGui.GetID("frame"), .(-f32.Epsilon, 6.25f * itemHeight)))
-                {
-                    for (GuiDocumentBase doc in Documents)
-                        if (!doc.Open && doc.UnsavedChanges)
-                            ImGui.Text(doc.Title);
-
-                    ImGui.EndChildFrame();
-                }
-
-                ImGui.Vec2 buttonSize = .(ImGui.GetFontSize() * 7.0f, 0.0f);
-                if (ImGui.Button("Save", buttonSize))
-                {
-                    for (GuiDocumentBase doc in Documents)
-                    {
-                        if (!doc.Open && doc.UnsavedChanges)
-                            doc.Save(app, this);
-
-                        doc.UnsavedChanges = false;
-                    }
-                    //CurrentProject.Save();
-                    ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("Don't save", buttonSize))
-                {
-                    for (GuiDocumentBase doc in Documents)
-                    {
-                        if (!doc.Open && doc.UnsavedChanges)
-                        {
-                            doc.UnsavedChanges = false;
-                            doc.ResetOnClose = true;
-                        }
-                    }
-
-                    ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.SameLine();
-                if (ImGui.Button("Cancel", buttonSize))
-                {
-                    for (GuiDocumentBase doc in Documents)
-                        if (!doc.Open && doc.UnsavedChanges)
-                            doc.Open = true;
-
-                    //Cancel any current operation that checks for unsaved changes when cancelled
-                    //showNewProjectWindow_ = false;
-                    //showOpenProjectWindow_ = false;
-                    //openProjectRequested_ = false;
-                    //closeProjectRequested_ = false;
-                    //openRecentProjectRequested_ = false;
-                    CloseNanoforgeRequested = false;
-                    ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.EndPopup();
-            }
-        }
-
-        ///Open a new document
+        //Open a new document
         public bool OpenDocument(StringView title, StringView id, GuiDocumentBase newDoc)
         {
             //Make sure only one thread can access Documents at once
@@ -222,10 +205,11 @@ namespace Nanoforge.Gui
             newDoc.Title.Set(title);
             newDoc.UID.Set(id);
             Documents.Add(newDoc);
+            RegisterDialogs(newDoc);
             return true;
         }
 
-        ///Add gui panel and validate its path to make sure its not a duplicate. Takes ownership of panel.
+        //Add gui panel and validate its path to make sure its not a duplicate. Takes ownership of panel.
         void AddPanel(StringView menuPos, bool open, GuiPanelBase panel)
         {
             //Make sure there isn't already a panel with the same menuPos
@@ -241,6 +225,108 @@ namespace Nanoforge.Gui
             panel.MenuPos.Set(menuPos);
             panel.Open = open;
             Panels.Add(panel);
+            RegisterDialogs(panel);
+        }
+
+        //Register any dialogs owned by this gui element which have the [RegisterDialog] attribute
+        void RegisterDialogs(Object guiElement)
+        {
+            //Track dialogs attached to this gui element
+            if (!_guiDialogs.ContainsKey(guiElement))
+	        {
+				_guiDialogs[guiElement] = new List<Dialog>();
+			}
+
+            Type elementType  = guiElement.GetType();
+            for (var field in elementType.GetFields(.Public | .NonPublic | .Instance))
+            {
+                if (!field.FieldType.HasBaseType(typeof(Dialog)))
+                    continue;
+
+                switch (field.GetValue(guiElement))
+                {
+                    case .Ok(Variant val):
+                        Dialog dialog = val.Get<Dialog>();
+                        _guiDialogs[guiElement].Add(dialog);
+                    case .Err:
+                        Logger.Error("Failed to get dialog reference for {} in {}. Make sure the document or panel trying to use dialogs has [ReflectAll]", field.Name, elementType.GetName(.. scope .()));
+                        continue;
+                }
+            }
+        }
+
+        private void TryOpenProject()
+        {
+            char8* outPath = null;
+            switch (NativeFileDialog.OpenDialog("nanoproj", null, &outPath))
+            {
+                case .Okay:
+                    ProjectDB.Load(StringView(outPath));
+                case .Cancel:
+                    return;
+                case .Error:
+                    char8* error = NativeFileDialog.GetError();
+                    Logger.Error("Error opening file selector in TryOpenProject(): {}", StringView(error));
+            }
+        }
+
+        public void SaveAll(App app)
+        {
+            for (GuiDocumentBase doc in Documents)
+            {
+                if (!doc.Open && doc.UnsavedChanges)
+                {
+                    doc.Save(app, this);
+                }
+
+                doc.UnsavedChanges = false;
+            }
+            ProjectDB.Save();
+        }
+
+        public void CloseNanoforge()
+        {
+            _closeNanoforgeRequested = true;
+            for (GuiDocumentBase doc in Documents)
+	            doc.Open = false; //Close all documents so unsaved changes popup lists them
+
+            SaveConfirmationDialog.Show();
+        }
+
+        public void CreateProject()
+        {
+            _createProjectRequested = true;
+            for (GuiDocumentBase doc in Documents)
+	            doc.Open = false;
+
+            SaveConfirmationDialog.Show();
+        }
+
+        public void OpenProject()
+        {
+            _openProjectRequested = true;
+            for (GuiDocumentBase doc in Documents)
+	            doc.Open = false;
+
+            SaveConfirmationDialog.Show();
+        }
+
+        public void CloseProject()
+        {
+            _closeProjectRequested = true;
+            for (GuiDocumentBase doc in Documents)
+	            doc.Open = false;
+
+            SaveConfirmationDialog.Show();
+        }
+
+        private void Keybinds(App app)
+        {
+            Input input = app.GetResource<Input>();
+            if (input.ControlDown && input.KeyPressed(.S))
+            {
+                SaveAll(app);
+            }
         }
 	}
 }

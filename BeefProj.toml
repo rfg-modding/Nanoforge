@@ -1,7 +1,31 @@
 FileVersion = 1
-Dependencies = {corlib = "*", RfgTools = "*", "Beef.Linq" = "*", ImGui = "*", bon = "*"}
+Dependencies = {corlib = "*", RfgTools = "*", "Beef.Linq" = "*", ImGui = "*", bon = "*", nativefiledialog-beef = "*"}
 
 [Project]
 Name = "Nanoforge"
 TargetType = "BeefGUIApplication"
 StartupObject = "Nanoforge.Program"
+
+[Configs.Debug.Win32]
+LibPaths = ["Ole32.lib", "Shell32.lib"]
+
+[Configs.Debug.Win64]
+LibPaths = ["Ole32.lib", "Shell32.lib"]
+
+[Configs.Release.Win32]
+LibPaths = ["Ole32.lib", "Shell32.lib"]
+
+[Configs.Release.Win64]
+LibPaths = ["Ole32.lib", "Shell32.lib"]
+
+[Configs.Paranoid.Win32]
+LibPaths = ["Ole32.lib", "Shell32.lib"]
+
+[Configs.Paranoid.Win64]
+LibPaths = ["Ole32.lib", "Shell32.lib"]
+
+[Configs.Test.Win32]
+LibPaths = ["Ole32.lib", "Shell32.lib"]
+
+[Configs.Test.Win64]
+LibPaths = ["Ole32.lib", "Shell32.lib"]

@@ -40,11 +40,13 @@ Follow these steps to build Nanoforge from source. Prebuilt versions are availab
 ### Requirements
 To build Nanoforge from source you'll need these programs:
 - [Beeflang IDE (windows only)](https://www.beeflang.org/) - To compile the source code.
+- [Visual Studio 2019 Community Edition](https://visualstudio.microsoft.com/vs/community/) - To compile dependencies. I want to remove this requirement in the future by including prebuilt binaries for dependencies that require this.
 - [Git](https://git-scm.com/) - For downloading dependencies.
 
 ### Steps
 1) After installing git open a command line window with access to the `git` command.
 2) Use `cd` to move to the directory you want to clone NF into. Clone the repo with `https://github.com/rfg-modding/Nanoforge.git`.
 3) `cd` into the directory you cloned the repo to then download the dependencies with `git submodule update --init --recursive`.
-4) Open the project in the Beef IDE via `File > Open > Open Workspace...`.
+4) Go into `\Dependencies\nativefiledialog-beef\` and run `build_windows_vs2019.cmd` from the command line.
+5) Open the project in the Beef IDE via `File > Open > Open Workspace...`.
 6) Build and run the project with F5. You may have to build it twice the first time you run it. Try building again if you see errors on the first attempt. If issues persist create an issue or contact a dev on discord.

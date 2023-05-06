@@ -5,9 +5,13 @@ using ImGui;
 using System.Collections;
 using Nanoforge.Gui.Documents;
 using System.Linq;
+using NativeFileDialog;
+using Nanoforge.Misc;
+using Nanoforge.Gui.Dialogs;
 
 namespace Nanoforge.Gui.Panels
 {
+    [ReflectAll]
     public class MainMenuBar : GuiPanelBase
     {
         private ImGui.DockNodeFlags dockspaceFlags = 0;
@@ -46,47 +50,45 @@ namespace Nanoforge.Gui.Panels
             {
                 if (ImGui.BeginMenu("File"))
                 {
-                    if (ImGui.MenuItem("New project... (NOT IMPLEMENTED YET)"))
+                    if (ImGui.MenuItem("New project..."))
 					{
-
+                        gui.CreateProject();
 					}
-                    if (ImGui.MenuItem("Open project... (NOT IMPLEMENTED YET)"))
+                    if (ImGui.MenuItem("Open project..."))
 					{
-
+                        gui.OpenProject();
 					}
-                    if (ImGui.MenuItem("Save project (NOT IMPLEMENTED YET)"))
+                    if (ImGui.MenuItem("Save project", "Ctrl + S"))
 					{
-
+                        gui.SaveAll(app);
 					}
-                    if (ImGui.MenuItem("Close project (NOT IMPLEMENTED YET)"))
+                    if (ImGui.MenuItem("Close project"))
 					{
-
+                        gui.CloseProject();
 					}
-                    if (ImGui.BeginMenu("Recent projects (NOT IMPLEMENTED YET)"))
+                    if (ImGui.BeginMenu("Recent projects", false))
                     {
-
                         ImGui.EndMenu();
                     }
 
                     ImGui.Separator();
 
-                    if (ImGui.MenuItem("Save file (NOT IMPLEMENTED YET)", "Ctrl + S"))
+                    //Disabled for now since we don't have a way to save changes only for one document
+                    /*if (ImGui.MenuItem("Save file", "Ctrl + S"))
                     {
 
                     }
 
-                    ImGui.Separator();
+                    ImGui.Separator();*/
 
-                    if (ImGui.MenuItem("Settings (NOT IMPLEMENTED YET)"))
+                    if (ImGui.MenuItem("Settings", "", false, false))
                     {
 
                     }
 
                     if (ImGui.MenuItem("Exit"))
 					{
-                        gui.CloseNanoforgeRequested = true;
-                        for (GuiDocumentBase doc in gui.Documents)
-                            doc.Open = false; //Close all documents so save confirmation modal appears for them
+                        gui.CloseNanoforge();
 				    }
                     ImGui.EndMenu();
                 }
@@ -101,39 +103,61 @@ namespace Nanoforge.Gui.Panels
                     ImGui.MenuItem(gui.InspectorIdentifier, "", &gui.InspectorOpen);
                     ImGui.EndMenu();
                 }
-                //ImGui.TextEx(Icons.ICON_FA_MAP);
-                ImGui.SetNextWindowSize(.(-1.0f, 600.0f));
-                if (ImGui.BeginMenu("Maps"))
+
+                if (ProjectDB.CurrentProject.Loaded)
                 {
-                    for (StringView map in MapList)
+                    ImGui.SetNextWindowSize(.(-1.0f, 600.0f));
+                    if (ImGui.BeginMenu("Maps"))
                     {
-                        bool supported = map != "terr01" && map != "dlc01";
-                        bool alreadyOpen = gui.Documents.Any((doc) => doc.Title == map);
-                        if (ImGui.MenuItem(supported ? map : scope $"{map} (SP maps not supported yet)", "", null, supported && !alreadyOpen))
+                        for (StringView map in MapList)
                         {
-                            gui.OpenDocument(map, map, new MapEditorDocument(map));
+                            bool supported = map != "terr01" && map != "dlc01";
+                            bool alreadyOpen = gui.Documents.Any((doc) => doc.Title == map);
+                            if (ImGui.MenuItem(supported ? map : scope $"{map} (SP maps not supported yet)", "", null, supported && !alreadyOpen))
+                            {
+                                gui.OpenDocument(map, map, new MapEditorDocument(map));
+                            }
                         }
+                        ImGui.EndMenu();
                     }
-                    ImGui.EndMenu();
                 }
-                if (ImGui.BeginMenu("Help"))
+                else
+                {
+                    if (ImGui.BeginMenu("Open a project to edit maps", false))
+                    {
+                        ImGui.EndMenu();
+                    }
+                }
+
+                /*if (ImGui.BeginMenu("Help"))
                 {
                     if (ImGui.MenuItem("Welcome")) { }
                     if (ImGui.MenuItem("Metrics")) { }
                     if (ImGui.MenuItem("About")) { }
                     ImGui.EndMenu();
-                }
+                }*/
 
                 var drawList = ImGui.GetWindowDrawList();
+                ImGui.Vec2 cursorPos = .(ImGui.GetCursorPosX(), mainMenuContentStartY);
+
+                //Project name
+                String projectName = scope .()..AppendF("|    {}", ProjectDB.CurrentProject.Loaded ? ProjectDB.CurrentProject.Name : "No project loaded");
+                drawList.AddText(cursorPos, 0xF2F5FAFF, projectName.CStr(), projectName.CStr() + projectName.Length);
+
+                cursorPos.x += ImGui.CalcTextSize(projectName.CStr()).x;
+
+                //Frametime meter
                 String realFrameTime = scope String()..AppendF("{0:G3}", frameData.AverageFrameTime * 1000.0f);
                 String totalFrameTime = scope String()..AppendF("/  {0:G4}", frameData.DeltaTime * 1000.0f);
-                drawList.AddText(.(ImGui.GetCursorPosX(), 5.0f), 0xF2F5FAFF, "|    Frametime (ms): ");
-                var textSize = ImGui.CalcTextSize("|    Frametime (ms): ");
-                drawList.AddText(.(ImGui.GetCursorPosX() + (f32)textSize.x, 5.0f), ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), realFrameTime.CStr());
-                drawList.AddText(.(ImGui.GetCursorPosX() + (f32)textSize.x + 42.0f, 5.0f), ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), totalFrameTime.CStr());
+                char8* frametimeLabel = "     |    Frametime (ms): ";
+                drawList.AddText(cursorPos, 0xF2F5FAFF, frametimeLabel);
+                var textSize = ImGui.CalcTextSize(frametimeLabel);
+                cursorPos.x += textSize.x + 5.0f;
+                drawList.AddText(cursorPos, ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), realFrameTime.CStr());
+                cursorPos.x += 42.0f;
+                drawList.AddText(cursorPos, ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), totalFrameTime.CStr());
 
                 //Draw NF version on the right side
-                ImGui.Vec2 cursorPos = .();
                 {
                     String version = BuildConfig.Version;
                     f32 versionTextWidth = ImGui.CalcTextSize(version.CStr()).x;

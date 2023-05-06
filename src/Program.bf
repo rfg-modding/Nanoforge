@@ -19,8 +19,8 @@ namespace Nanoforge
             App.Build!(AppState.Running)
                 ..AddSystem<Window>(isResource: true)
                 ..AddSystem<Input>(isResource: true)
-                ..AddSystem<Renderer>(isResource: true)
                 ..AddSystem<Gui>(isResource: true)
+                ..AddSystem<Renderer>(isResource: true)
                 ..AddSystem<AppLogic>()
 				.Run();
 		}

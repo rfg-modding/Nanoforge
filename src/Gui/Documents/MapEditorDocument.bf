@@ -25,6 +25,7 @@ namespace Nanoforge.Gui.Documents
         private bool _loadFailure = false;
         private StringView _loadFailureReason = .();
         public Territory Map = null;
+        private Renderer _renderer = null;
         private Scene _scene = null;
         private ZoneObject _selectedObject;
         private Zone _selectedZone = null;
@@ -38,6 +39,15 @@ namespace Nanoforge.Gui.Documents
             HasMenuBar = false;
             NoWindowPadding = true;
             HasCustomOutlinerAndInspector = true;
+        }
+
+        public ~this()
+        {
+            if (_scene != null)
+            {
+                _renderer.DestroyScene(_scene);
+                _scene = null;
+            }
         }
 
         private void Load(App app)
@@ -73,6 +83,8 @@ namespace Nanoforge.Gui.Documents
                         return;
                 }
                 TotalImportTimer.Stop();
+
+                UnsavedChanges = true;
             }
             else
             {
@@ -102,8 +114,8 @@ namespace Nanoforge.Gui.Documents
             if (FirstDraw)
             {
                 //Start loading process on first draw. We create the scene here to avoid needing to synchronize D3D11DeviceContext usage between multiple threads
-                Renderer renderer = app.GetResource<Renderer>();
-                _scene = renderer.CreateScene(false);
+                _renderer = app.GetResource<Renderer>();
+                _scene = _renderer.CreateScene(false);
                 ThreadPool.QueueUserWorkItem(new () => { this.Load(app); });
             }
             if (Loading || _loadFailure)
@@ -155,18 +167,12 @@ namespace Nanoforge.Gui.Documents
 
         public override void Save(App app, Gui gui)
         {
-            return;
+
         }
 
         public override void OnClose(App app, Gui gui)
         {
-            if (_scene != null)
-            {
-                Renderer renderer = app.GetResource<Renderer>();
-                renderer.DestroyScene(_scene);
-            }
-            
-            return;
+
         }
 
         public override bool CanClose(App app, Gui gui)
