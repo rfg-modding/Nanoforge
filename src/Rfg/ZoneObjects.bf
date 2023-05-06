@@ -464,6 +464,18 @@ namespace Nanoforge.Rfg
     }
 
     [ReflectAll]
+    public class RfgConstraint : ZoneObject
+    {
+        //TODO: Add properties. Only added an empty class so the instances in the mp_wasteland map can be loaded. Full support for this class will be added along with SP map editing.
+    }
+
+    [ReflectAll]
+    public class ActionNode : ZoneObject
+    {
+        //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
+    }
+
+    [ReflectAll]
     public enum Team
     {
         None,

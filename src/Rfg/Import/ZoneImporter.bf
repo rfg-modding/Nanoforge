@@ -41,6 +41,8 @@ namespace Nanoforge.Rfg.Import
             _zoneObjectReaders["multi_object_flag"] = => MultiObjectFlagReader;
             _zoneObjectReaders["navpoint"] = => NavPointReader;
             _zoneObjectReaders["cover_node"] = => CoverNodeReader;
+            _zoneObjectReaders["constraint"] = => ConstraintReader;
+            _zoneObjectReaders["object_action_node"] = => ActionNodeReader;
         }
 
         public static Result<Zone, StringView> ImportZone(Span<u8> fileBytes, Span<u8> persistentFileBytes, StringView zoneFilename, DiffUtil changes)
@@ -906,6 +908,30 @@ namespace Nanoforge.Rfg.Import
                 return .Err(err);
 
             //TODO: Read cover node specific properties. Not needed until SP map editing is added.
+
+            return obj;
+        }
+
+        //constraint : object
+        private static Result<ZoneObject, StringView> ConstraintReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        {
+            RfgConstraint obj = CreateObject!<RfgConstraint>(preExisting, changes);
+            if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
+                return .Err(err);
+
+            //TODO: Read constraint specific properties. Not needed until SP map editing is added.
+
+            return obj;
+        }
+
+        //object_action_node : object
+        private static Result<ZoneObject, StringView> ActionNodeReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        {
+            ActionNode obj = CreateObject!<ActionNode>(preExisting, changes);
+            if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
+                return .Err(err);
+
+            //TODO: Read action node specific properties. Not needed until SP map editing is added.
 
             return obj;
         }
