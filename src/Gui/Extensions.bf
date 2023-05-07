@@ -10,6 +10,7 @@ namespace ImGui
         public static Vec4 SecondaryTextColor => .(0.32f, 0.67f, 1.0f, 1.00f);//.(0.2f, 0.7f, 1.0f, 1.00f) * 0.92f; //Light blue;
         public static Vec4 TertiaryTextColor => .(0.64f, 0.67f, 0.69f, 1.00f); //Light grey;
         public static Vec4 Red => .(0.784f, 0.094f, 0.035f, 1.0f);
+        public static Vec4 Yellow => .(0.784f, 0.736f, 0.035f, 1.0f);
 
         [Comptime]
         private static void ComptimeChecks()

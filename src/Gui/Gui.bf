@@ -10,6 +10,7 @@ using ImGui;
 using Nanoforge.Misc;
 using Nanoforge.Gui.Dialogs;
 using NativeFileDialog;
+using Nanoforge.FileSystem;
 
 namespace Nanoforge.Gui
 {
@@ -37,6 +38,8 @@ namespace Nanoforge.Gui
         public append SaveConfirmationDialog SaveConfirmationDialog;
         [RegisterDialog]
         private append NewProjectDialog _newProjectDialog;
+        [RegisterDialog]
+        public append DataFolderSelectDialog DataFolderSelector;
 
 		static void ISystem.Build(App app)
 		{
@@ -149,6 +152,16 @@ namespace Nanoforge.Gui
                     {
                         dialog.Draw(app, this);
                     }
+                }
+            }
+
+            //TODO: Once settings/cvar system is added the data folder should be selected from there. Also change it to auto open when critical files like misc and interface vpp are missing.
+            //Auto open data folder selector if its not set
+            if (PackfileVFS.DirectoryPath.IsEmpty || PackfileVFS.DirectoryPath.IsWhiteSpace)
+            {
+                if (!DataFolderSelector.Open)
+                {
+                    DataFolderSelector.Show();
                 }
             }
 

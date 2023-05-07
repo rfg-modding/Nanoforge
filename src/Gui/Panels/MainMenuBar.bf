@@ -8,6 +8,7 @@ using System.Linq;
 using NativeFileDialog;
 using Nanoforge.Misc;
 using Nanoforge.Gui.Dialogs;
+using Nanoforge.FileSystem;
 
 namespace Nanoforge.Gui.Panels
 {
@@ -81,9 +82,14 @@ namespace Nanoforge.Gui.Panels
 
                     ImGui.Separator();*/
 
-                    if (ImGui.MenuItem("Settings", "", false, false))
+                    if (ImGui.MenuItem("Settings...", "", false, false))
                     {
 
+                    }
+                    if (ImGui.MenuItem("Select data folder..."))
+                    {
+                        gui.DataFolderSelector.Show();
+                        gui.DataFolderSelector.DataFolder.Set(PackfileVFS.DirectoryPath);
                     }
 
                     if (ImGui.MenuItem("Exit"))
