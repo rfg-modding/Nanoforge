@@ -455,24 +455,28 @@ namespace Nanoforge.Rfg
     public class NavPoint : ZoneObject
     {
         //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
+        public int Dummy; //Dummy variable to fix Bon not detecting reflection info on this. TODO: Fix once map export is implemented. More important features to focus on for now.
     }
 
     [ReflectAll]
     public class CoverNode : ZoneObject
     {
         //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
+        public int Dummy;
     }
 
     [ReflectAll]
     public class RfgConstraint : ZoneObject
     {
         //TODO: Add properties. Only added an empty class so the instances in the mp_wasteland map can be loaded. Full support for this class will be added along with SP map editing.
+        public int Dummy;
     }
 
     [ReflectAll]
     public class ActionNode : ZoneObject
     {
         //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
+        public int Dummy;
     }
 
     [ReflectAll]

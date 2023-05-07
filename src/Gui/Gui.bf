@@ -274,7 +274,14 @@ namespace Nanoforge.Gui
             switch (NativeFileDialog.OpenDialog("nanoproj", null, &outPath))
             {
                 case .Okay:
-                    ProjectDB.Load(StringView(outPath));
+                    switch (ProjectDB.Load(StringView(outPath)))
+                    {
+                        case .Ok:
+
+                        case .Err(StringView err):
+                            Logger.Error("Gui.TryOpen() failed to open project at '{}'. Error: {}", StringView(outPath), err);
+                            return;
+                    }
                 case .Cancel:
                     return;
                 case .Error:

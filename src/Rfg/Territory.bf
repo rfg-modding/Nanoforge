@@ -42,22 +42,19 @@ namespace Nanoforge.Rfg
                 Texture2D combTexture = LoadTexture(terrain.CombTexture, textureCache, renderer, scene).GetValueOrDefault(null);
                 if (combTexture == null)
                 {
-                    Logger.Error("Zone loading error. Failed to load comb texture");
-                    return .Err("Failed to load comb texture");
+                    Logger.Warning("Failed to load comb texture for {}. Terrain may look wrong.", Name);
                 }
 
                 Texture2D ovlTexture = LoadTexture(terrain.OvlTexture, textureCache, renderer, scene).GetValueOrDefault(null);
                 if (ovlTexture == null)
                 {
-                    Logger.Error("Zone loading error. Failed to load ovl texture");
-                    return .Err("Failed to load ovl texture");
+                    Logger.Warning("Failed to load ovl texture for {}. Terrain may look wrong.", Name);
                 }
 
                 Texture2D splatmap = LoadTexture(terrain.Splatmap, textureCache, renderer, scene).GetValueOrDefault(null);
                 if (splatmap == null)
                 {
-                    Logger.Error("Failed to load splatmap while loading {}", zone.Name);
-                    continue;
+                    Logger.Warning("Failed to load splatmap for {}. Terrain may look wrong.", Name);
                 }    
 
                 //Load mesh for each subzone

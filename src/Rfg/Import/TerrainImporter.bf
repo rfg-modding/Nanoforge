@@ -81,8 +81,12 @@ namespace Nanoforge.Rfg.Import
                 ProjectTexture combTexture = GetOrLoadTerrainTexture(changes, scope $"{name}comb.tga").GetValueOrDefault(null);
                 ProjectTexture ovlTexture = GetOrLoadTerrainTexture(changes, scope $"{name}_ovl.tga").GetValueOrDefault(null);
                 ProjectTexture splatmap = GetOrLoadTerrainTexture(changes, scope $"{name}_alpha00.tga").GetValueOrDefault(null);
-                if (combTexture == null || ovlTexture == null || splatmap == null)
-                    return .Err;
+                if (combTexture == null)
+                    Logger.Warning("Failed to load comb texture for {}", name);
+                if (ovlTexture == null)
+                    Logger.Warning("Failed to load ovl texture for {}", name);
+                if (splatmap == null)
+                    Logger.Warning("Failed to load splatmap texture for {}", name);
 
                 terrain.CombTexture = combTexture;
                 terrain.OvlTexture = ovlTexture;
