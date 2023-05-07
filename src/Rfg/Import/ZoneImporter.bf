@@ -7,6 +7,7 @@ using Common.Math;
 using Common;
 using System;
 using RfgTools.Types;
+using Nanoforge.App;
 
 namespace Nanoforge.Rfg.Import
 {
@@ -632,6 +633,30 @@ namespace Nanoforge.Rfg.Import
             //    obj.DamagePercent = val;
 
             //Note: Didn't implement readers for several disabled properties. See RfgMover definition
+
+            if (rfgObj.GetBuffer("world_anchors") case .Ok(Span<u8> bytes))
+            {
+                switch (ProjectDB.CreateBuffer(bytes, scope $"world_anchors_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.WorldAnchors = buffer;
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store world_anchors for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create world_anchors buffer");
+                }
+            }
+
+            if (rfgObj.GetBuffer("dynamic_links") case .Ok(Span<u8> bytes))
+            {
+                switch (ProjectDB.CreateBuffer(bytes, scope $"dynamic_links_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.DynamicLinks = buffer;
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store dynamic_links for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create dynamic_links buffer");
+                }
+            }
 
             return obj;
         }

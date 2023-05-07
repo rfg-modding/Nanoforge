@@ -313,6 +313,9 @@ namespace Nanoforge.Rfg
         //[EditorProperty]
         //public u8[] DynamicLinks;
 
+        public ProjectBuffer WorldAnchors;
+        public ProjectBuffer DynamicLinks;
+
         [Reflect(.All)]
         public enum MoveTypeEnum
         {
