@@ -8,6 +8,7 @@ using Nanoforge.Misc;
 using System.IO;
 using Nanoforge.FileSystem;
 using System.Diagnostics;
+using Common.Math;
 
 namespace Nanoforge.Gui.Dialogs
 {
@@ -78,6 +79,12 @@ namespace Nanoforge.Gui.Dialogs
                 {
                     if (_searchResults.Count > 0)
                     {
+                        //Set custom highlight colors for the table
+                        Vec4 selectedColor = .(0.157f, 0.350f, 0.588f, 1.0f);
+                        Vec4 highlightedColor = selectedColor * 1.1f;
+                        ImGui.PushStyleColor(.Header, selectedColor);
+                        ImGui.PushStyleColor(.HeaderHovered, highlightedColor);
+                        ImGui.PushStyleColor(.HeaderActive, highlightedColor);
                         for (String path in _searchResults)
                         {
                             if (ImGui.Selectable(path))
@@ -86,6 +93,7 @@ namespace Nanoforge.Gui.Dialogs
                                 ValidateDataFolder();
                             }
                         }
+                        ImGui.PopStyleColor(3);
                     }
                     else
                     {
@@ -213,6 +221,9 @@ namespace Nanoforge.Gui.Dialogs
                 "{}:/Program Files/Steam/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data/",
                 "{}:/Program Files/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data/",
                 "{}:/Program Files/GOG/Games/Red Faction Guerrilla Re-MARS-tered/data/",
+                "{}:Games/SteamLibrary/steamapps/common/Red Faction Guerrilla Re-MARS-tered/data/",
+                "{}:Games/GOG Games/Red Faction Guerrilla Re-MARS-tered/data",
+                "{}:Games/GOG/Red Faction Guerrilla Re-MARS-tered/data",
 			);
 
             _searchResults.ClearAndDeleteItems();
