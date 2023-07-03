@@ -11,6 +11,9 @@ namespace Nanoforge.Misc
     [System]
     public class Input : ISystem
     {
+        //When set to false all key status functions return false. Added so gTaskDialog can disable keybinds when tasks are running to avoid users doing things like modifying a map mid save.
+        public static bool KeysEnabled = true;
+
         //Input state
         private List<KeyState> _lastFrameKeyDownStates = new .()..Resize(349) ~ delete _;
         private List<KeyState> _keyDownStates = new .()..Resize(349) ~ delete _;
@@ -19,16 +22,19 @@ namespace Nanoforge.Misc
         private float _lastMouseY = 0.0f;
 
         //Returns true if the provided is down, including if it's being held down for multiple frames.
-        public bool KeyDown(KeyCode keyCode) => _keyDownStates[(int)keyCode] > .Up;
+        public bool KeyDown(KeyCode keyCode) => KeysEnabled && _keyDownStates[(int)keyCode] > .Up;
         //Returns true if the provided key was pressed this frame. It will return false if the key has been down for several frames
-        public bool KeyPressed(KeyCode keyCode) => _keyDownStates[(int)keyCode] == .Down;
+        public bool KeyPressed(KeyCode keyCode) => KeysEnabled && _keyDownStates[(int)keyCode] == .Down;
 
-        public bool ShiftDown { get; private set; } = false;
-        public bool ControlDown { get; private set; } = false;
-        public bool AltDown { get; private set; } = false;
+        private bool _shiftDown = false;
+        private bool _controlDown = false;
+        private bool _altDown = false;
+        public bool ShiftDown => KeysEnabled && _shiftDown;
+        public bool ControlDown => KeysEnabled && _controlDown;
+        public bool AltDown => KeysEnabled && _altDown;
 
         //Returns true if the provided mouse button is down
-        public bool MouseButtonDown(MouseButtonCode keyCode) => _mouseDownStates[(int)keyCode];
+        public bool MouseButtonDown(MouseButtonCode keyCode) => KeysEnabled && _mouseDownStates[(int)keyCode];
         public float MousePosX { get; private set; } = 0.0f;
         public float MousePosY { get; private set; } = 0.0f;
         public float MouseDeltaX { get; private set; } = 0.0f;
@@ -74,9 +80,9 @@ namespace Nanoforge.Misc
             MouseScrollY = 0.0f;
             MouseDeltaX = 0;
             MouseDeltaY = 0;
-            ShiftDown = KeyDown(.LeftShift) || KeyDown(.RightShift) || KeyDown(.Shift);
-            ControlDown = KeyDown(.LeftControl) || KeyDown(.RightControl) || KeyDown(.Control);
-            AltDown  = KeyDown(.LeftAlt) || KeyDown(.RightAlt) || KeyDown(.Alt);
+            _shiftDown = KeyDown(.LeftShift) || KeyDown(.RightShift) || KeyDown(.Shift);
+            _controlDown = KeyDown(.LeftControl) || KeyDown(.RightControl) || KeyDown(.Control);
+            _altDown  = KeyDown(.LeftAlt) || KeyDown(.RightAlt) || KeyDown(.Alt);
         }
 
         //Takes WndProc WM_KEYDOWN message parameters as input

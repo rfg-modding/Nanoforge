@@ -21,16 +21,20 @@ namespace Nanoforge.Rfg.Import
         //Import all assets used by an RFG territory
         public static Result<Territory, StringView> ImportMap(StringView name)
         {
+            gTaskDialog.Show(5);
             using (var changes = BeginCommit!(scope $"Import map - {name}"))
             {
                 Territory map = changes.CreateObject<Territory>(name);
                 map.PackfileName.Set(scope $"{name}.vpp_pc");
 
                 //Preload all files in this map. Most important for str2_pc files since they require full unpack even for a single file
+                gTaskDialog.SetStatus("Preloading ns_base.str2_pc");
                 PackfileVFS.PreloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
                 defer PackfileVFS.UnloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
+                gTaskDialog.Step();
 
                 //Import zones
+                gTaskDialog.SetStatus("Importing zones...");
                 for (var entry in PackfileVFS.Enumerate(scope $"//data/{map.PackfileName}/"))
                 {
                     if (Path.GetExtension(entry.Name, .. scope .()) != ".rfgzone_pc" || entry.Name.StartsWith("p_", .OrdinalIgnoreCase))
@@ -46,10 +50,12 @@ namespace Nanoforge.Rfg.Import
                             return .Err("Failed to import a zone. Check the log.");
                     }
                 }
+                gTaskDialog.Step();
                 Logger.Info("Done importing zones");
 
                 //Import terrain, roads, and rocks
                 Logger.Info("Importing terrain...");
+                gTaskDialog.SetStatus("Importing terrain...");
                 for (Zone zone in map.Zones)
                 {
                     if (TerrainImporter.LoadTerrain(map.PackfileName, map, zone, changes, name) case .Err)
@@ -59,9 +65,11 @@ namespace Nanoforge.Rfg.Import
                         return .Err("Failed to import terrain. Check the log.");
                     }    
                 }
+                gTaskDialog.Step();
                 Logger.Info("Done importing terrain");
 
                 //Import chunks
+                gTaskDialog.SetStatus("Importing chunks...");
                 for (Zone zone in map.Zones)
                 {
                     for (ZoneObject obj in zone.Objects)
@@ -95,12 +103,17 @@ namespace Nanoforge.Rfg.Import
                         }
                     }
                 }
+                gTaskDialog.Step();
 
                 //Load additional map data if present
                 if (PackfileVFS.Exists(scope $"//data/{map.PackfileName}/EditorData.xml"))
                 {
                     //TODO: Implement
                 }
+
+                gTaskDialog.SetStatus("Done!");
+                gTaskDialog.Step();
+                gTaskDialog.Close();
 
                 return .Ok(map);
             }

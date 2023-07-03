@@ -38,6 +38,10 @@ namespace Nanoforge.App
         public static List<Commit> RedoStack = new .() ~DeleteContainerAndItems!(_);
         public static Project CurrentProject = new .() ~delete _;
 
+        public static bool Loading { get; private set; } = false;
+        public static bool Saving { get; private set; } = false;
+        public static bool Ready { get; private set; } = false;
+
         [BonTarget]
         public class Project
         {
@@ -209,10 +213,22 @@ namespace Nanoforge.App
             }
         }
 
+        public static void SaveAsync()
+        {
+            Saving = true;
+            Ready = false;
+            ThreadPool.QueueUserWorkItem(new () => { Save(true); });
+        }
+
         //Save to text file
         [Trace(.All)]
-        public static Result<void, StringView> Save()
+        private static Result<void, StringView> Save(bool showDialog = false)
         {
+            defer { Saving = false; }
+
+            if (showDialog)
+                gTaskDialog.Show(6);
+
             Directory.CreateDirectory(CurrentProject.Directory);
             String objectsText = scope .()..Reserve(1000000);
             String buffersText = scope .()..Reserve(100000);
@@ -220,38 +236,86 @@ namespace Nanoforge.App
 
             BonInit();
 
+            if (showDialog)
+                gTaskDialog.SetStatus("Serializing objects...");
             for (var kv in _objects)
             {
                 Bon.Serialize(kv.value, objectsText);
             }
+            if (showDialog)
+                gTaskDialog.Step();
 
+            if (showDialog)
+                gTaskDialog.SetStatus("Serializing buffers...");
             for (var kv in _buffers)
             {
                 ProjectBuffer buffer = kv.value;
                 Bon.Serialize(buffer, buffersText);
             }
+            if (showDialog)
+                gTaskDialog.Step();
 
+            if (showDialog)
+                gTaskDialog.SetStatus("Serializing project metadata...");
             //Write general project metadata
             Bon.Serialize(CurrentProject, nanoprojText);
+            if (showDialog)
+                gTaskDialog.Step();
 
+            if (showDialog)
+                gTaskDialog.SetStatus("Writing objects.nanodata...");
             if (File.WriteAllText(scope $"{CurrentProject.Directory}objects.nanodata", objectsText) case .Err)
             {
+                Logger.Error("Failed to write objects.nanodata for {}", CurrentProject.Name);
                 return .Err("Failed to write objects.nanodata");
             }
+            if (showDialog)
+                gTaskDialog.Step();
+
+            if (showDialog)
+	            gTaskDialog.SetStatus("Writing buffers.nanodata...");
             if (File.WriteAllText(scope $"{CurrentProject.Directory}buffers.nanodata", buffersText) case .Err)
             {
+                Logger.Error("Failed to write buffers.nanodata for {}", CurrentProject.Name);
                 return .Err("Failed to write buffers.nanodata");
             }
+            if (showDialog)
+                gTaskDialog.Step();
+
+            if (showDialog)
+	            gTaskDialog.SetStatus("Writing .nanoproj file...");
             if (File.WriteAllText(scope $"{CurrentProject.Directory}{CurrentProject.Name}.nanoproj", nanoprojText) case .Err)
             {
+                Logger.Error("Failed to write .nanoproj for {}", CurrentProject.Name);
                 return .Err("Failed to write .nanoproj file");
             }
+            if (showDialog)
+                gTaskDialog.Step();
+
+            if (showDialog)
+            {
+                gTaskDialog.SetStatus("Done saving project.");
+                gTaskDialog.Close();
+            }
+
+            Ready = true;
             return .Ok;
         }
 
-        [Trace(.All)]
-        public static Result<void, StringView> Load(StringView projectFilePath)
+        public static void LoadAsync(StringView projectFilePath)
         {
+            Loading = true;
+            Ready = false;
+            ThreadPool.QueueUserWorkItem(new () => { Load(projectFilePath, true); });
+        }
+
+        //TODO: Come up with a better way of toggling the task dialog. showDialog works for now but it's ugly and I don't like mixing in UI and logic code like this.
+        //      Approaches similar to MVVM might work for this. Need to investigate it further. Apply the same fix to Save()
+        [Trace(.All)]
+        private static Result<void, StringView> Load(StringView projectFilePath, bool showDialog = false)
+        {
+            defer { Loading = false; }
+
             Reset();
             CurrentProject.FilePath.Set(projectFilePath);
             CurrentProject.Directory..Set(Path.GetDirectoryPath(projectFilePath, .. scope .())).Append("\\");
@@ -261,7 +325,13 @@ namespace Nanoforge.App
             defer _deserializationBufferReferences.Clear();
             BonInit();
 
+            if (showDialog)
+				gTaskDialog.Show(5);
+
             //Parse objects
+            if (showDialog)
+				gTaskDialog.SetStatus("Loading objects...");
+
             {
                 String objectsText = File.ReadAllText(scope $"{CurrentProject.Directory}objects.nanodata", .. scope .());
                 BonContext context = .(objectsText);
@@ -279,8 +349,12 @@ namespace Nanoforge.App
                     }
                 }
             }
+            if (showDialog)
+				gTaskDialog.Step();
 
             //Patch object references
+            if (showDialog)
+				gTaskDialog.SetStatus("Patching object references...");
             for (var pair in _deserializationObjectReferences)
             {
                 u64 uid = pair.0;
@@ -288,14 +362,19 @@ namespace Nanoforge.App
                 if (!_objects.ContainsKey(uid))
                 {
                     Logger.Error("Error loading ProjectDB. An object with UID {} was referenced. No object with that UID exists in this project.", uid);
-            		return .Err("Referenced object UID doesn't exist");
+                    return .Err("Referenced object UID doesn't exist");
             	}
                 EditorObject obj = _objects[uid];
                 val.Assign(obj);
             }
+            if (showDialog)
+				gTaskDialog.Step();
             _nextObjectUID = _objects.Keys.Max() + 1;
 
             //Parse buffers
+            if (showDialog)
+				gTaskDialog.SetStatus("Loading buffers...");
+
             {
                 String buffersText = File.ReadAllText(scope $"{CurrentProject.Directory}buffers.nanodata", .. scope .());
                 BonContext context = .(buffersText);
@@ -313,8 +392,12 @@ namespace Nanoforge.App
                     }
                 }
             }
+            if (showDialog)
+				gTaskDialog.Step();
 
             //Patch project buffer references
+            if (showDialog)
+				gTaskDialog.SetStatus("Patching buffer references...");
             for (var pair in _deserializationBufferReferences)
             {
                 u64 uid = pair.0;
@@ -322,14 +405,19 @@ namespace Nanoforge.App
                 if (!_buffers.ContainsKey(uid))
                 {
                     Logger.Error("Error loading ProjectDB. A buffer with UID {} was referenced. No buffer with that UID exists in this project.", uid);
-            		return .Err("Referenced buffer UID doesn't exist");
+                    return .Err("Referenced buffer UID doesn't exist");
             	}
                 ProjectBuffer buffer = _buffers[uid];
                 val.Assign(buffer);
             }
+            if (showDialog)
+				gTaskDialog.Step();
             _nextBufferUID = _buffers.Keys.Max() + 1;
 
             //Load .nanoproj file
+            if (showDialog)
+				gTaskDialog.SetStatus("Loading .nanoproj file...");
+
             {
                 String nanoprojText = File.ReadAllText(projectFilePath, .. scope .());
                 BonContext context = .(nanoprojText);
@@ -344,7 +432,15 @@ namespace Nanoforge.App
                     return .Err("Failed to load nanoproj file");
                 }
             }
+            if (showDialog)
+				gTaskDialog.Step();
 
+            if (showDialog)
+            {
+                gTaskDialog.SetStatus(scope $"Done loading {CurrentProject.Name}.");
+                gTaskDialog.Close();
+            }
+            Ready = true;
             return .Ok;
         }
 
@@ -442,12 +538,11 @@ namespace Nanoforge.App
             return .Ok;
         }
 
+        static bool _bonInitialized = false;
         private static void BonInit()
         {
-            static bool _bonInit = false;
-
             //Bon serializer initialization
-            if (!_bonInit)
+            if (!_bonInitialized)
             {
                 Bon.onDeserializeError.Add(new => OnDeserializeError);
 
@@ -474,7 +569,7 @@ namespace Nanoforge.App
                 gBonEnv.RegisterPolyType!(typeof(EditorObject));
 
                 gBonEnv.serializeFlags |= .Verbose;
-                _bonInit = true;
+                _bonInitialized = true;
             }
         }
 

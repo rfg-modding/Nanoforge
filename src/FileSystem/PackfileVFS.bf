@@ -7,6 +7,7 @@ using Nanoforge.Misc;
 using System.Linq;
 using Common.IO;
 using Zlib;
+using System.Threading;
 
 namespace Nanoforge.FileSystem
 {
@@ -17,28 +18,64 @@ namespace Nanoforge.FileSystem
         private static DirectoryEntry Root = null ~ DeleteIfSet!(_); //Root node of the filesystem. Has the same name as the mount point.
         public static readonly append String DirectoryPath;
         public static readonly append String Mount; //Directory this FS is mounted to in the VFS
+        public static bool Loading { get; private set; } = false;
+        public static bool Ready => Root != null;
 
         public static this()
         {
             Root = null; //Note: Odd bug where Root wouldn't be null the first time InitFromDirectory() is called. Caused DeleteIfSet to crash since it'd try deleting a fake object
         }
 
+        //Start thread running InitFromDirectory
+        public static void InitFromDirectoryAsync(StringView mount, StringView directoryPath)
+        {
+            Loading = true;
+            ThreadPool.QueueUserWorkItem(new () => { InitFromDirectory(mount, directoryPath); });
+        }
+
         //Parse all vpp_pc files in this directory. They'll all be accessible as sub-directories of this filesystem
         [Trace(.Enter | .Exit | .RunTime)]
-        public static void InitFromDirectory(StringView mount, StringView directoryPath)
+        private static void InitFromDirectory(StringView mount, StringView directoryPath)
         {
+            defer { Loading = false; }
+
             Mount.Set(mount);
             DirectoryPath.Set(directoryPath);
             DeleteIfSet!(Root);
             Root = new .(mount);
+
+            var fileEnumerator = Directory.EnumerateFiles(DirectoryPath, "*.vpp_pc");
+            var files = fileEnumerator.ToList(.. scope List<FileFindEntry>());
+            defer fileEnumerator.Dispose(); //Need to manually dispose it since we're not using it in the for loop. It allocates a string internally that needs disposal.
+            gTaskDialog.Show(files.Count);
+            int errorCount = 0;
+
             for (var entry in Directory.EnumerateFiles(DirectoryPath, "*.vpp_pc"))
             {
                 String packfilePath = entry.GetFilePath(.. scope .());
+                String packfileName = entry.GetFileName(.. scope .());
+                gTaskDialog.SetStatus(scope $"Mounting {packfileName}...");
                 if (MountPackfile(packfilePath) case .Err(StringView err))
                 {
                     Logger.Error("RfgFileSystem failed to mount {} in the VFS. Error: {}", packfilePath, err);
+                    gTaskDialog.Log(scope $"Failed to mount {packfileName}!");
+                    errorCount++;
+                    gTaskDialog.Step();
                     continue;
                 }
+                gTaskDialog.Step();
+            }
+
+            gTaskDialog.SetStatus("Done mounting RFG data folder.");
+            if (errorCount == 0)
+            {
+                gTaskDialog.Close(); //Auto close if everything worked correctly
+            }
+            else
+            {
+                //Something went wrong. Require user to manually close so they see the error.
+                gTaskDialog.SetStatus("An error occurred while mounting the data folder. Check the log.");
+                gTaskDialog.CanClose = true;
             }
         }
 

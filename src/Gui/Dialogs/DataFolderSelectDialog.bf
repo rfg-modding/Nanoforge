@@ -59,7 +59,7 @@ namespace Nanoforge.Gui.Dialogs
             ImGui.IO* io = ImGui.GetIO();
             ImGui.SetNextWindowPos(.(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), .Always, .(0.5f, 0.5f));
 
-            if (ImGui.BeginPopupModal(Title, &Open, .AlwaysAutoResize | .NoMove | .NoNav | .NoCollapse))
+            if (ImGui.BeginPopupModal(Title, null, .AlwaysAutoResize | .NoMove | .NoNav | .NoCollapse))
             {
                 ImGui.PushItemWidth(400.0f);
 
@@ -150,7 +150,7 @@ namespace Nanoforge.Gui.Dialogs
                 ImGui.BeginDisabled(!validDataFolder);
                 if (ImGui.Button("Confirm"))
                 {
-                    PackfileVFS.InitFromDirectory("//data/", DataFolder);
+                    PackfileVFS.InitFromDirectoryAsync("//data/", DataFolder);
                     Close();
                 }
                 ImGui.SameLine();

@@ -52,6 +52,9 @@ namespace Nanoforge.Gui
             AddPanel("", true, MainMenuBar);
             AddPanel("View/State viewer", true, new StateViewer());
             RegisterDialogs(this);
+
+            //Hardcoded static instance of BackgroundTaskDialog for global use
+            _guiDialogs[this].Add(gTaskDialog);
 		}
 
 		[SystemStage(.Update)]
@@ -157,7 +160,7 @@ namespace Nanoforge.Gui
 
             //TODO: Once settings/cvar system is added the data folder should be selected from there. Also change it to auto open when critical files like misc and interface vpp are missing.
             //Auto open data folder selector if its not set
-            if (PackfileVFS.DirectoryPath.IsEmpty || PackfileVFS.DirectoryPath.IsWhiteSpace)
+            if (!PackfileVFS.Ready && !PackfileVFS.Loading)
             {
                 if (!DataFolderSelector.Open)
                 {
@@ -274,14 +277,7 @@ namespace Nanoforge.Gui
             switch (NativeFileDialog.OpenDialog("nanoproj", null, &outPath))
             {
                 case .Okay:
-                    switch (ProjectDB.Load(StringView(outPath)))
-                    {
-                        case .Ok:
-
-                        case .Err(StringView err):
-                            Logger.Error("Gui.TryOpen() failed to open project at '{}'. Error: {}", StringView(outPath), err);
-                            return;
-                    }
+                    ProjectDB.LoadAsync(StringView(outPath));
                 case .Cancel:
                     return;
                 case .Error:
@@ -301,7 +297,7 @@ namespace Nanoforge.Gui
 
                 doc.UnsavedChanges = false;
             }
-            ProjectDB.Save();
+            ProjectDB.SaveAsync();
         }
 
         public void CloseNanoforge()
