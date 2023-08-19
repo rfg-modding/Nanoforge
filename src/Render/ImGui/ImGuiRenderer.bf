@@ -98,7 +98,7 @@ namespace Nanoforge.Render.ImGui
             ImGui.StyleColorsDark();
             var style = ImGui.GetStyle();
             style.WindowPadding = .(8.0f, 8.0f);
-            style.FramePadding = .(5.0f, 5.0f);
+            style.FramePadding = .(5.0f, 4.0f);
             style.ItemSpacing = .(8.0f, 8.0f);
             style.ItemInnerSpacing = .(8.0f, 6.0f);
             style.IndentSpacing = 25.0f;
