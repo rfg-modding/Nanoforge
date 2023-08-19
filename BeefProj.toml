@@ -1,5 +1,5 @@
 FileVersion = 1
-Dependencies = {corlib = "*", RfgTools = "*", "Beef.Linq" = "*", ImGui = "*", bon = "*", nativefiledialog-beef = "*"}
+Dependencies = {corlib = "*", RfgTools = "*", "Beef.Linq" = "*", ImGui = "*", bon = "*", nativefiledialog-beef = "*", Xml-Beef = "*"}
 
 [Project]
 Name = "Nanoforge"

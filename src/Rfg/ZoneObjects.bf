@@ -71,11 +71,6 @@ namespace Nanoforge.Rfg
             SpawnInTeamBagman        = 1 << 14,
             SpawnInDemolition        = 1 << 15
         }
-
-        /*public override void Save(String text)
-        {
-
-        }*/
     }
 
     [ReflectAll]
@@ -216,6 +211,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public String Props = new .() ~delete _; //Name of entry in level_objects.xtbl
         [EditorProperty]
+        //TODO: Populate with chunk assets in the .asm_pc for the current map
         public String ChunkName = new .() ~delete _;
         [EditorProperty]
         public u32 DestroyableUID;

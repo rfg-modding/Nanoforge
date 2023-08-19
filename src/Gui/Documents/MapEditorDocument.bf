@@ -12,6 +12,7 @@ using Common.Math;
 using Nanoforge.Render.Resources;
 using System.Collections;
 using System.Diagnostics;
+using Nanoforge.Gui.Documents.MapEditor;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -336,7 +337,23 @@ namespace Nanoforge.Gui.Documents
 
         public override void Inspector(App app, Gui gui)
         {
+            if (_selectedObject == null)
+                return;
 
+            //Draw inspector for viewing and editing object properties. They're type specific classes which implement IZoneObjectInspector
+            //Note: Not the prettiest solution but it's good enough for the time being since RFG has a fixed set of object types and there's no way to add new types yet (will require RSL2 changes)
+            switch (_selectedObject.GetType())
+            {
+                case typeof(ZoneObject):
+                    BaseZoneObjectInspector.Draw(app, gui, _selectedObject);
+                case typeof(ObjZone):
+                    ObjZoneInspector.Draw(app, gui, _selectedObject as ObjZone);
+                case typeof(MultiMarker):
+                    MultiMarkerInspector.Draw(app, gui, _selectedObject as MultiMarker);
+                //TODO: Implement dummy inspectors for the rest of the types currently enabled. Put commented out placeholders for the SP types.
+                default:
+                    ImGui.Text(scope $"Unsupported zone object type '{_selectedObject.GetType().GetName(.. scope .())}'");
+            }
         }
 	}
 }
