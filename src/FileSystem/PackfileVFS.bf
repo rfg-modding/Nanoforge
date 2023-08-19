@@ -373,6 +373,35 @@ namespace Nanoforge.FileSystem
             }
         }
 
+        public static Result<String> ReadAllText(StringView path)
+        {
+            if (GetEntry(path) case .Ok(EntryBase entry) && entry.IsFile)
+                return ReadAllText(entry as FileEntry);
+            else
+                return .Err;
+        }
+
+        public static Result<String> ReadAllText(FileEntry entry)
+        {
+            switch (OpenFile(entry))
+            {
+                case .Ok(Stream stream):
+                    defer delete stream;
+                    String text = new String(' ', entry.Size);
+                    if (stream.TryRead(Span<u8>((u8*)text.Ptr, text.Length)) case .Ok)
+                    {
+                    	return text;
+                    }
+                    else
+                    {
+                        delete text;
+                        return .Err;
+                    }
+                case .Err:
+                    return .Err;
+            }
+        }
+
         public static void GetMountName(String inMountName)
         {
             inMountName.Set(Mount);
