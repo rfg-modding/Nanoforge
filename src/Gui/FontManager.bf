@@ -7,7 +7,7 @@ using ImGui;
 namespace Nanoforge.Gui
 {
 	//TODO: Convert this to use the new architecture. This was grabbed from old code and I didn't bother converting it yet since its job is simple
-	public static class FontManager
+	public static class Fonts
 	{
         public static ImGuiFont FontSmall;
         public static ImGuiFont FontDefault;

@@ -88,7 +88,7 @@ namespace Nanoforge.Render.ImGui
                 return false;
 
             SetupStyles(app);
-            FontManager.LoadFonts();
+            Fonts.LoadFonts();
             return true;
         }
 

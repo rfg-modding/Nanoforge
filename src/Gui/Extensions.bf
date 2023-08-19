@@ -83,7 +83,7 @@ namespace ImGui
         {
         	var font = Font;
         	if(font == null)
-        		font = FontManager.FontDefault.Font;
+        		font = Fonts.FontDefault.Font;
 
         	bool hovered = ImGui.IsItemHovered();
             if (hovered)
@@ -219,12 +219,12 @@ namespace ImGui
             }
         }
 
-        public static DisposableImGuiFont Font(FontManager.ImGuiFont font)
+        public static DisposableImGuiFont Font(Fonts.ImGuiFont font)
         {
             return .(font.Font);
         }
 
-        public static mixin ScopedFont(FontManager.ImGuiFont font)
+        public static mixin ScopedFont(Fonts.ImGuiFont font)
         {
             DisposableImGuiFont disposable = .(font.Font);
             defer disposable.Dispose();
