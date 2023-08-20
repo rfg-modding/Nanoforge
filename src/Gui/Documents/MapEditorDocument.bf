@@ -308,12 +308,13 @@ namespace Nanoforge.Gui.Documents
             }
             if (ImGui.IsItemHovered())
             {
+                obj.Classname.EnsureNullTerminator();
                 ImGui.TooltipOnPrevious(obj.Classname);
             }
 
             //Flags
             ImGui.TableNextColumn();
-            ImGui.Text(obj.Flags.ToString(.. scope .()));
+            ImGui.Text(obj.Flags.ToString(.. scope .())); //TODO: Make custom ToString function that includes each flag in the string instead of reverting to an integer
 
             //Num
             ImGui.TableNextColumn();
@@ -348,12 +349,50 @@ namespace Nanoforge.Gui.Documents
                     BaseZoneObjectInspector.Draw(app, gui, _selectedObject);
                 case typeof(ObjZone):
                     ObjZoneInspector.Draw(app, gui, _selectedObject as ObjZone);
+                case typeof(ObjectBoundingBox):
+                    ObjectBoundingBoxInspector.Draw(app, gui, _selectedObject as ObjectBoundingBox);
+                case typeof(ObjectDummy):
+                    ObjectDummyInspector.Draw(app, gui, _selectedObject as ObjectDummy);
+                case typeof(PlayerStart):
+                    PlayerStartInspector.Draw(app, gui, _selectedObject as PlayerStart);
+                case typeof(TriggerRegion):
+                    TriggerRegionInspector.Draw(app, gui, _selectedObject as TriggerRegion);
+                case typeof(ObjectMover):
+                    ObjectMoverInspector.Draw(app, gui, _selectedObject as ObjectMover);
+                case typeof(GeneralMover):
+                    GeneralMoverInspector.Draw(app, gui, _selectedObject as GeneralMover);
+                case typeof(RfgMover):
+                    RfgMoverInspector.Draw(app, gui, _selectedObject as RfgMover);
+                case typeof(ShapeCutter):
+                    ShapeCutterInspector.Draw(app, gui, _selectedObject as ShapeCutter);
+                case typeof(ObjectEffect):
+                    ObjectEffectInspector.Draw(app, gui, _selectedObject as ObjectEffect);
+                case typeof(Item):
+                    ItemInspector.Draw(app, gui, _selectedObject as Item);
+                case typeof(Weapon):
+                    WeaponInspector.Draw(app, gui, _selectedObject as Weapon);
+                case typeof(Ladder):
+                    LadderInspector.Draw(app, gui, _selectedObject as Ladder);
+                case typeof(ObjLight):
+                    ObjLightInspector.Draw(app, gui, _selectedObject as ObjLight);
                 case typeof(MultiMarker):
                     MultiMarkerInspector.Draw(app, gui, _selectedObject as MultiMarker);
-                //TODO: Implement dummy inspectors for the rest of the types currently enabled. Put commented out placeholders for the SP types.
+                case typeof(MultiFlag):
+                    MultiFlagInspector.Draw(app, gui, _selectedObject as MultiFlag);
+                case typeof(NavPoint):
+                    NavPointInspector.Draw(app, gui, _selectedObject as NavPoint);
+                case typeof(CoverNode):
+                    CoverNodeInspector.Draw(app, gui, _selectedObject as CoverNode);
+                case typeof(RfgConstraint):
+                    RfgConstraintInspector.Draw(app, gui, _selectedObject as RfgConstraint);
+                case typeof(ActionNode):
+                    ActionNodeInspector.Draw(app, gui, _selectedObject as ActionNode);
                 default:
                     ImGui.Text(scope $"Unsupported zone object type '{_selectedObject.GetType().GetName(.. scope .())}'");
             }
+
+            //Blank space after controls since sometimes the scrollbar doesn't go far enough down without it
+            ImGui.Text("");
         }
 	}
 }

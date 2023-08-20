@@ -1,9 +1,12 @@
+#pragma warning disable 168
 using System;
 using System.Collections;
 using Nanoforge.FileSystem;
 using Xml_Beef;
 using ImGui;
 using Nanoforge.Misc;
+using Common;
+using System.Linq;
 namespace Nanoforge.Gui.Documents.MapEditor;
 
 public class XtblComboBox
@@ -16,11 +19,15 @@ public class XtblComboBox
     private bool _loaded = false;
     private bool _loadError = false;
 
-    public this(StringView label, StringView xtbl, StringView xtblFieldPath)
+    public this(StringView label, StringView xtbl, StringView xtblFieldPath, StringView defaultOption = "")
     {
         _label..Set(label).EnsureNullTerminator();
         _xtbl.Set(xtbl);
         _xtblFieldPath.Set(xtblFieldPath);
+
+        //Some fields have a default value that isn't in the xtbls. E.g. PlayerStart.MissionInfo is set to none in a lot of vanilla MP maps
+        if (defaultOption != "")
+            _options.Add(new String(defaultOption));
     }
 
     public void Draw(String text)
@@ -67,11 +74,13 @@ public class EnumComboBox<T> where T : enum
     private append String _label;
     private append List<(String, T)> _options;
     private append String _searchTerm;
+    private (T, StringView)[] _nameOverrides ~DeleteIfSet!(_);
     private bool _loaded = false;
 
-    public this(StringView label)
+    public this(StringView label, (T, StringView)[] nameOverrides = null)
     {
         _label..Set(label).EnsureNullTerminator();
+        _nameOverrides = nameOverrides;
     }
 
     public ~this()
@@ -89,13 +98,28 @@ public class EnumComboBox<T> where T : enum
             for (var field in typeof(T).GetFields())
             {
                 //TODO: Make this cleaner. Try using GetValue
-                var markerType = (T)field.[Friend]mFieldData.mData;
-                _options.Add((new String(field.Name)..EnsureNullTerminator(), markerType));
+                var enumValue = (T)field.[Friend]mFieldData.mData;
+                String enumText = new String(field.Name)..EnsureNullTerminator();
+
+                //Use override if present
+                if (_nameOverrides != null)
+                {
+                    for (var kv in _nameOverrides)
+                    {
+                        if (kv.0 == enumValue)
+                        {
+							enumText.Set(kv.1);
+                            break;
+						}
+                    }
+                }
+
+                _options.Add((enumText, enumValue));
             }
             _loaded = true;
         }
 
-        String currentValueText = value.ToString(.. scope .())..EnsureNullTerminator();
+        String currentValueText = GetOptionText(value).GetValueOrDefault("")..EnsureNullTerminator();
         if (ImGui.BeginCombo(_label, currentValueText.Ptr))
         {
             ImGui.InputText("Search", _searchTerm);
@@ -115,6 +139,103 @@ public class EnumComboBox<T> where T : enum
                 }
             }
             ImGui.EndCombo();
+        }
+    }
+
+    private Result<String> GetOptionText(T value)
+    {
+        for (var kv in _options)
+        {
+            if (kv.1 == value)
+            {
+                return .Ok(kv.0);
+            }
+        }
+
+        return .Err;
+    }
+}
+
+//Assumes T is an enum where each option is set to a multiple of 2 (a specific bit)
+public class BitflagComboBox<T> where T : enum
+{
+    private append String _label;
+    private append List<(String, T)> _options;
+    private (T, StringView)[] _nameOverrides ~DeleteIfSet!(_);
+    private bool _loaded = false;
+
+    public this(StringView label, (T, StringView)[] nameOverrides = null)
+    {
+        _label..Set(label).EnsureNullTerminator();
+        _nameOverrides = nameOverrides;
+    }
+
+    public ~this()
+    {
+        for (var option in _options)
+            delete option.0;
+
+        _options.Clear();
+    }
+
+    public void Draw(ref T value)
+    {
+        if (!_loaded)
+        {
+            for (var field in typeof(T).GetFields())
+            {
+                //TODO: Make this cleaner. Try using GetValue
+                var enumValue = (T)field.[Friend]mFieldData.mData;
+                if (enumValue == 0)
+                    continue; //Ignore "None" flags
+
+                String enumText = new String(field.Name)..EnsureNullTerminator();
+
+                //Use override if present
+                if (_nameOverrides != null)
+                {
+                    for (var kv in _nameOverrides)
+                    {
+                        if (kv.0 == enumValue)
+                        {
+                			enumText.Set(kv.1);
+                            enumText.EnsureNullTerminator();
+                            break;
+                		}
+                    }
+                }
+
+                _options.Add((enumText, enumValue));
+            }
+            _loaded = true;
+        }
+
+        if (ImGui.CollapsingHeader(_label))
+        {
+            const f32 indent = 15.0f;
+            ImGui.Indent(indent);
+            for (var option in _options)
+            {
+                int valueInt = (int)value;
+                StringView optionText = option.0;
+                int optionValue = (int)option.1;
+
+                bool bitEnabled = (valueInt & optionValue) != 0;
+                ImGui.Checkbox(optionText.Ptr, &bitEnabled);
+                if (bitEnabled)
+                {
+                    //Checked, set this bit to true
+                    int newValue = valueInt | optionValue;
+                    value = (T)newValue;
+                }
+                else
+                {
+                    //Unchecked, zero this bit
+                    int newValue = valueInt & (~optionValue);
+                    value = (T)newValue;
+                }
+            }
+            ImGui.Unindent(indent);
         }
     }
 }
