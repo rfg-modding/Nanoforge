@@ -13,6 +13,7 @@ using Nanoforge.Render.Resources;
 using System.Collections;
 using System.Diagnostics;
 using Nanoforge.Gui.Documents.MapEditor;
+using System.Reflection;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -34,12 +35,32 @@ namespace Nanoforge.Gui.Documents
         //Deepest tree level the outliner will draw. Need to limit to prevent accidental stack overflow
         private const int MAX_OUTLINER_DEPTH = 7;
 
+        private append Dictionary<Type, Type> _inspectorTypes;
+
         public this(StringView mapName)
         {
             MapName.Set(mapName);
             HasMenuBar = false;
             NoWindowPadding = true;
             HasCustomOutlinerAndInspector = true;
+
+            //Find inspectors
+            for (Type inspectorType in Type.Types)
+            {
+                if (inspectorType.GetCustomAttribute<RegisterInspectorAttribute>() case .Ok(RegisterInspectorAttribute attribute))
+                {
+                    Type zoneObjectType = attribute.ZoneObjectType;
+                    if (_inspectorTypes.ContainsKey(zoneObjectType))
+                    {
+                        //More than one inspectors have been registered for one type
+                        Logger.Error(scope $"More than one inspector has been registered for type '{zoneObjectType.GetName(.. scope .())}'");
+                    }
+                    else
+                    {
+                        _inspectorTypes.Add(zoneObjectType, inspectorType);
+                    }
+                }
+            }
         }
 
         public ~this()
@@ -342,54 +363,23 @@ namespace Nanoforge.Gui.Documents
                 return;
 
             //Draw inspector for viewing and editing object properties. They're type specific classes which implement IZoneObjectInspector
-            //Note: Not the prettiest solution but it's good enough for the time being since RFG has a fixed set of object types and there's no way to add new types yet (will require RSL2 changes)
-            switch (_selectedObject.GetType())
+            Type objectType = _selectedObject.GetType();
+            if (_inspectorTypes.ContainsKey(objectType))
             {
-                case typeof(ZoneObject):
-                    BaseZoneObjectInspector.Draw(app, gui, _selectedObject);
-                case typeof(ObjZone):
-                    ObjZoneInspector.Draw(app, gui, _selectedObject as ObjZone);
-                case typeof(ObjectBoundingBox):
-                    ObjectBoundingBoxInspector.Draw(app, gui, _selectedObject as ObjectBoundingBox);
-                case typeof(ObjectDummy):
-                    ObjectDummyInspector.Draw(app, gui, _selectedObject as ObjectDummy);
-                case typeof(PlayerStart):
-                    PlayerStartInspector.Draw(app, gui, _selectedObject as PlayerStart);
-                case typeof(TriggerRegion):
-                    TriggerRegionInspector.Draw(app, gui, _selectedObject as TriggerRegion);
-                case typeof(ObjectMover):
-                    ObjectMoverInspector.Draw(app, gui, _selectedObject as ObjectMover);
-                case typeof(GeneralMover):
-                    GeneralMoverInspector.Draw(app, gui, _selectedObject as GeneralMover);
-                case typeof(RfgMover):
-                    RfgMoverInspector.Draw(app, gui, _selectedObject as RfgMover);
-                case typeof(ShapeCutter):
-                    ShapeCutterInspector.Draw(app, gui, _selectedObject as ShapeCutter);
-                case typeof(ObjectEffect):
-                    ObjectEffectInspector.Draw(app, gui, _selectedObject as ObjectEffect);
-                case typeof(Item):
-                    ItemInspector.Draw(app, gui, _selectedObject as Item);
-                case typeof(Weapon):
-                    WeaponInspector.Draw(app, gui, _selectedObject as Weapon);
-                case typeof(Ladder):
-                    LadderInspector.Draw(app, gui, _selectedObject as Ladder);
-                case typeof(ObjLight):
-                    ObjLightInspector.Draw(app, gui, _selectedObject as ObjLight);
-                case typeof(MultiMarker):
-                    MultiMarkerInspector.Draw(app, gui, _selectedObject as MultiMarker);
-                case typeof(MultiFlag):
-                    MultiFlagInspector.Draw(app, gui, _selectedObject as MultiFlag);
-                case typeof(NavPoint):
-                    NavPointInspector.Draw(app, gui, _selectedObject as NavPoint);
-                case typeof(CoverNode):
-                    CoverNodeInspector.Draw(app, gui, _selectedObject as CoverNode);
-                case typeof(RfgConstraint):
-                    RfgConstraintInspector.Draw(app, gui, _selectedObject as RfgConstraint);
-                case typeof(ActionNode):
-                    ActionNodeInspector.Draw(app, gui, _selectedObject as ActionNode);
-                default:
-                    ImGui.Text(scope $"Unsupported zone object type '{_selectedObject.GetType().GetName(.. scope .())}'");
+                Type inspectorType = _inspectorTypes[objectType];
+                if (inspectorType.GetMethod("Draw") case .Ok(MethodInfo methodInfo))
+                {
+                    methodInfo.Invoke(null, app, gui, _selectedObject).Dispose();
+                }
+                else
+                {
+                    ImGui.Text(scope $"Failed to find draw function for '{inspectorType.GetName(.. scope .())}'");
+                }
             }
+            else
+            {
+                ImGui.Text(scope $"Unsupported zone object type '{objectType.GetName(.. scope .())}'");
+            }    
 
             //Blank space after controls since sometimes the scrollbar doesn't go far enough down without it
             ImGui.Text("");

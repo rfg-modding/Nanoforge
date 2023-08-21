@@ -19,6 +19,17 @@ public interface IZoneObjectInspector<T> where T : ZoneObject
     public static void Draw(App app, Gui gui, T obj);
 }
 
+[AttributeUsage(.Class, .AlwaysIncludeTarget | .ReflectAttribute, ReflectUser = .All, AlwaysIncludeUser = .IncludeAllMethods | .AssumeInstantiated)]
+public struct RegisterInspectorAttribute : Attribute
+{
+    public readonly Type ZoneObjectType;
+
+    public this(Type inspectorType)
+    {
+        ZoneObjectType = inspectorType;
+    }
+}
+
 public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
 {
     private static append BitflagComboBox<ZoneObject.Flags> _flagsCombo = .("Flags",
@@ -103,6 +114,7 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
     }
 }
 
+[RegisterInspector(typeof(ObjZone))]
 public static class ObjZoneInspector : IZoneObjectInspector<ObjZone>
 {
     private static append XtblComboBox _ambientSpawnCombo = .("Ambient spawn", "ambient_spawn_info.xtbl", "table;ambient_spawn_info;Name");
@@ -118,6 +130,7 @@ public static class ObjZoneInspector : IZoneObjectInspector<ObjZone>
     }
 }
 
+[RegisterInspector(typeof(ObjectBoundingBox))]
 public static class ObjectBoundingBoxInspector : IZoneObjectInspector<ObjectBoundingBox>
 {
     private static append EnumComboBox<ObjectBoundingBox.BoundingBoxType> _bboxTypeCombo = .("Local BBox Type");
@@ -136,6 +149,7 @@ public static class ObjectBoundingBoxInspector : IZoneObjectInspector<ObjectBoun
     }
 }
 
+[RegisterInspector(typeof(ObjectDummy))]
 public static class ObjectDummyInspector : IZoneObjectInspector<ObjectDummy>
 {
     private static append EnumComboBox<ObjectDummy.DummyType> _dummyTypeCombo = .("Dummy type");
@@ -147,6 +161,7 @@ public static class ObjectDummyInspector : IZoneObjectInspector<ObjectDummy>
     }
 }
 
+[RegisterInspector(typeof(PlayerStart))]
 public static class PlayerStartInspector : IZoneObjectInspector<PlayerStart>
 {
     private static append EnumComboBox<Team> _teamCombo = .("MP Team");
@@ -165,6 +180,7 @@ public static class PlayerStartInspector : IZoneObjectInspector<PlayerStart>
     }
 }
 
+[RegisterInspector(typeof(TriggerRegion))]
 public static class TriggerRegionInspector : IZoneObjectInspector<TriggerRegion>
 {
     private static append EnumComboBox<TriggerRegion.Shape> _triggerShapeCombo = .("Trigger Shape");
@@ -202,6 +218,7 @@ public static class TriggerRegionInspector : IZoneObjectInspector<TriggerRegion>
     }
 }
 
+[RegisterInspector(typeof(ObjectMover))]
 public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
 {
     private static append BitflagComboBox<ObjectMover.BuildingTypeEnum> _buildingTypeCombo = .("Building Type");
@@ -229,6 +246,7 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
     }
 }
 
+[RegisterInspector(typeof(GeneralMover))]
 public static class GeneralMoverInspector : IZoneObjectInspector<GeneralMover>
 {
     public static void Draw(App app, Gui gui, GeneralMover obj)
@@ -245,6 +263,7 @@ public static class GeneralMoverInspector : IZoneObjectInspector<GeneralMover>
     }
 }
 
+[RegisterInspector(typeof(RfgMover))]
 public static class RfgMoverInspector : IZoneObjectInspector<RfgMover>
 {
     private static append EnumComboBox<RfgMover.MoveTypeEnum> _moveTypeCombo = .("Move Type");
@@ -257,6 +276,7 @@ public static class RfgMoverInspector : IZoneObjectInspector<RfgMover>
     }
 }
 
+[RegisterInspector(typeof(ShapeCutter))]
 public static class ShapeCutterInspector : IZoneObjectInspector<ShapeCutter>
 {
     public static void Draw(App app, Gui gui, ShapeCutter obj)
@@ -270,6 +290,7 @@ public static class ShapeCutterInspector : IZoneObjectInspector<ShapeCutter>
     }
 }
 
+[RegisterInspector(typeof(ObjectEffect))]
 public static class ObjectEffectInspector : IZoneObjectInspector<ObjectEffect>
 {
     private static append XtblComboBox _effectTypeCombo = .("Effect Type", "effects.xtbl", "table;effect;name");
@@ -281,6 +302,7 @@ public static class ObjectEffectInspector : IZoneObjectInspector<ObjectEffect>
     }
 }
 
+[RegisterInspector(typeof(Item))]
 public static class ItemInspector : IZoneObjectInspector<Item>
 {
     private static append XtblComboBox _itemTypeCombo = .("Item Type", "items_3d.xtbl", "table;item;name");
@@ -297,6 +319,7 @@ public static class ItemInspector : IZoneObjectInspector<Item>
     }
 }
 
+[RegisterInspector(typeof(Weapon))]
 public static class WeaponInspector : IZoneObjectInspector<Weapon>
 {
     private static append XtblComboBox _weaponTypeCombo = .("Weapon Type", "weapons.xtbl", "table;Weapon;Name");
@@ -310,6 +333,7 @@ public static class WeaponInspector : IZoneObjectInspector<Weapon>
     }
 }
 
+[RegisterInspector(typeof(Ladder))]
 public static class LadderInspector : IZoneObjectInspector<Ladder>
 {
     public static void Draw(App app, Gui gui, Ladder obj)
@@ -320,6 +344,7 @@ public static class LadderInspector : IZoneObjectInspector<Ladder>
     }
 }
 
+[RegisterInspector(typeof(ObjLight))]
 public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
 {
     private static append BitflagComboBox<ObjLight.ObjLightFlags> _objLightFlagsCombo = .("Light Flags");
@@ -342,6 +367,7 @@ public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
     }
 }
 
+[RegisterInspector(typeof(MultiMarker))]
 public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
 {
     private static append EnumComboBox<MultiMarkerType> _markerTypeCombo = .("Marker Type",
@@ -377,6 +403,7 @@ public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
     }
 }
 
+[RegisterInspector(typeof(MultiFlag))]
 public static class MultiFlagInspector : IZoneObjectInspector<MultiFlag>
 {
     private static append EnumComboBox<Team> _teamCombo = .("MP Team");
@@ -389,6 +416,7 @@ public static class MultiFlagInspector : IZoneObjectInspector<MultiFlag>
 }
 
 //These objects aren't actually supposed to be in MP maps, but since there's a few in the Nordic Special map and mp_wasteland they need placeholder inspectors
+[RegisterInspector(typeof(NavPoint))]
 public static class NavPointInspector : IZoneObjectInspector<NavPoint>
 {
     public static void Draw(App app, Gui gui, NavPoint obj)
@@ -398,6 +426,7 @@ public static class NavPointInspector : IZoneObjectInspector<NavPoint>
     }
 }
 
+[RegisterInspector(typeof(CoverNode))]
 public static class CoverNodeInspector : IZoneObjectInspector<CoverNode>
 {
     public static void Draw(App app, Gui gui, CoverNode obj)
@@ -407,6 +436,7 @@ public static class CoverNodeInspector : IZoneObjectInspector<CoverNode>
     }
 }
 
+[RegisterInspector(typeof(RfgConstraint))]
 public static class RfgConstraintInspector : IZoneObjectInspector<RfgConstraint>
 {
     public static void Draw(App app, Gui gui, RfgConstraint obj)
@@ -416,6 +446,7 @@ public static class RfgConstraintInspector : IZoneObjectInspector<RfgConstraint>
     }
 }
 
+[RegisterInspector(typeof(ActionNode))]
 public static class ActionNodeInspector : IZoneObjectInspector<ActionNode>
 {
     public static void Draw(App app, Gui gui, ActionNode obj)
