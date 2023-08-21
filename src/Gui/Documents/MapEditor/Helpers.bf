@@ -210,32 +210,35 @@ public class BitflagComboBox<T> where T : enum
             _loaded = true;
         }
 
-        if (ImGui.CollapsingHeader(_label))
+        if (ImGui.TreeNodeEx(_label, .FramePadding))
         {
-            const f32 indent = 15.0f;
-            ImGui.Indent(indent);
-            for (var option in _options)
+            //if (ImGui.BeginChild("flagsChild", .(0.0f, 150.0f)))
             {
-                int valueInt = (int)value;
-                StringView optionText = option.0;
-                int optionValue = (int)option.1;
+                for (var option in _options)
+                {
+                    int valueInt = (int)value;
+                    StringView optionText = option.0;
+                    int optionValue = (int)option.1;
 
-                bool bitEnabled = (valueInt & optionValue) != 0;
-                ImGui.Checkbox(optionText.Ptr, &bitEnabled);
-                if (bitEnabled)
-                {
-                    //Checked, set this bit to true
-                    int newValue = valueInt | optionValue;
-                    value = (T)newValue;
+                    bool bitEnabled = (valueInt & optionValue) != 0;
+                    ImGui.Checkbox(optionText.Ptr, &bitEnabled);
+                    if (bitEnabled)
+                    {
+                        //Checked, set this bit to true
+                        int newValue = valueInt | optionValue;
+                        value = (T)newValue;
+                    }
+                    else
+                    {
+                        //Unchecked, zero this bit
+                        int newValue = valueInt & (~optionValue);
+                        value = (T)newValue;
+                    }
                 }
-                else
-                {
-                    //Unchecked, zero this bit
-                    int newValue = valueInt & (~optionValue);
-                    value = (T)newValue;
-                }
+                //ImGui.EndChild();
             }
-            ImGui.Unindent(indent);
+
+            ImGui.TreePop();
         }
     }
 }
@@ -250,7 +253,9 @@ static class InspectorHelpers
             case .Ok(String text):
                 defer delete text;
                 Xml xml = scope .();
-                xml.LoadFromString(text); //TODO: Add error handling. Looks like I might need to modify the XML lib
+                //TODO: Add error handling. Looks like I might need to modify the XML lib
+                //TODO: Make the XML lib keep reading from the string if it reaches the end of the buffer. Right now it just stops parsing at that point so I have to make the buffer as big as the string.
+                xml.LoadFromString(text, (int32)text.Length);
 
                 XmlNode root = xml.ChildNodes[0];
                 PopulateXtblOptions(root, fieldPath, options); //Recurse through field path adding all instances of it to options list
