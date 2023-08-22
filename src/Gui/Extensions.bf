@@ -204,6 +204,52 @@ namespace ImGui
             return buttonClicked;
         }
 
+        public static bool InputVec3(StringView label, ref Vec3 value)
+        {
+            bool result = ImGui.InputFloat3("Min", ref *(float[3]*)&value);
+            ImGui.TooltipOnPrevious("vec3");
+            return result;
+        }
+
+        public static bool InputBoundingBox(StringView label, ref BoundingBox value)
+        {
+            if (ImGui.TreeNodeEx(label, .FramePadding))
+            {
+                ImGui.TooltipOnPrevious("bounding box");
+                bool editedMin = ImGui.InputVec3("Min", ref value.Min);
+                bool editedMax = ImGui.InputVec3("Max", ref value.Max);
+                ImGui.TreePop();
+
+                return editedMin || editedMax;
+            }
+            else
+            {
+                ImGui.TooltipOnPrevious("bounding box");
+            }
+
+            return false;
+        }
+
+        public static bool InputMat3(StringView label, ref Mat3 value)
+        {
+            if (ImGui.TreeNodeEx(label, .FramePadding))
+            {
+                ImGui.TooltipOnPrevious("matrix33");
+                bool editedRight = ImGui.InputVec3("Right", ref value.Vectors[0]);
+                bool editedUp = ImGui.InputVec3("Up", ref value.Vectors[1]);
+                bool editedForward = ImGui.InputVec3("Forward", ref value.Vectors[2]);
+                ImGui.TreePop();
+
+                return editedRight || editedUp || editedForward;
+            }
+            else
+            {
+                ImGui.TooltipOnPrevious("matrix33");
+            }
+
+            return false;
+        }
+
         public struct DisposableImGuiFont : IDisposable
         {
             ImGui.Font* _font = null;

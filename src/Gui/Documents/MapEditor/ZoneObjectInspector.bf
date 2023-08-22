@@ -54,37 +54,15 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
 
         //TODO: Add description and display name and load/save it in EditorData.xml or equivalent
 
-        if (ImGui.TreeNodeEx("Bounding Box", .FramePadding))
-        {
-            //TODO: Add extension to Imgui for NF vector types
-            ImGui.InputFloat3("Min", ref *(float[3]*)&obj.BBox.Min);
-            ImGui.InputFloat3("Max", ref *(float[3]*)&obj.BBox.Max);
-            ImGui.TreePop();
-        }
+        ImGui.InputBoundingBox("Bounding Box", ref obj.BBox);
 
         //TODO: Implement relative (parent/child) editor
 
-        if (ImGui.TreeNodeEx("Orientation", .FramePadding))
-        {
-            //TODO: Add Mat3 editor extension
-            ImGui.TooltipOnPrevious("Mat3");
-            ImGui.InputFloat3("Right", ref *(float[3]*)&obj.Orient.Vectors[0]);
-            ImGui.TooltipOnPrevious("Vec3");
-            ImGui.InputFloat3("Up", ref *(float[3]*)&obj.Orient.Vectors[1]);
-            ImGui.TooltipOnPrevious("Vec3");
-            ImGui.InputFloat3("Forward", ref *(float[3]*)&obj.Orient.Vectors[2]);
-            ImGui.TooltipOnPrevious("Vec3");
-            ImGui.TreePop();
-        }
-        else
-        {
-            ImGui.TooltipOnPrevious("Mat3");
-        }
-
+        ImGui.InputMat3("Orientation", ref obj.Orient);
         _flagsCombo.Draw(ref obj.Flags);
 
         Vec3 initialPos = obj.Position;
-        if (ImGui.InputFloat3("Position", ref *(float[3]*)&obj.Position))
+        if (ImGui.InputVec3("Position", ref obj.Position))
         {
             Vec3 delta = obj.Position - initialPos;
             obj.BBox += delta;
@@ -119,15 +97,19 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
 public static class ObjZoneInspector : IZoneObjectInspector<ObjZone>
 {
     private static append XtblComboBox _ambientSpawnCombo = .("Ambient spawn", "ambient_spawn_info.xtbl", "table;ambient_spawn_info;Name");
+    private static append XtblComboBox _spawnResourceCombo = .("Spawn resource", "spawn_resource.xtbl", "Table;spawn_resource_entry;Name");
 
     public static void Draw(App app, Gui gui, ObjZone obj)
     {
         BaseZoneObjectInspector.Draw(app, gui, obj);
         _ambientSpawnCombo.Draw(obj.AmbientSpawn);
-        ImGui.InputText("Spawn resource", obj.SpawnResource);
+        _spawnResourceCombo.Draw(obj.SpawnResource);
         ImGui.InputText("Terrain file name", obj.TerrainFileName);
+        ImGui.TooltipOnPrevious("string");
         ImGui.InputFloat("Wind min speed", &obj.WindMinSpeed);
+        ImGui.TooltipOnPrevious("float");
         ImGui.InputFloat("Wind max speed", &obj.WindMaxSpeed);
+        ImGui.TooltipOnPrevious("float");
     }
 }
 
@@ -139,13 +121,7 @@ public static class ObjectBoundingBoxInspector : IZoneObjectInspector<ObjectBoun
     public static void Draw(App app, Gui gui, ObjectBoundingBox obj)
     {
         BaseZoneObjectInspector.Draw(app, gui, obj);
-        if (ImGui.TreeNodeEx("Local Bounding Box", .FramePadding))
-        {
-            //TODO: Add extension to Imgui for NF vector types & BBox
-            ImGui.InputFloat3("Min", ref *(float[3]*)&obj.LocalBBox.Min);
-            ImGui.InputFloat3("Max", ref *(float[3]*)&obj.LocalBBox.Max);
-            ImGui.TreePop();
-        }
+        ImGui.InputBoundingBox("Local Bounding Box", ref obj.LocalBBox);
         _bboxTypeCombo.Draw(ref obj.BBType);
     }
 }
@@ -171,9 +147,9 @@ public static class PlayerStartInspector : IZoneObjectInspector<PlayerStart>
     public static void Draw(App app, Gui gui, PlayerStart obj)
     {
         BaseZoneObjectInspector.Draw(app, gui, obj);
-        ImGui.Checkbox("Indoor", &obj.Indoor);
         _teamCombo.Draw(ref obj.MpTeam);
         _missionInfoCombo.Draw(obj.MissionInfo);
+        ImGui.Checkbox("Indoor", &obj.Indoor);
         ImGui.Checkbox("Initial spawn", &obj.InitialSpawn);
         ImGui.Checkbox("Respawn", &obj.Respawn);
         ImGui.Checkbox("Checkpoint Respawn", &obj.CheckpointRespawn);
@@ -193,29 +169,23 @@ public static class TriggerRegionInspector : IZoneObjectInspector<TriggerRegion>
     {
         BaseZoneObjectInspector.Draw(app, gui, obj);
         _triggerShapeCombo.Draw(ref obj.TriggerShape);
-        //TODO: Add extension to Imgui for NF vector types & BBox
         if (obj.TriggerShape == .Box)
         {
-            if (ImGui.TreeNodeEx("Trigger Bounding Box", .FramePadding))
-            {
-                //TODO: Add extension to Imgui for NF vector types & BBox
-                ImGui.InputFloat3("Min", ref *(float[3]*)&obj.LocalBBox.Min);
-                ImGui.InputFloat3("Max", ref *(float[3]*)&obj.LocalBBox.Max);
-                ImGui.TreePop();
-            }
+            ImGui.InputBoundingBox("Trigger Bounding Box", ref obj.LocalBBox);
         }
         else if (obj.TriggerShape == .Sphere)
         {
             ImGui.InputFloat("Outer radius", &obj.OuterRadius);
+            ImGui.TooltipOnPrevious("float");
         }
 
-        ImGui.Checkbox("Enabled", &obj.Enabled);
         _regionTypeCombo.Draw(ref obj.RegionType);
         if (obj.RegionType == .KillHuman)
         {
             _killTypeCombo.Draw(ref obj.KillType);
         }
         _triggerFlagsCombo.Draw(ref obj.TriggerFlags);
+        ImGui.Checkbox("Enabled", &obj.Enabled);
     }
 }
 
@@ -237,11 +207,17 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
         _propertiesCombo.Draw(obj.Props);
         _teamComboBox.Draw(ref obj.Team);
         ImGui.InputScalar("Destruction Checksum", .U32, &obj.DestructionChecksum);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Chunk UID", .U32, &obj.ChunkUID);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputText("Chunk Name", obj.ChunkName);
+        ImGui.TooltipOnPrevious("string");
         ImGui.InputScalar("Destroyable UID", .U32, &obj.DestroyableUID);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Shape UID", .U32, &obj.ShapeUID);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputFloat("Control", &obj.Control);
+        ImGui.TooltipOnPrevious("float");
         ImGui.Checkbox("Dynamic", &obj.Dynamic);
         ImGui.Separator();
     }
@@ -254,13 +230,21 @@ public static class GeneralMoverInspector : IZoneObjectInspector<GeneralMover>
     {
         ObjectMoverInspector.Draw(app, gui, obj);
         ImGui.InputScalar("GM Flags", .U32, &obj.GmFlags);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Original Object", .U32, &obj.OriginalObject);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Collision Type", .U32, &obj.CollisionType);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Idx", .U32, &obj.Idx);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Move Type", .U32, &obj.MoveType);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Destruction UID", .U32, &obj.DestructionUID);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Hitpoints", .S32, &obj.Hitpoints);
+        ImGui.TooltipOnPrevious("int32");
         ImGui.InputScalar("Dislodge Hitpoints", .S32, &obj.DislodgeHitpoints);
+        ImGui.TooltipOnPrevious("int32");
     }
 }
 
@@ -274,6 +258,7 @@ public static class RfgMoverInspector : IZoneObjectInspector<RfgMover>
         ObjectMoverInspector.Draw(app, gui, obj);
         _moveTypeCombo.Draw(ref obj.MoveType);
         ImGui.InputFloat("Damage Percent", &obj.DamagePercent);
+        ImGui.TooltipOnPrevious("float");
     }
 }
 
@@ -284,10 +269,15 @@ public static class ShapeCutterInspector : IZoneObjectInspector<ShapeCutter>
     {
         BaseZoneObjectInspector.Draw(app, gui, obj);
         ImGui.InputScalar("Shape Cutter Flags", .S16, &obj.ShapeCutterFlags);
+        ImGui.TooltipOnPrevious("int16");
         ImGui.InputFloat("Outer Radius", &obj.OuterRadius);
+        ImGui.TooltipOnPrevious("float");
         ImGui.InputScalar("Source", .U32, &obj.Source);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Owner", .U32, &obj.Owner);
+        ImGui.TooltipOnPrevious("uint32");
         ImGui.InputScalar("Explosion ID", .U8, &obj.ExplosionId);
+        ImGui.TooltipOnPrevious("uint8");
     }
 }
 
@@ -341,6 +331,7 @@ public static class LadderInspector : IZoneObjectInspector<Ladder>
     {
         BaseZoneObjectInspector.Draw(app, gui, obj);
         ImGui.InputScalar("Ladder Rungs", .S32, &obj.LadderRungs);
+        ImGui.TooltipOnPrevious("int32");
         ImGui.Checkbox("Enabled", &obj.Enabled);
     }
 }
@@ -355,16 +346,23 @@ public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
     {
         BaseZoneObjectInspector.Draw(app, gui, obj);
         ImGui.InputFloat("Attenuation Start", &obj.AttenuationStart);
+        ImGui.TooltipOnPrevious("float");
         ImGui.InputFloat("Attenuation End", &obj.AttenuationEnd);
+        ImGui.TooltipOnPrevious("float");
         ImGui.InputFloat("Attenuation Range", &obj.AttenuationRange);
+        ImGui.TooltipOnPrevious("float");
         _objLightFlagsCombo.Draw(ref obj.LightFlags);
         _objLightTypeCombo.Draw(ref obj.LightType);
-        ImGui.InputFloat3("Color", ref *(float[3]*)&obj.Color);
+        ImGui.ColorEdit3("Color", ref *(float[3]*)&obj.Color);
+        ImGui.TooltipOnPrevious("color");
         ImGui.InputFloat("Hotspot Size", &obj.HotspotSize);
+        ImGui.TooltipOnPrevious("float");
         ImGui.InputFloat("Hotspot Falloff Size", &obj.HotspotFalloffSize);
-        ImGui.InputFloat3("Min Clip", ref *(float[3]*)&obj.MinClip);
-        ImGui.InputFloat3("Max Clip", ref *(float[3]*)&obj.MaxClip);
+        ImGui.TooltipOnPrevious("float");
+        ImGui.InputVec3("Min Clip", ref obj.MinClip);
+        ImGui.InputVec3("Max Clip", ref obj.MaxClip);
         ImGui.InputScalar("Clip Mesh", .S32, &obj.ClipMesh);
+        ImGui.TooltipOnPrevious("int32");
     }
 }
 
@@ -387,19 +385,16 @@ public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
     public static void Draw(App app, Gui gui, MultiMarker obj)
     {
         BaseZoneObjectInspector.Draw(app, gui, obj);
-        if (ImGui.TreeNodeEx("Local Bounding Box", .FramePadding))
-        {
-            //TODO: Add extension to Imgui for NF vector types
-            ImGui.InputFloat3("Min", ref *(float[3]*)&obj.LocalBBox.Min);
-            ImGui.InputFloat3("Max", ref *(float[3]*)&obj.LocalBBox.Max);
-            ImGui.TreePop();
-        }
+        ImGui.InputBoundingBox("Local Bounding Box", ref obj.LocalBBox);
         _markerTypeCombo.Draw(ref obj.MarkerType);
         _teamCombo.Draw(ref obj.MpTeam);
         _backpackTypeCombo.Draw(ref obj.BackpackType);
         ImGui.InputScalar("Priority", .S32, &obj.Priority);
+        ImGui.TooltipOnPrevious("int32");
         ImGui.InputScalar("Num Backpacks", .S32, &obj.NumBackpacks);
+        ImGui.TooltipOnPrevious("int32");
         ImGui.InputScalar("Group", .S32, &obj.Group);
+        ImGui.TooltipOnPrevious("int32");
         ImGui.Checkbox("Random Backpacks", &obj.RandomBackpacks);
     }
 }

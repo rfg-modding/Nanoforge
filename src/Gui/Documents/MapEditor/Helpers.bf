@@ -46,9 +46,11 @@ public class XtblComboBox
             return;
         }
 
+        String tooltip = scope $"{_xtbl}"..EnsureNullTerminator();
         text.EnsureNullTerminator();
         if (ImGui.BeginCombo(_label, text.Ptr))
         {
+            ImGui.TooltipOnPrevious(tooltip);
             ImGui.InputText("Search", _searchTerm);
             ImGui.Separator();
 
@@ -65,6 +67,10 @@ public class XtblComboBox
                 }
             }
             ImGui.EndCombo();
+        }
+        else
+        {
+            ImGui.TooltipOnPrevious(tooltip);
         }
     }
 }
@@ -119,9 +125,11 @@ public class EnumComboBox<T> where T : enum
             _loaded = true;
         }
 
+        String tooltip = scope $"{typeof(T).GetName(.. scope .())}"..EnsureNullTerminator();
         String currentValueText = GetOptionText(value).GetValueOrDefault("")..EnsureNullTerminator();
         if (ImGui.BeginCombo(_label, currentValueText.Ptr))
         {
+            ImGui.TooltipOnPrevious(tooltip);
             ImGui.InputText("Search", _searchTerm);
             ImGui.Separator();
 
@@ -139,6 +147,10 @@ public class EnumComboBox<T> where T : enum
                 }
             }
             ImGui.EndCombo();
+        }
+        else
+        {
+            ImGui.TooltipOnPrevious(tooltip);
         }
     }
 
@@ -211,8 +223,10 @@ public class BitflagComboBox<T> where T : enum
             _loaded = true;
         }
 
+        String tooltip = scope $"{typeof(T).GetName(.. scope .())}"..EnsureNullTerminator();
         if (ImGui.BeginCombo(_label, "Click to edit flags"))
         {
+            ImGui.TooltipOnPrevious(tooltip);
             ImGui.InputText("Search", _searchTerm);
             ImGui.Separator();
 
@@ -240,6 +254,10 @@ public class BitflagComboBox<T> where T : enum
                 }
             }
             ImGui.EndCombo();
+        }
+        else
+        {
+            ImGui.TooltipOnPrevious(tooltip);
         }
     }
 }
