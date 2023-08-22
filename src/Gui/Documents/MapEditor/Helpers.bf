@@ -129,7 +129,7 @@ public class EnumComboBox<T> where T : enum
             {
                 StringView optionText = option.0;
                 T optionValue = option.1;
-                if (!_searchTerm.IsEmpty && !optionText.Contains(_searchTerm, true))
+                if (!(_searchTerm.IsEmpty || _searchTerm.IsWhiteSpace) && !optionText.Contains(_searchTerm, true))
 	                continue;
 
                 bool selected = optionText.Equals(currentValueText);
@@ -161,6 +161,7 @@ public class BitflagComboBox<T> where T : enum
 {
     private append String _label;
     private append List<(String, T)> _options;
+    private append String _searchTerm;
     private (T, StringView)[] _nameOverrides ~DeleteIfSet!(_);
     private bool _loaded = false;
 
@@ -210,35 +211,35 @@ public class BitflagComboBox<T> where T : enum
             _loaded = true;
         }
 
-        if (ImGui.TreeNodeEx(_label, .FramePadding))
+        if (ImGui.BeginCombo(_label, "Click to edit flags"))
         {
-            //if (ImGui.BeginChild("flagsChild", .(0.0f, 150.0f)))
+            ImGui.InputText("Search", _searchTerm);
+            ImGui.Separator();
+
+            for (var option in _options)
             {
-                for (var option in _options)
+                int valueInt = (int)value;
+                StringView optionText = option.0;
+                int optionValue = (int)option.1;
+                if (!(_searchTerm.IsEmpty || _searchTerm.IsWhiteSpace) && !optionText.Contains(_searchTerm, true))
+                    continue;
+
+                bool bitEnabled = (valueInt & optionValue) != 0;
+                ImGui.Checkbox(optionText.Ptr, &bitEnabled);
+                if (bitEnabled)
                 {
-                    int valueInt = (int)value;
-                    StringView optionText = option.0;
-                    int optionValue = (int)option.1;
-
-                    bool bitEnabled = (valueInt & optionValue) != 0;
-                    ImGui.Checkbox(optionText.Ptr, &bitEnabled);
-                    if (bitEnabled)
-                    {
-                        //Checked, set this bit to true
-                        int newValue = valueInt | optionValue;
-                        value = (T)newValue;
-                    }
-                    else
-                    {
-                        //Unchecked, zero this bit
-                        int newValue = valueInt & (~optionValue);
-                        value = (T)newValue;
-                    }
+                    //Checked, set this bit to true
+                    int newValue = valueInt | optionValue;
+                    value = (T)newValue;
                 }
-                //ImGui.EndChild();
+                else
+                {
+                    //Unchecked, zero this bit
+                    int newValue = valueInt & (~optionValue);
+                    value = (T)newValue;
+                }
             }
-
-            ImGui.TreePop();
+            ImGui.EndCombo();
         }
     }
 }

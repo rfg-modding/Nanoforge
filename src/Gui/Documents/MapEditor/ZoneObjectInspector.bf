@@ -61,7 +61,6 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
             ImGui.InputFloat3("Max", ref *(float[3]*)&obj.BBox.Max);
             ImGui.TreePop();
         }
-        _flagsCombo.Draw(ref obj.Flags);
 
         //TODO: Implement relative (parent/child) editor
 
@@ -81,6 +80,8 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         {
             ImGui.TooltipOnPrevious("Mat3");
         }
+
+        _flagsCombo.Draw(ref obj.Flags);
 
         Vec3 initialPos = obj.Position;
         if (ImGui.InputFloat3("Position", ref *(float[3]*)&obj.Position))
@@ -232,7 +233,6 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
         BaseZoneObjectInspector.Draw(app, gui, obj);
         _buildingTypeCombo.Draw(ref obj.BuildingType);
         _chunkFlagsCombo.Draw(ref obj.ChunkFlags);
-        ImGui.Checkbox("Dynamic", &obj.Dynamic);
         _gameplayPropsCombo.Draw(obj.GameplayProps);
         _propertiesCombo.Draw(obj.Props);
         _teamComboBox.Draw(ref obj.Team);
@@ -242,6 +242,7 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
         ImGui.InputScalar("Destroyable UID", .U32, &obj.DestroyableUID);
         ImGui.InputScalar("Shape UID", .U32, &obj.ShapeUID);
         ImGui.InputFloat("Control", &obj.Control);
+        ImGui.Checkbox("Dynamic", &obj.Dynamic);
         ImGui.Separator();
     }
 }
