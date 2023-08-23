@@ -220,8 +220,8 @@ namespace Nanoforge.Gui.Panels
             //Set default docking positions on first draw
             if (FirstDraw)
             {
-                ImGui.ID dockLeftId = ImGui.DockBuilderSplitNode(DockspaceId, .Left, 0.20f, var outIdLeft, out DockspaceId);
-                ImGui.ID dockLeftBottomId = ImGui.DockBuilderSplitNode(dockLeftId, .Down, 0.5f, var outIdBottom, out dockLeftId);
+                ImGui.ID dockLeftId = ImGui.DockBuilderSplitNode(DockspaceId, .Left, 0.22f, var outIdLeft, out DockspaceId);
+                ImGui.ID dockLeftBottomId = ImGui.DockBuilderSplitNode(dockLeftId, .Down, 0.58f, var outIdBottom, out dockLeftId);
                 //ImGui.ID dockRightId = ImGui.DockBuilderSplitNode(DockspaceId, .Right, 0.28f, var outIdRight, out DockspaceId);
                 //ImGui.ID dockRightUp = ImGui.DockBuilderSplitNode(dockRightId, .Up, 0.35f, var outIdRightUp, out dockRightId);
                 DockspaceCentralNodeId = ImGui.DockBuilderGetCentralNode(DockspaceId).ID;
