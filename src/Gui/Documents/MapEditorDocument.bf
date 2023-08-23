@@ -167,6 +167,12 @@ namespace Nanoforge.Gui.Documents
 
         public override void Update(App app, Gui gui)
         {
+            //Focus the window when right clicking it. Otherwise had to left click the window first after selecting another to control the camera again. Was annoying
+            if (ImGui.IsMouseDown(.Right) && ImGui.IsWindowHovered())
+            {
+                ImGui.SetWindowFocus();
+            }
+
             if (FirstDraw)
             {
                 //Start loading process on first draw. We create the scene here to avoid needing to synchronize D3D11DeviceContext usage between multiple threads
@@ -179,6 +185,9 @@ namespace Nanoforge.Gui.Documents
 
             if (_scene != null)
             {
+                //Camera should only handle input when the viewport is focused or mouse hovered. Otherwise it'll react while you're typing into the inspector/outliner
+                _scene.Camera.InputEnabled = ImGui.IsWindowFocused() && ImGui.IsWindowHovered();
+
                 //Update scene viewport size
                 ImGui.Vec2 contentAreaSize;
                 contentAreaSize.x = ImGui.GetWindowContentRegionMax().x - ImGui.GetWindowContentRegionMin().x;
