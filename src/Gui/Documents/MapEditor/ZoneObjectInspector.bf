@@ -192,7 +192,7 @@ public static class TriggerRegionInspector : IZoneObjectInspector<TriggerRegion>
 [RegisterInspector(typeof(ObjectMover))]
 public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
 {
-    private static append BitflagComboBox<ObjectMover.BuildingTypeEnum> _buildingTypeCombo = .("Building Type");
+    private static append BitflagComboBox<ObjectMover.BuildingTypeFlagsEnum> _buildingTypeCombo = .("Building Type");
     private static append XtblComboBox _gameplayPropsCombo = .("Gameplay Properties", "gameplay_properties.xtbl", "table;gameplay;name");
     private static append BitflagComboBox<ObjectMover.ChunkFlagsEnum> _chunkFlagsCombo = .("Chunk Flags");
     private static append XtblComboBox _propertiesCombo = .("Properties", "level_objects.xtbl", "table;level_object;name");
@@ -361,7 +361,7 @@ public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
         ImGui.TooltipOnPrevious("float");
         ImGui.InputVec3("Min Clip", ref obj.MinClip);
         ImGui.InputVec3("Max Clip", ref obj.MaxClip);
-        ImGui.InputScalar("Clip Mesh", .S32, &obj.ClipMesh);
+        //ImGui.InputScalar("Clip Mesh", .S32, &obj.ClipMesh);
         ImGui.TooltipOnPrevious("int32");
     }
 }
@@ -388,14 +388,17 @@ public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
         ImGui.InputBoundingBox("Local Bounding Box", ref obj.LocalBBox);
         _markerTypeCombo.Draw(ref obj.MarkerType);
         _teamCombo.Draw(ref obj.MpTeam);
-        _backpackTypeCombo.Draw(ref obj.BackpackType);
         ImGui.InputScalar("Priority", .S32, &obj.Priority);
         ImGui.TooltipOnPrevious("int32");
-        ImGui.InputScalar("Num Backpacks", .S32, &obj.NumBackpacks);
-        ImGui.TooltipOnPrevious("int32");
-        ImGui.InputScalar("Group", .S32, &obj.Group);
-        ImGui.TooltipOnPrevious("int32");
-        ImGui.Checkbox("Random Backpacks", &obj.RandomBackpacks);
+        if (obj.MarkerType == .BackpackRack)
+        {
+            _backpackTypeCombo.Draw(ref obj.BackpackType);
+            ImGui.InputScalar("Num Backpacks", .S32, &obj.NumBackpacks);
+            ImGui.TooltipOnPrevious("int32");
+            ImGui.InputScalar("Group", .S32, &obj.Group);
+            ImGui.TooltipOnPrevious("int32");
+            ImGui.Checkbox("Random Backpacks", &obj.RandomBackpacks);
+        }
     }
 }
 

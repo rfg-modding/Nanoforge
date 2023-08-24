@@ -195,7 +195,7 @@ namespace Nanoforge.Rfg
     public class ObjectMover : ZoneObject
     {
         [EditorProperty]
-        public BuildingTypeEnum BuildingType;
+        public BuildingTypeFlagsEnum BuildingType;
         [EditorProperty]
         public u32 DestructionChecksum;
         [EditorProperty]
@@ -225,7 +225,7 @@ namespace Nanoforge.Rfg
         public Chunk ChunkData = null;
 
         [Reflect(.All)]
-        public enum BuildingTypeEnum
+        public enum BuildingTypeFlagsEnum
         {
             None = 0,
             Dynamic = 1 << 0,
@@ -272,6 +272,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public u32 OriginalObject;
         [EditorProperty]
+        //TODO: This is only used by the game with specific mover flags. Define the logic for that and show/hide in the UI depending on that. Same applies to Idx and MoveType
         public u32 CollisionType; //TODO: Determine if this is really a bitflag defining collision layers. Some example collision types in the RfgTools zonex doc for general_mover
         [EditorProperty]
         public u32 Idx;
@@ -381,7 +382,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public ObjLightFlags LightFlags;
         [EditorProperty]
-        public LightTypeEnum LightType;
+        public LightTypeEnum LightType; //TODO: Change this to use light_type property so we can use all light types instead of just spot and omni
         [EditorProperty]
         public Vec3 Color;
         [EditorProperty]
@@ -392,8 +393,9 @@ namespace Nanoforge.Rfg
         public Vec3 MinClip;
         [EditorProperty]
         public Vec3 MaxClip;
-        [EditorProperty]
-        public i32 ClipMesh;
+        //This needs verification before being re-enabled. Looks like it should actually be a string with a max of 68 characters.
+        /*[EditorProperty]
+        public i32 ClipMesh;*/
 
         [Reflect(.All)]
         public enum ObjLightFlags
@@ -422,6 +424,8 @@ namespace Nanoforge.Rfg
         public Team MpTeam;
         [EditorProperty]
         public i32 Priority;
+
+        //These 4 are only loaded by the game when MarkerType == BackpackRack
         [EditorProperty]
         public MultiBackpackType BackpackType;
         [EditorProperty]

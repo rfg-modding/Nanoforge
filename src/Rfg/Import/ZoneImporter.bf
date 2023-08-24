@@ -813,8 +813,8 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetVec3("max_clip") case .Ok(let val))
 	            obj.MaxClip = val;
 
-            if (rfgObj.GetI32("clip_mesh") case .Ok(i32 val))
-                obj.ClipMesh = val;
+            /*if (rfgObj.GetI32("clip_mesh") case .Ok(i32 val))
+                obj.ClipMesh = val;*/
 
             return obj;
         }

@@ -206,7 +206,7 @@ namespace ImGui
 
         public static bool InputVec3(StringView label, ref Vec3 value)
         {
-            bool result = ImGui.InputFloat3("Min", ref *(float[3]*)&value);
+            bool result = ImGui.InputFloat3(label.Ptr, ref *(float[3]*)&value);
             ImGui.TooltipOnPrevious("vec3");
             return result;
         }
