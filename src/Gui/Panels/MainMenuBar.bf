@@ -9,6 +9,7 @@ using NativeFileDialog;
 using Nanoforge.Misc;
 using Nanoforge.Gui.Dialogs;
 using Nanoforge.FileSystem;
+using Xml_Beef;
 
 namespace Nanoforge.Gui.Panels
 {
@@ -21,11 +22,20 @@ namespace Nanoforge.Gui.Panels
         public ImGui.ID DockspaceCentralNodeId = 0;
         bool ShowImGuiDemo = true;
 
-        public static StringView[?] MapList = .("terr01", "dlc01", "mp_cornered", "mp_crashsite", "mp_crescent", "mp_crevice", "mp_deadzone", "mp_downfall", "mp_excavation", "mp_fallfactor",
-            "mp_framework", "mp_garrison", "mp_gauntlet", "mp_overpass", "mp_pcx_assembly", "mp_pcx_crossover", "mp_pinnacle", "mp_quarantine",
-            "mp_radial", "mp_rift", "mp_sandpit", "mp_settlement", "mp_warlords", "mp_wasteland", "mp_wreckage", "mpdlc_broadside", "mpdlc_division", "mpdlc_islands",
-            "mpdlc_landbridge", "mpdlc_minibase", "mpdlc_overhang", "mpdlc_puncture", "mpdlc_ruins", "wc1", "wc2", "wc3", "wc4", "wc5", "wc6", "wc7", "wc8", "wc9",
-            "wc10", "wcdlc1", "wcdlc2", "wcdlc3", "wcdlc4", "wcdlc5", "wcdlc6", "wcdlc7", "wcdlc8", "wcdlc9");
+        private class MapOption
+        {
+            public append String DisplayName;
+            public append String FileName;
+
+            public this(StringView displayName, StringView fileName)
+            {
+                DisplayName.Set(displayName);
+                FileName.Set(fileName);
+            }
+        }
+        private append List<MapOption> _mpMaps ~ClearAndDeleteItems(_);
+        private append List<MapOption> _wcMaps ~ClearAndDeleteItems(_);
+        private bool _loadedMapLists = false;
 
         public override void Update(App app, Gui gui)
         {
@@ -34,6 +44,14 @@ namespace Nanoforge.Gui.Panels
             {
                 GenerateMenus(gui);
                 firstDraw = false;
+            }
+            if (!_loadedMapLists && PackfileVFS.Ready)
+            {
+                LoadMPMapsFromXtbl("//data/misc.vpp_pc/mp_levels.xtbl");
+                LoadMPMapsFromXtbl("//data/misc.vpp_pc/dlc02_mp_levels.xtbl");
+                LoadWCMapsFromXtbl("//data/misc.vpp_pc/wrecking_crew.xtbl");
+                LoadWCMapsFromXtbl("//data/misc.vpp_pc/dlc03_wrecking_crew.xtbl");
+                _loadedMapLists = true;
             }
 
             DrawMainMenuBar(app, gui);
@@ -110,19 +128,34 @@ namespace Nanoforge.Gui.Panels
                     ImGui.EndMenu();
                 }
 
-                if (ProjectDB.CurrentProject.Loaded)
+                if (ProjectDB.CurrentProject.Loaded && _loadedMapLists)
                 {
-                    ImGui.SetNextWindowSize(.(-1.0f, 600.0f));
                     if (ImGui.BeginMenu("Maps"))
                     {
-                        for (StringView map in MapList)
+                        ImGui.SetNextWindowSize(.(-1.0f, 600.0f));
+                        if (ImGui.BeginMenu("Multiplayer"))
                         {
-                            bool supported = map != "terr01" && map != "dlc01";
-                            bool alreadyOpen = gui.Documents.Any((doc) => doc.Title == map);
-                            if (ImGui.MenuItem(supported ? map : scope $"{map} (SP maps not supported yet)", "", null, supported && !alreadyOpen))
+                            for (MapOption map in _mpMaps)
                             {
-                                gui.OpenDocument(map, map, new MapEditorDocument(map));
+                                bool alreadyOpen = gui.Documents.Any((doc) => doc.Title == map.FileName);
+                                if (ImGui.MenuItem(map.DisplayName, scope $"{map.FileName}.vpp_pc", null, !alreadyOpen))
+                                {
+                                    gui.OpenDocument(map.FileName, map.FileName, new MapEditorDocument(map.FileName));
+                                }
                             }
+                            ImGui.EndMenu();
+                        }
+                        if (ImGui.BeginMenu("Wrecking Crew"))
+                        {
+                            for (MapOption map in _wcMaps)
+                            {
+                                bool alreadyOpen = gui.Documents.Any((doc) => doc.Title == map.FileName);
+                                if (ImGui.MenuItem(map.DisplayName, scope $"{map.FileName}.vpp_pc", null, !alreadyOpen))
+                                {
+                                    gui.OpenDocument(map.FileName, map.FileName, new MapEditorDocument(map.FileName));
+                                }
+                            }
+                            ImGui.EndMenu();
                         }
                         ImGui.EndMenu();
                     }
@@ -285,6 +318,60 @@ namespace Nanoforge.Gui.Panels
                 }
 
                 curMenuItem.Panel = panel;
+            }
+        }
+
+        private void LoadMPMapsFromXtbl(StringView xtblPath)
+        {
+            switch (PackfileVFS.ReadAllText(xtblPath))
+            {
+                case .Ok(String text):
+                    defer delete text;
+                    Xml xml = scope .();
+                    xml.LoadFromString(text, (int32)text.Length);
+                    XmlNode root = xml.ChildNodes[0];
+                    XmlNode table = root.Find("Table");
+
+                    XmlNodeList mpLevelNodes = table.FindNodes("mp_level_list");
+                    defer delete mpLevelNodes;
+                    for (XmlNode levelNode in mpLevelNodes)
+                    {
+                        XmlNode nameNode = levelNode.Find("Name");
+                        XmlNode fileNameNode = levelNode.Find("Filename");
+                        _mpMaps.Add(new MapOption(nameNode.NodeValue, fileNameNode.NodeValue));
+                    }
+
+                case .Err:
+                    Logger.Error("Failed to load {0} for MP maps list.", xtblPath);
+                    return;
+            }
+        }
+
+        private void LoadWCMapsFromXtbl(StringView xtblPath)
+        {
+            switch (PackfileVFS.ReadAllText(xtblPath))
+            {
+                case .Ok(String text):
+                    defer delete text;
+                    Xml xml = scope .();
+                    xml.LoadFromString(text, (int32)text.Length);
+                    XmlNode root = xml.ChildNodes[0];
+                    XmlNode table = root.Find("Table");
+                    XmlNode entry = table.Find("entry");
+                    XmlNode maps = entry.Find("maps");
+
+                    XmlNodeList mapNodes = maps.FindNodes("map");
+                    defer delete mapNodes;
+                    for (XmlNode mapNode in mapNodes)
+                    {
+                        XmlNode nameNode = mapNode.Find("file_name"); //TODO: Use display_name and localize once localization support is added
+                        XmlNode fileNameNode = mapNode.Find("file_name");
+                        _wcMaps.Add(new MapOption(nameNode.NodeValue, fileNameNode.NodeValue));
+                    }
+
+                case .Err:
+                    Logger.Error("Failed to load {0} for MP maps list.", xtblPath);
+                    return;
             }
         }
     }

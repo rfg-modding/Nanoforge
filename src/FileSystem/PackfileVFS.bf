@@ -19,7 +19,7 @@ namespace Nanoforge.FileSystem
         public static readonly append String DirectoryPath;
         public static readonly append String Mount; //Directory this FS is mounted to in the VFS
         public static bool Loading { get; private set; } = false;
-        public static bool Ready => Root != null;
+        public static bool Ready => Root != null && !Loading;
 
         public static this()
         {
