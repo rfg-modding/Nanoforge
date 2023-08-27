@@ -29,7 +29,28 @@ namespace Nanoforge.Gui.Documents
         public Territory Map = null;
         private Renderer _renderer = null;
         private Scene _scene = null;
-        private ZoneObject _selectedObject;
+        private ZoneObject _selectedObject = null;
+        private ZoneObject SelectedObject
+        {
+            get => _selectedObject;
+            set
+            {
+                _selectedObject = value;
+                for (Zone zone in Map.Zones)
+                {
+                    for (ZoneObject obj in zone.Objects)
+                    {
+                        if (obj == value)
+                        {
+                            _selectedObjectZone = zone;
+                            return;
+                        }
+                    }
+                }
+                _selectedObjectZone = null;
+            }
+        }
+        private Zone _selectedObjectZone = null; //The zone that the selected object lies in
         private Zone _selectedZone = null;
 
         //Deepest tree level the outliner will draw. Need to limit to prevent accidental stack overflow
@@ -492,7 +513,7 @@ namespace Nanoforge.Gui.Documents
             if (!showObjectOrChildren)
                 return;
 
-            bool selected = (obj == _selectedObject);
+            bool selected = (obj == SelectedObject);
             ZoneObjectClass objectClass = GetObjectClass(obj);
             String label = scope $"      "; //Empty space for node icon. Drawn separately to give the text and icon different colors
             if (!obj.Name.IsEmpty)
@@ -513,10 +534,10 @@ namespace Nanoforge.Gui.Documents
 
             if (ImGui.IsItemClicked())
             {
-                if (obj == _selectedObject)
-                    _selectedObject = null;
+                if (obj == SelectedObject)
+                    SelectedObject = null;
                 else
-                    _selectedObject = obj;
+                    SelectedObject = obj;
             }
             if (ImGui.IsItemHovered())
             {
@@ -557,17 +578,17 @@ namespace Nanoforge.Gui.Documents
 
         public override void Inspector(App app, Gui gui)
         {
-            if (_selectedObject == null)
+            if (SelectedObject == null)
                 return;
 
             //Draw inspector for viewing and editing object properties. They're type specific classes which implement IZoneObjectInspector
-            Type objectType = _selectedObject.GetType();
+            Type objectType = SelectedObject.GetType();
             if (_inspectorTypes.ContainsKey(objectType))
             {
                 Type inspectorType = _inspectorTypes[objectType];
                 if (inspectorType.GetMethod("Draw") case .Ok(MethodInfo methodInfo))
                 {
-                    methodInfo.Invoke(null, app, gui, _selectedObject).Dispose();
+                    methodInfo.Invoke(null, app, this, _selectedObjectZone, SelectedObject).Dispose();
                 }
                 else
                 {
