@@ -161,6 +161,36 @@ namespace Nanoforge.Gui.Documents
             _scene.PerFrameConstants.DiffuseIntensity = 1.2f;
             _scene.PerFrameConstants.DiffuseColor = Colors.RGBA.White;
 
+            //Auto center camera on zone closest to the map origin
+            Vec3 closestZonePos = .(312.615f, 56.846f, -471.078f);
+            f32 closestDistanceFromOrigin = f32.MaxValue;
+            for (Zone zone in Map.Zones)
+            {
+                ObjZone objZone = null;
+                for (ZoneObject obj in zone.Objects)
+                {
+                    if (obj.GetType() == typeof(ObjZone))
+                    {
+                        objZone = (ObjZone)obj;
+                        break;
+                    }
+                }
+
+                if (objZone != null)
+                {
+                    f32 distance = objZone.Position.Length;
+                    if (distance < closestDistanceFromOrigin)
+                    {
+                        closestDistanceFromOrigin = distance;
+                        closestZonePos = objZone.Position;
+                    }
+                }
+            }
+            _scene.Camera.TargetPosition = closestZonePos;
+            _scene.Camera.TargetPosition.x += 125.0f;
+            _scene.Camera.TargetPosition.y = 250.0f;
+            _scene.Camera.TargetPosition.z -= 250.0f;
+
             CountObjectClassInstances();
             Logger.Info("{} loaded in {}s", MapName, loadTimer.Elapsed.TotalSeconds);
         }

@@ -112,7 +112,7 @@ namespace Nanoforge.Render
             if (ErrorOccurred)
                 Logger.Fatal("An error occurred during scene initialization. Rendering for that scene is now disabled.");
 
-            Camera.Init(.(312.615f, 56.846f, -471.078f), 80.0f, .(ViewWidth, ViewHeight), 1.0f, 10000.0f); 
+            Camera.Init(.(0.0f, 0.0f, 0.0f), 80.0f, .(ViewWidth, ViewHeight), 1.0f, 10000.0f); 
         }
 
         public void Draw(f32 deltaTime)
