@@ -10,7 +10,7 @@ namespace Nanoforge.Gui
     public class Dialog
     {
         public append String Title;
-        public bool Open { get; private set; } = false;
+        public bool Open = false;
         public DialogResult Result { get; private set; } = .None;
         protected bool _firstDraw = true;
 
