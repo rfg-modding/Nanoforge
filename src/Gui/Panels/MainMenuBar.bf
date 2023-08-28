@@ -85,8 +85,34 @@ namespace Nanoforge.Gui.Panels
 					{
                         gui.CloseProject();
 					}
-                    if (ImGui.BeginMenu("Recent projects", false))
+                    var recentProjects = CVar_GeneralSettings->RecentProjects;
+                    if (ImGui.BeginMenu("Recent projects", recentProjects.Count > 0))
                     {
+                        String projectToRemove = null;
+                        for (String projectPath in recentProjects)
+                        {
+                            if (ImGui.MenuItem(projectPath..EnsureNullTerminator()))
+                            {
+                                ProjectDB.LoadAsync(projectPath);
+                            }
+                            if (ImGui.BeginPopupContextItem())
+                            {
+                                if (ImGui.Selectable("Remove from list"))
+                                {
+                                    projectToRemove = projectPath; //Store reference to remove outside the loop. Shouldn't remove while iterating.
+                                }
+
+                                ImGui.EndPopup();
+                            }
+                        }
+
+                        if (projectToRemove != null)
+                        {
+                            recentProjects.Remove(projectToRemove);
+                            delete projectToRemove;
+                            CVar_GeneralSettings.Save();
+                        }
+
                         ImGui.EndMenu();
                     }
 

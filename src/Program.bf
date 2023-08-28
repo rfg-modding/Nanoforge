@@ -16,6 +16,15 @@ namespace Nanoforge
             //Initialize utility for determining origin string of hashes used in game files
             RfgTools.Hashing.HashDictionary.Initialize();
 
+            //Used as workaround to static init problems. See comments on ICVar
+            for (ICVar cvar in CVarsRequiringInitialization)
+                cvar.Init();
+
+            //The CVar static initializers call ProjectDB.LoadGlobals() during static init. If a global it gets created during that process too.
+            //Here we check if any new ones were created and save them to the file.
+            if (ProjectDB.NewUnsavedGlobalObjects)
+                ProjectDB.SaveGlobals();
+
             App.Build!(AppState.Running)
                 ..AddSystem<Window>(isResource: true)
                 ..AddSystem<Input>(isResource: true)

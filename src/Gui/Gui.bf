@@ -11,6 +11,7 @@ using Nanoforge.Misc;
 using Nanoforge.Gui.Dialogs;
 using NativeFileDialog;
 using Nanoforge.FileSystem;
+using System.IO;
 
 namespace Nanoforge.Gui
 {
@@ -158,13 +159,22 @@ namespace Nanoforge.Gui
                 }
             }
 
-            //TODO: Once settings/cvar system is added the data folder should be selected from there. Also change it to auto open when critical files like misc and interface vpp are missing.
             //Auto open data folder selector if its not set
             if (!PackfileVFS.Ready && !PackfileVFS.Loading)
             {
                 if (!DataFolderSelector.Open)
                 {
-                    DataFolderSelector.Show();
+                    String dataPath = CVar_GeneralSettings->DataPath;
+                    if (dataPath.IsEmpty || !Directory.Exists(dataPath))
+                    {
+                        //Data path not set. Make the user choose one.
+                        DataFolderSelector.Show();
+                    }
+                    else
+                    {
+                        //Data folder already set in config. Use it
+                        PackfileVFS.InitFromDirectoryAsync("//data/", CVar_GeneralSettings->DataPath);
+                    }
                 }
             }
 

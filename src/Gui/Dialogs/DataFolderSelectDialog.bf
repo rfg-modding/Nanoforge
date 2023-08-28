@@ -37,7 +37,11 @@ namespace Nanoforge.Gui.Dialogs
 
             //Auto search for RFG installs and populate list of results
             AutoDetectRfg();
-            if (_searchResults.Count == 1)
+            if (!CVar_GeneralSettings->DataPath.IsEmpty)
+            {
+                DataFolder.Set(CVar_GeneralSettings->DataPath);
+            }
+            else if (_searchResults.Count == 1)
             {
                 DataFolder.Set(_searchResults[0]);
             }
@@ -150,7 +154,9 @@ namespace Nanoforge.Gui.Dialogs
                 ImGui.BeginDisabled(!validDataFolder);
                 if (ImGui.Button("Confirm"))
                 {
-                    PackfileVFS.InitFromDirectoryAsync("//data/", DataFolder);
+                    CVar_GeneralSettings->DataPath.Set(DataFolder);
+                    CVar_GeneralSettings.Save();
+                    PackfileVFS.InitFromDirectoryAsync("//data/", CVar_GeneralSettings->DataPath);
                     Close();
                 }
                 ImGui.SameLine();

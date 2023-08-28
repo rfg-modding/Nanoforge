@@ -17,12 +17,21 @@ namespace Nanoforge.App
     ///Project database. Tracks editor objects and changes made to them through transactions.
     ///If you're comparing this to the C++ codebase this is really the Project + Registry classes combined. They only ever exist together so they were merged.
     ///This implementation was chosen over the more generic data model used by the C++ codebase for ease of use and comptime type checks.
+    [StaticInitAfter(typeof(Logger))]
 	public static class ProjectDB
 	{
+        //Attached to a project. Loaded/saved whenever a project is.
         static append Dictionary<u64, EditorObject> _objects ~ClearDictionaryAndDeleteValues!(_);
+        //Not attached to a project. Loaded when Nanoforge opens. Used to store persistent settings like the data folder path and recent projects list.
+        static append Dictionary<u64, EditorObject> _globalObjects ~ClearDictionaryAndDeleteValues!(_);
         static append Monitor _objectCreationLock;
         static append Monitor _bufferCreationLock;
         static append Monitor _commitLock;
+
+        //TODO: Make a more general system for separating objects into different files and selectively loading them. This will be needed to reduce save/load time bloat on projects with all the maps imported.
+        public static bool LoadedGlobalObjects { get; private set; } = false;
+        public static bool NewUnsavedGlobalObjects { get; private set; } = false; //Set to true when new global objects have been created but not yet saved
+        public const char8* GlobalObjectFilePath = "./Config.nanodata";
 
         static u64 _nextObjectUID = 0;
         static u64 _nextBufferUID = 0;
@@ -57,10 +66,7 @@ namespace Nanoforge.App
 
         public static this()
         {
-            //Temporary hardcoded project folder while porting from C++. Will replace once I add project loading and saving
-            CurrentProject.Name.Set("NFRewriteProjectTest"); //TODO: DE-HARDCODE
-            CurrentProject.Directory.Set(@"D:\_NFRewriteProjectDBTest\");
-            CurrentProject.FilePath.Set(scope $"{CurrentProject.Directory}NFRewriteTest.nanoproj");
+
         }
 
         public static void Init()
@@ -76,6 +82,18 @@ namespace Nanoforge.App
             obj.[Friend]_uid = uid;
             _objects[uid] = (obj);
             obj.Name.Set(name);
+            return obj;
+        }
+
+        public static T CreateGlobalObject<T>(StringView name = "") where T : EditorObject, new
+        {
+            ScopedLock!(_objectCreationLock);
+            let uid = _nextObjectUID++; 
+            T obj = new T();
+            obj.[Friend]_uid = uid;
+            _globalObjects[uid] = (obj);
+            obj.Name.Set(name);
+            NewUnsavedGlobalObjects = true;
             return obj;
         }
 
@@ -119,9 +137,19 @@ namespace Nanoforge.App
 
         public static EditorObject Find(StringView name)
         {
-            for (var kv in _objects)
-                if (StringView.Equals(kv.value.Name, name))
-                    return kv.value;
+            if (_objects != null)
+            {
+                for (var kv in _objects)
+	                if (StringView.Equals(kv.value.Name, name))
+	                    return kv.value;
+            }
+
+            if (_globalObjects != null)
+            {
+                for (var kv in _globalObjects)
+	                if (StringView.Equals(kv.value.Name, name))
+	                    return kv.value;
+            }
 
             return null;
         }
@@ -207,6 +235,18 @@ namespace Nanoforge.App
             {
                 case .Ok:
                     CurrentProject.[Friend]Loaded = true;
+
+                    //Success. Add to recent projects list.
+                    String projectPath = new String()..Append(CurrentProject.FilePath);
+                    if (CVar_GeneralSettings->RecentProjects.Contains(projectPath, .OrdinalIgnoreCase))
+                    {
+                        delete projectPath;
+                    }
+                    else
+                    {
+                        CVar_GeneralSettings->RecentProjects.Add(projectPath);
+                        CVar_GeneralSettings.Save();
+                    }
                     return .Ok;
                 case .Err(StringView err):
                     return .Err(err);
@@ -369,7 +409,7 @@ namespace Nanoforge.App
             }
             if (showDialog)
 				gTaskDialog.Step();
-            _nextObjectUID = _objects.Keys.Max() + 1;
+            _nextObjectUID = Math.Max(_objects.Keys.Max(), _globalObjects.Keys.Max()) + 1;
 
             //Parse buffers
             if (showDialog)
@@ -440,8 +480,93 @@ namespace Nanoforge.App
                 gTaskDialog.SetStatus(scope $"Done loading {CurrentProject.Name}.");
                 gTaskDialog.Close();
             }
+
+            //Success. Add to recent projects list.
+            String projectPath = new String()..Append(projectFilePath);
+            if (CVar_GeneralSettings->RecentProjects.Contains(projectPath, .OrdinalIgnoreCase))
+            {
+                delete projectPath;
+            }
+            else
+            {
+                CVar_GeneralSettings->RecentProjects.Add(projectPath);
+                CVar_GeneralSettings.Save();
+            }
+
             Ready = true;
             return .Ok;
+        }
+
+        public static void SaveGlobals()
+        {
+            Saving = true;
+            defer { Saving = false; }
+            BonInit();
+
+            //Serialize global objects to string
+            String objectsText = scope .()..Reserve(1000000);
+            for (var kv in _globalObjects)
+            {
+                Bon.Serialize(kv.value, objectsText);
+            }
+
+            //Write string to file
+            if (File.WriteAllText(GlobalObjectFilePath, objectsText) case .Err)
+            {
+                Logger.Error("Failed to save global object data");
+            }
+        }
+
+        public static void LoadGlobals()
+        {
+            if (!File.Exists(GlobalObjectFilePath))
+            {
+                return;
+            }
+
+            Loading = true;
+            defer { Loading = false; }
+
+            _objectCreationLock.Enter();
+            ClearDictionaryAndDeleteValues!(_globalObjects);
+            _objectCreationLock.Exit();
+            _deserializationObjectReferences.Clear();
+            _deserializationBufferReferences.Clear();
+            defer _deserializationObjectReferences.Clear();
+            defer _deserializationBufferReferences.Clear();
+            BonInit();
+
+            //Load the objects
+            String objectsText = File.ReadAllText(GlobalObjectFilePath, .. scope .());
+            BonContext context = .(objectsText);
+            while (context.[Friend]hasMore)
+            {
+                EditorObject obj = null;
+                switch (Bon.Deserialize(ref obj, context))
+                {
+                    case .Ok(var updatedContext):
+                        context = updatedContext;
+                        _globalObjects[obj.UID] = obj;
+                    case .Err:
+                        Logger.Error("Failed to load global object data.");
+                        return;
+                }
+            }
+
+            //Patch object references
+            for (var pair in _deserializationObjectReferences)
+            {
+                u64 uid = pair.0;
+                ValueView val = pair.1;
+                if (!_globalObjects.ContainsKey(uid))
+                {
+                    Logger.Error("Error loading ProjectDB. An object with UID {} was referenced. No object with that UID exists in this project.", uid);
+                    return;
+            	}
+                EditorObject obj = _globalObjects[uid];
+                val.Assign(obj);
+            }
+            _nextObjectUID = Math.Max(_objects.Keys.Max(), _globalObjects.Keys.Max()) + 1;
         }
 
         private static void SerializeEditorObject(BonWriter writer, ValueView val, BonEnvironment env, SerializeValueState state = default)

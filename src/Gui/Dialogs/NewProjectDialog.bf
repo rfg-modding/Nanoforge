@@ -33,7 +33,10 @@ namespace Nanoforge.Gui.Dialogs
             _name.Set("");
             _description.Set("");
             //Path and author not emptied for convenience
-            //_path.Set("");
+            if (_path.IsEmpty)
+            {
+                _path.Set(CVar_GeneralSettings->NewProjectDirectory);
+            }
             //_author.Set("");
             _showPathSelectorError = false;
         }
@@ -126,6 +129,9 @@ namespace Nanoforge.Gui.Dialogs
 
                     ProjectDB.NewProject(finalPath, _name, _author, _description);
                     Close(.None);
+
+                    CVar_GeneralSettings->NewProjectDirectory.Set(_path);
+                    CVar_GeneralSettings.Save();
                 }
 
                 if (disableCreateButton)
