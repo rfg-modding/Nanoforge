@@ -140,7 +140,7 @@ namespace Nanoforge.Gui.Documents
             defer { _scene.Active = true; }
 
             //Check if the map was already imported
-            Territory findResult = ProjectDB.Find<Territory>(MapName);
+            Territory findResult = NanoDB.Find<Territory>(MapName);
             if (findResult == null)
             {
                 //Map needs to be imported

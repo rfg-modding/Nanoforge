@@ -32,11 +32,11 @@ namespace Nanoforge.Tests
         [Test]
         public static void BasicSnapshotTest()
         {
-            var obj = ProjectDB.CreateObject<BasicEditorObject>();
+            var obj = NanoDB.CreateObject<BasicEditorObject>();
             obj.Int0 = 100;
             obj.Boolean1 = true;
 
-            var obj2 = ProjectDB.CreateObject<BasicEditorObject>();
+            var obj2 = NanoDB.CreateObject<BasicEditorObject>();
             obj2.Int0 = 123;
             obj2.Boolean1 = false;
 
@@ -72,9 +72,9 @@ namespace Nanoforge.Tests
             //TODO: Put this in a separate function & add asserts to confirm undo/redo worked correctly
             //TODO: Maybe make helpers to make undo/redo validation for a ton of properties simpler
             Vec3 obj2Vec3F0_finalState = obj2.Vec3F0;
-            ProjectDB.Undo();
+            NanoDB.Undo();
             Vec3 obj2Vec3F0_postUndoState = obj2.Vec3F0;
-            ProjectDB.Redo();
+            NanoDB.Redo();
             Vec3 obj2Vec3F0_postRedoState = obj2.Vec3F0;
             var debug3 = 0;
         }

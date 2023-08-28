@@ -14,11 +14,11 @@ using Bon.Integrated;
 
 namespace Nanoforge.App
 {
-    ///Project database. Tracks editor objects and changes made to them through transactions.
+    ///Nanoforge database. Holds global data and project specific data in classes inheriting EditorObject. Handles saving and loading that data. Tracks changes to them via transactions.
     ///If you're comparing this to the C++ codebase this is really the Project + Registry classes combined. They only ever exist together so they were merged.
     ///This implementation was chosen over the more generic data model used by the C++ codebase for ease of use and comptime type checks.
     [StaticInitAfter(typeof(Logger))]
-	public static class ProjectDB
+	public static class NanoDB
 	{
         //Attached to a project. Loaded/saved whenever a project is.
         static append Dictionary<u64, EditorObject> _objects ~ClearDictionaryAndDeleteValues!(_);
@@ -127,7 +127,7 @@ namespace Nanoforge.App
             _objects[uid] = obj;
         }
 
-        //Removes object from ProjectDB. Not recommended for direct use. Doesn't delete the object. That way transactions can still hold object info on the redo stack to restore it as required
+        //Removes object from NanoDB. Not recommended for direct use. Doesn't delete the object. That way transactions can still hold object info on the redo stack to restore it as required
         //Currently doesn't remove any references to this object that others might have. If used in the undo/redo stack that shouldn't frequently be a problem.
         public static void RemoveObject(EditorObject obj)
         {
@@ -184,7 +184,7 @@ namespace Nanoforge.App
             CurrentProject = new .();
         }
 
-        //Commit changes to undo stack. ProjectDB takes ownership of the transactions
+        //Commit changes to undo stack. NanoDB takes ownership of the transactions
         public static void Commit(Span<ITransaction> transactions, StringView commitName)
         {
             ScopedLock!(_commitLock);
@@ -401,7 +401,7 @@ namespace Nanoforge.App
                 ValueView val = pair.1;
                 if (!_objects.ContainsKey(uid))
                 {
-                    Logger.Error("Error loading ProjectDB. An object with UID {} was referenced. No object with that UID exists in this project.", uid);
+                    Logger.Error("Error loading NanoDB. An object with UID {} was referenced. No object with that UID exists in this project.", uid);
                     return .Err("Referenced object UID doesn't exist");
             	}
                 EditorObject obj = _objects[uid];
@@ -444,7 +444,7 @@ namespace Nanoforge.App
                 ValueView val = pair.1;
                 if (!_buffers.ContainsKey(uid))
                 {
-                    Logger.Error("Error loading ProjectDB. A buffer with UID {} was referenced. No buffer with that UID exists in this project.", uid);
+                    Logger.Error("Error loading NanoDB. A buffer with UID {} was referenced. No buffer with that UID exists in this project.", uid);
                     return .Err("Referenced buffer UID doesn't exist");
             	}
                 ProjectBuffer buffer = _buffers[uid];
@@ -560,7 +560,7 @@ namespace Nanoforge.App
                 ValueView val = pair.1;
                 if (!_globalObjects.ContainsKey(uid))
                 {
-                    Logger.Error("Error loading ProjectDB. An object with UID {} was referenced. No object with that UID exists in this project.", uid);
+                    Logger.Error("Error loading NanoDB. An object with UID {} was referenced. No object with that UID exists in this project.", uid);
                     return;
             	}
                 EditorObject obj = _globalObjects[uid];
@@ -689,7 +689,7 @@ namespace Nanoforge.App
 
                 gBonEnv.typeHandlers.Add(typeof(ProjectBuffer), ((.)new => SerializeProjectBuffer, (.)new => DeserializeProjectBuffer));
 
-                gBonEnv.RegisterPolyType!(typeof(ProjectDB.Project));
+                gBonEnv.RegisterPolyType!(typeof(NanoDB.Project));
                 gBonEnv.RegisterPolyType!(typeof(ProjectBuffer));
                 gBonEnv.RegisterPolyType!(typeof(EditorObject));
 
@@ -726,7 +726,7 @@ namespace Nanoforge.App
 
         public void GetPath(String path)
         {
-            path.Set(scope $@"{ProjectDB.CurrentProject.Directory}Buffers\{Name}.{UID}.buffer");
+            path.Set(scope $@"{NanoDB.CurrentProject.Directory}Buffers\{Name}.{UID}.buffer");
         }
 
         //Read buffer from hard drive. Caller takes ownership of the result if it returns .Ok

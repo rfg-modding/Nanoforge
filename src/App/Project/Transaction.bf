@@ -35,12 +35,12 @@ namespace Nanoforge.App.Project
 
         public virtual void Apply()
         {
-            ProjectDB.AddObject(_target);
+            NanoDB.AddObject(_target);
         }
 
         public virtual void Revert()
         {
-            ProjectDB.RemoveObject(_target);
+            NanoDB.RemoveObject(_target);
         }
     }
 

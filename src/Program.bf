@@ -22,8 +22,8 @@ namespace Nanoforge
 
             //The CVar static initializers call ProjectDB.LoadGlobals() during static init. If a global it gets created during that process too.
             //Here we check if any new ones were created and save them to the file.
-            if (ProjectDB.NewUnsavedGlobalObjects)
-                ProjectDB.SaveGlobals();
+            if (NanoDB.NewUnsavedGlobalObjects)
+                NanoDB.SaveGlobals();
 
             App.Build!(AppState.Running)
                 ..AddSystem<Window>(isResource: true)

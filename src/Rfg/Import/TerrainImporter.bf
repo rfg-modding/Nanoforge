@@ -58,8 +58,8 @@ namespace Nanoforge.Rfg.Import
                 switch (terrainFile.GetMeshData(i))
                 {
                     case .Ok(MeshInstanceData meshData):
-                        ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_low_lod_{i}_indices");
-                        ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_low_lod_{i}_vertices");
+                        ProjectBuffer indexBuffer = NanoDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_low_lod_{i}_indices");
+                        ProjectBuffer vertexBuffer = NanoDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_low_lod_{i}_vertices");
                         ProjectMesh mesh = changes.CreateObject<ProjectMesh>(scope $"{name}_low_lod_{i}_mesh");
                         mesh.InitFromRfgMeshConfig(meshData.Config);
                         mesh.IndexBuffer = indexBuffer;
@@ -126,8 +126,8 @@ namespace Nanoforge.Rfg.Import
                 switch (subzoneFile.GetTerrainMeshData())
                 {
                     case .Ok(MeshInstanceData meshData):
-                        ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}_indices");
-                        ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}_vertices");
+                        ProjectBuffer indexBuffer = NanoDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}_indices");
+                        ProjectBuffer vertexBuffer = NanoDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}_vertices");
                         ProjectMesh mesh = changes.CreateObject<ProjectMesh>(scope $"{name}_{i}_high_lod_mesh");
                         mesh.InitFromRfgMeshConfig(meshData.Config);
                         mesh.IndexBuffer = indexBuffer;
@@ -145,8 +145,8 @@ namespace Nanoforge.Rfg.Import
                     switch (subzoneFile.GetStitchMeshData())
                     {
                         case .Ok(MeshInstanceData meshData):
-                            ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}_stitch_indices");
-                            ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}_stitch_vertices");
+                            ProjectBuffer indexBuffer = NanoDB.CreateBuffer(meshData.IndexBuffer, scope $"{name}_high_lod_{i}_stitch_indices");
+                            ProjectBuffer vertexBuffer = NanoDB.CreateBuffer(meshData.VertexBuffer, scope $"{name}_high_lod_{i}_stitch_vertices");
                             ProjectMesh stitchMesh = changes.CreateObject<ProjectMesh>(scope $"{name}_{i}_stitch_mesh");
                             stitchMesh.InitFromRfgMeshConfig(meshData.Config);
                             stitchMesh.IndexBuffer = indexBuffer;
@@ -214,8 +214,8 @@ namespace Nanoforge.Rfg.Import
                                 rock.Position = stitchInstance.Position;
                                 rock.Rotation = stitchInstance.Rotation;
 
-                                ProjectBuffer indexBuffer = ProjectDB.CreateBuffer(meshData.IndexBuffer, scope $"{stitchPieceName}_indices");
-                                ProjectBuffer vertexBuffer = ProjectDB.CreateBuffer(meshData.VertexBuffer, scope $"{stitchPieceName}_vertices");
+                                ProjectBuffer indexBuffer = NanoDB.CreateBuffer(meshData.IndexBuffer, scope $"{stitchPieceName}_indices");
+                                ProjectBuffer vertexBuffer = NanoDB.CreateBuffer(meshData.VertexBuffer, scope $"{stitchPieceName}_vertices");
                                 ProjectMesh mesh = changes.CreateObject<ProjectMesh>(scope $"{stitchPieceName}.cstch_pc");
                                 mesh.InitFromRfgMeshConfig(meshData.Config);
                                 mesh.IndexBuffer = indexBuffer;
@@ -330,7 +330,7 @@ namespace Nanoforge.Rfg.Import
         public static Result<ProjectTexture> GetOrLoadTerrainTexture(DiffUtil changes, StringView tgaName)
         {
             //Check if the tga was already loaded
-            ImportedTextures importedTextures = ProjectDB.FindOrCreate<ImportedTextures>("Global::ImportedTextures");
+            ImportedTextures importedTextures = NanoDB.FindOrCreate<ImportedTextures>("Global::ImportedTextures");
             if (importedTextures.GetTexture(tgaName) case .Ok(ProjectTexture texture))
         		return texture;
 
@@ -401,7 +401,7 @@ namespace Nanoforge.Rfg.Import
 
                 ProjectTexture texture = changes.CreateObject<ProjectTexture>(.(entryName));
                 texture.Name.Set(.(entryName)); //Temporary workaround to ProjectDB.Find() not working on uncommitted objects
-                if (ProjectDB.CreateBuffer(entryPixels, .(entryName)) case .Ok(ProjectBuffer pixelBuffer)) //Save pixel data to project buffer for quick and easy access later
+                if (NanoDB.CreateBuffer(entryPixels, .(entryName)) case .Ok(ProjectBuffer pixelBuffer)) //Save pixel data to project buffer for quick and easy access later
                 {
         			texture.Data = pixelBuffer;
                     texture.Format = ProjectTexture.PegFormatToDxgiFormat(entry.Format, (u16)entry.Flags);

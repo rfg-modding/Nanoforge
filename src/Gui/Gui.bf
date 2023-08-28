@@ -138,7 +138,7 @@ namespace Nanoforge.Gui
                 }
                 if (_closeProjectRequested)
                 {
-                    ProjectDB.Reset();
+                    NanoDB.Reset();
                     _closeProjectRequested = false;
                 }
                 if (_closeNanoforgeRequested)
@@ -287,7 +287,7 @@ namespace Nanoforge.Gui
             switch (NativeFileDialog.OpenDialog("nanoproj", null, &outPath))
             {
                 case .Okay:
-                    ProjectDB.LoadAsync(StringView(outPath));
+                    NanoDB.LoadAsync(StringView(outPath));
                 case .Cancel:
                     return;
                 case .Error:
@@ -307,7 +307,7 @@ namespace Nanoforge.Gui
 
                 doc.UnsavedChanges = false;
             }
-            ProjectDB.SaveAsync();
+            NanoDB.SaveAsync();
         }
 
         public void CloseNanoforge()

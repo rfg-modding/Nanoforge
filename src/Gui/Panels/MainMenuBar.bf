@@ -93,7 +93,7 @@ namespace Nanoforge.Gui.Panels
                         {
                             if (ImGui.MenuItem(projectPath..EnsureNullTerminator()))
                             {
-                                ProjectDB.LoadAsync(projectPath);
+                                NanoDB.LoadAsync(projectPath);
                             }
                             if (ImGui.BeginPopupContextItem())
                             {
@@ -154,7 +154,7 @@ namespace Nanoforge.Gui.Panels
                     ImGui.EndMenu();
                 }
 
-                if (ProjectDB.CurrentProject.Loaded && _loadedMapLists)
+                if (NanoDB.CurrentProject.Loaded && _loadedMapLists)
                 {
                     if (ImGui.BeginMenu("Maps"))
                     {
@@ -206,7 +206,7 @@ namespace Nanoforge.Gui.Panels
                 ImGui.Vec2 cursorPos = .(ImGui.GetCursorPosX(), mainMenuContentStartY);
 
                 //Project name
-                String projectName = scope .()..AppendF("|    {}", ProjectDB.CurrentProject.Loaded ? ProjectDB.CurrentProject.Name : "No project loaded");
+                String projectName = scope .()..AppendF("|    {}", NanoDB.CurrentProject.Loaded ? NanoDB.CurrentProject.Name : "No project loaded");
                 drawList.AddText(cursorPos, 0xF2F5FAFF, projectName.CStr(), projectName.CStr() + projectName.Length);
 
                 cursorPos.x += ImGui.CalcTextSize(projectName.CStr()).x;

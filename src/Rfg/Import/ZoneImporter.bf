@@ -636,7 +636,7 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetBuffer("world_anchors") case .Ok(Span<u8> bytes))
             {
-                switch (ProjectDB.CreateBuffer(bytes, scope $"world_anchors_{obj.Handle}"))
+                switch (NanoDB.CreateBuffer(bytes, scope $"world_anchors_{obj.Handle}"))
                 {
                     case .Ok(ProjectBuffer buffer):
                         obj.WorldAnchors = buffer;
@@ -648,7 +648,7 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetBuffer("dynamic_links") case .Ok(Span<u8> bytes))
             {
-                switch (ProjectDB.CreateBuffer(bytes, scope $"dynamic_links_{obj.Handle}"))
+                switch (NanoDB.CreateBuffer(bytes, scope $"dynamic_links_{obj.Handle}"))
                 {
                     case .Ok(ProjectBuffer buffer):
                         obj.DynamicLinks = buffer;

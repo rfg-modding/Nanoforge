@@ -16,7 +16,7 @@ namespace Nanoforge.Systems
 		[SystemInit]
 		void Init(App app)
 		{
-            ProjectDB.Init(); //TODO: Tried using StaticInitOrder + constructor for this, but it wouldn't init buffer Logger even if I told it to. Do it that way once that Beef bug is fixed.
+            NanoDB.Init(); //TODO: Tried using StaticInitOrder + constructor for this, but it wouldn't init buffer Logger even if I told it to. Do it that way once that Beef bug is fixed.
 		}
 
 		[SystemStage]

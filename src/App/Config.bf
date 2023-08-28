@@ -43,7 +43,7 @@ public class CVar<T> : ICVar
     ///Save the variable to Settings.nanodata. Note: Really saves all the CVars since ProjectDB doesn't support selective saves. So don't spam this.
     public void Save()
     {
-        ProjectDB.SaveGlobals();
+        NanoDB.SaveGlobals();
     }
 
     public static T operator->(Self self)
@@ -53,16 +53,16 @@ public class CVar<T> : ICVar
 
     void ICVar.Init()
     {
-        if (!ProjectDB.LoadedGlobalObjects)
+        if (!NanoDB.LoadedGlobalObjects)
         {
-            ProjectDB.LoadGlobals();
+            NanoDB.LoadGlobals();
         }
 
-        Value = (T)ProjectDB.Find(Name);
+        Value = (T)NanoDB.Find(Name);
         if (Value == null)
         {
             //If CVar EditorObject doesn't exist create it.
-            Value = ProjectDB.CreateGlobalObject<T>(Name);
+            Value = NanoDB.CreateGlobalObject<T>(Name);
         }
     }
 }

@@ -55,14 +55,14 @@ namespace Nanoforge.App.Project
                 if (_newObjects.Contains(target))
                 {
 					transactions.Add(new CreateObjectTransaction(target));
-                    ProjectDB.AddObject(target);
+                    NanoDB.AddObject(target);
                 }
 
                 //Generate transactions describing property changes
                 snapshot.GenerateDiffTransactions(transactions);
             }
 
-            ProjectDB.Commit(transactions, CommitName);
+            NanoDB.Commit(transactions, CommitName);
         }
 
         public void Rollback()

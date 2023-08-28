@@ -127,7 +127,7 @@ namespace Nanoforge.Gui.Dialogs
                     if (_createProjectFolder)
                         Directory.CreateDirectory(finalPath);
 
-                    ProjectDB.NewProject(finalPath, _name, _author, _description);
+                    NanoDB.NewProject(finalPath, _name, _author, _description);
                     Close(.None);
 
                     CVar_GeneralSettings->NewProjectDirectory.Set(_path);
