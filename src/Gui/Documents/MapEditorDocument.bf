@@ -14,6 +14,7 @@ using System.Collections;
 using System.Diagnostics;
 using Nanoforge.Gui.Documents.MapEditor;
 using System.Reflection;
+using Bon;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -57,9 +58,10 @@ namespace Nanoforge.Gui.Documents
         private const int MAX_OUTLINER_DEPTH = 7;
 
         private append Dictionary<Type, Type> _inspectorTypes;
-        private append List<ZoneObjectClass> _objectClasses ~ClearAndDeleteItems(_);
+        //private append List<ZoneObjectClass> _objectClasses ~ClearAndDeleteItems(_);
+        public static append CVar<ZoneObjectClasses> CVar_ObjectClasses = .("Object Classes");
         //Returned by GetObjectClass() when it can't find it
-        private append ZoneObjectClass _unknownObjectClass = .(typeof(ZoneObject), "unknown", .(1.0f, 1.0f, 1.0f), true, Icons.ICON_FA_QUESTION);
+        private append ZoneObjectClass _unknownObjectClass = .("unknown", .(1.0f, 1.0f, 1.0f), true, Icons.ICON_FA_QUESTION);
 
         //TODO: Make these into cvars once they're added
         private bool _onlyShowPersistentObjects = false;
@@ -67,28 +69,6 @@ namespace Nanoforge.Gui.Documents
         //private float _zoneBoxHeight = 150.0f;
         private bool _highlightHoveredObject = false;
         private bool _autoMoveChildren = true; //Auto move children when the parent object is moved
-
-        //Holds various metadata on each object class like visibility, outliner icon, and bounding box color
-        private class ZoneObjectClass
-        {
-            public readonly Type ObjectType;
-            public append String DisplayName;
-            public u32 NumInstances = 0;
-            public Vec3 Color = .(1.0f, 1.0f, 1.0f);
-            public bool Visible = true;
-            public bool DrawSolid = false;
-            public char8* Icon = "";
-
-            public this(Type objectType, StringView displayName, Vec3 color, bool visible, char8* icon)
-            {
-                ObjectType = objectType;
-                DisplayName.Set(displayName);
-                Color = color;
-                Visible = visible;
-                Icon = icon;
-                DrawSolid = false;
-            }
-        }
 
         public this(StringView mapName)
         {
@@ -382,11 +362,13 @@ namespace Nanoforge.Gui.Documents
             if (ImGui.Button(scope String(Icons.ICON_FA_FILTER)..Append(" Filters")..EnsureNullTerminator()))
                 ImGui.OpenPopup("##ObjectFilterPopup");
 
+            bool filtersChanged = false;
             if (ImGui.BeginPopup("##ObjectFilterPopup"))
             {
                 if (ImGui.Button("Show all types"))
                 {
-                    for (ZoneObjectClass objectClass in _objectClasses)
+                    filtersChanged = true;
+                    for (ZoneObjectClass objectClass in CVar_ObjectClasses->Classes)
                     {
                         objectClass.Visible = true;
                     }
@@ -394,13 +376,17 @@ namespace Nanoforge.Gui.Documents
                 ImGui.SameLine();
                 if (ImGui.Button("Hide all types"))
                 {
-                    for (ZoneObjectClass objectClass in _objectClasses)
+                    filtersChanged = true;
+                    for (ZoneObjectClass objectClass in CVar_ObjectClasses->Classes)
                     {
                         objectClass.Visible = false;
                     }
                 }
                 
-                ImGui.Checkbox("Only show persistent", &_onlyShowPersistentObjects);
+                if (ImGui.Checkbox("Only show persistent", &_onlyShowPersistentObjects))
+                {
+                    filtersChanged = true;
+                }
                 ImGui.SameLine();
                 ImGui.HelpMarker("Only draw objects with the persistent flag checked");
 
@@ -441,21 +427,27 @@ namespace Nanoforge.Gui.Documents
                     ImGui.TableSetupColumn("Color");
                     ImGui.TableHeadersRow();
 
-                    for (ZoneObjectClass objectClass in _objectClasses)
+                    for (ZoneObjectClass objectClass in CVar_ObjectClasses->Classes)
                     {
                         ImGui.TableNextRow();
 
                         //Type
                         ImGui.TableNextColumn();
-                        ImGui.Text(objectClass.DisplayName);
+                        ImGui.Text(objectClass.Classname);
 
                         //Visible
                         ImGui.TableNextColumn();
-                        ImGui.Checkbox(scope $"##Visible{objectClass.DisplayName}", &objectClass.Visible);
+                        if (ImGui.Checkbox(scope $"##Visible{objectClass.Classname}", &objectClass.Visible))
+                        {
+                            filtersChanged = true;
+                        }
 
                         //Solid
                         ImGui.TableNextColumn();
-                        ImGui.Checkbox(scope $"##Solid{objectClass.DisplayName}", &objectClass.DrawSolid);
+                        if (ImGui.Checkbox(scope $"##Solid{objectClass.Classname}", &objectClass.DrawSolid))
+                        {
+                            filtersChanged = true;
+                        }
 
                         //# of objects of this type
                         ImGui.TableNextColumn();
@@ -463,7 +455,10 @@ namespace Nanoforge.Gui.Documents
 
                         //Object color
                         ImGui.TableNextColumn();
-                        ImGui.ColorEdit3(scope $"##Color{objectClass.DisplayName}", ref *(float[3]*)&objectClass.Color, .NoInputs | .NoLabel);
+                        if (ImGui.ColorEdit3(scope $"##Color{objectClass.Classname}", ref *(float[3]*)&objectClass.Color, .NoInputs | .NoLabel))
+                        {
+                            filtersChanged = true;
+                        }
                     }
 
                     ImGui.EndTable();
@@ -471,6 +466,11 @@ namespace Nanoforge.Gui.Documents
                 ImGui.PopStyleColor(3);
 
                 ImGui.EndPopup();
+            }
+
+            if (filtersChanged)
+            {
+                CVar_ObjectClasses.Save();
             }
         }
 
@@ -606,322 +606,284 @@ namespace Nanoforge.Gui.Documents
 
         private void SetupObjectClasses()
         {
-            //Note: I included SP only classes so they just need to be uncommented when they're eventually added
-            _objectClasses.Add(new .(
-				objectType: typeof(RfgMover),
-				displayName: "rfg_mover",
-				color: .(0.819f, 0.819f, 0.819f),
-				visible: true,
-				icon: Icons.ICON_FA_HOME));
+            //_unknownObjectClass.Init(typeof(ZoneObject), "unknown", .(1.0f, 1.0f, 1.0f), true, Icons.ICON_FA_QUESTION);
+            if (CVar_ObjectClasses->Classes.Count == 0)
+            {
+                //Note: I included SP only classes so they just need to be uncommented when they're eventually added
+                var objectClasses = CVar_ObjectClasses->Classes;
+                objectClasses.Add(new .(
+                	classname: "rfg_mover",
+                	color: .(0.819f, 0.819f, 0.819f),
+                	visible: true,
+                	icon: Icons.ICON_FA_HOME));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(CoverNode),
-				displayName: "cover_node",
-				color: .(1.0f, 0.0f, 0.0f),
-				visible: false,
-				icon: Icons.ICON_FA_SHIELD_ALT));
+                objectClasses.Add(new .(
+                	classname: "cover_node",
+                	color: .(1.0f, 0.0f, 0.0f),
+                	visible: false,
+                	icon: Icons.ICON_FA_SHIELD_ALT));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(NavPoint),
-				displayName: "navpoint",
-				color: .(1.0f, 0.968f, 0.0f),
-				visible: false,
-				icon: Icons.ICON_FA_LOCATION_ARROW));
+                objectClasses.Add(new .(
+                	classname: "navpoint",
+                	color: .(1.0f, 0.968f, 0.0f),
+                	visible: false,
+                	icon: Icons.ICON_FA_LOCATION_ARROW));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(GeneralMover),
-				displayName: "general_mover",
-				color: .(1.0f, 0.664f, 0.0f),
-				visible: true,
-				icon: Icons.ICON_FA_CUBES));
+                objectClasses.Add(new .(
+                	classname: "general_mover",
+                	color: .(1.0f, 0.664f, 0.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_CUBES));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(PlayerStart),
-				displayName: "player_start",
-				color: .(0.591f, 1.0f, 0.0f),
-				visible: true,
-				icon: Icons.ICON_FA_STREET_VIEW));
+                objectClasses.Add(new .(
+                	classname: "player_start",
+                	color: .(0.591f, 1.0f, 0.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_STREET_VIEW));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(MultiMarker),
-				displayName: "multi_object_marker",
-				color: .(0.000f, 0.759f, 1.0f),
-				visible: true,
-				icon: Icons.ICON_FA_MAP_MARKER));
+                objectClasses.Add(new .(
+                	classname: "multi_object_marker",
+                	color: .(0.000f, 0.759f, 1.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_MAP_MARKER));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(Weapon),
-				displayName: "weapon",
-				color: .(1.0f, 0.0f, 0.0f),
-				visible: true,
-				icon: Icons.ICON_FA_CROSSHAIRS));
+                objectClasses.Add(new .(
+                	classname: "weapon",
+                	color: .(1.0f, 0.0f, 0.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_CROSSHAIRS));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(ActionNode),
-				displayName: "object_action_node",
-				color: .(0.719f, 0.494f, 0.982f),
-				visible: true,
-				icon: Icons.ICON_FA_RUNNING));
+                objectClasses.Add(new .(
+                	classname: "object_action_node",
+                	color: .(0.719f, 0.494f, 0.982f),
+                	visible: true,
+                	icon: Icons.ICON_FA_RUNNING));
 
-            /*_objectClasses.Add(new .(
-				objectType: typeof(SquadSpawnNode),
-				displayName: "object_squad_spawn_node",
-				color: .(0.719f, 0.494f, 0.982f),
-				visible: true,
-				icon: Icons.ICON_FA_USERS));*/
+                /*_objectClasses.Add(new .(
+                	classname: "object_squad_spawn_node",
+                	color: .(0.719f, 0.494f, 0.982f),
+                	visible: true,
+                	icon: Icons.ICON_FA_USERS));*/
 
-            /*_objectClasses.Add(new .(
-				objectType: typeof(NpcSpawnNode),
-				displayName: "object_npc_spawn_node",
-				color: .(0.719f, 0.494f, 0.982f),
-				visible: true,
-				icon: Icons.ICON_FA_USER));*/
+                /*_objectClasses.Add(new .(
+                	classname: "object_npc_spawn_node",
+                	color: .(0.719f, 0.494f, 0.982f),
+                	visible: true,
+                	icon: Icons.ICON_FA_USER));*/
 
-            /*_objectClasses.Add(new .(
-				objectType: typeof(GuardNode),
-				displayName: "object_guard_node",
-				color: .(0.719f, 0.494f, 0.982f),
-				visible: true,
-				icon: Icons.ICON_FA_SHIELD_ALT));*/
+                /*_objectClasses.Add(new .(
+                	classname: "object_guard_node",
+                	color: .(0.719f, 0.494f, 0.982f),
+                	visible: true,
+                	icon: Icons.ICON_FA_SHIELD_ALT));*/
 
-            /*_objectClasses.Add(new .(
-				objectType: typeof(RoadPath),
-				displayName: "object_path_road",
-				color: .(0.719f, 0.494f, 0.982f),
-				visible: true,
-				icon: Icons.ICON_FA_ROAD));*/
+                /*_objectClasses.Add(new .(
+                	classname: "object_path_road",
+                	color: .(0.719f, 0.494f, 0.982f),
+                	visible: true,
+                	icon: Icons.ICON_FA_ROAD));*/
 
-            _objectClasses.Add(new .(
-				objectType: typeof(ShapeCutter),
-				displayName: "shape_cutter",
-				color: .(1.0f, 1.0f, 1.0f),
-				visible: true,
-				icon: Icons.ICON_FA_CUT));
+                objectClasses.Add(new .(
+                	classname: "shape_cutter",
+                	color: .(1.0f, 1.0f, 1.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_CUT));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(Item),
-				displayName: "item",
-				color: .(0.719f, 0.494f, 0.982f),
-				visible: true,
-				icon: Icons.ICON_FA_TOOLS));
+                objectClasses.Add(new .(
+                	classname: "item",
+                	color: .(0.719f, 0.494f, 0.982f),
+                	visible: true,
+                	icon: Icons.ICON_FA_TOOLS));
 
-            /*_objectClasses.Add(new .(
-				objectType: typeof(VehicleSpawnNode),
-				displayName: "object_vehicle_spawn_node",
-				color: .(0.719f, 0.494f, 0.982f),
-				visible: true,
-				icon: Icons.ICON_FA_CAR_SIDE));*/
+                /*_objectClasses.Add(new .(
+                	classname: "object_vehicle_spawn_node",
+                	color: .(0.719f, 0.494f, 0.982f),
+                	visible: true,
+                	icon: Icons.ICON_FA_CAR_SIDE));*/
 
-            _objectClasses.Add(new .(
-				objectType: typeof(Ladder),
-				displayName: "ladder",
-				color: .(1.0f, 1.0f, 1.0f),
-				visible: true,
-				icon: Icons.ICON_FA_LEVEL_UP_ALT));
+                objectClasses.Add(new .(
+                	classname: "ladder",
+                	color: .(1.0f, 1.0f, 1.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_LEVEL_UP_ALT));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(RfgConstraint),
-				displayName: "constraint",
-				color: .(0.975f, 0.407f, 1.0f),
-				visible: true,
-				icon: Icons.ICON_FA_LOCK));
+                objectClasses.Add(new .(
+                	classname: "constraint",
+                	color: .(0.975f, 0.407f, 1.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_LOCK));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(ObjectEffect),
-				displayName: "object_effect",
-				color: .(1.0f, 0.45f, 0.0f),
-				visible: true,
-				icon: Icons.ICON_FA_FIRE));
+                objectClasses.Add(new .(
+                	classname: "object_effect",
+                	color: .(1.0f, 0.45f, 0.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_FIRE));
 
-            _objectClasses.Add(new .(
-				objectType: typeof(TriggerRegion),
-				displayName: "trigger_region",
-				color: .(0.63f, 0.0f, 1.0f),
-				visible: true,
-				icon: Icons.ICON_FA_BORDER_NONE));
+                objectClasses.Add(new .(
+                	classname: "trigger_region",
+                	color: .(0.63f, 0.0f, 1.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_BORDER_NONE));
 
-            /*_objectClasses.Add(new .(
-				objectType: typeof(BftpNode),
-				displayName: "object_bftp_node",
-				color: .(1.0f, 1.0f, 1.0f),
-				visible: true,
-				icon: Icons.ICON_FA_BOMB));*/
+                /*_objectClasses.Add(new .(
+                	classname: "object_bftp_node",
+                	color: .(1.0f, 1.0f, 1.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_BOMB));*/
 
-            _objectClasses.Add(new .(
-				objectType: typeof(ObjectBoundingBox),
-				displayName: "object_bounding_box",
-				color: .(1.0f, 1.0f, 1.0f),
-				visible: true,
-				icon: Icons.ICON_FA_CUBE));
+                objectClasses.Add(new .(
+                	classname: "object_bounding_box",
+                	color: .(1.0f, 1.0f, 1.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_CUBE));
 
-            /*_objectClasses.Add(new .(
-				objectType: typeof(TurretSpawnNode),
-				displayName: "object_turret_spawn_node",
-				color: .(0.719f, 0.494f, 0.982f),
-				visible: true,
-				icon: Icons.ICON_FA_CROSSHAIRS));*/
+                /*_objectClasses.Add(new .(
+                	classname: "object_turret_spawn_node",
+                	color: .(0.719f, 0.494f, 0.982f),
+                	visible: true,
+                	icon: Icons.ICON_FA_CROSSHAIRS));*/
 
-            _objectClasses.Add(new .(
-				objectType: typeof(ObjZone),
-				displayName: "obj_zone",
-				color: .(0.935f, 0.0f, 1.0f),
-				visible: true,
-				icon: Icons.ICON_FA_SEARCH_LOCATION));
+                objectClasses.Add(new .(
+                	classname: "obj_zone",
+                	color: .(0.935f, 0.0f, 1.0f),
+                	visible: true,
+                	icon: Icons.ICON_FA_SEARCH_LOCATION));
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(ObjPatrol),
-	            displayName: "obj_patrol",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_BINOCULARS));*/
+                /*_objectClasses.Add(new .(
+                    classname: "obj_patrol",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_BINOCULARS));*/
 
-            _objectClasses.Add(new .(
-	            objectType: typeof(ObjectDummy),
-	            displayName: "object_dummy",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_MEH_BLANK));
+                objectClasses.Add(new .(
+                    classname: "object_dummy",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_MEH_BLANK));
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(RaidNode),
-	            displayName: "object_raid_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_CAR_CRASH));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_raid_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_CAR_CRASH));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(DeliveryNode),
-	            displayName: "object_delivery_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_SHIPPING_FAST));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_delivery_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_SHIPPING_FAST));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(MarauderAmbushRegion),
-	            displayName: "marauder_ambush_region",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_USER_NINJA));*/
+                /*_objectClasses.Add(new .(
+                    classname: "marauder_ambush_region",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_USER_NINJA));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(ActivitySpawnNode),
-	            displayName: "object_activity_spawn",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_SCROLL));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_activity_spawn",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_SCROLL));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(MissionStartNode),
-	            displayName: "object_mission_start_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_MAP_MARKED));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_mission_start_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_MAP_MARKED));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(DemolitionsMasterNode),
-	            displayName: "object_demolitions_master_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_BOMB));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_demolitions_master_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_BOMB));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(RestrictedArea),
-	            displayName: "object_restricted_area",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_USER_SLASH));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_restricted_area",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_USER_SLASH));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(EffectStreamingNode),
-	            displayName: "effect_streaming_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_SPINNER));*/
+                /*_objectClasses.Add(new .(
+                    classname: "effect_streaming_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_SPINNER));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(HouseArrestNode),
-	            displayName: "object_house_arrest_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_USER_LOCK));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_house_arrest_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_USER_LOCK));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(AreaDefenseNode),
-	            displayName: "object_area_defense_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_USER_SHIELD));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_area_defense_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_USER_SHIELD));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(Safehouse),
-	            displayName: "object_safehouse",
-	            color: .(0.0f, 0.905f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_FIST_RAISED));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_safehouse",
+                    color: .(0.0f, 0.905f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_FIST_RAISED));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(ConvoyEndPoint),
-	            displayName: "object_convoy_end_point",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_TRUCK_MOVING));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_convoy_end_point",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_TRUCK_MOVING));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(CourierEndPoint),
-	            displayName: "object_courier_end_point",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_FLAG_CHECKERED));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_courier_end_point",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_FLAG_CHECKERED));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(RidingShotgunNode),
-	            displayName: "object_riding_shotgun_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_TRUCK_MONSTER));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_riding_shotgun_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_TRUCK_MONSTER));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(UpgradeNode),
-	            displayName: "object_upgrade_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_ARROW_UP));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_upgrade_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_ARROW_UP));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(AmbientBehaviorRegion),
-	            displayName: "object_ambient_behavior_region",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_TREE));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_ambient_behavior_region",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_TREE));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(RoadblockNode),
-	            displayName: "object_roadblock_node",
-	            color: .(0.719f, 0.494f, 0.982f),
-	            visible: false,
-	            icon: Icons.ICON_FA_HAND_PAPER));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_roadblock_node",
+                    color: .(0.719f, 0.494f, 0.982f),
+                    visible: false,
+                    icon: Icons.ICON_FA_HAND_PAPER));*/
 
-            /*_objectClasses.Add(new .(
-	            objectType: typeof(SpawnRegion),
-	            displayName: "object_spawn_region",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_USER_PLUS));*/
+                /*_objectClasses.Add(new .(
+                    classname: "object_spawn_region",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_USER_PLUS));*/
 
-            _objectClasses.Add(new .(
-	            objectType: typeof(ObjLight),
-	            displayName: "obj_light",
-	            color: .(1.0f, 1.0f, 1.0f),
-	            visible: true,
-	            icon: Icons.ICON_FA_LIGHTBULB));
+                objectClasses.Add(new .(
+                    classname: "obj_light",
+                    color: .(1.0f, 1.0f, 1.0f),
+                    visible: true,
+                    icon: Icons.ICON_FA_LIGHTBULB));
+
+                CVar_ObjectClasses.Save();
+            }
         }
 
         private ZoneObjectClass GetObjectClass(ZoneObject zoneObject)
         {
-            Type type = zoneObject.GetType();
-            for (ZoneObjectClass objectClass in _objectClasses)
+            for (ZoneObjectClass objectClass in CVar_ObjectClasses->Classes)
             {
-                if (objectClass.ObjectType == type)
+                if (objectClass.Classname == zoneObject.Classname)
                 {
                     return objectClass;
                 }
@@ -932,16 +894,16 @@ namespace Nanoforge.Gui.Documents
 
         private void CountObjectClassInstances()
         {
-            for (ZoneObjectClass objectClass in _objectClasses)
+            for (ZoneObjectClass objectClass in CVar_ObjectClasses->Classes)
                 objectClass.NumInstances = 0;
 
             for (Zone zone in Map.Zones)
             {
                 for (ZoneObject zoneObject in zone.Objects)
                 {
-                    for (ZoneObjectClass objectClass in _objectClasses)
+                    for (ZoneObjectClass objectClass in CVar_ObjectClasses->Classes)
                     {
-                        if (objectClass.ObjectType == zoneObject.GetType())
+                        if (objectClass.Classname == zoneObject.Classname)
                         {
                             objectClass.NumInstances++;
                             break;
@@ -951,4 +913,37 @@ namespace Nanoforge.Gui.Documents
             }
         }
 	}
+}
+
+//Holds various metadata on each object class like visibility, outliner icon, and bounding box color
+[BonTarget]
+public class ZoneObjectClass
+{
+    public String Classname = new .() ~delete _;
+    public u32 NumInstances = 0;
+    public Vec3 Color = .(1.0f, 1.0f, 1.0f);
+    public bool Visible = true;
+    public bool DrawSolid = false;
+    public String Icon = new .() ~delete _;
+
+    //Empty constructor for bon initialization
+    public this()
+    {
+
+    }
+
+    public this(StringView classname, Vec3 color, bool visible, char8* icon)
+    {
+        Classname.Set(classname);
+        Color = color;
+        Visible = visible;
+        Icon.Set(StringView(icon));
+        DrawSolid = false;
+    }
+}
+
+[BonTarget]
+public class ZoneObjectClasses : EditorObject
+{
+    public List<ZoneObjectClass> Classes = new .() ~DeleteContainerAndItems!(_);
 }
