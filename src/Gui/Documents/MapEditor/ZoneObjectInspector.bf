@@ -106,8 +106,9 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
                 String newParentName = scope String()..Append(newParent.Name);
                 if (newParentName.IsEmpty)
                 {
-                    newParentName.Set(scope $"{newParent.Classname}, {newParent.Handle}, {newParent.Num}");
+                    newParentName.Set(scope $"{newParent.Classname}");
                 }
+                newParentName.Append(scope $", {newParent.Handle}, {newParent.Num}");
                 if (!(_parentSelectorSearch.IsEmpty || _parentSelectorSearch.IsWhiteSpace) && !newParentName.Contains(_parentSelectorSearch, ignoreCase: true))
                     continue;
 
