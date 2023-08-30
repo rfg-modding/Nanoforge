@@ -567,6 +567,7 @@ namespace Nanoforge.App
                 val.Assign(obj);
             }
             _nextObjectUID = Math.Max(_objects.Keys.Max(), _globalObjects.Keys.Max()) + 1;
+            LoadedGlobalObjects = true;
         }
 
         private static void SerializeEditorObject(BonWriter writer, ValueView val, BonEnvironment env, SerializeValueState state = default)
