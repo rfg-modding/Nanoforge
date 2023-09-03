@@ -56,14 +56,21 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
 
         //TODO: Add description and display name and load/save it in EditorData.xml or equivalent
 
-        ImGui.InputBoundingBox("Bounding Box", ref obj.BBox);
-        ImGui.InputMat3("Orientation", ref obj.Orient);
+        if (ImGui.InputBoundingBox("Bounding Box", ref obj.BBox))
+        {
+            editor.UnsavedChanges = true;
+        }
+        if (ImGui.InputMat3("Orientation", ref obj.Orient))
+        {
+            editor.UnsavedChanges = true;
+        }
         DrawRelativeEditor(app, editor, zone, obj);
-        _flagsCombo.Draw(ref obj.Flags);
+        _flagsCombo.Draw(editor, ref obj.Flags);
 
         Vec3 initialPos = obj.Position;
         if (ImGui.InputVec3("Position", ref obj.Position))
         {
+            editor.UnsavedChanges = true;
             Vec3 delta = obj.Position - initialPos;
             obj.BBox += delta;
 
@@ -115,6 +122,7 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
                 bool selected = (newParent == currentParent);
                 if (ImGui.Selectable(newParentName, selected))
                 {
+                    editor.UnsavedChanges = true;
                     SetObjectParent(obj, newParent);
                 }
 			}
@@ -125,6 +133,7 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         ImGui.SameLine();
         if (ImGui.Button("Reset"))
         {
+            editor.UnsavedChanges = true;
             obj.Parent = null;
             SetObjectParent(obj, null);
         }
@@ -178,13 +187,24 @@ public static class ObjZoneInspector : IZoneObjectInspector<ObjZone>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjZone obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        _ambientSpawnCombo.Draw(obj.AmbientSpawn);
-        _spawnResourceCombo.Draw(obj.SpawnResource);
-        ImGui.InputText("Terrain file name", obj.TerrainFileName);
+        _ambientSpawnCombo.Draw(editor, obj.AmbientSpawn);
+        _spawnResourceCombo.Draw(editor, obj.SpawnResource);
+        if (ImGui.InputText("Terrain file name", obj.TerrainFileName))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("string");
-        ImGui.InputFloat("Wind min speed", &obj.WindMinSpeed);
+
+        if (ImGui.InputFloat("Wind min speed", &obj.WindMinSpeed))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
-        ImGui.InputFloat("Wind max speed", &obj.WindMaxSpeed);
+
+        if (ImGui.InputFloat("Wind max speed", &obj.WindMaxSpeed))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
     }
 }
@@ -197,8 +217,11 @@ public static class ObjectBoundingBoxInspector : IZoneObjectInspector<ObjectBoun
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjectBoundingBox obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        ImGui.InputBoundingBox("Local Bounding Box", ref obj.LocalBBox);
-        _bboxTypeCombo.Draw(ref obj.BBType);
+        if (ImGui.InputBoundingBox("Local Bounding Box", ref obj.LocalBBox))
+        {
+            editor.UnsavedChanges = true;
+        }
+        _bboxTypeCombo.Draw(editor, ref obj.BBType);
     }
 }
 
@@ -210,7 +233,7 @@ public static class ObjectDummyInspector : IZoneObjectInspector<ObjectDummy>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjectDummy obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        _dummyTypeCombo.Draw(ref obj.DummyType);
+        _dummyTypeCombo.Draw(editor, ref obj.DummyType);
     }
 }
 
@@ -223,13 +246,28 @@ public static class PlayerStartInspector : IZoneObjectInspector<PlayerStart>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, PlayerStart obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        _teamCombo.Draw(ref obj.MpTeam);
-        _missionInfoCombo.Draw(obj.MissionInfo);
-        ImGui.Checkbox("Indoor", &obj.Indoor);
-        ImGui.Checkbox("Initial spawn", &obj.InitialSpawn);
-        ImGui.Checkbox("Respawn", &obj.Respawn);
-        ImGui.Checkbox("Checkpoint Respawn", &obj.CheckpointRespawn);
-        ImGui.Checkbox("Activity Respawn", &obj.ActivityRespawn);
+        _teamCombo.Draw(editor, ref obj.MpTeam);
+        _missionInfoCombo.Draw(editor, obj.MissionInfo);
+        if (ImGui.Checkbox("Indoor", &obj.Indoor))
+        {
+            editor.UnsavedChanges = true;
+        }
+        if (ImGui.Checkbox("Initial spawn", &obj.InitialSpawn))
+        {
+            editor.UnsavedChanges = true;
+        }
+        if (ImGui.Checkbox("Respawn", &obj.Respawn))
+        {
+            editor.UnsavedChanges = true;
+        }
+        if (ImGui.Checkbox("Checkpoint Respawn", &obj.CheckpointRespawn))
+        {
+            editor.UnsavedChanges = true;
+        }
+        if (ImGui.Checkbox("Activity Respawn", &obj.ActivityRespawn))
+        {
+            editor.UnsavedChanges = true;
+        }
     }
 }
 
@@ -244,24 +282,33 @@ public static class TriggerRegionInspector : IZoneObjectInspector<TriggerRegion>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, TriggerRegion obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        _triggerShapeCombo.Draw(ref obj.TriggerShape);
+        _triggerShapeCombo.Draw(editor, ref obj.TriggerShape);
         if (obj.TriggerShape == .Box)
         {
-            ImGui.InputBoundingBox("Trigger Bounding Box", ref obj.LocalBBox);
+            if (ImGui.InputBoundingBox("Trigger Bounding Box", ref obj.LocalBBox))
+            {
+                editor.UnsavedChanges = true;
+            }
         }
         else if (obj.TriggerShape == .Sphere)
         {
-            ImGui.InputFloat("Outer radius", &obj.OuterRadius);
+            if (ImGui.InputFloat("Outer radius", &obj.OuterRadius))
+            {
+                editor.UnsavedChanges = true;
+            }
             ImGui.TooltipOnPrevious("float");
         }
 
-        _regionTypeCombo.Draw(ref obj.RegionType);
+        _regionTypeCombo.Draw(editor, ref obj.RegionType);
         if (obj.RegionType == .KillHuman)
         {
-            _killTypeCombo.Draw(ref obj.KillType);
+            _killTypeCombo.Draw(editor, ref obj.KillType);
         }
-        _triggerFlagsCombo.Draw(ref obj.TriggerFlags);
-        ImGui.Checkbox("Enabled", &obj.Enabled);
+        _triggerFlagsCombo.Draw(editor, ref obj.TriggerFlags);
+        if (ImGui.Checkbox("Enabled", &obj.Enabled))
+        {
+            editor.UnsavedChanges = true;
+        }
     }
 }
 
@@ -277,24 +324,51 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjectMover obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        _buildingTypeCombo.Draw(ref obj.BuildingType);
-        _chunkFlagsCombo.Draw(ref obj.ChunkFlags);
-        _gameplayPropsCombo.Draw(obj.GameplayProps);
-        _propertiesCombo.Draw(obj.Props);
-        _teamComboBox.Draw(ref obj.Team);
-        ImGui.InputScalar("Destruction Checksum", .U32, &obj.DestructionChecksum);
+        _buildingTypeCombo.Draw(editor, ref obj.BuildingType);
+        _chunkFlagsCombo.Draw(editor, ref obj.ChunkFlags);
+        _gameplayPropsCombo.Draw(editor, obj.GameplayProps);
+        _propertiesCombo.Draw(editor, obj.Props);
+        _teamComboBox.Draw(editor, ref obj.Team);
+        if (ImGui.InputScalar("Destruction Checksum", .U32, &obj.DestructionChecksum))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Chunk UID", .U32, &obj.ChunkUID);
+
+        if (ImGui.InputScalar("Chunk UID", .U32, &obj.ChunkUID))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputText("Chunk Name", obj.ChunkName);
+
+        if (ImGui.InputText("Chunk Name", obj.ChunkName))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("string");
-        ImGui.InputScalar("Destroyable UID", .U32, &obj.DestroyableUID);
+
+        if (ImGui.InputScalar("Destroyable UID", .U32, &obj.DestroyableUID))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Shape UID", .U32, &obj.ShapeUID);
+
+        if (ImGui.InputScalar("Shape UID", .U32, &obj.ShapeUID))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputFloat("Control", &obj.Control);
+
+        if (ImGui.InputFloat("Control", &obj.Control))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
-        ImGui.Checkbox("Dynamic", &obj.Dynamic);
+
+        if (ImGui.Checkbox("Dynamic", &obj.Dynamic))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.Separator();
     }
 }
@@ -305,21 +379,52 @@ public static class GeneralMoverInspector : IZoneObjectInspector<GeneralMover>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, GeneralMover obj)
     {
         ObjectMoverInspector.Draw(app, editor, zone, obj);
-        ImGui.InputScalar("GM Flags", .U32, &obj.GmFlags);
+        if (ImGui.InputScalar("GM Flags", .U32, &obj.GmFlags))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Original Object", .U32, &obj.OriginalObject);
+
+        if (ImGui.InputScalar("Original Object", .U32, &obj.OriginalObject))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Collision Type", .U32, &obj.CollisionType);
+
+        if (ImGui.InputScalar("Collision Type", .U32, &obj.CollisionType))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Idx", .U32, &obj.Idx);
+
+        if (ImGui.InputScalar("Idx", .U32, &obj.Idx))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Move Type", .U32, &obj.MoveType);
+
+        if (ImGui.InputScalar("Move Type", .U32, &obj.MoveType))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Destruction UID", .U32, &obj.DestructionUID);
+
+        if (ImGui.InputScalar("Destruction UID", .U32, &obj.DestructionUID))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Hitpoints", .S32, &obj.Hitpoints);
+
+        if (ImGui.InputScalar("Hitpoints", .S32, &obj.Hitpoints))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("int32");
-        ImGui.InputScalar("Dislodge Hitpoints", .S32, &obj.DislodgeHitpoints);
+
+        if (ImGui.InputScalar("Dislodge Hitpoints", .S32, &obj.DislodgeHitpoints))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("int32");
     }
 }
@@ -332,8 +437,11 @@ public static class RfgMoverInspector : IZoneObjectInspector<RfgMover>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, RfgMover obj)
     {
         ObjectMoverInspector.Draw(app, editor, zone, obj);
-        _moveTypeCombo.Draw(ref obj.MoveType);
-        ImGui.InputFloat("Damage Percent", &obj.DamagePercent);
+        _moveTypeCombo.Draw(editor, ref obj.MoveType);
+        if (ImGui.InputFloat("Damage Percent", &obj.DamagePercent))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
     }
 }
@@ -344,15 +452,34 @@ public static class ShapeCutterInspector : IZoneObjectInspector<ShapeCutter>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ShapeCutter obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        ImGui.InputScalar("Shape Cutter Flags", .S16, &obj.ShapeCutterFlags);
+        if (ImGui.InputScalar("Shape Cutter Flags", .S16, &obj.ShapeCutterFlags))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("int16");
-        ImGui.InputFloat("Outer Radius", &obj.OuterRadius);
+
+        if (ImGui.InputFloat("Outer Radius", &obj.OuterRadius))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
-        ImGui.InputScalar("Source", .U32, &obj.Source);
+
+        if (ImGui.InputScalar("Source", .U32, &obj.Source))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Owner", .U32, &obj.Owner);
+
+        if (ImGui.InputScalar("Owner", .U32, &obj.Owner))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint32");
-        ImGui.InputScalar("Explosion ID", .U8, &obj.ExplosionId);
+
+        if (ImGui.InputScalar("Explosion ID", .U8, &obj.ExplosionId))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("uint8");
     }
 }
@@ -365,7 +492,7 @@ public static class ObjectEffectInspector : IZoneObjectInspector<ObjectEffect>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjectEffect obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        _effectTypeCombo.Draw(obj.EffectType);
+        _effectTypeCombo.Draw(editor, obj.EffectType);
     }
 }
 
@@ -380,7 +507,7 @@ public static class ItemInspector : IZoneObjectInspector<Item>
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
         if (DrawItemCombo)
         {
-            _itemTypeCombo.Draw(obj.ItemType);
+            _itemTypeCombo.Draw(editor, obj.ItemType);
             ImGui.Separator();
         }
     }
@@ -396,7 +523,7 @@ public static class WeaponInspector : IZoneObjectInspector<Weapon>
         ItemInspector.DrawItemCombo = false;
         ItemInspector.Draw(app, editor, zone, obj);
         ItemInspector.DrawItemCombo = true;
-        _weaponTypeCombo.Draw(obj.WeaponType);
+        _weaponTypeCombo.Draw(editor, obj.WeaponType);
     }
 }
 
@@ -406,9 +533,16 @@ public static class LadderInspector : IZoneObjectInspector<Ladder>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, Ladder obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        ImGui.InputScalar("Ladder Rungs", .S32, &obj.LadderRungs);
+        if (ImGui.InputScalar("Ladder Rungs", .S32, &obj.LadderRungs))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("int32");
-        ImGui.Checkbox("Enabled", &obj.Enabled);
+
+        if (ImGui.Checkbox("Enabled", &obj.Enabled))
+        {
+            editor.UnsavedChanges = true;
+        }
     }
 }
 
@@ -421,24 +555,57 @@ public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjLight obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        ImGui.InputFloat("Attenuation Start", &obj.AttenuationStart);
+        if (ImGui.InputFloat("Attenuation Start", &obj.AttenuationStart))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
-        ImGui.InputFloat("Attenuation End", &obj.AttenuationEnd);
+
+        if (ImGui.InputFloat("Attenuation End", &obj.AttenuationEnd))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
-        ImGui.InputFloat("Attenuation Range", &obj.AttenuationRange);
+
+        if (ImGui.InputFloat("Attenuation Range", &obj.AttenuationRange))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
-        _objLightFlagsCombo.Draw(ref obj.LightFlags);
-        _objLightTypeCombo.Draw(ref obj.LightType);
-        ImGui.ColorEdit3("Color", ref *(float[3]*)&obj.Color);
+
+        _objLightFlagsCombo.Draw(editor, ref obj.LightFlags);
+        _objLightTypeCombo.Draw(editor, ref obj.LightType);
+
+        if (ImGui.ColorEdit3("Color", ref *(float[3]*)&obj.Color))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("color");
-        ImGui.InputFloat("Hotspot Size", &obj.HotspotSize);
+
+        if (ImGui.InputFloat("Hotspot Size", &obj.HotspotSize))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
-        ImGui.InputFloat("Hotspot Falloff Size", &obj.HotspotFalloffSize);
+
+        if (ImGui.InputFloat("Hotspot Falloff Size", &obj.HotspotFalloffSize))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("float");
-        ImGui.InputVec3("Min Clip", ref obj.MinClip);
-        ImGui.InputVec3("Max Clip", ref obj.MaxClip);
+
+        if (ImGui.InputVec3("Min Clip", ref obj.MinClip))
+        {
+            editor.UnsavedChanges = true;
+        }
+
+        if (ImGui.InputVec3("Max Clip", ref obj.MaxClip))
+        {
+            editor.UnsavedChanges = true;
+        }
+
         //ImGui.InputScalar("Clip Mesh", .S32, &obj.ClipMesh);
-        ImGui.TooltipOnPrevious("int32");
+        //ImGui.TooltipOnPrevious("int32");
     }
 }
 
@@ -461,19 +628,39 @@ public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, MultiMarker obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        ImGui.InputBoundingBox("Local Bounding Box", ref obj.LocalBBox);
-        _markerTypeCombo.Draw(ref obj.MarkerType);
-        _teamCombo.Draw(ref obj.MpTeam);
-        ImGui.InputScalar("Priority", .S32, &obj.Priority);
+        if (ImGui.InputBoundingBox("Local Bounding Box", ref obj.LocalBBox))
+        {
+            editor.UnsavedChanges = true;
+        }
+
+        _markerTypeCombo.Draw(editor, ref obj.MarkerType);
+        _teamCombo.Draw(editor, ref obj.MpTeam);
+
+        if (ImGui.InputScalar("Priority", .S32, &obj.Priority))
+        {
+            editor.UnsavedChanges = true;
+        }
         ImGui.TooltipOnPrevious("int32");
+
         if (obj.MarkerType == .BackpackRack)
         {
-            _backpackTypeCombo.Draw(ref obj.BackpackType);
-            ImGui.InputScalar("Num Backpacks", .S32, &obj.NumBackpacks);
+            _backpackTypeCombo.Draw(editor, ref obj.BackpackType);
+            if (ImGui.InputScalar("Num Backpacks", .S32, &obj.NumBackpacks))
+            {
+                editor.UnsavedChanges = true;
+            }
             ImGui.TooltipOnPrevious("int32");
-            ImGui.InputScalar("Group", .S32, &obj.Group);
+
+            if (ImGui.InputScalar("Group", .S32, &obj.Group))
+            {
+                editor.UnsavedChanges = true;
+            }
             ImGui.TooltipOnPrevious("int32");
-            ImGui.Checkbox("Random Backpacks", &obj.RandomBackpacks);
+
+            if (ImGui.Checkbox("Random Backpacks", &obj.RandomBackpacks))
+            {
+                editor.UnsavedChanges = true;
+            }
         }
     }
 }
@@ -486,7 +673,7 @@ public static class MultiFlagInspector : IZoneObjectInspector<MultiFlag>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, MultiFlag obj)
     {
         ItemInspector.Draw(app, editor, zone, obj);
-        _teamCombo.Draw(ref obj.MpTeam);
+        _teamCombo.Draw(editor, ref obj.MpTeam);
     }
 }
 

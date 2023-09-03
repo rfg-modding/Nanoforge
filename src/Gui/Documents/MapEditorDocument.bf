@@ -249,7 +249,6 @@ namespace Nanoforge.Gui.Documents
                 return;
 
             //Draw object bounding boxes
-            Random rand = scope .(0);
             for (Zone zone in Map.Zones)
             {
                 for (ZoneObject obj in zone.Objects)

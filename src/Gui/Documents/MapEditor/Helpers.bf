@@ -30,7 +30,7 @@ public class XtblComboBox
             _options.Add(new String(defaultOption));
     }
 
-    public void Draw(String text)
+    public void Draw(MapEditorDocument editor, String text)
     {
         if (!_loaded && !_loadError)
         {
@@ -62,7 +62,7 @@ public class XtblComboBox
                 bool selected = (option.Equals(text));
                 if (ImGui.Selectable(option, selected))
                 {
-                    //TODO: Add change tracking
+                    editor.UnsavedChanges = true;
                     text.Set(option);
                 }
             }
@@ -97,7 +97,7 @@ public class EnumComboBox<T> where T : enum
         _options.Clear();
     }
 
-    public void Draw(ref T value)
+    public void Draw(MapEditorDocument editor, ref T value)
     {
         if (!_loaded)
         {
@@ -143,6 +143,7 @@ public class EnumComboBox<T> where T : enum
                 bool selected = optionText.Equals(currentValueText);
                 if (ImGui.Selectable(optionText, selected))
                 {
+                    editor.UnsavedChanges = true;
                     value = optionValue;
                 }
             }
@@ -191,7 +192,7 @@ public class BitflagComboBox<T> where T : enum
         _options.Clear();
     }
 
-    public void Draw(ref T value)
+    public void Draw(MapEditorDocument editor, ref T value)
     {
         if (!_loaded)
         {
@@ -239,7 +240,10 @@ public class BitflagComboBox<T> where T : enum
                     continue;
 
                 bool bitEnabled = (valueInt & optionValue) != 0;
-                ImGui.Checkbox(optionText.Ptr, &bitEnabled);
+                if (ImGui.Checkbox(optionText.Ptr, &bitEnabled))
+                {
+                    editor.UnsavedChanges = true;
+                }
                 if (bitEnabled)
                 {
                     //Checked, set this bit to true
