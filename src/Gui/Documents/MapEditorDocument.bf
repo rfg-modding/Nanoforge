@@ -15,6 +15,7 @@ using System.Diagnostics;
 using Nanoforge.Gui.Documents.MapEditor;
 using System.Reflection;
 using Bon;
+using NativeFileDialog;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -69,6 +70,17 @@ namespace Nanoforge.Gui.Documents
         //private float _zoneBoxHeight = 150.0f;
         private bool _highlightHoveredObject = false;
         private bool _autoMoveChildren = true; //Auto move children when the parent object is moved
+
+        [BonTarget]
+        public class MapEditorSettings : EditorObject
+        {
+            public String MapExportPath = new .() ~delete _;
+        }
+
+        public static append CVar<MapEditorSettings> CVar_MapEditorSettings = .("Map Editor Settings");
+
+        private bool _showMapExportFolderSelectorError = false;
+        private append String _mapExportFolderSelectorError;
 
         public this(StringView mapName)
         {
@@ -241,6 +253,8 @@ namespace Nanoforge.Gui.Documents
                 adjustedPos.x += 10.0f;
                 adjustedPos.y += 10.0f;
                 ImGui.SetCursorPos(adjustedPos);
+
+                DrawMenuBar(app, gui);
             }
 
             //Don't redraw if this document isn't focused by the user. 
@@ -261,6 +275,327 @@ namespace Nanoforge.Gui.Documents
                     _scene.DrawBox(obj.BBox.Min, obj.BBox.Max, color);
                 }
             }
+        }
+
+        private void DrawMenuBar(App app, Gui gui)
+        {
+            ImGui.SetNextItemWidth(_scene.ViewWidth);
+            ImGui.PushStyleVar(.WindowPadding, .(8.0f, 8.0f)); //Must manually set padding here since the parent window has padding disabled to get the viewport flush with the window border.
+            bool openScenePopup = false;
+            bool openCameraPopup = false;
+            bool openExportPopup = false;
+
+            Fonts.FontXL.Push();
+            if (ImGui.Button(Icons.ICON_FA_FILE_EXPORT))
+            {
+                openExportPopup = true;
+            }
+            Fonts.FontXL.Pop();
+
+            //NOTE: I left in the C++ versions of these to be ported later. It won't be very long until then.
+            //      Also, for some reason this main menu bar won't draw in the rewrite despite the code being identical aside from the disabled menu options. For now a button works but I'll try fixing it again when I implement the rest of the menu bar.
+
+            /*if (ImGui.BeginMenuBar())
+            {
+
+                /*if (ImGui.BeginMenu("View"))
+                {
+                    if (ImGui.MenuItem("Scene"))
+                        openScenePopup = true;
+                    if (ImGui.MenuItem("Camera"))
+                        openCameraPopup = true;
+
+                    ImGui.EndMenu();
+                }
+                if (ImGui.BeginMenu("Object"))
+                {
+                    bool canClone = selectedObject_.Valid();
+                    bool canDelete = selectedObject_.Valid();
+                    bool canRemoveWorldAnchors = selectedObject_.Valid() && selectedObject_.Has("world_anchors");
+                    bool canRemoveDynamicLinks = selectedObject_.Valid() && selectedObject_.Has("dynamic_links");
+                    bool hasChildren = selectedObject_.Valid() && selectedObject_.Has("Children") && selectedObject_.GetObjectList("Children").size() > 0;
+                    bool hasParent = selectedObject_.Valid() && selectedObject_.Get<ObjectHandle>("Parent").Valid();
+
+                    if (ImGui.MenuItem("Clone", "Ctrl + D", null, canClone))
+                    {
+                        ShallowCloneObject(selectedObject_);
+                        _scrollToObjectInOutliner = selectedObject_;
+                    }
+                    if (ImGui.MenuItem("Deep clone", "", null, canClone))
+                    {
+                        DeepCloneObject(selectedObject_, true);
+                        _scrollToObjectInOutliner = selectedObject_;
+                    }
+
+                    ImGui.Separator();
+                    if (ImGui.MenuItem("Orphan object", null, null, hasParent))
+                    {
+                        orphanObjectPopupHandle_ = selectedObject_;
+                        orphanObjectPopup_.Open();
+                    }
+                    if (ImGui.MenuItem("Orphan children", null, null, hasChildren))
+                    {
+                        orphanChildrenPopupHandle_ = selectedObject_;
+                        orphanChildrenPopup_.Open();
+                    }
+                    if (ImGui.MenuItem("Add dummy object", null))
+                    {
+                        AddGenericObject();
+                        _scrollToObjectInOutliner = selectedObject_;
+                    }
+                    ImGui.SameLine();
+                    gui::HelpMarker("Creates a dummy object that you can turn into any object type. Improperly configured objects can crash the game, so use at your own risk.", null);
+
+                    ImGui.Separator();
+                    if (ImGui.MenuItem("Delete", "Delete", null, canDelete))
+                    {
+                        DeleteObject(selectedObject_);
+                    }
+
+                    ImGui.Separator();
+                    if (ImGui.MenuItem("Copy scriptx reference", "Ctrl + I", null, canDelete))
+                    {
+                        CopyScriptxReference(selectedObject_);
+                    }
+                    if (ImGui.MenuItem("Remove world anchors", "Ctrl + B", null, canRemoveWorldAnchors))
+                    {
+                        RemoveWorldAnchors(selectedObject_);
+                    }
+                    if (ImGui.MenuItem("Remove dynamic links", "Ctrl + N", null, canRemoveDynamicLinks))
+                    {
+                        RemoveDynamicLinks(selectedObject_);
+                    }
+
+                    ImGui.EndMenu();
+                }*/
+                if (ImGui.MenuItem("Export"))
+                {
+                    openExportPopup = true;
+                }
+
+                ImGui.EndMenuBar();
+            }*/
+
+            //Have to open the popup in the same scope as BeginPopup(), can't do it in the menu item result. Annoying restriction for imgui popups.
+            /*if (openScenePopup)
+                ImGui.OpenPopup("##ScenePopup");
+            if (openCameraPopup)
+                ImGui.OpenPopup("##CameraPopup");*/
+            if (openExportPopup)
+                ImGui.OpenPopup("##MapExportPopup");
+
+            //DrawObjectCreationPopup(state);
+
+            //Scene settings popup
+            /*if (ImGui.BeginPopup("##ScenePopup"))
+            {
+                state->FontManager->FontL.Push();
+                ImGui.Text(ICON_FA_SUN " Scene settings");
+                state->FontManager->FontL.Pop();
+
+                //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
+                Scene->NeedsRedraw = true;
+
+                ImGui.Text("Shading mode: ");
+                ImGui.SameLine();
+                ImGui.RadioButton("Elevation", &Scene->perFrameStagingBuffer_.ShadeMode, 0);
+                ImGui.SameLine();
+                ImGui.RadioButton("Diffuse", &Scene->perFrameStagingBuffer_.ShadeMode, 1);
+
+                if (Scene->perFrameStagingBuffer_.ShadeMode != 0)
+                {
+                    ImGui.Text("Diffuse presets: ");
+                    ImGui.SameLine();
+                    if (ImGui.Button("Default"))
+                    {
+                        Scene->perFrameStagingBuffer_.DiffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+                        CVar_DiffuseIntensity.Get<f32>() = 1.2f;
+                        Config::Get()->Save();
+                        Scene->perFrameStagingBuffer_.ElevationFactorBias = 0.8f;
+                    }
+
+                    ImGui.ColorEdit3("Diffuse", reinterpret_cast<f32*>(&Scene->perFrameStagingBuffer_.DiffuseColor));
+                    if (ImGui.SliderFloat("Diffuse intensity", &CVar_DiffuseIntensity.Get<f32>(), 0.0f, 2.0f))
+                    {
+                        Config::Get()->Save();
+                    }
+                }
+
+                if(ImGui.SliderFloat("Zone object distance", &CVar_ZoneObjectDistance.Get<f32>(), 0.0f, 10000.0f))
+                {
+                    Config::Get()->Save();
+                }
+                ImGui.SameLine();
+                gui::HelpMarker("Zone object bounding boxes and meshes aren't drawn beyond this distance from the camera.", ImGui.GetIO().FontDefault);
+
+                if (useHighLodTerrain_)
+                {
+                    if (ImGui.Checkbox("High lod terrain enabled", &highLodTerrainEnabled_))
+                    {
+                        terrainVisiblityUpdateNeeded_ = true;
+                    }
+                    if (highLodTerrainEnabled_)
+                    {
+                        if (ImGui.SliderFloat("High lod distance", &CVar_HighLodTerrainDistance.Get<f32>(), 0.0f, 10000.0f))
+                        {
+
+                        }
+                        ImGui.SameLine();
+                        gui::HelpMarker("Beyond this distance from the camera low lod terrain is used.", ImGui.GetIO().FontDefault);
+                        terrainVisiblityUpdateNeeded_ = true;
+                    }
+                }
+
+                bool drawChunkMeshes = CVar_DrawChunkMeshes.Get<bool>();
+                if (ImGui.Checkbox("Show buildings", &drawChunkMeshes))
+                {
+                    CVar_DrawChunkMeshes.Get<bool>() = drawChunkMeshes;
+                    Config::Get()->Save();
+                }
+                if (drawChunkMeshes)
+                {
+                    if (ImGui.SliderFloat("Building distance", &CVar_BuildingDistance.Get<f32>(), 0.0f, 10000.0f))
+                    {
+                        Config::Get()->Save();
+                    }
+                    ImGui.SameLine();
+                    gui::HelpMarker("Beyond this distance from the camera buildings won't be drawn.", ImGui.GetIO().FontDefault);
+                    terrainVisiblityUpdateNeeded_ = true;
+                }
+
+                ImGui.EndPopup();
+            }*/
+
+            //Camera settings popup
+            /*if (ImGui.BeginPopup("##CameraPopup"))
+            {
+                state->FontManager->FontL.Push();
+                ImGui.Text(ICON_FA_CAMERA " Camera");
+                state->FontManager->FontL.Pop();
+
+                //Sync cvar with camera speed in case it was changed with the scrollbar
+                if (CVar_CameraSpeed.Get<f32>() != Scene->Cam.Speed)
+                {
+                    CVar_CameraSpeed.Get<f32>() = Scene->Cam.Speed;
+                    Config::Get()->Save();
+                }
+
+                //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
+                Scene->NeedsRedraw = true;
+
+                f32 fov = Scene->Cam.GetFovDegrees();
+                f32 nearPlane = Scene->Cam.GetNearPlane();
+                f32 farPlane = Scene->Cam.GetFarPlane();
+                f32 lookSensitivity = Scene->Cam.GetLookSensitivity();
+
+                if (ImGui.Button("0.1")) CVar_CameraSpeed.Get<f32>() = 0.1f;
+                ImGui.SameLine();
+                if (ImGui.Button("1.0")) CVar_CameraSpeed.Get<f32>() = 1.0f;
+                ImGui.SameLine();
+                if (ImGui.Button("10.0")) CVar_CameraSpeed.Get<f32>() = 10.0f;
+                ImGui.SameLine();
+                if (ImGui.Button("25.0")) CVar_CameraSpeed.Get<f32>() = 25.0f;
+                ImGui.SameLine();
+                if (ImGui.Button("50.0")) CVar_CameraSpeed.Get<f32>() = 50.0f;
+                ImGui.SameLine();
+                if (ImGui.Button("100.0")) CVar_CameraSpeed.Get<f32>() = 100.0f;
+
+                if (ImGui.InputFloat("Speed", &CVar_CameraSpeed.Get<f32>()))
+                {
+                    Config::Get()->Save();
+                }
+                ImGui.InputFloat("Sprint speed", &Scene->Cam.SprintSpeed);
+
+                if (ImGui.SliderFloat("Fov", &fov, 40.0f, 120.0f))
+                    Scene->Cam.SetFovDegrees(fov);
+                if (ImGui.InputFloat("Near plane", &nearPlane))
+                    Scene->Cam.SetNearPlane(nearPlane);
+                if (ImGui.InputFloat("Far plane", &farPlane))
+                    Scene->Cam.SetFarPlane(farPlane);
+                if (ImGui.InputFloat("Look sensitivity", &lookSensitivity))
+                    Scene->Cam.SetLookSensitivity(lookSensitivity);
+
+                if (ImGui.InputFloat3("Position", (float*)&Scene->Cam.camPosition))
+                {
+                    Scene->Cam.UpdateViewMatrix();
+                }
+
+                //Sync camera speed with cvar
+                if (Scene->Cam.Speed != CVar_CameraSpeed.Get<f32>())
+                {
+                    Scene->Cam.Speed = CVar_CameraSpeed.Get<f32>();
+                    Config::Get()->Save();
+                }
+
+                gui::LabelAndValue("Pitch:", std::to_string(Scene->Cam.GetPitchDegrees()));
+                gui::LabelAndValue("Yaw:", std::to_string(Scene->Cam.GetYawDegrees()));
+                if (ImGui.Button("Zero"))
+                {
+                    Scene->Cam.yawRadians_ = ToRadians(180.0f);
+                    Scene->Cam.UpdateProjectionMatrix();
+                    Scene->Cam.UpdateViewMatrix();
+                }
+                ImGui.EndPopup();
+            }*/
+
+            //Map export popup
+            if (ImGui.BeginPopup("##MapExportPopup"))
+            {
+                Fonts.FontL.Push();
+                ImGui.Text(scope $"{StringView(Icons.ICON_FA_MOUNTAIN)} Export map");
+                Fonts.FontL.Pop();
+                ImGui.Separator();
+
+                if (Loading)
+                    ImGui.TextColored(.(1.0f, 0.0f, 0.0f, 1.0f), "Still loading map...");
+                else if (_loadFailure)
+                    ImGui.TextColored(.(1.0f, 0.0f, 0.0f, 1.0f), "Map data failed to load.");
+                else if (gTaskDialog.Open)
+                    ImGui.TextColored(.(1.0f, 0.0f, 0.0f, 1.0f), "Export in progress. Please wait...");
+                else
+                {
+                    //Select export folder path
+                    String exportPath = CVar_MapEditorSettings->MapExportPath;
+                    String initialPath = scope String()..Append(exportPath);
+                    ImGui.InputText("Export path", exportPath);
+                    ImGui.SameLine();
+                    if (ImGui.Button("..."))
+                    {
+                        char8* outPath = null;
+                        switch (NativeFileDialog.PickFolder(exportPath.CStr(), &outPath))
+                        {
+                            case .Okay:
+                                exportPath.Set(StringView(outPath));
+                                _mapExportFolderSelectorError.Set("");
+                            case .Error:
+                                char8* error = NativeFileDialog.GetError();
+                                Logger.Error("Error opening folder selector in map export dialog: {}", StringView(error));
+                                _mapExportFolderSelectorError.Set(StringView(error));
+                                _showMapExportFolderSelectorError = true;
+                            default:
+                                _mapExportFolderSelectorError.Set("");
+                                break;
+                        }
+                    }
+                    if (initialPath != exportPath)
+                        CVar_MapEditorSettings.Save();
+
+                    if (_showMapExportFolderSelectorError)
+                    {
+                        ImGui.TextColored(.Red, _mapExportFolderSelectorError);
+                    }    
+
+                    if (ImGui.Button("Export"))
+                    {
+
+                        ImGui.CloseCurrentPopup();
+                    }
+                }
+
+                ImGui.EndPopup();
+            }
+
+            ImGui.PopStyleVar();
         }
 
         public override void Save(App app, Gui gui)
