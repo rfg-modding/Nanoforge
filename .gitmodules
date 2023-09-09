@@ -16,6 +16,3 @@
 [submodule "Dependencies/nativefiledialog-beef"]
 	path = Dependencies/nativefiledialog-beef
 	url = https://github.com/rfg-modding/nativefiledialog-beef.git
-[submodule "Dependencies/Xml-Beef"]
-	path = Dependencies/Xml-Beef
-	url = https://github.com/LauraRozier/Xml-Beef.git

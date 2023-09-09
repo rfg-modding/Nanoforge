@@ -1,5 +1,6 @@
 using Nanoforge.Systems;
 using Nanoforge.Render;
+using RfgTools.Hashing;
 using Nanoforge.Misc;
 using Nanoforge.App;
 using Nanoforge.Gui;
@@ -14,7 +15,7 @@ namespace Nanoforge
 		public static void Main(String[] args)
 		{
             //Initialize utility for determining origin string of hashes used in game files
-            RfgTools.Hashing.HashDictionary.Initialize();
+            HashDictionary.Initialize();
 
             //Used as workaround to static init problems. See comments on ICVar
             for (ICVar cvar in CVarsRequiringInitialization)
