@@ -40,11 +40,6 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - Mousewheel : change camera speed.
 - Hold shift while moving camera : faster movement.
 
-## Tutorials
-- Useful tutorials such as transferring assets, adding new map files and other advanced uses of the current Nanoforge version will be added here. This is a stopgap measure and we'll move to the wiki for the rewrite.
-
-[Tutorials](https://github.com/Moneyl/Nanoforge/blob/master/TUTORIALS.txt)
-
 ## Screenshots
 Nanoforge can view and export RFG meshes as obj files.
 
