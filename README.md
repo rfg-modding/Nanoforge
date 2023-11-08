@@ -39,17 +39,6 @@ Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to 
 - R: vertical line indicating the position of the currently selected object.
 - Mousewheel : change camera speed.
 - Hold shift while moving camera : faster movement.
- 
-## Useful info
-- You can remove recent projects from the list (without deleting the actual project folder or having to delete settings.xml) by right clicking them under "Recent projects" and selecting "Remove from list"
-- Outliner and inspector are opened by default.
-- Double clicking or clicking the arrow next to the name for an object in the outliner opens/closes it.
-- To highlight zones and objects in the map when mousing over them you can use the checkbox in the filters panel or press F to toggle zone highlighting and G to toggle object highlighting. 
-- There are no warnings in the console about buildings that fail to load; this is expected behaviour since the building importer is incomplete. 
-- You can delete object properties by clicking the X button next to each property.
-- You can add properties to objects by using the "Add property" at the bottom of the inspector.
-- Axis lines for selected objects are drawn at the object position and not the center of the bbox. 
-- The texture editor is incomplete, it can crash if you have multiple textures open and it can be unreliable and prone to corruption with some files like always_loaded.cpeg_pc/gpeg_pc. Recommened to edit a single texture at a time, save your project and restart Nanoforge in-between edits to minimize issues. 
 
 ## Tutorials
 - Useful tutorials such as transferring assets, adding new map files and other advanced uses of the current Nanoforge version will be added here. This is a stopgap measure and we'll move to the wiki for the rewrite.
