@@ -30,6 +30,16 @@ public class XtblComboBox
             _options.Add(new String(defaultOption));
     }
 
+    public void Draw(MapEditorDocument editor, OptionalObject<String> field)
+    {
+        ImGui.Checkbox(scope $"##{_label}_toggle", &field.Enabled);
+        ImGui.SameLine();
+        using (ImGui.DisabledBlock(!field.Enabled))
+        {
+            Draw(editor, field.Value);
+        }
+    }
+
     public void Draw(MapEditorDocument editor, String text)
     {
         if (!_loaded && !_loadError)
@@ -95,6 +105,16 @@ public class EnumComboBox<T> where T : enum
             delete option.0;
 
         _options.Clear();
+    }
+
+    public void Draw(MapEditorDocument editor, ref OptionalValue<T> field)
+    {
+        ImGui.Checkbox(scope $"##{_label}_toggle", &field.Enabled);
+        ImGui.SameLine();
+        using (ImGui.DisabledBlock(!field.Enabled))
+        {
+            Draw(editor, ref field.Value);
+        }
     }
 
     public void Draw(MapEditorDocument editor, ref T value)
@@ -190,6 +210,16 @@ public class BitflagComboBox<T> where T : enum
             delete option.0;
 
         _options.Clear();
+    }
+
+    public void Draw(MapEditorDocument editor, ref OptionalValue<T> field)
+    {
+        ImGui.Checkbox(scope $"##{_label}_toggle", &field.Enabled);
+        ImGui.SameLine();
+        using (ImGui.DisabledBlock(!field.Enabled))
+        {
+            Draw(editor, ref field.Value);
+        }
     }
 
     public void Draw(MapEditorDocument editor, ref T value)

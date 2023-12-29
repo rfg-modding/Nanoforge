@@ -234,13 +234,15 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("ambient_spawn") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-				obj.AmbientSpawn.Set(val);
+				obj.AmbientSpawn.Value.Set(val);
+                obj.AmbientSpawn.Enabled = true;
 			}
 
             if (rfgObj.GetString("spawn_resource") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-				obj.SpawnResource.Set(val);
+				obj.SpawnResource.Value.Set(val);
+                obj.SpawnResource.Enabled = true;
 			}
 
             if (rfgObj.GetString("terrain_file_name") case .Ok(StringView val))
@@ -250,10 +252,16 @@ namespace Nanoforge.Rfg.Import
 			}
 
             if (rfgObj.GetF32("wind_min_speed") case .Ok(f32 val))
-                obj.WindMinSpeed = val;
+            {
+                obj.WindMinSpeed.Value = val;
+                obj.WindMinSpeed.Enabled = true;
+            }
 
             if (rfgObj.GetF32("wind_max_speed") case .Ok(f32 val))
-                obj.WindMaxSpeed = val;
+            {
+                obj.WindMaxSpeed.Value = val;
+                obj.WindMaxSpeed.Enabled = true;
+            }
 
             return obj;
         }
@@ -271,13 +279,19 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("bounding_box_type") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                switch (val)
+                if (Enum.FromRfgName<ObjectBoundingBox.BoundingBoxType>(val) case .Ok(let enumVal))
                 {
-                    case "GPS Target":
-                        obj.BBType = .GpsTarget;
-                    case default:
-                        obj.BBType = .None;
+                    obj.BBType.Value = enumVal;
+                    obj.BBType.Enabled = true;
                 }
+                else
+                {
+                    return .Err("Error deserializing BoundingBoxType enum");
+                }
+            }
+            else
+            {
+                obj.BBType.Enabled = false;
             }
 
             return obj;
@@ -293,31 +307,15 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("dummy_type") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                switch (val)
+                if (Enum.FromRfgName<ObjectDummy.DummyType>(val) case .Ok(let enumVal))
                 {
-                    case "Tech Reponse Pos": //Response typo is intentional
-                        obj.DummyType = .TechResponsePos;
-                    case "VRail Spawn":
-                        obj.DummyType = .VRailSpawn;
-                    case "Demo Master":
-                        obj.DummyType = .DemoMaster;
-                    case "Cutscene":
-                        obj.DummyType = .Cutscene;
-                    case "Air Bomb":
-                        obj.DummyType = .AirBomb;
-                    case "Rally":
-                        obj.DummyType = .Rally;
-                    case "Barricade":
-                        obj.DummyType = .Barricade;
-                    case "Reinforced_Fence":
-                        obj.DummyType = .ReinforcedFence;
-                    case "Smoke Plume":
-                        obj.DummyType = .SmokePlume;
-                    case "Demolition":
-                        obj.DummyType = .Demolition;
-                    case default:
-                        obj.DummyType = .None;
+                    obj.DummyType = enumVal;
                 }
+                else
+                {
+                    return .Err("Error deserializing DummyType enum");
+                }
+
                 obj.Name.Set(val);
             }
 
@@ -334,7 +332,24 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetBool("indoor") case .Ok(bool val))
                 obj.Indoor = val;
 
-            obj.MpTeam = ReadTeamProperty(rfgObj, "mp_team");
+            if (rfgObj.GetString("mp_team") case .Ok(StringView val))
+            {
+                RemoveNullTerminator!(val);
+                if (Enum.FromRfgName<Team>(val) case .Ok(let enumVal))
+                {
+                    obj.MpTeam.Value = enumVal;
+                    obj.MpTeam.Enabled = true;
+                }
+                else
+                {
+                    return .Err("Error deserializing Team enum");
+                }
+            }
+            else
+            {
+                obj.MpTeam.Value = .None;
+                obj.MpTeam.Enabled = false;
+            }
 
             if (rfgObj.GetBool("initial_spawn") case .Ok(bool val))
 	            obj.InitialSpawn = val;
@@ -351,20 +366,21 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("mission_info") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-				obj.MissionInfo.Set(val);
+				obj.MissionInfo.Value.Set(val);
+                obj.MissionInfo.Enabled = true;
                 obj.Name.Set(val);
 			}
 
             //Use mp team as name instead of mission_info if no mission is set
             if (obj.Name == "none")
             {
-                if (obj.MpTeam == .None)
+                if (obj.MpTeam.Value == .None)
                 {
                     obj.Name.Set("player start");
                 }
                 else
                 {
-                    obj.Name.Set(scope $"{obj.MpTeam.ToString(.. scope .())} player start");
+                    obj.Name.Set(scope $"{obj.MpTeam.Value.ToString(.. scope .())} player start");
                 }
             }    
 
@@ -381,15 +397,19 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("trigger_shape") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                switch (val)
+                if (Enum.FromRfgName<TriggerRegion.Shape>(val) case .Ok(let enumVal))
                 {
-                    case "sphere":
-                        obj.TriggerShape = .Sphere;
-                    case "box":
-                        obj.TriggerShape = .Box;
-                    default:
-                        obj.TriggerShape = .Box;
+                    obj.TriggerShape.Value = enumVal;
+                    obj.TriggerShape.Enabled = true;
                 }
+                else
+                {
+                    return .Err("Error deserializing TriggerRegion.Shape enum");
+                }
+            }
+            else
+            {
+                obj.TriggerShape.Enabled = false;
             }
 
             if (rfgObj.GetBBox("bb") case .Ok(BoundingBox val))
@@ -404,51 +424,56 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("region_type") case .Ok(StringView val))
 		    {
                 RemoveNullTerminator!(val);
-                switch (val)
+                if (Enum.FromRfgName<TriggerRegion.RegionTypeEnum>(val) case .Ok(let enumVal))
                 {
-                    case "kill human":
-                        obj.RegionType = .KillHuman;
-                    case "default":
-                        obj.RegionType = .Default;
-                    default:
-                        obj.RegionType = .Default;
+                    obj.RegionType.Value = enumVal;
+                    obj.RegionType.Enabled = true;
+                }
+                else
+                {
+                    return .Err("Error deserializing TriggerRegion.RegionTypeEnum");
                 }
 			}
             else
             {
-                obj.RegionType = .Default;
+                obj.RegionType.Enabled = false;
             }
 
             if (rfgObj.GetString("region_kill_type") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                switch (val)
+                if (Enum.FromRfgName<TriggerRegion.KillTypeEnum>(val) case .Ok(let enumVal))
                 {
-                    case "mine":
-                        obj.KillType = .Mine;
-                    case "cliff":
-                        obj.KillType = .Cliff;
-                    default:
-                        obj.KillType = .Cliff;
+                    obj.KillType.Value = enumVal;
+                    obj.KillType.Enabled = true;
+                }
+                else
+                {
+                    return .Err("Error deserializing TriggerRegion.KillTypeEnum");
                 }
                 obj.Name.Set(val);
             }
             else
             {
-                obj.KillType = .Cliff;
+                obj.KillType.Enabled = false;
             }
 
             if (rfgObj.GetString("trigger_flags") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                if (val.Contains("not_in_activity"))
-                    obj.TriggerFlags |= .NotInActivity;
-                if (val.Contains("not_in_mission"))
-                    obj.TriggerFlags |= .NotInMission;
+                if (Enum.FromRfgFlagsString<TriggerRegion.TriggerRegionFlags>(val) case .Ok(let enumVal))
+                {
+                    obj.TriggerFlags.Value = enumVal;
+                    obj.TriggerFlags.Enabled = true;
+                }
+                else
+                {
+                    return .Err("Failed to convert flags string to TriggerRegion.TriggerRegionFlags");
+                }
             }
             else
             {
-                obj.TriggerFlags = .None;
+                obj.TriggerFlags.Enabled = false;
             }
 
             return obj;
@@ -464,20 +489,14 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("building_type") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                if (val.Contains("Dynamic"))
-                    obj.BuildingType |= .Dynamic;
-                if (val.Contains("Force_Field"))
-                    obj.BuildingType |= .ForceField;
-                if (val.Contains("Bridge"))
-                    obj.BuildingType |= .Bridge;
-                if (val.Contains("Raid"))
-                    obj.BuildingType |= .Raid;
-                if (val.Contains("House"))
-                    obj.BuildingType |= .House;
-                if (val.Contains("Player_Base"))
-                    obj.BuildingType |= .PlayerBase;
-                if (val.Contains("Communications"))
-                    obj.BuildingType |= .Communications;
+                if (Enum.FromRfgFlagsString<ObjectMover.BuildingTypeFlagsEnum>(val) case .Ok(let enumVal))
+                {
+                    obj.BuildingType = enumVal;
+                }
+                else
+                {
+                    return .Err("Failed to convert flags string to ObjectMover.BuildingTypeFlagsEnum");
+                }
             }
             else
             {
@@ -490,11 +509,12 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("gameplay_props") case .Ok(StringView val))
 	        {
                 RemoveNullTerminator!(val);
-				obj.GameplayProps.Set(val);
+				obj.GameplayProps.Value.Set(val);
+                obj.GameplayProps.Enabled = true;
 			}
             else
             {
-				obj.GameplayProps.Set("Default");
+				obj.GameplayProps = null;
 			}
 
             //if (rfgObj.GetU32("flags") case .Ok(u32 val)) //Disabled. See ObjectMover.InternalFlags comments for reason
@@ -503,53 +523,22 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("chunk_flags") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                obj.ChunkFlags = .None;
-                if (val.Contains("child_gives_control"))
-                    obj.ChunkFlags |= .ChildGivesControl;
-                if (val.Contains("building"))
-                    obj.ChunkFlags |= .Building;
-                if (val.Contains("dynamic_link"))
-                    obj.ChunkFlags |= .DynamicLink;
-                if (val.Contains("world_anchor"))
-                    obj.ChunkFlags |= .WorldAnchor;
-                if (val.Contains("no_cover"))
-                    obj.ChunkFlags |= .NoCover;
-                if (val.Contains("propaganda"))
-                    obj.ChunkFlags |= .Propaganda;
-                if (val.Contains("kiosk"))
-                    obj.ChunkFlags |= .Kiosk;
-                if (val.Contains("touch_terrain"))
-                    obj.ChunkFlags |= .TouchTerrain;
-                if (val.Contains("supply_crate"))
-                    obj.ChunkFlags |= .SupplyCrate;
-                if (val.Contains("mining"))
-                    obj.ChunkFlags |= .Mining;
-                if (val.Contains("one_of_many"))
-                    obj.ChunkFlags |= .OneOfMany;
-                if (val.Contains("plume_on_death"))
-                    obj.ChunkFlags |= .PlumeOnDeath;
-                if (val.Contains("invulnerable"))
-                    obj.ChunkFlags |= .Invulnerable;
-                if (val.Contains("inherit_damage_pct"))
-                    obj.ChunkFlags |= .InheritDamagePercentage;
-                if (val.Contains("regrow_on_stream"))
-                    obj.ChunkFlags |= .RegrowOnStream;
-                if (val.Contains("casts_drop_shadow"))
-                    obj.ChunkFlags |= .CastsDropShadow;
-                if (val.Contains("disable_collapse_effect"))
-                    obj.ChunkFlags |= .DisableCollapseEffect;
-                if (val.Contains("force_dynamic"))
-                    obj.ChunkFlags |= .ForceDynamic;
-                if (val.Contains("show_on_map"))
-                    obj.ChunkFlags |= .ShowOnMap;
-                if (val.Contains("regenerate"))
-                    obj.ChunkFlags |= .Regenerate;
-                if (val.Contains("casts_shadow"))
-                    obj.ChunkFlags |= .CastsShadow;
+                if (Enum.FromRfgFlagsString<ObjectMover.ChunkFlagsEnum>(val) case .Ok(let enumVal))
+                {
+                    if (enumVal != .None)
+                    {
+                        obj.ChunkFlags.Value = enumVal;
+                        obj.ChunkFlags.Enabled = true;
+                    }
+                }
+                else
+                {
+                    return .Err("Failed to convert flags string to ObjectMover.ChunkFlagsEnum");
+                }
             }
             else
             {
-                obj.ChunkFlags = .None;
+                obj.ChunkFlags.Enabled = false;
             }
 
             if (rfgObj.GetBool("dynamic_object") case .Ok(bool val))
@@ -561,13 +550,15 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("props") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-				obj.Props.Set(val);
+				obj.Props.Value.Set(val);
+                obj.Props.Enabled = true;
 			}
 
             if (rfgObj.GetString("chunk_name") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-				obj.ChunkName.Set(val);
+				obj.ChunkName.Value.Set(val);
+                obj.ChunkName.Enabled = true;
                 obj.Name.Set(val);
 			}
 
@@ -577,10 +568,30 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetU32("shape_uid") case .Ok(u32 val))
 	            obj.ShapeUID = val;
 
-            obj.Team = ReadTeamProperty(rfgObj, "team");
+            if (rfgObj.GetString("team") case .Ok(StringView val))
+            {
+                RemoveNullTerminator!(val);
+                if (Enum.FromRfgName<Team>(val) case .Ok(let enumVal))
+                {
+                    obj.Team.Value = enumVal;
+                    obj.Team.Enabled = true;
+                }
+                else
+                {
+                    return .Err("Error deserializing Team enum");
+                }
+            }
+            else
+            {
+                obj.Team.Value = .None;
+                obj.Team.Enabled = false;
+            }
 
             if (rfgObj.GetF32("control") case .Ok(f32 val))
-                obj.Control = val;
+            {
+                obj.Control.Value = val;
+                obj.Control.Enabled = true;
+            }
 
             return obj;
         }
@@ -602,19 +613,31 @@ namespace Nanoforge.Rfg.Import
                 obj.CollisionType = val;
 
             if (rfgObj.GetU32("idx") case .Ok(u32 val))
-	            obj.Idx = val;
+            {
+                obj.Idx.Value = val;
+                obj.Idx.Enabled = true;
+            }
 
             if (rfgObj.GetU32("mtype") case .Ok(u32 val))
-	            obj.MoveType = val;
+            {
+                obj.MoveType.Value = val;
+                obj.MoveType.Enabled = true;
+            }
 
             if (rfgObj.GetU32("destruct_uid") case .Ok(u32 val))
 	            obj.DestructionUID = val;
 
             if (rfgObj.GetI32("hitpoints") case .Ok(i32 val))
-	            obj.Hitpoints = val;
+            {
+                obj.Hitpoints.Value = val;
+                obj.Hitpoints.Enabled = true;
+            }
 
             if (rfgObj.GetI32("dislodge_hitpoints") case .Ok(i32 val))
-	            obj.DislodgeHitpoints = val;
+            {
+                obj.DislodgeHitpoints.Value = val;
+                obj.DislodgeHitpoints.Enabled = true;
+            }
 
             return obj;
         }
@@ -672,16 +695,28 @@ namespace Nanoforge.Rfg.Import
                 obj.ShapeCutterFlags = val;
 
             if (rfgObj.GetF32("outer_radius") case .Ok(let val))
-                obj.OuterRadius = val;
+            {
+                obj.OuterRadius.Value = val;
+                obj.OuterRadius.Enabled = true;
+            }
 
             if (rfgObj.GetU32("source") case .Ok(let val))
-                obj.Source = val;
+            {
+                obj.Source.Value = val;
+                obj.Source.Enabled = true;
+            }
 
             if (rfgObj.GetU32("owner") case .Ok(let val))
-                obj.Owner = val;
+            {
+                obj.Owner.Value = val;
+                obj.Owner.Enabled = true;
+            }
 
             if (rfgObj.GetU8("exp_info") case .Ok(let val))
-                obj.ExplosionId = val;
+            {
+                obj.ExplosionId.Value = val;
+                obj.ExplosionId.Enabled = true;
+            }
 
             return obj;
         }
@@ -763,49 +798,77 @@ namespace Nanoforge.Rfg.Import
                 return .Err(err);
 
             if (rfgObj.GetF32("atten_start") case .Ok(f32 val))
-                obj.AttenuationStart = val;
+            {
+                obj.AttenuationStart.Value = val;
+                obj.AttenuationStart.Enabled = true;
+            }
 
             if (rfgObj.GetF32("atten_end") case .Ok(f32 val))
-	            obj.AttenuationEnd = val;
+            {
+                obj.AttenuationEnd.Value = val;
+                obj.AttenuationEnd.Enabled = true;
+            }
             else if (rfgObj.GetF32("atten_range") case .Ok(f32 attenRange))
-                obj.AttenuationEnd = obj.AttenuationStart + obj.AttenuationRange;
+            {
+                if (!obj.AttenuationStart.Enabled)
+                    obj.AttenuationStart.Value = 1.0f;
+
+                obj.AttenuationRange.Value = attenRange;
+                obj.AttenuationRange.Enabled = true;
+                obj.AttenuationEnd.Value = obj.AttenuationStart.Value + obj.AttenuationRange.Value;
+                obj.AttenuationEnd.Enabled = true;
+            }
 
             if (rfgObj.GetString("light_flags") case .Ok(StringView val))
 			{
                 RemoveNullTerminator!(val);
-                obj.LightFlags = .None;
-                if (val.Contains("use_clipping"))
-                    obj.LightFlags |= .UseClipping;
-                if (val.Contains("daytime"))
-                    obj.LightFlags |= .DayTime;
-                if (val.Contains("nighttime"))
-                    obj.LightFlags |= .NightTime;
+                if (Enum.FromRfgFlagsString<ObjLight.ObjLightFlags>(val) case .Ok(let enumVal))
+                {
+                    obj.LightFlags.Value = enumVal;
+                    obj.LightFlags.Enabled = true;
+                }
+                else
+                {
+                    return .Err("Failed to convert flags string to ObjLight.ObjLightFlags");
+                }
+            }
+            else
+            {
+                obj.LightFlags.Enabled = false;
             }
 
             if (rfgObj.GetString("type_enum") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                switch (val)
-				{
-                    case "spot":
-                        obj.LightType = .Spot;
-                    case "omni":
-                        obj.LightType = .Omni;
-                    default:
-                        obj.LightType = .Omni;
-                }	
+                if (Enum.FromRfgFlagsString<ObjLight.LightTypeEnum>(val) case .Ok(let enumVal))
+                {
+                    obj.LightType.Value = enumVal;
+                    obj.LightType.Enabled = true;
+                }
+                else
+                {
+                    return .Err("Failed to convert flags string to ObjLight.ObjLightFlags");
+                }
             }
             else
-                obj.LightType = .Omni;
+            {
+                obj.LightType.Enabled = false;
+            }
 
             if (rfgObj.GetVec3("clr_orig") case .Ok(let val))
                 obj.Color = val;
 
             if (rfgObj.GetF32("hotspot_size") case .Ok(f32 val))
-                obj.HotspotSize = val;
+            {
+                obj.HotspotSize.Value = val;
+                obj.HotspotSize.Enabled = true;
+            }    
 
             if (rfgObj.GetF32("hotspot_falloff_size") case .Ok(f32 val))
-	            obj.HotspotFalloffSize = val;
+	        {
+                obj.HotspotFalloffSize.Value = val;
+                obj.HotspotFalloffSize.Enabled = true;
+            }    
 
             if (rfgObj.GetVec3("min_clip") case .Ok(let val))
 	            obj.MinClip = val;
@@ -832,27 +895,30 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("marker_type") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                switch (val)
+                if (Enum.FromRfgName<MultiMarker.MultiMarkerType>(val) case .Ok(let enumVal))
                 {
-                    case "Siege target":
-                        obj.MarkerType = .SiegeTarget;
-                    case "Backpack rack":
-                        obj.MarkerType = .BackpackRack;
-                    case "Spawn node":
-                        obj.MarkerType = .SpawnNode;
-                    case "Flag capture zone":
-                        obj.MarkerType = .FlagCaptureZone;
-                    case "King of the Hill target":
-                        obj.MarkerType = .KingOfTheHillTarget;
-                    case "Spectator camera":
-                        obj.MarkerType = .SpectatorCamera;
-                    default:
-                        obj.MarkerType = .None;
+                    obj.MarkerType = enumVal;
                 }
+                else
+                {
+                    return .Err("Error deserializing MultiMarker.MultiMarkerType enum");
+                }
+
                 obj.Name.Set(val);
             }
 
-            obj.MpTeam = ReadTeamProperty(rfgObj, "mp_team");
+            if (rfgObj.GetString("mp_team") case .Ok(StringView val))
+            {
+                RemoveNullTerminator!(val);
+                if (Enum.FromRfgName<Team>(val) case .Ok(let enumVal))
+                {
+                    obj.MpTeam = enumVal;
+                }
+                else
+                {
+                    return .Err("Error deserializing Team enum");
+                }
+            }
 
             if (rfgObj.GetI32("priority") case .Ok(i32 val))
                 obj.Priority = val;
@@ -860,32 +926,13 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetString("backpack_type") case .Ok(StringView val))
             {
                 RemoveNullTerminator!(val);
-                switch (val)
+                if (Enum.FromRfgName<MultiBackpackType>(val) case .Ok(let enumVal))
                 {
-                    case "Commando":
-                        obj.BackpackType = .Commando;
-                    case "Fleetfoot":
-                        obj.BackpackType = .Fleetfoot;
-                    case "Heal":
-                        obj.BackpackType = .Heal;
-                    case "Jetpack":
-                        obj.BackpackType = .Jetpack;
-                    case "Kaboom":
-                        obj.BackpackType = .Kaboom;
-                    case "Rhino":
-                        obj.BackpackType = .Rhino;
-                    case "Shockwave":
-                        obj.BackpackType = .Shockwave;
-                    case "Stealth":
-                        obj.BackpackType = .Stealth;
-                    case "Thrust":
-                        obj.BackpackType = .Thrust;
-                    case "Tremor":
-                        obj.BackpackType = .Tremor;
-                    case "Vision":
-                        obj.BackpackType = .Vision;
-                    default:
-                        obj.BackpackType = .Jetpack;
+                    obj.BackpackType = enumVal;
+                }
+                else
+                {
+                    return .Err("Error deserializing MultiBackpackType enum");
                 }
             }
 
@@ -908,8 +955,18 @@ namespace Nanoforge.Rfg.Import
             if (ItemReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
                 return .Err(err);
 
-            obj.MpTeam = ReadTeamProperty(rfgObj, "mp_team");
-
+            if (rfgObj.GetString("mp_team") case .Ok(StringView val))
+            {
+                RemoveNullTerminator!(val);
+                if (Enum.FromRfgName<Team>(val) case .Ok(let enumVal))
+                {
+                    obj.MpTeam = enumVal;
+                }
+                else
+                {
+                    return .Err("Error deserializing Team enum");
+                }
+            }
             return obj;
         }
 
@@ -959,35 +1016,6 @@ namespace Nanoforge.Rfg.Import
             //TODO: Read action node specific properties. Not needed until SP map editing is added.
 
             return obj;
-        }
-
-        private static Team ReadTeamProperty(RfgZoneObject* rfgObj, StringView name)
-        {
-            if (rfgObj.GetString(name) case .Ok(StringView val))
-            {
-                RemoveNullTerminator!(val);
-                switch (val)
-                {
-                    case "Neutral":
-                        return .Neutral;
-                    case "Guerilla":
-                        return .Guerilla;
-                    case "EDF":
-                        return .EDF;
-                    case "Civilian":
-                        return .Civilian;
-                    case "Marauder":
-                        return .Marauder;
-                    case "None":
-                        return .None;
-                    default:
-                        return .None;
-                }
-            }
-            else
-            {
-                return .None;
-            }
         }
 
         private static mixin RemoveNullTerminator(StringView str)

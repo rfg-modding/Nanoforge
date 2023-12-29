@@ -92,7 +92,7 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
     private static void DrawRelativeEditor(App app, MapEditorDocument editor, Zone zone, ZoneObject obj)
     {
         ZoneObject currentParent = obj.Parent;
-        StringView currentParentName = (currentParent != null) ? currentParent.Name : "Not set";
+        StringView currentParentName = (currentParent != null) ? currentParent.Name..EnsureNullTerminator() : "Not set";
         if (ImGui.BeginCombo("Parent", currentParentName.Ptr))
         {
             //Search bar
@@ -195,13 +195,13 @@ public static class ObjZoneInspector : IZoneObjectInspector<ObjZone>
         }
         ImGui.TooltipOnPrevious("string");
 
-        if (ImGui.InputFloat("Wind min speed", &obj.WindMinSpeed))
+        if (ImGui.InputOptionalFloat("Wind min speed", ref obj.WindMinSpeed))
         {
             editor.UnsavedChanges = true;
         }
         ImGui.TooltipOnPrevious("float");
 
-        if (ImGui.InputFloat("Wind max speed", &obj.WindMaxSpeed))
+        if (ImGui.InputOptionalFloat("Wind max speed", ref obj.WindMaxSpeed))
         {
             editor.UnsavedChanges = true;
         }
@@ -282,28 +282,36 @@ public static class TriggerRegionInspector : IZoneObjectInspector<TriggerRegion>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, TriggerRegion obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
+
         _triggerShapeCombo.Draw(editor, ref obj.TriggerShape);
-        if (obj.TriggerShape == .Box)
+        using (ImGui.DisabledBlock(!obj.TriggerShape.Enabled))
         {
-            if (ImGui.InputBoundingBox("Trigger Bounding Box", ref obj.LocalBBox))
+            if (obj.TriggerShape.Value == .Box)
             {
-                editor.UnsavedChanges = true;
+                if (ImGui.InputBoundingBox("Trigger Bounding Box", ref obj.LocalBBox))
+                {
+                    editor.UnsavedChanges = true;
+                }
             }
-        }
-        else if (obj.TriggerShape == .Sphere)
-        {
-            if (ImGui.InputFloat("Outer radius", &obj.OuterRadius))
+            else if (obj.TriggerShape.Value == .Sphere)
             {
-                editor.UnsavedChanges = true;
+                if (ImGui.InputFloat("Outer radius", &obj.OuterRadius))
+                {
+                    editor.UnsavedChanges = true;
+                }
+                ImGui.TooltipOnPrevious("float");
             }
-            ImGui.TooltipOnPrevious("float");
         }
 
         _regionTypeCombo.Draw(editor, ref obj.RegionType);
-        if (obj.RegionType == .KillHuman)
+        using (ImGui.DisabledBlock(!obj.RegionType.Enabled))
         {
-            _killTypeCombo.Draw(editor, ref obj.KillType);
+            if (obj.RegionType.Value == .KillHuman)
+            {
+                _killTypeCombo.Draw(editor, ref obj.KillType);
+            }
         }
+
         _triggerFlagsCombo.Draw(editor, ref obj.TriggerFlags);
         if (ImGui.Checkbox("Enabled", &obj.Enabled))
         {
@@ -341,7 +349,7 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
         }
         ImGui.TooltipOnPrevious("uint32");
 
-        if (ImGui.InputText("Chunk Name", obj.ChunkName))
+        if (ImGui.InputOptionalString("Chunk Name", obj.ChunkName))
         {
             editor.UnsavedChanges = true;
         }
@@ -359,7 +367,7 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
         }
         ImGui.TooltipOnPrevious("uint32");
 
-        if (ImGui.InputFloat("Control", &obj.Control))
+        if (ImGui.InputOptionalFloat("Control", ref obj.Control))
         {
             editor.UnsavedChanges = true;
         }
@@ -438,7 +446,7 @@ public static class RfgMoverInspector : IZoneObjectInspector<RfgMover>
     {
         ObjectMoverInspector.Draw(app, editor, zone, obj);
         _moveTypeCombo.Draw(editor, ref obj.MoveType);
-        if (ImGui.InputFloat("Damage Percent", &obj.DamagePercent))
+        if (ImGui.InputOptionalFloat("Damage Percent", ref obj.DamagePercent))
         {
             editor.UnsavedChanges = true;
         }
@@ -458,7 +466,7 @@ public static class ShapeCutterInspector : IZoneObjectInspector<ShapeCutter>
         }
         ImGui.TooltipOnPrevious("int16");
 
-        if (ImGui.InputFloat("Outer Radius", &obj.OuterRadius))
+        if (ImGui.InputOptionalFloat("Outer Radius", ref obj.OuterRadius))
         {
             editor.UnsavedChanges = true;
         }
@@ -555,19 +563,19 @@ public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjLight obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
-        if (ImGui.InputFloat("Attenuation Start", &obj.AttenuationStart))
+        if (ImGui.InputOptionalFloat("Attenuation Start", ref obj.AttenuationStart))
         {
             editor.UnsavedChanges = true;
         }
         ImGui.TooltipOnPrevious("float");
 
-        if (ImGui.InputFloat("Attenuation End", &obj.AttenuationEnd))
+        if (ImGui.InputOptionalFloat("Attenuation End", ref obj.AttenuationEnd))
         {
             editor.UnsavedChanges = true;
         }
         ImGui.TooltipOnPrevious("float");
 
-        if (ImGui.InputFloat("Attenuation Range", &obj.AttenuationRange))
+        if (ImGui.InputOptionalFloat("Attenuation Range", ref obj.AttenuationRange))
         {
             editor.UnsavedChanges = true;
         }
@@ -582,13 +590,13 @@ public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
         }
         ImGui.TooltipOnPrevious("color");
 
-        if (ImGui.InputFloat("Hotspot Size", &obj.HotspotSize))
+        if (ImGui.InputOptionalFloat("Hotspot Size", ref obj.HotspotSize))
         {
             editor.UnsavedChanges = true;
         }
         ImGui.TooltipOnPrevious("float");
 
-        if (ImGui.InputFloat("Hotspot Falloff Size", &obj.HotspotFalloffSize))
+        if (ImGui.InputOptionalFloat("Hotspot Falloff Size", ref obj.HotspotFalloffSize))
         {
             editor.UnsavedChanges = true;
         }

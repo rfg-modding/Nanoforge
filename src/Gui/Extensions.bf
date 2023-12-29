@@ -2,6 +2,7 @@ using Common.Math;
 using Nanoforge.Gui;
 using Common;
 using System;
+using Nanoforge.Misc;
 
 namespace ImGui
 {
@@ -298,6 +299,53 @@ namespace ImGui
         {
             DisposableStyleColor styleColor = .(idx, color);
             defer styleColor.Dispose();
+        }
+
+        public struct DisposableDisabledSection : IDisposable
+        {
+            private bool _disabled;
+
+            public this(bool disabled = true)
+            {
+                _disabled = disabled;
+                if (_disabled)
+                {
+                    ImGui.BeginDisabled();
+                }    
+            }
+
+            void IDisposable.Dispose()
+            {
+                if (_disabled)
+                {
+                    ImGui.EndDisabled();
+                }
+            }
+        }
+
+        public static DisposableDisabledSection DisabledBlock(bool disabled = true)
+        {
+            return .(disabled);
+        }
+
+        public static bool InputOptionalFloat(char* label, ref OptionalValue<float> value)
+        {
+            ImGui.Checkbox(scope $"##{label}_toggle", &value.Enabled);
+            ImGui.SameLine();
+            using (ImGui.DisabledBlock(!value.Enabled))
+            {
+                return ImGui.InputFloat(label, &value.Value);
+            }
+        }
+
+        public static bool InputOptionalString(StringView label, OptionalObject<String> string, ImGui.InputTextFlags flags = .None, ImGui.InputTextCallback callback = null, void* userData = null)
+        {
+            ImGui.Checkbox(scope $"##{label}_toggle", &string.Enabled);
+            ImGui.SameLine();
+            using (ImGui.DisabledBlock(!string.Enabled))
+            {
+                return ImGui.InputText(label, string.Value);
+            }
         }
 
         extension Vec4
