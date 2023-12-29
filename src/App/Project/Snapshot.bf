@@ -122,13 +122,14 @@ namespace Nanoforge.App.Project
                             Compiler.EmitTypeBody(selfType, scope $"        transactions.Add(new SetPropertyTransaction<{genericTypeName}, {fieldTypeName}, \"{fieldName}\">(S_Target, this.{fieldName}, S_Target.{fieldName}));\n");
                             Compiler.EmitTypeBody(selfType, "    }\n");
                         }
-                        else
+                        //NOTE: Temporarily disabled until I do a second pass on this code and make it work for all the new data structures used by the map editor (such as List<T> and OptionalField<T>)
+                        /*else
                         {
                             Compiler.EmitTypeBody(selfType, scope $"    //Failed to emit ISnapshot.GenerateDiffTransactions() for {field.FieldType.GetFullName(.. scope .())} {fieldName}\n");
                             StringView baseTypeName = fieldType.BaseType != null ? fieldType.BaseType.GetFullName(.. scope .()) : "";
                             Compiler.EmitTypeBody(selfType, "}\n");
                             Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. BaseTypeName = {baseTypeName}. Please implement in Snapshot<T>.GenerateDiffTransactions()");
-                        }
+                        }*/
                 }
             }
             Compiler.EmitTypeBody(selfType, "}\n");
@@ -172,13 +173,14 @@ namespace Nanoforge.App.Project
                             {
                                 Compiler.EmitTypeBody(selfType, scope $"    targetTyped.[Friend]{fieldName} = this.{fieldName};\n");
                             }
-                            else
+                            //NOTE: Temporarily disabled until I do a second pass on this code and make it work for all the new data structures used by the map editor (such as List<T> and OptionalField<T>)
+                            /*else
                             {
                                 Compiler.EmitTypeBody(selfType, scope $"    //Failed to emit code for {field.FieldType.GetFullName(.. scope .())} {fieldName}\n");
                                 StringView baseTypeName = fieldType.BaseType != null ? fieldType.BaseType.GetFullName(.. scope .()) : "";
                                 Compiler.EmitTypeBody(selfType, "}\n");
                                 Runtime.FatalError(scope $"Unsupported type '{fieldTypeName}' used in editor property {genericTypeName}.{fieldName}. BaseTypeName = {baseTypeName}. Please implement in Snapshot<T>.GenerateApply()");
-                            }
+                            }*/
                     }
                 }
             }
