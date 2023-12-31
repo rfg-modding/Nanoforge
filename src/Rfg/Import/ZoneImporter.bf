@@ -217,7 +217,6 @@ namespace Nanoforge.Rfg.Import
             //Optional display name. No vanilla objects have this
             if (rfgObj.GetString("display_name") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 obj.Name.Set(val);
             }
 
@@ -233,21 +232,18 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("ambient_spawn") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
 				obj.AmbientSpawn.Value.Set(val);
                 obj.AmbientSpawn.Enabled = true;
 			}
 
             if (rfgObj.GetString("spawn_resource") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
 				obj.SpawnResource.Value.Set(val);
                 obj.SpawnResource.Enabled = true;
 			}
 
             if (rfgObj.GetString("terrain_file_name") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
 				obj.TerrainFileName.Set(val);
 			}
 
@@ -278,7 +274,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("bounding_box_type") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<ObjectBoundingBox.BoundingBoxType>(val) case .Ok(let enumVal))
                 {
                     obj.BBType.Value = enumVal;
@@ -306,7 +301,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("dummy_type") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<ObjectDummy.DummyType>(val) case .Ok(let enumVal))
                 {
                     obj.DummyType = enumVal;
@@ -334,7 +328,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("mp_team") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<Team>(val) case .Ok(let enumVal))
                 {
                     obj.MpTeam.Value = enumVal;
@@ -365,7 +358,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("mission_info") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
 				obj.MissionInfo.Value.Set(val);
                 obj.MissionInfo.Enabled = true;
                 obj.Name.Set(val);
@@ -396,7 +388,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("trigger_shape") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<TriggerRegion.Shape>(val) case .Ok(let enumVal))
                 {
                     obj.TriggerShape.Value = enumVal;
@@ -423,7 +414,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("region_type") case .Ok(StringView val))
 		    {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<TriggerRegion.RegionTypeEnum>(val) case .Ok(let enumVal))
                 {
                     obj.RegionType.Value = enumVal;
@@ -441,7 +431,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("region_kill_type") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<TriggerRegion.KillTypeEnum>(val) case .Ok(let enumVal))
                 {
                     obj.KillType.Value = enumVal;
@@ -460,7 +449,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("trigger_flags") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgFlagsString<TriggerRegion.TriggerRegionFlags>(val) case .Ok(let enumVal))
                 {
                     obj.TriggerFlags.Value = enumVal;
@@ -488,7 +476,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("building_type") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgFlagsString<ObjectMover.BuildingTypeFlagsEnum>(val) case .Ok(let enumVal))
                 {
                     obj.BuildingType = enumVal;
@@ -508,7 +495,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("gameplay_props") case .Ok(StringView val))
 	        {
-                RemoveNullTerminator!(val);
 				obj.GameplayProps.Value.Set(val);
                 obj.GameplayProps.Enabled = true;
 			}
@@ -522,7 +508,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("chunk_flags") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgFlagsString<ObjectMover.ChunkFlagsEnum>(val) case .Ok(let enumVal))
                 {
                     if (enumVal != .None)
@@ -549,14 +534,12 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("props") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
 				obj.Props.Value.Set(val);
                 obj.Props.Enabled = true;
 			}
 
             if (rfgObj.GetString("chunk_name") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
 				obj.ChunkName.Value.Set(val);
                 obj.ChunkName.Enabled = true;
                 obj.Name.Set(val);
@@ -570,7 +553,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("team") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<Team>(val) case .Ok(let enumVal))
                 {
                     obj.Team.Value = enumVal;
@@ -730,7 +712,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("effect_type") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
 				obj.EffectType.Set(val);
 			}
 
@@ -746,7 +727,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("item_type") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
 				obj.ItemType.Set(val);
                 obj.Name.Set(val);
             }
@@ -765,7 +745,6 @@ namespace Nanoforge.Rfg.Import
             {
                 if (rfgObj.GetString("weapon_type") case .Ok(StringView val)) //Only loaded if the object doesn't have item_type
                 {
-                    RemoveNullTerminator!(val);
                     obj.WeaponType.Set(val);
                     obj.Name.Set(val);
                 }
@@ -821,7 +800,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("light_flags") case .Ok(StringView val))
 			{
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgFlagsString<ObjLight.ObjLightFlags>(val) case .Ok(let enumVal))
                 {
                     obj.LightFlags.Value = enumVal;
@@ -839,7 +817,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("type_enum") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgFlagsString<ObjLight.LightTypeEnum>(val) case .Ok(let enumVal))
                 {
                     obj.LightType.Value = enumVal;
@@ -894,7 +871,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("marker_type") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<MultiMarker.MultiMarkerType>(val) case .Ok(let enumVal))
                 {
                     obj.MarkerType = enumVal;
@@ -909,7 +885,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("mp_team") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<Team>(val) case .Ok(let enumVal))
                 {
                     obj.MpTeam = enumVal;
@@ -925,7 +900,6 @@ namespace Nanoforge.Rfg.Import
             
             if (rfgObj.GetString("backpack_type") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<MultiBackpackType>(val) case .Ok(let enumVal))
                 {
                     obj.BackpackType = enumVal;
@@ -957,7 +931,6 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("mp_team") case .Ok(StringView val))
             {
-                RemoveNullTerminator!(val);
                 if (Enum.FromRfgName<Team>(val) case .Ok(let enumVal))
                 {
                     obj.MpTeam = enumVal;
@@ -1016,12 +989,6 @@ namespace Nanoforge.Rfg.Import
             //TODO: Read action node specific properties. Not needed until SP map editing is added.
 
             return obj;
-        }
-
-        private static mixin RemoveNullTerminator(StringView str)
-        {
-            if (str.EndsWith('\0'))
-                str.RemoveFromEnd(1);
         }
 	}
 }
