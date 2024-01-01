@@ -139,7 +139,9 @@ namespace Nanoforge.Gui.Documents
                 Logger.Info("First time opening {} in this project. Importing...", MapName);
                 Stopwatch importTimer = scope .(true);
                 TotalImportTimer.Start();
-                switch (MapImporter.ImportMap(MapName))
+                MapImporter mapImporter = new .();
+                defer delete mapImporter;
+                switch (mapImporter.ImportMap(MapName))
                 {
                     case .Ok(var newMap):
                 		Map = newMap;

@@ -14,9 +14,9 @@ using System.Linq;
 
 namespace Nanoforge.Rfg.Import
 {
-	public static class TerrainImporter
+	public class TerrainImporter
 	{
-        public static Result<void> LoadTerrain(StringView packfileName, Territory territory, Zone zone, DiffUtil changes, StringView name)
+        public Result<void> LoadTerrain(StringView packfileName, Territory territory, Zone zone, DiffUtil changes, StringView name)
         {
             ZoneTerrain terrain = changes.CreateObject<ZoneTerrain>(scope $"{name}.cterrain_pc");
             
@@ -327,7 +327,7 @@ namespace Nanoforge.Rfg.Import
 
         //Get an RFG texture. If the tga hasn't been imported already it'll attempt to locate the peg containing the texture and import it.
         //All other textures in the peg will also be imported
-        public static Result<ProjectTexture> GetOrLoadTerrainTexture(DiffUtil changes, StringView tgaName)
+        public Result<ProjectTexture> GetOrLoadTerrainTexture(DiffUtil changes, StringView tgaName)
         {
             //Check if the tga was already loaded
             ImportedTextures importedTextures = NanoDB.FindOrCreate<ImportedTextures>("Global::ImportedTextures");

@@ -16,10 +16,10 @@ using System.Linq;
 
 namespace Nanoforge.Rfg.Import
 {
-	public static class MapImporter
+	public class MapImporter
 	{
         //Import all assets used by an RFG territory
-        public static Result<Territory, StringView> ImportMap(StringView name)
+        public Result<Territory, StringView> ImportMap(StringView name)
         {
             gTaskDialog.Show(5);
             using (var changes = BeginCommit!(scope $"Import map - {name}"))
@@ -56,9 +56,11 @@ namespace Nanoforge.Rfg.Import
                 //Import terrain, roads, and rocks
                 Logger.Info("Importing terrain...");
                 gTaskDialog.SetStatus("Importing terrain...");
+                TerrainImporter terrainImporter = new .();
+                defer delete terrainImporter;
                 for (Zone zone in map.Zones)
                 {
-                    if (TerrainImporter.LoadTerrain(map.PackfileName, map, zone, changes, name) case .Err)
+                    if (terrainImporter.LoadTerrain(map.PackfileName, map, zone, changes, name) case .Err)
                     {
                         Logger.Error("Failed to import terrain for zone '{}'", zone.Name);
                         //changes.Rollback();
@@ -119,7 +121,7 @@ namespace Nanoforge.Rfg.Import
             }
         }
 
-        public static Result<Zone, StringView> ImportZone(StringView packfileName, StringView filename, DiffUtil changes)
+        public Result<Zone, StringView> ImportZone(StringView packfileName, StringView filename, DiffUtil changes)
         {
             Result<u8[]> zoneBytes = PackfileVFS.ReadAllBytes(scope $"//data/{packfileName}/{filename}");
             if (zoneBytes case .Err(let err))
@@ -137,7 +139,9 @@ namespace Nanoforge.Rfg.Import
             }
             defer delete persistentZoneBytes.Value;
 
-            switch (ZoneImporter.ImportZone(zoneBytes.Value, persistentZoneBytes.Value, filename, changes))
+            ZoneImporter zoneImporter = new .();
+            defer delete zoneImporter;
+            switch (zoneImporter.ImportZone(zoneBytes.Value, persistentZoneBytes.Value, filename, changes))
             {
                 case .Ok(let zone):
                     return .Ok(zone);

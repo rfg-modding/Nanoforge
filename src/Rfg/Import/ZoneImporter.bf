@@ -11,16 +11,16 @@ using Nanoforge.App;
 
 namespace Nanoforge.Rfg.Import
 {
-	public static class ZoneImporter
+	public class ZoneImporter
 	{
-        private static append Dictionary<StringView, ZoneObjectReaderFunc> _zoneObjectReaders;
+        private append Dictionary<StringView, ZoneObjectReaderFunc> _zoneObjectReaders;
 
         //Typed object readers. preExisting can be null to indicate that the reader should create a new instance.
         //When non null it's being used to read inherited properties. E.g. ItemReader calls ObjectReader since item inherits object and object properties.
-        typealias ZoneObjectReaderFunc = function Result<ZoneObject, StringView>(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes);
+        typealias ZoneObjectReaderFunc = function Result<ZoneObject, StringView>(ZoneImporter this, ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes);
         typealias ObjectRelationsTuple = (u32 parentHandle, u32 firstChildHandle, u32 siblingHandle);
 
-        public static this()
+        public this()
         {
             //Initialize zone object readers
             _zoneObjectReaders["object"] = => ObjectReader;
@@ -46,7 +46,7 @@ namespace Nanoforge.Rfg.Import
             _zoneObjectReaders["object_action_node"] = => ActionNodeReader;
         }
 
-        public static Result<Zone, StringView> ImportZone(Span<u8> fileBytes, Span<u8> persistentFileBytes, StringView zoneFilename, DiffUtil changes)
+        public Result<Zone, StringView> ImportZone(Span<u8> fileBytes, Span<u8> persistentFileBytes, StringView zoneFilename, DiffUtil changes)
         {
             //Parse zone files
             ZoneFile36 zoneFile = scope .();
@@ -75,7 +75,7 @@ namespace Nanoforge.Rfg.Import
             {
                 if (_zoneObjectReaders.ContainsKey(rfgObj.Classname))
                 {
-                    switch (_zoneObjectReaders[rfgObj.Classname](null, rfgObj, relatives, changes))
+                    switch (_zoneObjectReaders[rfgObj.Classname](this, null, rfgObj, relatives, changes))
                     {
                         case .Ok(let obj):
                             zone.Objects.Add(obj);
@@ -186,7 +186,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //object - base class inherited by all other zone object classes
-        private static Result<ZoneObject, StringView> ObjectReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ObjectReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ZoneObject obj = CreateObject!<ZoneObject>(preExisting, changes);
             obj.Classname.Set(rfgObj.Classname);
@@ -224,7 +224,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //obj_zone : object
-        private static Result<ZoneObject, StringView> ObjZoneReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ObjZoneReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ObjZone obj = CreateObject!<ObjZone>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -263,7 +263,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //object_bounding_box : object
-        private static Result<ZoneObject, StringView> ObjBoundingBoxReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ObjBoundingBoxReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ObjectBoundingBox obj = CreateObject!<ObjectBoundingBox>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -293,7 +293,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //object_dummy : object
-        private static Result<ZoneObject, StringView> ObjectDummyReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ObjectDummyReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ObjectDummy obj = CreateObject!<ObjectDummy>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -317,7 +317,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //player_start : object
-        private static Result<ZoneObject, StringView> PlayerStartReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> PlayerStartReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             PlayerStart obj = CreateObject!<PlayerStart>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -380,7 +380,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //trigger_region : object
-        private static Result<ZoneObject, StringView> TriggerRegionReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> TriggerRegionReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             TriggerRegion obj = CreateObject!<TriggerRegion>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -468,7 +468,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //object_mover : object
-        private static Result<ZoneObject, StringView> ObjectMoverReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ObjectMoverReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ObjectMover obj = CreateObject!<ObjectMover>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -579,7 +579,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //general_mover : object_mover
-        private static Result<ZoneObject, StringView> GeneralMoverReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> GeneralMoverReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             GeneralMover obj = CreateObject!<GeneralMover>(preExisting, changes);
             if (ObjectMoverReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -625,7 +625,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //rfg_mover : object_mover
-        private static Result<ZoneObject, StringView> RfgMoverReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> RfgMoverReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             RfgMover obj = CreateObject!<RfgMover>(preExisting, changes);
             if (ObjectMoverReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -667,7 +667,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //shape_cutter : object
-        private static Result<ZoneObject, StringView> ShapeCutterReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ShapeCutterReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ShapeCutter obj = CreateObject!<ShapeCutter>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -704,7 +704,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //object_effect : object
-        private static Result<ZoneObject, StringView> ObjectEffectReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ObjectEffectReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ObjectEffect obj = CreateObject!<ObjectEffect>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -719,7 +719,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //item : object
-        private static Result<ZoneObject, StringView> ItemReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ItemReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             Item obj = CreateObject!<Item>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -735,7 +735,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //weapon : item
-        private static Result<ZoneObject, StringView> WeaponReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> WeaponReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             Weapon obj = CreateObject!<Weapon>(preExisting, changes);
             if (ItemReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -754,7 +754,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //ladder : object
-        private static Result<ZoneObject, StringView> LadderReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> LadderReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             Ladder obj = CreateObject!<Ladder>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -770,7 +770,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //obj_light : object
-        private static Result<ZoneObject, StringView> ObjLightReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ObjLightReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ObjLight obj = CreateObject!<ObjLight>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -860,7 +860,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //multi_object_marker : object
-        private static Result<ZoneObject, StringView> MultiObjectMarkerReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> MultiObjectMarkerReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             MultiMarker obj = CreateObject!<MultiMarker>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -923,7 +923,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //multi_object_flag : item
-        private static Result<ZoneObject, StringView> MultiObjectFlagReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> MultiObjectFlagReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             MultiFlag obj = CreateObject!<MultiFlag>(preExisting, changes);
             if (ItemReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -944,7 +944,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //navpoint : object
-        private static Result<ZoneObject, StringView> NavPointReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> NavPointReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             NavPoint obj = CreateObject!<NavPoint>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -956,7 +956,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //cover_node : object
-        private static Result<ZoneObject, StringView> CoverNodeReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> CoverNodeReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             CoverNode obj = CreateObject!<CoverNode>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -968,7 +968,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //constraint : object
-        private static Result<ZoneObject, StringView> ConstraintReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ConstraintReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             RfgConstraint obj = CreateObject!<RfgConstraint>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
@@ -980,7 +980,7 @@ namespace Nanoforge.Rfg.Import
         }
 
         //object_action_node : object
-        private static Result<ZoneObject, StringView> ActionNodeReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
+        private Result<ZoneObject, StringView> ActionNodeReader(ZoneObject preExisting, RfgZoneObject* rfgObj, Dictionary<ZoneObject, ObjectRelationsTuple> relatives, DiffUtil changes)
         {
             ActionNode obj = CreateObject!<ActionNode>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
