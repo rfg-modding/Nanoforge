@@ -200,18 +200,18 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetVec3("just_pos") case .Ok(Vec3 val))
             {
                 obj.Position = val;
-                obj.Orient = .Identity;
+                obj.Orient.Enabled = false;
             }
             else if (rfgObj.GetPositionOrient("op") case .Ok(PositionOrient val)) //Only check op if just_pos is missing
             {
                 obj.Position = val.Position;
-                obj.Orient = val.Orient;
+                obj.Orient.SetAndEnable(val.Orient);
             }
             else
             {
                 //Position is missing. Set to the center of the bounding box. Which all objects have as part of the zone format
                 obj.Position = obj.BBox.Center();
-                obj.Orient = .Identity;
+                obj.Orient.Enabled = false;
             }
 
             //Optional display name. No vanilla objects have this
@@ -950,7 +950,91 @@ namespace Nanoforge.Rfg.Import
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
                 return .Err(err);
 
-            //TODO: Read nav node specific properties. Not needed until SP map editing is added.
+            if (rfgObj.GetBuffer("navpoint_data") case .Ok(Span<u8> bytes))
+            {
+                switch (NanoDB.CreateBuffer(bytes, scope $"navpoint_data_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.NavpointData.SetAndEnable(buffer);
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store navpoint_data for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create navpoint_data buffer");
+                }
+            }
+            else
+            {
+                if (rfgObj.GetU8("nav_type") case .Ok(u8 val))
+                {
+                    obj.NavpointType.SetAndEnable((NavPoint.NavpointType)val);
+                }
+                else if (rfgObj.GetString("navpoint_type") case .Ok(StringView val))
+                {
+                    switch (Enum.FromRfgName<NavPoint.NavpointType>(val))
+                    {
+                        case .Ok(let enumVal):
+                            obj.NavpointType.SetAndEnable(enumVal);
+                        case .Err:
+                            obj.NavpointType.Enabled = false;
+                            Logger.Error("Failed to convert '{}' to Navpoint.NavpointType enum for rfg object {}, {}", val, obj.Handle, obj.Num);
+                            return .Err(scope $"Failed to convert string to Navpoint.NavpointType enum for zone object property 'navpoint_type");
+                    }
+
+                }
+
+                if (rfgObj.GetF32("outer_radius") case .Ok(f32 val))
+                {
+                    obj.OuterRadius.SetAndEnable(val);
+                }
+                
+                if (rfgObj.GetF32("speed_limit") case .Ok(f32 val))
+                {
+                    obj.SpeedLimit.SetAndEnable(val);
+                }
+
+                if (obj.NavpointType.Enabled && obj.NavpointType.Value != .Patrol)
+                {
+                    if (rfgObj.GetBool("dont_follow_road") case .Ok(bool val))
+                    {
+                        obj.DontFollowRoad.SetAndEnable(val);
+                    }
+
+                    if (rfgObj.GetBool("ignore_lanes") case .Ok(bool val))
+                    {
+                        obj.IgnoreLanes.SetAndEnable(val);
+                    }
+                }
+            }
+
+            if (rfgObj.GetBuffer("obj_links") case .Ok(Span<u8> bytes))
+            {
+                switch (NanoDB.CreateBuffer(bytes, scope $"obj_links_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.Links.SetAndEnable(buffer);
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store obj_links for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create obj_links buffer");
+                }
+            }
+            else if (rfgObj.GetBuffer("navlinks") case .Ok(Span<u8> bytes))
+            {
+                switch (NanoDB.CreateBuffer(bytes, scope $"navlinks_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.NavLinks.SetAndEnable(buffer);
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store navlinks for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create navlinks buffer");
+                }
+            }
+
+            if (obj.NavpointType.Enabled && obj.NavpointType.Value == .RoadCheckpoint)
+            {
+                if (rfgObj.GetMat3("nav_orient") case .Ok(Mat3 val))
+                {
+                    obj.NavOrient.SetAndEnable(val);
+                }
+            }
 
             return obj;
         }
@@ -962,7 +1046,75 @@ namespace Nanoforge.Rfg.Import
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
                 return .Err(err);
 
-            //TODO: Read cover node specific properties. Not needed until SP map editing is added.
+            if (rfgObj.GetBuffer("covernode_data") case .Ok(Span<u8> bytes))
+            {
+                switch (NanoDB.CreateBuffer(bytes, scope $"covernode_data_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.CovernodeData.SetAndEnable(buffer);
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store covernode_data for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create covernode_data buffer");
+                }
+            }
+            else if (rfgObj.GetBuffer("cnp") case .Ok(Span<u8> bytes))
+            {
+                switch (NanoDB.CreateBuffer(bytes, scope $"covernode_data_old_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.OldCovernodeData.SetAndEnable(buffer);
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store covernode_data_old for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create covernode_data_old buffer");
+                }
+            }
+
+            if (rfgObj.GetF32("def_angle_left") case .Ok(f32 val))
+            {
+                obj.DefensiveAngleLeft.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetF32("def_angle_right") case .Ok(f32 val))
+            {
+                obj.DefensiveAngleRight.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetF32("off_angle_left") case .Ok(f32 val))
+            {
+                obj.OffensiveAngleLeft.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetF32("angle_left") case .Ok(f32 val))
+            {
+                obj.AngleLeft.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetF32("off_angle_right") case .Ok(f32 val))
+            {
+                obj.OffensiveAngleRight.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetF32("angle_right") case .Ok(f32 val))
+            {
+                obj.AngleRight.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetU16("binary_flags") case .Ok(u16 val))
+            {
+                obj.CoverNodeFlags.SetAndEnable((CoverNode.CoverNodeFlags)val);
+            }
+
+            if (rfgObj.GetString("stance") case .Ok(StringView val))
+            {
+                obj.Stance.Value.Set(val);
+                obj.Stance.Enabled = true;
+            }
+
+            if (rfgObj.GetString("firing_flags") case .Ok(StringView val))
+            {
+                obj.FiringFlags.Value.Set(val);
+                obj.FiringFlags.Enabled = true;
+            }
 
             return obj;
         }
@@ -974,7 +1126,53 @@ namespace Nanoforge.Rfg.Import
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
                 return .Err(err);
 
-            //TODO: Read constraint specific properties. Not needed until SP map editing is added.
+            if (rfgObj.GetBuffer("template") case .Ok(Span<u8> bytes))
+            {
+                if (bytes.Length != 156)
+                {
+                    Logger.Error("Constraint template data isn't the right size for rfg object {}, {}. It should be 156 bytes. Its actual size is {} bytes", obj.Handle, obj.Num, bytes.Length);
+                    return .Err("Constraint template field isn't the correct size.");
+                }
+
+                switch (NanoDB.CreateBuffer(bytes, scope $"constraint_template_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.Template.SetAndEnable(buffer);
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store constraint_template for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create constraint_template buffer");
+                }
+            }
+
+            if (rfgObj.GetU32("host_handle") case .Ok(u32 val))
+            {
+                obj.HostHandle.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetU32("child_handle") case .Ok(u32 val))
+            {
+                obj.ChildHandle.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetU32("host_index") case .Ok(u32 val))
+            {
+                obj.HostIndex.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetU32("child_index") case .Ok(u32 val))
+            {
+                obj.ChildIndex.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetU32("host_hk_alt_index") case .Ok(u32 val))
+            {
+                obj.HostHavokAltIndex.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetU32("child_hk_alt_index") case .Ok(u32 val))
+            {
+                obj.ChildHavokAltIndex.SetAndEnable(val);
+            }
 
             return obj;
         }
@@ -986,7 +1184,54 @@ namespace Nanoforge.Rfg.Import
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
                 return .Err(err);
 
-            //TODO: Read action node specific properties. Not needed until SP map editing is added.
+            if (rfgObj.GetString("animation_type") case .Ok(StringView val))
+            {
+                obj.ActionNodeType.Value.Set(val);
+                obj.ActionNodeType.Enabled = true;
+            }
+
+            if (rfgObj.GetBool("high_priority") case .Ok(bool val))
+            {
+                obj.HighPriority.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetBool("infinite_duration") case .Ok(bool val))
+            {
+                obj.InfiniteDuration.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetI32("disabled") case .Ok(i32 val))
+            {
+                obj.DisabledBy.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetBool("run_to") case .Ok(bool val))
+            {
+                obj.RunTo.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetBuffer("obj_links") case .Ok(Span<u8> bytes))
+            {
+                switch (NanoDB.CreateBuffer(bytes, scope $"an_obj_links_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.ObjLinks.SetAndEnable(buffer);
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store an_obj_links for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create an_obj_links buffer");
+                }
+            }
+            else if (rfgObj.GetBuffer("links") case .Ok(Span<u8> bytes))
+            {
+                switch (NanoDB.CreateBuffer(bytes, scope $"an_links_{obj.Handle}"))
+                {
+                    case .Ok(ProjectBuffer buffer):
+                        obj.Links.SetAndEnable(buffer);
+                    case .Err:
+                        Logger.Error("Failed to create buffer to store an_links for rfg object {}, {}", obj.Handle, obj.Num);
+                        return .Err("Failed to create an_links buffer");
+                }
+            }
 
             return obj;
         }

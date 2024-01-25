@@ -51,7 +51,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public Vec3 Position = .Zero;
         [EditorProperty]
-        public Mat3 Orient = .Identity;
+        public OptionalValue<Mat3> Orient = .(.Identity);
 
         [Reflect(.All)]
         public enum Flags : u16
@@ -576,29 +576,213 @@ namespace Nanoforge.Rfg
     [ReflectAll]
     public class NavPoint : ZoneObject
     {
-        //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
-        public int Dummy; //Dummy variable to fix Bon not detecting reflection info on this. TODO: Fix once map export is implemented. More important features to focus on for now.
+        [EditorProperty]
+        public OptionalObject<ProjectBuffer> NavpointData = new .(null) ~delete _;
+        [EditorProperty]
+        public OptionalValue<NavpointType> NavpointType = .(.Ground);
+        [EditorProperty]
+        public OptionalValue<f32> OuterRadius = .(0.5f);
+        [EditorProperty]
+        public OptionalValue<f32> SpeedLimit = .(10.0f);
+        [EditorProperty]
+        public OptionalValue<bool> DontFollowRoad;
+        [EditorProperty]
+        public OptionalValue<bool> IgnoreLanes;
+        [EditorProperty]
+        public OptionalObject<ProjectBuffer> Links = new .(null) ~delete _;
+        [EditorProperty]
+        public OptionalObject<ProjectBuffer> NavLinks = new .(null) ~delete _;
+        [EditorProperty]
+        public OptionalValue<Mat3> NavOrient = .(.Identity);
+
+        [Reflect(.All)]
+        public enum NavpointType : u8
+        {
+            [RfgName("ground")]
+            Ground = 0,
+
+            [RfgName("patrol")]
+            Patrol = 1,
+
+            [RfgName("pedestrian")]
+            Pedestrian = 2,
+
+            [RfgName("floating")]
+            Floating = 3,
+
+            [RfgName("supply dropoff")]
+            SupplyDropoff = 4,
+
+            [RfgName("road")]
+            Road = 5,
+
+            [RfgName("road jump")]
+            RoadJump = 6,
+
+            [RfgName("road jump dest")]
+            RoadJumpDestination = 7,
+
+            [RfgName("road jump start")]
+            RoadJumpStart = 8,
+
+            [RfgName("road checkpoint")]
+            RoadCheckpoint = 9,
+
+            [RfgName("path")]
+            Path = 10,
+
+            [RfgName("transition")]
+            Transition = 11,
+
+            [RfgName("ladder transition")]
+            LadderTransition = 12,
+
+            [RfgName("ladder")]
+            Ladder = 13,
+
+            [RfgName("stairs")]
+            Stairs = 14,
+
+            [RfgName("transition jump")]
+            TransitionJump = 15,
+
+            [RfgName("transition leap over")]
+            TransitionLeapOver = 16,
+
+            [RfgName("unknown17")]
+            Unknown17 = 17,
+
+            [RfgName("unknown18")]
+            Unknown18 = 18,
+
+            [RfgName("unknown19")]
+            Unknown19 = 19,
+
+            [RfgName("unknown20")]
+            Unknown20 = 20,
+
+            [RfgName("unknown21")]
+            Unknown21 = 21,
+
+            [RfgName("road bridge")]
+            RoadBridge = 22,
+
+            [RfgName("path door")]
+            PathDoor = 23,
+
+            [RfgName("transition door")]
+            TransitionDoor = 24
+        }
     }
 
     [ReflectAll]
     public class CoverNode : ZoneObject
     {
-        //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
-        public int Dummy;
+        //TODO: Figure out what data these hold and store them in actual fields instead of using buffers
+        [EditorProperty]
+        public OptionalObject<ProjectBuffer> CovernodeData = new .(null) ~delete _;
+        [EditorProperty]
+        public OptionalObject<ProjectBuffer> OldCovernodeData = new .(null) ~delete _;
+
+        [EditorProperty]
+        public OptionalValue<f32> DefensiveAngleLeft = .(90.0f);
+        [EditorProperty]
+        public OptionalValue<f32> DefensiveAngleRight = .(90.0f);
+        [EditorProperty]
+        public OptionalValue<f32> OffensiveAngleLeft = .(90.0f);
+        [EditorProperty]
+        public OptionalValue<f32> OffensiveAngleRight = .(90.0f);
+        [EditorProperty]
+        public OptionalValue<f32> AngleLeft = .(90.0f);
+        [EditorProperty]
+        public OptionalValue<f32> AngleRight = .(90.0f);
+        [EditorProperty]
+        public OptionalValue<CoverNodeFlags> CoverNodeFlags = .(.None);
+        [EditorProperty]
+        public OptionalObject<String> Stance = new .(new String()) ~delete _;
+        [EditorProperty]
+        public OptionalObject<String> FiringFlags = new .(new String()) ~delete _;
+
+        //The game uses bitfields stored in a u16 for this. Using a u16 bitflag enum instead for convenience.
+        [Reflect(.All)]
+        public enum CoverNodeFlags : u16
+        {
+            None = 0,
+
+            DisabledReason = 1 << 0,
+
+            Dynamic = 1 << 1,
+
+            Zone = 1 << 2,
+
+            Vehicle = 1 << 3,
+
+            Crouch = 1 << 4,
+
+            Unknown5 = 1 << 5,
+
+            Unknown6 = 1 << 6,
+
+            Unknown7 = 1 << 7,
+
+            FirePopup = 1 << 8,
+
+            FireLeft = 1 << 9,
+
+            FireRight = 1 << 10,
+
+            OffNavmesh = 1 << 11,
+
+            OnMover = 1 << 12,
+
+            Unknown13 = 1 << 13,
+
+            Unknown14 = 1 << 14,
+
+            Unknown15 = 1 << 15,
+        }
     }
 
     [ReflectAll]
     public class RfgConstraint : ZoneObject
     {
-        //TODO: Add properties. Only added an empty class so the instances in the mp_wasteland map can be loaded. Full support for this class will be added along with SP map editing.
-        public int Dummy;
+        //TODO: Convert this to fields. Storing it in a buffer temporarily since constraints aren't needed for MP map editing. We'll need the actual fields when SP editing is added.
+        [EditorProperty]
+        public OptionalObject<ProjectBuffer> Template = new .(null) ~delete _;
+        [EditorProperty]
+        public OptionalValue<u32> HostHandle = .(u32.MaxValue);
+        [EditorProperty]
+        public OptionalValue<u32> ChildHandle = .(u32.MaxValue);
+        [EditorProperty]
+        public OptionalValue<u32> HostIndex = .(u32.MaxValue);
+        [EditorProperty]
+        public OptionalValue<u32> ChildIndex = .(u32.MaxValue);
+        [EditorProperty]
+        public OptionalValue<u32> HostHavokAltIndex = .(u32.MaxValue);
+        [EditorProperty]
+        public OptionalValue<u32> ChildHavokAltIndex = .(u32.MaxValue);
     }
 
     [ReflectAll]
     public class ActionNode : ZoneObject
     {
-        //TODO: Add properties. Only added an empty class so the instances in the Nordic Special map can be loaded. Full support for this class will be added along with SP map editing.
-        public int Dummy;
+        //Called `animation_type` in the zone files. Used different name here since it makes more sense. References an entry in action_node_types.xtbl
+        [EditorProperty]
+        public OptionalObject<String> ActionNodeType = new .(new String()) ~delete _;
+        [EditorProperty]
+        public OptionalValue<bool> HighPriority = .(false);
+        [EditorProperty]
+        public OptionalValue<bool> InfiniteDuration = .(false);
+        [EditorProperty]
+        public OptionalValue<i32> DisabledBy = .(0);
+        [EditorProperty]
+        public OptionalValue<bool> RunTo = .(false);
+
+        //TODO: Convert these to their actual data structure. Using buffers for now since we don't need these for MP map editing.
+        [EditorProperty]
+        public OptionalObject<ProjectBuffer> ObjLinks = new .(null) ~delete _;
+        [EditorProperty]
+        public OptionalObject<ProjectBuffer> Links = new .(null) ~delete _;
     }
 
     [ReflectAll]

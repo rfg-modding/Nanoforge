@@ -60,7 +60,7 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         {
             editor.UnsavedChanges = true;
         }
-        if (ImGui.InputMat3("Orientation", ref obj.Orient))
+        if (ImGui.InputOptionalMat3("Orientation", ref obj.Orient))
         {
             editor.UnsavedChanges = true;
         }
@@ -692,6 +692,7 @@ public static class NavPointInspector : IZoneObjectInspector<NavPoint>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, NavPoint obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
+        ImGui.TextColored("Navpoint editing hasn't been implemented yet. It won't be added until SP map editing is added.", .Red);
         //TODO: Implement. Not needed yet for MP so not yet implemented.
     }
 }
@@ -702,6 +703,7 @@ public static class CoverNodeInspector : IZoneObjectInspector<CoverNode>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, CoverNode obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
+        ImGui.TextColored("Cover node editing hasn't been implemented yet. It won't be added until SP map editing is added.", .Red);
         //TODO: Implement
     }
 }
@@ -712,6 +714,7 @@ public static class RfgConstraintInspector : IZoneObjectInspector<RfgConstraint>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, RfgConstraint obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
+        ImGui.TextColored("Physics constraint editing hasn't been implemented yet. It won't be added until SP map editing is added.", .Red);
         //TODO: Implement
     }
 }
@@ -722,6 +725,7 @@ public static class ActionNodeInspector : IZoneObjectInspector<ActionNode>
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ActionNode obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
+        ImGui.TextColored("Action node editing hasn't been implemented yet. It won't be added until SP map editing is added.", .Red);
         //TODO: Implement
     }
 }

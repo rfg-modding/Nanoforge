@@ -15,6 +15,12 @@ namespace Nanoforge.Misc
             Value = value;
             Enabled = enabled;
         }
+
+        public void SetAndEnable(T value) mut
+        {
+            Value = value;
+            Enabled = true;
+        }
 	}
 
     [ReflectAll]
@@ -32,6 +38,13 @@ namespace Nanoforge.Misc
         public ~this()
         {
             delete Value;
+        }
+
+        
+        public void SetAndEnable(T value)
+        {
+            Value = value;
+            Enabled = true;
         }
     }
 }

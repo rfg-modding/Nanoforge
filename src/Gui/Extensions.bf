@@ -348,6 +348,16 @@ namespace ImGui
             }
         }
 
+        public static bool InputOptionalMat3(StringView label, ref OptionalValue<Mat3> optionalField)
+        {
+            ImGui.Checkbox(scope $"##{label}_toggle", &optionalField.Enabled);
+            ImGui.SameLine();
+            using (ImGui.DisabledBlock(!optionalField.Enabled))
+            {
+                return ImGui.InputMat3(label, ref optionalField.Value);
+            }
+        }
+
         extension Vec4
         {
             //Conversion from Mirror.Math.Vec4 to ImGui.Vec4

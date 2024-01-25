@@ -184,7 +184,8 @@ namespace Nanoforge.Rfg
                     if (chunkMesh == null)
                         continue;
 
-                    switch (scene.CreateRenderChunk(chunk.Mesh.VertexFormat.ToString(.. scope .()), chunkMesh, mover.Position, mover.Orient, variant))
+                    Mat3 moverOrient = mover.Orient.Enabled ? mover.Orient.Value : .Identity;
+                    switch (scene.CreateRenderChunk(chunk.Mesh.VertexFormat.ToString(.. scope .()), chunkMesh, mover.Position, moverOrient, variant))
                     {
                         case .Ok(RenderChunk obj):
                             obj.Visible = true;
