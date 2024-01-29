@@ -55,6 +55,7 @@ namespace Nanoforge.Gui.Dialogs
         {
             ScopedLock!(_statusLogLock);
             _statusLog.Add(new String(message));
+            _scrollLogToBottom = true;
         }
 
         public void Show(int numSteps)
@@ -125,9 +126,12 @@ namespace Nanoforge.Gui.Dialogs
                     }
                 }
 
-                if (ImGui.Button("Close"))
+                using (ImGui.DisabledBlock(!CanClose))
                 {
-                    Close();
+                    if (ImGui.Button("Close"))
+                    {
+                        Close();
+                    }
                 }
 
                 ImGui.EndPopup();
