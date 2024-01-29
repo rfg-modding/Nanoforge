@@ -12,7 +12,7 @@ static
 }
 
 //General settings for NF that fit in no particular category
-[BonTarget]
+[BonTarget, ReflectAll]
 public class GeneralSettings : EditorObject
 {
     public String DataPath = new .() ~delete _;

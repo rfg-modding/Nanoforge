@@ -71,7 +71,7 @@ namespace Nanoforge.Gui.Documents
         private bool _highlightHoveredObject = false;
         private bool _autoMoveChildren = true; //Auto move children when the parent object is moved
 
-        [BonTarget]
+        [BonTarget, ReflectAll]
         public class MapEditorSettings : EditorObject
         {
             public String MapExportPath = new .() ~delete _;
@@ -1278,7 +1278,7 @@ public class ZoneObjectClass
     }
 }
 
-[BonTarget]
+[BonTarget, ReflectAll]
 public class ZoneObjectClasses : EditorObject
 {
     public List<ZoneObjectClass> Classes = new .() ~DeleteContainerAndItems!(_);
