@@ -509,15 +509,19 @@ namespace Nanoforge.FileSystem
                     if (subfiles == null)
                         return;
 
-                    for (MemoryFileList.MemoryFile file in subfiles.Files)
+                    for (MemoryFileList.MemoryFile memoryFile in subfiles.Files)
                     {
                         for (var entry in directory)
                         {
-                            if (entry.IsFile && entry.Name == file.Name)
+                            if (entry.IsFile && entry.Name == memoryFile.Name)
                             {
-                                u8[] bytes = new u8[file.Data.Length];
-                                Internal.MemCpy(bytes.Ptr, file.Data.Ptr, file.Data.Length);
-                                (entry as FileEntry).[Friend]_data = bytes;
+                                FileEntry fileEntry = (FileEntry)entry;
+                                if (fileEntry.[Friend]_data == null)
+								{
+                                    u8[] bytes = new u8[memoryFile.Data.Length];
+                                    Internal.MemCpy(bytes.Ptr, memoryFile.Data.Ptr, memoryFile.Data.Length);
+                                    fileEntry.[Friend]_data = bytes;
+								}
                             }
                         }
                     }
