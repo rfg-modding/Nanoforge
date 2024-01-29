@@ -30,7 +30,10 @@ namespace Nanoforge.Rfg.Import
                 //Preload all files in this map. Most important for str2_pc files since they require full unpack even for a single file
                 gTaskDialog.SetStatus("Preloading ns_base.str2_pc");
                 PackfileVFS.PreloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
-                defer PackfileVFS.UnloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
+                defer
+                {
+                    PackfileVFS.UnloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
+                }
                 gTaskDialog.Step();
 
                 //Import zones
@@ -81,7 +84,7 @@ namespace Nanoforge.Rfg.Import
 
                         //Get chunk filename
                         ObjectMover mover = obj as ObjectMover;
-                        String chunkFilename = scope .()..Append(mover.ChunkName)..Replace(".rfgchunk_pc", ".cchk_pc"); //Replace .rfgchunk_pc extension with the real one
+                        String chunkFilename = scope .()..Append(mover.ChunkName.Enabled ? mover.ChunkName.Value : "UnknownChunkName")..Replace(".rfgchunk_pc", ".cchk_pc"); //Replace .rfgchunk_pc extension with the real one
                         String chunkName = Path.GetFileNameWithoutExtension(chunkFilename, .. scope .());
 
                         //See if chunk was already imported to prevent repeats

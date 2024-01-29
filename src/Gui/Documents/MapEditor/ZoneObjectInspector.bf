@@ -56,6 +56,11 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
 
         //TODO: Add description and display name and load/save it in EditorData.xml or equivalent
 
+        if (ImGui.InputOptionalString("RFG Display name", obj.RfgDisplayName))
+        {
+            editor.UnsavedChanges = true;
+        }
+
         if (ImGui.InputBoundingBox("Bounding Box", ref obj.BBox))
         {
             editor.UnsavedChanges = true;
@@ -373,10 +378,14 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
         }
         ImGui.TooltipOnPrevious("float");
 
-        if (ImGui.Checkbox("Dynamic", &obj.Dynamic))
+        using (ImGui.DisabledBlock(!obj.Dynamic.Enabled))
         {
-            editor.UnsavedChanges = true;
+            if (ImGui.Checkbox("Dynamic", &obj.Dynamic.Value))
+            {
+                editor.UnsavedChanges = true;
+            }
         }
+
         ImGui.Separator();
     }
 }
@@ -451,6 +460,12 @@ public static class RfgMoverInspector : IZoneObjectInspector<RfgMover>
             editor.UnsavedChanges = true;
         }
         ImGui.TooltipOnPrevious("float");
+
+        if (ImGui.InputOptionalFloat("Game destroyed percentage", ref obj.GameDestroyedPercentage))
+        {
+            editor.UnsavedChanges = true;
+        }
+        ImGui.TooltipOnPrevious("float");
     }
 }
 
@@ -501,6 +516,29 @@ public static class ObjectEffectInspector : IZoneObjectInspector<ObjectEffect>
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
         _effectTypeCombo.Draw(editor, obj.EffectType);
+
+        if (ImGui.InputOptionalString("Sound Alr", obj.SoundAlr))
+        {
+            editor.UnsavedChanges = true;
+        }
+
+        if (ImGui.InputOptionalString("Sound", obj.Sound))
+        {
+            editor.UnsavedChanges = true;
+        }
+
+        if (ImGui.InputOptionalString("Visual", obj.Visual))
+        {
+            editor.UnsavedChanges = true;
+        }
+
+        using (ImGui.DisabledBlock(!obj.Looping.Enabled))
+        {
+            if (ImGui.Checkbox("Looping", &obj.Looping.Value))
+            {
+                editor.UnsavedChanges = true;
+            }
+        }
     }
 }
 
@@ -516,6 +554,23 @@ public static class ItemInspector : IZoneObjectInspector<Item>
         if (DrawItemCombo)
         {
             _itemTypeCombo.Draw(editor, obj.ItemType);
+
+            using (ImGui.DisabledBlock(!obj.Respawns.Enabled))
+            {
+                if (ImGui.Checkbox("Respawns", &obj.Respawns.Value))
+                {
+                    editor.UnsavedChanges = true;
+                }
+            }    
+
+            using (ImGui.DisabledBlock(!obj.Preplaced.Enabled))
+            {
+                if (ImGui.Checkbox("Preplaced", &obj.Preplaced.Value))
+                {
+                    editor.UnsavedChanges = true;
+                }
+            }    
+
             ImGui.Separator();
         }
     }
@@ -547,9 +602,12 @@ public static class LadderInspector : IZoneObjectInspector<Ladder>
         }
         ImGui.TooltipOnPrevious("int32");
 
-        if (ImGui.Checkbox("Enabled", &obj.Enabled))
+        using (ImGui.DisabledBlock(!obj.LadderEnabled.Enabled))
         {
-            editor.UnsavedChanges = true;
+            if (ImGui.Checkbox("Enabled", &obj.LadderEnabled.Value))
+            {
+                editor.UnsavedChanges = true;
+            }
         }
     }
 }
@@ -631,7 +689,7 @@ public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
             (.SpectatorCamera, "Spectator Camera")
 	    ));
     private static append EnumComboBox<Team> _teamCombo = .("MP Team");
-    private static append EnumComboBox<MultiBackpackType> _backpackTypeCombo = .("Backpack Type");
+    private static append XtblComboBox _backpackTypeCombo = .("Backpack type", "mp_backpacks.xtbl", "table;mp_backpacks;Name");
 
     public static void Draw(App app, MapEditorDocument editor, Zone zone, MultiMarker obj)
     {
@@ -650,24 +708,27 @@ public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
         }
         ImGui.TooltipOnPrevious("int32");
 
+        if (ImGui.InputScalar("Group", .S32, &obj.Group))
+        {
+            editor.UnsavedChanges = true;
+        }
+        ImGui.TooltipOnPrevious("int32");
+
         if (obj.MarkerType == .BackpackRack)
         {
-            _backpackTypeCombo.Draw(editor, ref obj.BackpackType);
+            _backpackTypeCombo.Draw(editor, obj.BackpackType);
             if (ImGui.InputScalar("Num Backpacks", .S32, &obj.NumBackpacks))
             {
                 editor.UnsavedChanges = true;
             }
             ImGui.TooltipOnPrevious("int32");
 
-            if (ImGui.InputScalar("Group", .S32, &obj.Group))
+            using (ImGui.DisabledBlock(!obj.RandomBackpacks.Enabled))
             {
-                editor.UnsavedChanges = true;
-            }
-            ImGui.TooltipOnPrevious("int32");
-
-            if (ImGui.Checkbox("Random Backpacks", &obj.RandomBackpacks))
-            {
-                editor.UnsavedChanges = true;
+                if (ImGui.Checkbox("Random Backpacks", &obj.RandomBackpacks.Value))
+                {
+                    editor.UnsavedChanges = true;
+                }
             }
         }
     }

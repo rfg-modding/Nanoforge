@@ -27,6 +27,9 @@ namespace Nanoforge.Rfg.Export
         private Stream _stream = null;
         private append String _districtName;
         private u32 _districtFlags = 0;
+        private u32 _districtHash = 0;
+
+        public i64 DataLength { get; private set; } = 0;
 
         [Reflect]
         public enum Error
@@ -53,20 +56,22 @@ namespace Nanoforge.Rfg.Export
             }
     	}
 
-        public Result<void, ZoneFileWriter.Error> BeginFile(Stream stream, StringView districtName, u32 districtFlags)
+        public Result<void, ZoneFileWriter.Error> BeginFile(Stream stream, StringView districtName, u32 districtFlags, u32 districtHash)
         {
             if (_fileInProgress)
             {
                 return .Err(.FileAlreadyInProgress);
             }
-            stream = stream;
+            _stream = stream;
+            _stream.Seek(0);
             _districtName.Set(districtName);
             _districtFlags = districtFlags;
+            _districtHash = districtHash;
 
             //Skip the header for now. Wait until EndFile() is called to write it so we have all the stats collected.
             stream.Skip(24);
 
-            bool hasRelationData = (districtFlags & 5) != 0;
+            bool hasRelationData = (districtFlags & 5) == 0;
             if (hasRelationData)
             {
                 //Write nothing initially. Generated after writing every object since we need to object offsets
@@ -77,6 +82,7 @@ namespace Nanoforge.Rfg.Export
             _objectOffsets.Clear();
             _objectHandles.Clear();
 
+            _fileInProgress = true;
             return .Ok;
         }
 
@@ -103,7 +109,7 @@ namespace Nanoforge.Rfg.Export
             _stream.Write<u32>(RFG_ZONE_VERSION);
             _stream.Write<u32>((u32)_numObjectsWritten); //Num objects
             _stream.Write<u32>(0); //Num handles
-            _stream.Write<u32>(Hash.HashVolitionCRC(_districtName, 0)); //District hash
+            _stream.Write<u32>(_districtHash); //District hash
             _stream.Write<u32>(_districtFlags);
 
             //Note: For the moment we just keep the null bytes written for relation data in BeginFile().
@@ -183,7 +189,7 @@ namespace Nanoforge.Rfg.Export
             }
 
             //Write the values we have for object header initially. We won't have the rest until after we write the properties
-            _stream.Write<u32>(Hash.HashVolitionCRC(classname, 0));
+            _stream.Write<u32>(Hash.HashVolition(classname));
             _stream.Write<u32>(handle);
             _stream.Write<Vec3>(bmin);
             _stream.Write<Vec3>(bmax);
@@ -206,6 +212,11 @@ namespace Nanoforge.Rfg.Export
             if (!_objectInProgress)
             {
                 return .Err(.ObjectNotInProgress);
+            }
+
+            if (_stream.Position > DataLength)
+            {
+                DataLength = _stream.Position;
             }
 
             //Calculate size of object block and prop block + make sure they're within allowed limits
@@ -247,6 +258,7 @@ namespace Nanoforge.Rfg.Export
             _stream.Write(value);
             _stream.WriteNullBytes(1);
             _stream.Align2(4);
+            _numPropertiesWritten++;
 
             return .Ok;
         }
@@ -258,6 +270,7 @@ namespace Nanoforge.Rfg.Export
             Try!(_stream.Write<u32>(Hash.HashVolitionCRC(propertyName, 0))); //Property name hash
             Try!(_stream.Write<T>(value));
             _stream.Align2(4);
+            _numPropertiesWritten++;
 
             return .Ok;
         }
@@ -320,6 +333,7 @@ namespace Nanoforge.Rfg.Export
             Try!(_stream.Write(position));
             Try!(_stream.Write(orientation));
             _stream.Align2(4);
+            _numPropertiesWritten++;
 
             return .Ok;
         }	
@@ -341,6 +355,7 @@ namespace Nanoforge.Rfg.Export
                     Try!(_stream.Write<u32>(Hash.HashVolitionCRC(propertyName, 0))); //Property name hash
                     Try!(_stream.TryWrite(bytes));
                     _stream.Align2(4);
+                    _numPropertiesWritten++;
                     return .Ok;
 
                 case .Err:
@@ -391,6 +406,7 @@ namespace Nanoforge.Rfg.Export
                     Try!(_stream.Write<u32>(Hash.HashVolitionCRC(propertyName, 0))); //Property name hash
                     Try!(_stream.TryWrite(bytes));
                     _stream.Align2(4);
+                    _numPropertiesWritten++;
                     return .Ok;
 
                 case .Err:

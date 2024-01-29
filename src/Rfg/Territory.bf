@@ -302,6 +302,8 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public u32 DistrictFlags = 0;
         [EditorProperty]
+        public u32 DistrictHash = 0;
+        [EditorProperty]
         public bool ActivityLayer = false;
         [EditorProperty]
         public bool MissionLayer = false;

@@ -66,6 +66,7 @@ namespace Nanoforge.Rfg.Import
             Zone zone = changes.CreateObject<Zone>();
             zone.Name.Set(zoneFilename);
             zone.District.Set(zoneFile.DistrictName);
+            zone.DistrictHash = zoneFile.Header.DistrictHash;
             zone.DistrictFlags = zoneFile.Header.DistrictFlags;
             zone.ActivityLayer = false;
             zone.MissionLayer = false;
@@ -139,6 +140,11 @@ namespace Nanoforge.Rfg.Import
                             break;
                         }
                     }
+
+                    if (primaryObj.Parent == null)
+                    {
+                        Logger.Warning("Couldn't find parent with handle {} for object [{}, {}]", parentHandle, kv.key.Handle, kv.key.Num);
+                    }
                 }
 
                 //Find first child
@@ -153,6 +159,11 @@ namespace Nanoforge.Rfg.Import
                             primaryObj.Children.Add(child);
                             break;
                         }
+                    }
+
+                    if (child == null)
+                    {
+                        Logger.Warning("Couldn't find first child with handle {} for object [{}, {}]", firstChildHandle, kv.key.Handle, kv.key.Num);
                     }
 
                     //Fill children list
@@ -171,8 +182,28 @@ namespace Nanoforge.Rfg.Import
                             {
                                 primaryObj.Children.Add(secondaryObj);
                                 child = secondaryObj;
+                                break;
                             }
                         }
+                    }
+                }
+
+                //Check if sibling exists
+                if (siblingHandle != RfgZoneObject.InvalidHandle)
+                {
+                    ZoneObject sibling = null;
+                    for (ZoneObject secondaryObj in zone.Objects)
+                    {
+                        if (secondaryObj.Handle == siblingHandle)
+                        {
+                            sibling = secondaryObj;
+                            break;
+                        }
+                    }
+
+                    if (sibling == null)
+                    {
+                        Logger.Warning("Couldn't find sibling with handle {} for object [{}, {}] in {}", siblingHandle, kv.key.Handle, kv.key.Num, zone.Name);
                     }
                 }
             }
@@ -217,6 +248,8 @@ namespace Nanoforge.Rfg.Import
             //Optional display name. No vanilla objects have this
             if (rfgObj.GetString("display_name") case .Ok(StringView val))
             {
+                obj.RfgDisplayName.Value.Set(val);
+                obj.RfgDisplayName.Enabled = true;
                 obj.Name.Set(val);
             }
 
@@ -229,6 +262,12 @@ namespace Nanoforge.Rfg.Import
             ObjZone obj = CreateObject!<ObjZone>(preExisting, changes);
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
                 return .Err(err);
+
+            List<StringView> propertyNames = scope .();
+            for (RfgZoneObject.Property* prop in rfgObj.Properties)
+            {
+                propertyNames.Add(prop.Name);
+            }
 
             if (rfgObj.GetString("ambient_spawn") case .Ok(StringView val))
             {
@@ -527,10 +566,14 @@ namespace Nanoforge.Rfg.Import
             }
 
             if (rfgObj.GetBool("dynamic_object") case .Ok(bool val))
-	            obj.Dynamic = val;
+            {
+                obj.Dynamic.SetAndEnable(val);
+            }
 
             if (rfgObj.GetU32("chunk_uid") case .Ok(u32 val))
-                obj.ChunkUID = val;
+            {
+                obj.ChunkUID.SetAndEnable(val);
+            }
 
             if (rfgObj.GetString("props") case .Ok(StringView val))
             {
@@ -549,7 +592,9 @@ namespace Nanoforge.Rfg.Import
 	            obj.DestroyableUID = val;
 
             if (rfgObj.GetU32("shape_uid") case .Ok(u32 val))
-	            obj.ShapeUID = val;
+            {
+                obj.ShapeUID.SetAndEnable(val);
+            }
 
             if (rfgObj.GetString("team") case .Ok(StringView val))
             {
@@ -589,10 +634,14 @@ namespace Nanoforge.Rfg.Import
                 obj.GmFlags = val;
 
             if (rfgObj.GetU32("original_object") case .Ok(u32 val))
-                obj.OriginalObject = val;
+            {
+                obj.OriginalObject.SetAndEnable(val);
+            }
 
             if (rfgObj.GetU32("ctype") case .Ok(u32 val))
-                obj.CollisionType = val;
+            {
+                obj.CollisionType.SetAndEnable(val);
+            }
 
             if (rfgObj.GetU32("idx") case .Ok(u32 val))
             {
@@ -607,7 +656,9 @@ namespace Nanoforge.Rfg.Import
             }
 
             if (rfgObj.GetU32("destruct_uid") case .Ok(u32 val))
-	            obj.DestructionUID = val;
+            {
+                obj.DestructionUID.SetAndEnable(val);
+            }
 
             if (rfgObj.GetI32("hitpoints") case .Ok(i32 val))
             {
@@ -634,8 +685,15 @@ namespace Nanoforge.Rfg.Import
             if (rfgObj.GetU32("mtype") case .Ok(u32 val))
 	            obj.MoveType = (RfgMover.MoveTypeEnum)val;
 
-            //if (rfgObj.GetF32("damage_percent") case .Ok(f32 val))
-            //    obj.DamagePercent = val;
+            if (rfgObj.GetF32("damage_percent") case .Ok(f32 val))
+            {
+                obj.DamagePercent.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetF32("game_destroyed_pct") case .Ok(f32 val))
+            {
+                obj.GameDestroyedPercentage.SetAndEnable(val);
+            }
 
             //Note: Didn't implement readers for several disabled properties. See RfgMover definition
 
@@ -674,7 +732,9 @@ namespace Nanoforge.Rfg.Import
                 return .Err(err);
 
             if (rfgObj.GetI16("flags") case .Ok(let val))
-                obj.ShapeCutterFlags = val;
+            {
+                obj.ShapeCutterFlags.SetAndEnable(val);
+            }
 
             if (rfgObj.GetF32("outer_radius") case .Ok(let val))
             {
@@ -712,8 +772,32 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("effect_type") case .Ok(StringView val))
             {
-				obj.EffectType.Set(val);
+				obj.EffectType.Value.Set(val);
+                obj.EffectType.Enabled = true;
 			}
+
+            if (rfgObj.GetString("sound_alr") case .Ok(StringView val))
+            {
+                obj.SoundAlr.Value.Set(val);
+                obj.SoundAlr.Enabled = true;
+            }
+
+            if (rfgObj.GetString("sound") case .Ok(StringView val))
+            {
+                obj.Sound.Value.Set(val);
+                obj.Sound.Enabled = true;
+            }
+
+            if (rfgObj.GetString("visual") case .Ok(StringView val))
+            {
+                obj.Visual.Value.Set(val);
+                obj.Visual.Enabled = true;
+            }
+
+            if (rfgObj.GetBool("looping") case .Ok(bool val))
+            {
+                obj.Looping.SetAndEnable(val);
+            }
 
             return obj;
         }
@@ -727,8 +811,24 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetString("item_type") case .Ok(StringView val))
             {
-				obj.ItemType.Set(val);
+				obj.ItemType.Value.Set(val);
+                obj.ItemType.Enabled = true;
                 obj.Name.Set(val);
+            }
+
+            //The game looks for two possible properties "respawn" or "respawns" that both get put into the same field in game.
+            if (rfgObj.GetBool("respawn") case .Ok(bool val))
+            {
+                obj.Respawns.SetAndEnable(val);
+            }
+            else if (rfgObj.GetBool("respawns") case .Ok(bool val))
+            {
+                obj.Respawns.SetAndEnable(val);
+            }
+
+            if (rfgObj.GetBool("preplaced") case .Ok(bool val))
+            {
+                obj.Preplaced.SetAndEnable(val);
             }
 
             return obj;
@@ -764,7 +864,9 @@ namespace Nanoforge.Rfg.Import
                 obj.LadderRungs = val;
 
             if (rfgObj.GetBool("ladder_enabled") case .Ok(bool val))
-                obj.Enabled = val;
+            {
+                obj.LadderEnabled.SetAndEnable(val);
+            }
 
             return obj;
         }
@@ -900,24 +1002,24 @@ namespace Nanoforge.Rfg.Import
             
             if (rfgObj.GetString("backpack_type") case .Ok(StringView val))
             {
-                if (Enum.FromRfgName<MultiBackpackType>(val) case .Ok(let enumVal))
-                {
-                    obj.BackpackType = enumVal;
-                }
-                else
-                {
-                    return .Err("Error deserializing MultiBackpackType enum");
-                }
+                obj.BackpackType.Value.Set(val);
+                obj.BackpackType.Enabled = true;
             }
 
             if (rfgObj.GetI32("num_backpacks") case .Ok(i32 val))
-                obj.NumBackpacks = val;
+            {
+                obj.NumBackpacks.SetAndEnable(val);
+            }
 
             if (rfgObj.GetBool("random_backpacks") case .Ok(bool val))
-                obj.RandomBackpacks = val;
+            {
+                obj.RandomBackpacks.SetAndEnable(val);
+            }
 
             if (rfgObj.GetI32("group") case .Ok(i32 val))
-                obj.Group = val;
+            {
+                obj.Group.SetAndEnable(val);
+            }
 
             return obj;
         }
@@ -1126,7 +1228,7 @@ namespace Nanoforge.Rfg.Import
             if (ObjectReader(obj, rfgObj, relatives, changes) case .Err(let err)) //Read inherited properties
                 return .Err(err);
 
-            if (rfgObj.GetBuffer("template") case .Ok(Span<u8> bytes))
+            if (rfgObj.GetConstraintTemplate() case .Ok(Span<u8> bytes))
             {
                 if (bytes.Length != 156)
                 {

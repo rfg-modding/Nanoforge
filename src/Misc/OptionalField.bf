@@ -26,7 +26,7 @@ namespace Nanoforge.Misc
     [ReflectAll]
     public class OptionalObject<T> where T : Object, delete
     {
-        public T Value;
+        public T Value ~DeleteIfSet!(_);
         public bool Enabled;
 
         public this(T value, bool enabled = false)
@@ -35,12 +35,6 @@ namespace Nanoforge.Misc
             Enabled = enabled;
         }
 
-        public ~this()
-        {
-            delete Value;
-        }
-
-        
         public void SetAndEnable(T value)
         {
             Value = value;

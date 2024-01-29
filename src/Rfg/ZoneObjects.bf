@@ -52,6 +52,8 @@ namespace Nanoforge.Rfg
         public Vec3 Position = .Zero;
         [EditorProperty]
         public OptionalValue<Mat3> Orient = .(.Identity);
+        [EditorProperty]
+        public OptionalObject<String> RfgDisplayName = new .(new String()) ~delete _;
 
         [Reflect(.All)]
         public enum Flags : u16
@@ -88,7 +90,6 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public OptionalValue<f32> WindMinSpeed = .(0.0f);
         [EditorProperty]
-        //public OptionalField<f32> WindMaxSpeed = .Empty;
         public OptionalValue<f32> WindMaxSpeed = .(0.0f);
     }
 
@@ -246,9 +247,9 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public OptionalValue<ChunkFlagsEnum> ChunkFlags = .(.None);
         [EditorProperty]
-        public bool Dynamic;
+        public OptionalValue<bool> Dynamic = .(false);
         [EditorProperty]
-        public u32 ChunkUID;
+        public OptionalValue<u32> ChunkUID = .(0);
         [EditorProperty]
         public OptionalObject<String> Props = new .(new .()) ~delete _; //Name of entry in level_objects.xtbl
         [EditorProperty]
@@ -257,7 +258,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public u32 DestroyableUID;
         [EditorProperty]
-        public u32 ShapeUID;
+        public OptionalValue<u32> ShapeUID = .(0);
         [EditorProperty]
         public OptionalValue<Team> Team = .(.None);
         [EditorProperty]
@@ -368,16 +369,16 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public u32 GmFlags;
         [EditorProperty]
-        public u32 OriginalObject;
+        public OptionalValue<u32> OriginalObject = .(0);
         [EditorProperty]
         //TODO: This is only used by the game with specific mover flags. Define the logic for that and show/hide in the UI depending on that. Same applies to Idx and MoveType
-        public u32 CollisionType; //TODO: Determine if this is really a bitflag defining collision layers. Some example collision types in the RfgTools zonex doc for general_mover
+        public OptionalValue<u32> CollisionType = .(0); //TODO: Determine if this is really a bitflag defining collision layers. Some example collision types in the RfgTools zonex doc for general_mover
         [EditorProperty]
         public OptionalValue<u32> Idx = .(0);
         [EditorProperty]
         public OptionalValue<u32> MoveType = .(0); //Todo: See if this is the same as RfgMover.MoveTypeEnum
         [EditorProperty]
-        public u32 DestructionUID;
+        public OptionalValue<u32> DestructionUID = .(0);
         [EditorProperty]
         public OptionalValue<i32> Hitpoints = .(0);
         [EditorProperty]
@@ -393,12 +394,12 @@ namespace Nanoforge.Rfg
         //public RfgMoverFlags Flags; //TODO: Implement. Currently disabled since it appears to be intended for runtime use only
         [EditorProperty]
         public OptionalValue<f32> DamagePercent = .(0.0f);
+        [EditorProperty]
+        public OptionalValue<f32> GameDestroyedPercentage = .(0.0f);
 
         //Disabled these for now in favor of setting same values using gameplay_props.xtbl value inherited from ObjectMover
         //[EditorProperty]
         //public i32 NumSalvagePieces;
-        //[EditorProperty]
-        //public i32 GameDestroyedPct;
         //[EditorProperty]
         //public i32 StreamOutPlayTime;
 
@@ -426,8 +427,9 @@ namespace Nanoforge.Rfg
     [ReflectAll]
     public class ShapeCutter : ZoneObject
     {
+        //TODO: Figure out what the valid values are for this and make it an enum
         [EditorProperty]
-        public i16 ShapeCutterFlags;
+        public OptionalValue<i16> ShapeCutterFlags = .(0);
         [EditorProperty]
         public OptionalValue<f32> OuterRadius = .(0.0f);
         [EditorProperty]
@@ -442,14 +444,26 @@ namespace Nanoforge.Rfg
     public class ObjectEffect : ZoneObject
     {
         [EditorProperty]
-        public String EffectType = new .() ~delete _; //Name of an entry in effects.xtbl
+        public OptionalObject<String> EffectType = new .(new String()) ~delete _; //Name of an entry in effects.xtbl
+        [EditorProperty]
+        public OptionalObject<String> SoundAlr = new .(new String()) ~delete _;
+        [EditorProperty]
+        public OptionalObject<String> Sound = new .(new String()) ~delete _;
+        [EditorProperty]
+        public OptionalObject<String> Visual = new .(new String()) ~delete _;
+        [EditorProperty]
+        public OptionalValue<bool> Looping = .(false);
     }
 
     [ReflectAll]
     public class Item : ZoneObject
     {
         [EditorProperty]
-        public String ItemType = new .() ~delete _; //Name of an entry in items_3d.xtbl for plain items
+        public OptionalObject<String> ItemType = new .(new String()) ~delete _; //Name of an entry in items_3d.xtbl for plain items
+        [EditorProperty]
+        public OptionalValue<bool> Respawns = .(false);
+        [EditorProperty]
+        public OptionalValue<bool> Preplaced = .(false);
     }
 
     [ReflectAll]
@@ -465,7 +479,7 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public i32 LadderRungs;
         [EditorProperty]
-        public bool Enabled;
+        public OptionalValue<bool> LadderEnabled = .(false);
     }
 
     [ReflectAll]
@@ -534,13 +548,13 @@ namespace Nanoforge.Rfg
 
         //These 4 are only loaded by the game when MarkerType == BackpackRack
         [EditorProperty]
-        public MultiBackpackType BackpackType;
+        public OptionalObject<String> BackpackType = new .(new String()..Append("Jetpack")) ~delete _;
         [EditorProperty]
-        public i32 NumBackpacks;
+        public OptionalValue<i32> NumBackpacks = .(1);
         [EditorProperty]
-        public bool RandomBackpacks;
+        public OptionalValue<bool> RandomBackpacks = .(false);
         [EditorProperty]
-        public i32 Group;
+        public OptionalValue<i32> Group = .(1);
 
         [Reflect(.All)]
         public enum MultiMarkerType
@@ -805,42 +819,5 @@ namespace Nanoforge.Rfg
 
         [RfgName("Marauder")]
         Marauder
-    }
-
-    [ReflectAll]
-    public enum MultiBackpackType
-    {
-        [RfgName("Commando")]
-        Commando,
-
-        [RfgName("Fleetfoot")]
-        Fleetfoot,
-
-        [RfgName("Heal")]
-        Heal,
-
-        [RfgName("Jetpack")]
-        Jetpack,
-
-        [RfgName("Kaboom")]
-        Kaboom,
-
-        [RfgName("Rhino")]
-        Rhino,
-
-        [RfgName("Shockwave")]
-        Shockwave,
-
-        [RfgName("Stealth")]
-        Stealth,
-
-        [RfgName("Thrust")]
-        Thrust,
-
-        [RfgName("Tremor")]
-        Tremor,
-
-        [RfgName("Vision")]
-        Vision
     }
 }
