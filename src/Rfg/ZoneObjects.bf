@@ -791,6 +791,8 @@ namespace Nanoforge.Rfg
         public OptionalValue<i32> DisabledBy = .(0);
         [EditorProperty]
         public OptionalValue<bool> RunTo = .(false);
+        [EditorProperty]
+        public OptionalValue<f32> OuterRadius = .(1.0f);
 
         //TODO: Convert these to their actual data structure. Using buffers for now since we don't need these for MP map editing.
         [EditorProperty]

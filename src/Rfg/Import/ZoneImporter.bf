@@ -1312,6 +1312,11 @@ namespace Nanoforge.Rfg.Import
                 obj.RunTo.SetAndEnable(val);
             }
 
+            if (rfgObj.GetF32("outer_radius") case .Ok(f32 val))
+            {
+                obj.OuterRadius.SetAndEnable(val);
+            }
+
             if (rfgObj.GetBuffer("obj_links") case .Ok(Span<u8> bytes))
             {
                 switch (NanoDB.CreateBuffer(bytes, scope $"an_obj_links_{obj.Handle}"))

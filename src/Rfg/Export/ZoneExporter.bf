@@ -872,6 +872,11 @@ namespace Nanoforge.Rfg.Export
                 Try!(_writer.WriteBoolProperty("run_to", object.RunTo.Value));
             }
 
+            if (object.OuterRadius.Enabled)
+            {
+                Try!(_writer.WriteFloatProperty("outer_radius", object.OuterRadius.Value));
+            }
+
             if (object.ObjLinks.Enabled && object.ObjLinks.Value != null)
             {
                 Try!(_writer.WriteBuffer("obj_links", object.ObjLinks.Value));
