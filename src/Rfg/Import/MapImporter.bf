@@ -134,7 +134,8 @@ namespace Nanoforge.Rfg.Import
                     }
                     else if (vppFile.IsDirectory) //str2_pc file
                     {
-                        String str2Directory = scope $"{importCacheFolder}{vppFile.Name}\\";
+                        String str2NameNoExt = Path.GetFileNameWithoutExtension(vppFile.Name, .. scope .());
+                        String str2Directory = scope $"{importCacheFolder}{str2NameNoExt}\\";
                         Directory.CreateDirectory(str2Directory);
                         for (var str2File in (vppFile as PackfileVFS.DirectoryEntry).Entries) //Files inside the str2_pc
                         {
