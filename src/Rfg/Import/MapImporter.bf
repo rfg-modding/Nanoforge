@@ -21,7 +21,7 @@ namespace Nanoforge.Rfg.Import
         //Import all assets used by an RFG territory
         public Result<Territory, StringView> ImportMap(StringView name)
         {
-            gTaskDialog.Show(5);
+            gTaskDialog.Show(6);
             using (var changes = BeginCommit!(scope $"Import map - {name}"))
             {
                 Territory map = changes.CreateObject<Territory>(name);
@@ -105,6 +105,55 @@ namespace Nanoforge.Rfg.Import
                                     Logger.Error("Failed to import chunk {}", chunkName);
                             }
 
+                        }
+                    }
+                }
+                gTaskDialog.Step();
+
+                //Cache the contents of the vpp_pc so they're preserved if the original vpp_pc is edited
+                String importCacheFolder = scope $"{NanoDB.CurrentProject.Directory}Import\\{map.PackfileName}\\";
+                Directory.CreateDirectory(importCacheFolder);
+                gTaskDialog.SetStatus("Caching map files...");
+                for (var vppFile in PackfileVFS.Enumerate(scope $"//data/{map.PackfileName}/"))
+                {
+                    if (vppFile.IsFile) //File in the root of the vpp_pc (not a str2_pc. those are directories)
+                    {
+                        switch (PackfileVFS.ReadAllBytes(vppFile as PackfileVFS.FileEntry))
+                        {
+                            case .Ok(u8[] bytes):
+                                defer delete bytes;
+                                if (File.WriteAll(scope $"{importCacheFolder}{vppFile.Name}", bytes) case .Err)
+                                {
+                                    Logger.Error("Failed to write {} to import cache for {}", vppFile.Name, map.PackfileName);
+                                    return .Err("Failed to write imported files to cache.");
+                                }
+                            case .Err:
+                                Logger.Error("Failed to extract {} for import cache for {}", vppFile.Name, map.PackfileName);
+                                return .Err("Failed to extract imported files for cache.");
+                        }
+                    }
+                    else if (vppFile.IsDirectory) //str2_pc file
+                    {
+                        String str2Directory = scope $"{importCacheFolder}{vppFile.Name}\\";
+                        Directory.CreateDirectory(str2Directory);
+                        for (var str2File in (vppFile as PackfileVFS.DirectoryEntry).Entries) //Files inside the str2_pc
+                        {
+                            if (!str2File.IsFile)
+                                continue;
+
+                            switch (PackfileVFS.ReadAllBytes(str2File as PackfileVFS.FileEntry))
+                            {
+                                case .Ok(u8[] bytes):
+                                    defer delete bytes;
+                                    if (File.WriteAll(scope $"{str2Directory}{str2File.Name}", bytes) case .Err)
+                                    {
+                                        Logger.Error("Failed to write {}\\{} to import cache for {}", vppFile.Name, str2File.Name, map.PackfileName);
+                                        return .Err("Failed to write imported files to cache.");
+                                    }
+                                case .Err:
+                                    Logger.Error("Failed to extract {}\\{} for import cache for {}", vppFile.Name, str2File.Name, map.PackfileName);
+                                    return .Err("Failed to extract imported files for cache.");
+                            }
                         }
                     }
                 }
