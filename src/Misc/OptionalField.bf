@@ -1,5 +1,6 @@
 using Common;
 using System;
+using Nanoforge.App;
 
 namespace Nanoforge.Misc
 {
@@ -26,13 +27,25 @@ namespace Nanoforge.Misc
     [ReflectAll]
     public class OptionalObject<T> where T : Object, delete
     {
-        public T Value ~DeleteIfSet!(_);
+        public T Value;
         public bool Enabled;
 
         public this(T value, bool enabled = false)
         {
             Value = value;
             Enabled = enabled;
+        }
+
+        public ~this()
+        {
+            //Don't try deleting these. NanoDB owns them and is responsible for deleting them.
+            if (typeof(T) == typeof(EditorObject) || typeof(T) == typeof(ProjectBuffer))
+                return;
+
+            if (Value != null)
+            {
+                delete Value;
+            }
         }
 
         public void SetAndEnable(T value)
