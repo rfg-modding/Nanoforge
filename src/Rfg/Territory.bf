@@ -18,6 +18,8 @@ namespace Nanoforge.Rfg
 	public class Territory : EditorObject
 	{
         public String PackfileName = new .() ~delete _;
+        public bool Compressed = false;
+        public bool Condensed = false;
 
         [EditorProperty]
         public List<Zone> Zones = new .() ~delete _;

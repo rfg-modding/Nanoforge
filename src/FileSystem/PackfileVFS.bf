@@ -8,6 +8,7 @@ using System.Linq;
 using Common.IO;
 using Zlib;
 using System.Threading;
+using Xml_Beef;
 
 namespace Nanoforge.FileSystem
 {
@@ -154,7 +155,7 @@ namespace Nanoforge.FileSystem
         }
 
         //Get VFS entry from a path
-        private static Result<EntryBase> GetEntry(StringView targetPath)
+        public static Result<EntryBase> GetEntry(StringView targetPath)
         {
             StringView path = targetPath;
 
@@ -593,6 +594,25 @@ namespace Nanoforge.FileSystem
             {
                 Compressed = compressed;
                 Condensed = condensed;
+            }
+
+            //Equivalent to PackfileV3.WriteStreamsFile(). Added since we need it to preserve pack order on cached str2_pc files during export.
+            //All the same data is here so its a waste of time and effort to try and reload & reparse the actual str2_pc file again.
+            public void WriteStreamsFile(StringView outputFolderPath)
+            {
+                Xml xml = scope .();
+                XmlNode streams = xml.AddChild("streams");
+                streams.AttributeList.Add("endian", "Little");
+                streams.AttributeList.Add("compressed", Compressed ? "True" : "False");
+                streams.AttributeList.Add("condensed", Condensed ? "True" : "False");
+
+                for (EntryBase entry in this.Entries)
+                {
+                    XmlNode xmlNode = streams.AddChild("entry");
+                    xmlNode.AttributeList.Add("name", .. scope String(entry.Name));
+                    xmlNode.NodeValue.Set(entry.Name);
+				}
+                xml.SaveToFile(scope $@"{outputFolderPath}\@streams.xml");
             }
 
             public DirectoryEntry.Enumerator GetEnumerator()

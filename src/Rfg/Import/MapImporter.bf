@@ -27,6 +27,26 @@ namespace Nanoforge.Rfg.Import
                 Territory map = changes.CreateObject<Territory>(name);
                 map.PackfileName.Set(scope $"{name}.vpp_pc");
 
+                //Store the compressed + condensed state of the packfile so we preserve it on export.
+                switch (PackfileVFS.GetEntry(scope $"//data/{map.PackfileName}/"))
+                {
+                    case .Ok(PackfileVFS.EntryBase entry):
+                        if (entry.IsDirectory)
+                        {
+                            map.Compressed = (entry as PackfileVFS.DirectoryEntry).Compressed;
+                            map.Condensed = (entry as PackfileVFS.DirectoryEntry).Condensed;
+                        }
+                        else
+                        {
+                            Logger.Error("Failed to get VFS entry for map packfile. {} is not a DirectoryEntry...", map.PackfileName);
+                            return .Err("Failed to get VFS entry for map packfile");
+                        }
+                        
+                    case .Err:
+                        Logger.Error("Failed to get VFS entry for map packfile {}", map.PackfileName);
+                        return .Err("Failed to get VFS entry for map packfile");
+                }
+
                 //Preload all files in this map. Most important for str2_pc files since they require full unpack even for a single file
                 gTaskDialog.SetStatus("Preloading ns_base.str2_pc");
                 PackfileVFS.PreloadDirectory(scope $"//data/{map.PackfileName}/ns_base.str2_pc/");
@@ -137,7 +157,14 @@ namespace Nanoforge.Rfg.Import
                         String str2NameNoExt = Path.GetFileNameWithoutExtension(vppFile.Name, .. scope .());
                         String str2Directory = scope $"{importCacheFolder}{str2NameNoExt}\\";
                         Directory.CreateDirectory(str2Directory);
-                        for (var str2File in (vppFile as PackfileVFS.DirectoryEntry).Entries) //Files inside the str2_pc
+
+                        //Must write @streams.xml so the file order is preserved when we repack the str2_pc files on export.
+                        //The order of the files in str2_pc files must be in a specific way or it will break the game.
+						//Specifically each gpu file must be right after the matching cpu file. The asm_pc file expects them to be in this order. E.g. dirt.cvbm_pc must be followed directly by dirt.gvbm_pc.
+                        (vppFile as PackfileVFS.DirectoryEntry).WriteStreamsFile(str2Directory);
+
+                        //Cache files inside the str2_pc
+                        for (var str2File in (vppFile as PackfileVFS.DirectoryEntry).Entries)
                         {
                             if (!str2File.IsFile)
                                 continue;
