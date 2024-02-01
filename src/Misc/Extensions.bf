@@ -37,4 +37,66 @@ namespace System
             return str;
         }
 	}
+
+    namespace IO
+    {
+        extension Directory
+        {
+            //Copy a directory and any subdirectories or files
+            public static Result<void, Platform.BfpFileResult> CopyTree(StringView source, StringView destination)
+            {
+                mixin ValidatePath(StringView path)
+                {
+                    if (path.Length <= 2)
+                    	return .Err(.InvalidParameter);
+                    if ((path[0] != '/') && (path[0] != '\\'))
+                    {
+                    	if (path[1] == ':')
+                    	{
+                    		if (path.Length < 3)
+                    			return .Err(.InvalidParameter);
+                    	}
+                    }
+                }
+                ValidatePath!(source);
+                ValidatePath!(destination);
+
+                if (!Directory.Exists(destination))
+                {
+                    Directory.CreateDirectory(destination);
+                }
+
+                //Copy subfolders
+                for (var entry in Directory.EnumerateDirectories(source))
+                {
+                    String subdirPath = entry.GetFilePath(.. scope .());
+                    String subdirDestPath = scope $"{destination}";
+                    if (!destination.EndsWith('/') && !destination.EndsWith('\\'))
+                    {
+                        subdirDestPath += "\\";
+                    }
+                    subdirDestPath.Append(entry.GetFileName(.. scope .()));
+                    subdirDestPath.Append("\\");
+
+                    Try!(CopyTree(subdirPath, subdirDestPath));
+                }
+
+                //Copy subfiles
+                for (var entry in Directory.EnumerateFiles(source))
+                {
+                    String subfilePath = entry.GetFilePath(.. scope .());
+                    String subfileDestPath = scope $"{destination}";
+                    if (!destination.EndsWith('/') && !destination.EndsWith('\\'))
+                    {
+                        subfileDestPath += "\\";
+                    }
+                    subfileDestPath.Append(entry.GetFileName(.. scope .()));
+
+                    Try!(File.Copy(subfilePath, subfileDestPath));
+                }
+
+                return .Ok;
+            }
+        }
+    }
 }

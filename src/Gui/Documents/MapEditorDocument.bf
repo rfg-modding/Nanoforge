@@ -16,6 +16,7 @@ using Nanoforge.Gui.Documents.MapEditor;
 using System.Reflection;
 using Bon;
 using NativeFileDialog;
+using Nanoforge.Rfg.Export;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -589,7 +590,12 @@ namespace Nanoforge.Gui.Documents
 
                     if (ImGui.Button("Export"))
                     {
-
+                        ThreadPool.QueueUserWorkItem(new () =>
+						{
+                            MapExporter exporter = new .();
+                            defer delete exporter;
+							exporter.ExportMap(Map, CVar_MapEditorSettings->MapExportPath);
+						});
                         ImGui.CloseCurrentPopup();
                     }
                 }
