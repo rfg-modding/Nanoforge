@@ -86,7 +86,7 @@ float4 CalcTerrainColorOld(VS_OUTPUT input, float4 blendWeights)
     //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps
     //Nanoforge uses it as a temporary way to get colors closer to the games colors
     float4 combColor = Texture1.Sample(Sampler1, input.UvBase);
-    float combGamma = 0.45f;
+    float combGamma = 0.5f;
     combColor = pow(combColor.xyzw, 1.0 / combGamma);
 
     //Get data for terrain materials. 4 of them, each with their own diffuse and normal maps
@@ -109,10 +109,10 @@ float4 CalcTerrainColorOld(VS_OUTPUT input, float4 blendWeights)
 float4 CalcTerrainNormalOld(VS_OUTPUT input, float4 blendWeights)
 {
     //Sample normal maps
-    float4 normal0 = normalize(Texture3.Sample(Sampler3, input.Uv0) * 2 - 1);
-    float4 normal1 = normalize(Texture5.Sample(Sampler5, input.Uv1) * 2 - 1);
-    float4 normal2 = normalize(Texture7.Sample(Sampler7, input.Uv2) * 2 - 1);
-    float4 normal3 = normalize(Texture9.Sample(Sampler9, input.Uv3) * 2 - 1);
+    float4 normal0 = normalize(Texture3.Sample(Sampler3, input.Uv0));
+    float4 normal1 = normalize(Texture5.Sample(Sampler5, input.Uv1));
+    float4 normal2 = normalize(Texture7.Sample(Sampler7, input.Uv2));
+    float4 normal3 = normalize(Texture9.Sample(Sampler9, input.Uv3));
 
     //Calculate final normal
     float4 finalNormal = float4(input.Normal, 1.0f);
@@ -146,7 +146,7 @@ float4 CalcTerrainColorTriplanar(VS_OUTPUT input, float4 blendWeights)
     //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps
     //Nanoforge uses it as a temporary way to get colors closer to the games colors
     float4 combColor = Texture1.Sample(Sampler1, input.UvBase);
-    float combGamma = 0.45f;
+    float combGamma = 0.5f;
     combColor = pow(combColor.xyzw, 1.0 / combGamma);
 
     //Calculate triplanar mapping blend
@@ -178,10 +178,10 @@ float4 CalcTerrainNormalTriplanar(VS_OUTPUT input, float4 blendWeights)
     blend /= (blend.x + blend.y + blend.z);
 
     //Sample textures using triplanar mapping
-    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, blend, material0ScaleTranslate) * 2.0 - 1.0);
-    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, blend, material1ScaleTranslate) * 2.0 - 1.0);
-    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, blend, material2ScaleTranslate) * 2.0 - 1.0);
-    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, blend, material3ScaleTranslate) * 2.0 - 1.0);
+    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, blend, material0ScaleTranslate));
+    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, blend, material1ScaleTranslate));
+    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, blend, material2ScaleTranslate));
+    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, blend, material3ScaleTranslate));
 
     //Calculate final normal
     float4 finalNormal = float4(input.Normal, 1.0f) + normal0;
@@ -213,7 +213,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     }
 
     //Sun direction for diffuse lighting
-    float3 sunDir = float3(0.3f, -1.0f, -1.0f);
+    float3 sunDir = float3(0.8f, -1.0f, -0.5f);
 
     //Ambient
     float ambientIntensity = 0.10f;
@@ -221,7 +221,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
 
     //Diffuse
     float3 lightDir = -normalize(sunDir);
-    float diff = max(dot(lightDir, finalNormal), 0.0f);
+    float diff = max(0.0f, dot(finalNormal, lightDir));
     float3 diffuse = diff * finalColor * DiffuseColor * DiffuseIntensity;
 
     //Normalized elevation for ShadeMode 0. [-255.5, 255.5] to [0.0, 511.0] to [0.0, 1.0]

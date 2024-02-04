@@ -174,7 +174,7 @@ namespace Nanoforge.Gui.Documents
 
             //Temporary hardcoded settings for high lod terrain rendering. Will be removed once config gui is added
             _scene.PerFrameConstants.ShadeMode = 1;
-            _scene.PerFrameConstants.DiffuseIntensity = 1.2f;
+            _scene.PerFrameConstants.DiffuseIntensity = 1.0f;
             _scene.PerFrameConstants.DiffuseColor = Colors.RGBA.White;
 
             //Auto center camera on zone closest to the map origin
