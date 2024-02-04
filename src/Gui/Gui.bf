@@ -194,7 +194,7 @@ namespace Nanoforge.Gui
                     else
                     {
                         //Data folder already set in config. Use it
-                        PackfileVFS.InitFromDirectoryAsync("//data/", CVar_GeneralSettings->DataPath);
+                        PackfileVFS.MountDataFolderAsync("//data/", CVar_GeneralSettings->DataPath);
                     }
                 }
             }

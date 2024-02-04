@@ -22,21 +22,23 @@ namespace Nanoforge.FileSystem
         public static bool Loading { get; private set; } = false;
         public static bool Ready => Root != null && !Loading;
 
+        public static Event<delegate void()> DataFolderChangedEvent ~_.Dispose();
+
         public static this()
         {
             Root = null; //Note: Odd bug where Root wouldn't be null the first time InitFromDirectory() is called. Caused DeleteIfSet to crash since it'd try deleting a fake object
         }
 
         //Start thread running InitFromDirectory
-        public static void InitFromDirectoryAsync(StringView mount, StringView directoryPath)
+        public static void MountDataFolderAsync(StringView mount, StringView directoryPath)
         {
             Loading = true;
-            ThreadPool.QueueUserWorkItem(new () => { InitFromDirectory(mount, directoryPath); });
+            ThreadPool.QueueUserWorkItem(new () => { MountDataFolder(mount, directoryPath); });
         }
 
         //Parse all vpp_pc files in this directory. They'll all be accessible as sub-directories of this filesystem
         [Trace(.Enter | .Exit | .RunTime)]
-        private static void InitFromDirectory(StringView mount, StringView directoryPath)
+        private static void MountDataFolder(StringView mount, StringView directoryPath)
         {
             defer { Loading = false; }
 
@@ -78,6 +80,8 @@ namespace Nanoforge.FileSystem
                 gTaskDialog.SetStatus("An error occurred while mounting the data folder. Check the log.");
                 gTaskDialog.CanClose = true;
             }
+
+            DataFolderChangedEvent.Invoke();
         }
 
         public static Result<void, StringView> MountPackfile(StringView path, bool loadIntoMemory = false)

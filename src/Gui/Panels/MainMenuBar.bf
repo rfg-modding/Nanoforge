@@ -10,6 +10,7 @@ using Nanoforge.Misc;
 using Nanoforge.Gui.Dialogs;
 using Nanoforge.FileSystem;
 using Xml_Beef;
+using System.Threading;
 
 namespace Nanoforge.Gui.Panels
 {
@@ -33,9 +34,15 @@ namespace Nanoforge.Gui.Panels
                 FileName.Set(fileName);
             }
         }
+        private append Monitor _mapListLock;
         private append List<MapOption> _mpMaps ~ClearAndDeleteItems(_);
         private append List<MapOption> _wcMaps ~ClearAndDeleteItems(_);
         private bool _loadedMapLists = false;
+
+        public this()
+        {
+            PackfileVFS.DataFolderChangedEvent.Add(new => this.OnDataFolderChanged);
+        }
 
         public override void Update(App app, Gui gui)
         {
@@ -44,14 +51,6 @@ namespace Nanoforge.Gui.Panels
             {
                 GenerateMenus(gui);
                 firstDraw = false;
-            }
-            if (!_loadedMapLists && PackfileVFS.Ready)
-            {
-                LoadMPMapsFromXtbl("//data/misc.vpp_pc/mp_levels.xtbl");
-                LoadMPMapsFromXtbl("//data/misc.vpp_pc/dlc02_mp_levels.xtbl");
-                LoadWCMapsFromXtbl("//data/misc.vpp_pc/wrecking_crew.xtbl");
-                LoadWCMapsFromXtbl("//data/misc.vpp_pc/dlc03_wrecking_crew.xtbl");
-                _loadedMapLists = true;
             }
 
             DrawMainMenuBar(app, gui);
@@ -161,6 +160,7 @@ namespace Nanoforge.Gui.Panels
                         ImGui.SetNextWindowSize(.(-1.0f, 600.0f));
                         if (ImGui.BeginMenu("Multiplayer"))
                         {
+                            ScopedLock!(_mapListLock);
                             for (MapOption map in _mpMaps)
                             {
                                 bool alreadyOpen = gui.Documents.Any((doc) => doc.Title == map.FileName);
@@ -173,6 +173,7 @@ namespace Nanoforge.Gui.Panels
                         }
                         if (ImGui.BeginMenu("Wrecking Crew"))
                         {
+                            ScopedLock!(_mapListLock);
                             for (MapOption map in _wcMaps)
                             {
                                 bool alreadyOpen = gui.Documents.Any((doc) => doc.Title == map.FileName);
@@ -358,6 +359,7 @@ namespace Nanoforge.Gui.Panels
                     xml.LoadFromString(text, (int32)text.Length);
                     XmlNode root = xml.ChildNodes[0];
                     XmlNode table = root.Find("Table");
+                    ScopedLock!(_mapListLock);
 
                     XmlNodeList mpLevelNodes = table.FindNodes("mp_level_list");
                     defer delete mpLevelNodes;
@@ -367,6 +369,9 @@ namespace Nanoforge.Gui.Panels
                         XmlNode fileNameNode = levelNode.Find("Filename");
                         _mpMaps.Add(new MapOption(nameNode.NodeValue, fileNameNode.NodeValue));
                     }
+
+                    //Sort alphabetically
+                    _mpMaps.Sort(scope (a, b) => String.Compare(a.DisplayName, b.DisplayName, false));
 
                 case .Err:
                     Logger.Error("Failed to load {0} for MP maps list.", xtblPath);
@@ -386,6 +391,7 @@ namespace Nanoforge.Gui.Panels
                     XmlNode table = root.Find("Table");
                     XmlNode entry = table.Find("entry");
                     XmlNode maps = entry.Find("maps");
+                    ScopedLock!(_mapListLock);
 
                     XmlNodeList mapNodes = maps.FindNodes("map");
                     defer delete mapNodes;
@@ -396,10 +402,38 @@ namespace Nanoforge.Gui.Panels
                         _wcMaps.Add(new MapOption(nameNode.NodeValue, fileNameNode.NodeValue));
                     }
 
+                    //TODO: Enable and fix for map names using numbers (e.g. 1.vpp_pc, 2.vpp_pc, etc in Terraform patch).
+					//      The alphabetical search puts them in the wrong order. Probably want to check if the string is numeric or starts with numbers and have special logic for those ones.
+                    //      Issue: https://github.com/rfg-modding/Nanoforge/issues/145
+                    //Sort alphabetically
+                    //_wcMaps.Sort(scope (a, b) => String.Compare(a.DisplayName, b.DisplayName, false));
+
                 case .Err:
                     Logger.Error("Failed to load {0} for MP maps list.", xtblPath);
                     return;
             }
+        }
+
+        //Run when the data folder changed and PackfileVFS finished mounting that directory
+        private void OnDataFolderChanged()
+        {
+            Logger.Info("Data folder changed. Reloading map list for main menu bar...");
+
+            //Clear previous load
+            if (_loadedMapLists)
+            {
+                ScopedLock!(_mapListLock);
+                ClearAndDeleteItems(_mpMaps);
+                ClearAndDeleteItems(_wcMaps);
+                _loadedMapLists = false;
+            }
+
+            //Load maps list
+            LoadMPMapsFromXtbl("//data/misc.vpp_pc/mp_levels.xtbl");
+            LoadMPMapsFromXtbl("//data/misc.vpp_pc/dlc02_mp_levels.xtbl");
+            LoadWCMapsFromXtbl("//data/misc.vpp_pc/wrecking_crew.xtbl");
+            LoadWCMapsFromXtbl("//data/misc.vpp_pc/dlc03_wrecking_crew.xtbl");
+            _loadedMapLists = true;
         }
     }
 

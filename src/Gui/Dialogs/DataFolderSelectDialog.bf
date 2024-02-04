@@ -156,7 +156,7 @@ namespace Nanoforge.Gui.Dialogs
                 {
                     CVar_GeneralSettings->DataPath.Set(DataFolder);
                     CVar_GeneralSettings.Save();
-                    PackfileVFS.InitFromDirectoryAsync("//data/", CVar_GeneralSettings->DataPath);
+                    PackfileVFS.MountDataFolderAsync("//data/", CVar_GeneralSettings->DataPath);
                     Close();
                 }
                 ImGui.SameLine();
