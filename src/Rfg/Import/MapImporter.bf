@@ -13,6 +13,7 @@ using Nanoforge.Render;
 using RfgTools.Formats.Textures;
 using System.Collections;
 using System.Linq;
+using Xml_Beef;
 
 namespace Nanoforge.Rfg.Import
 {
@@ -22,6 +23,7 @@ namespace Nanoforge.Rfg.Import
         public Result<Territory, StringView> ImportMap(StringView name)
         {
             gTaskDialog.Show(6);
+            defer { gTaskDialog.CanClose = true; }
             using (var changes = BeginCommit!(scope $"Import map - {name}"))
             {
                 Territory map = changes.CreateObject<Territory>(name);
@@ -188,9 +190,11 @@ namespace Nanoforge.Rfg.Import
                 gTaskDialog.Step();
 
                 //Load additional map data if present
-                if (PackfileVFS.Exists(scope $"//data/{map.PackfileName}/EditorData.xml"))
+                if (TryLoadEditorDataFile(map) case .Err)
                 {
-                    //TODO: Implement
+                    Logger.Error("Failed to load EditorData.xml for {}", map.PackfileName);
+                    gTaskDialog.Log("Failed to load EditorData.xml. Check log.");
+                    return .Err("Failed to load EditorData.xml.");
                 }
 
                 gTaskDialog.SetStatus("Done!");
@@ -228,6 +232,104 @@ namespace Nanoforge.Rfg.Import
                 case .Err(let err):
                     return .Err(err);
             }
+        }
+
+        private Result<void> TryLoadEditorDataFile(Territory map)
+        {
+            String filePath = scope $"//data/{map.PackfileName}/EditorData.xml";
+            if (!PackfileVFS.Exists(filePath))
+                return .Ok; //This file is optional so we don't Error
+
+            if (PackfileVFS.ReadAllText(filePath) case .Ok(String xmlText))
+            {
+                defer delete xmlText;
+                Xml xmlFile = scope .();
+                xmlFile.LoadFromString(xmlText, (i32)xmlText.Length);
+                var root = xmlFile.ChildNodes[0];
+
+                XmlNodeList zoneList = root.Find("Zones")?.FindNodes("Zone");
+                defer { DeleteIfSet!(zoneList); }
+                if (zoneList == null)
+                {
+                    Logger.Error("EditorData.xml for {} is missing <Zones>", map.Name);
+                    gTaskDialog.Log(scope $"EditorData.xml for {map.Name} is missing <Zones>");
+                    return .Err("EditorData.xml is missing <Zones/>");
+                }
+
+                for (var xmlZone in zoneList)
+                {
+                    var zoneNameNode = xmlZone.Find("Name");
+                    if (zoneNameNode == null)
+                        return .Err("EditorData.xml <Zone> missing <Name>");
+
+                    String zoneName = zoneNameNode.NodeValue;
+                    for (Zone zone in map.Zones)
+                    {
+                        if (zone.Name.Equals(zoneName))
+                        {
+                            XmlNodeList objectsList = xmlZone.Find("Objects")?.FindNodes("Object");
+                            defer { DeleteIfSet!(objectsList); }
+
+                            for (var xmlObject in objectsList)
+                            {
+                                String objName = xmlObject.Find("Name")?.NodeValue;
+                                String objDescription = xmlObject.Find("Description")?.NodeValue;
+                                String objHandleStr = xmlObject.Find("Handle")?.NodeValue;
+                                String objNumStr = xmlObject.Find("Num")?.NodeValue;
+
+                                //Parse handle and num
+                                u32 handle = 0;
+                                u32 num = 0;
+                                if (objHandleStr == null || objNumStr == null)
+                                {
+                                    Logger.Error("Object missing <Handle> or <Num> in EditorData.xml. Either someone messed with it or the vpp_pc is damaged.");
+                                    return .Err;
+                                }
+                                switch (u32.Parse(objHandleStr))
+                                {
+                                    case .Ok(u32 val):
+                                        handle = val;
+                                    case .Err(let err):
+                                        Logger.Error("Failed to parse <Handle> value '{}' while loading EditorData.xml. Error: {}", objHandleStr, err);
+                                }
+                                switch (u32.Parse(objNumStr))
+                                {
+                                    case .Ok(u32 val):
+                                        num = val;
+                                    case .Err(let err):
+                                        Logger.Error("Failed to parse <Num> value '{}' while loading EditorData.xml. Error: {}", objNumStr, err);
+                                }
+
+                                //Find the object
+                                var search = zone.Objects.Select((obj) => obj).Where((obj) => obj.Handle == handle && obj.Num == num).First();
+                                if (search == null)
+                                {
+                                    Logger.Error("Couldn't find object [{}, {}] while loading EditorData.xml", handle, num);
+                                    continue;
+                                }
+
+                                //Set fields if present
+                                if (objName != null)
+                                {
+                                    search.Name.Set(objName);
+                                }
+                                if (objDescription != null && !objDescription.IsEmpty)
+                                {
+                                    search.Description.Value.Set(objDescription);
+                                    search.Description.Enabled = true;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                return .Err;
+            }
+
+            return .Ok;
         }
 	}
 }

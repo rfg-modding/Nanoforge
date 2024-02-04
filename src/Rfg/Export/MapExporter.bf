@@ -5,6 +5,7 @@ using Common;
 using Nanoforge.Misc;
 using System.IO;
 using RfgTools.Formats;
+using Xml_Beef;
 
 namespace Nanoforge.Rfg.Export;
 
@@ -19,7 +20,7 @@ public class MapExporter
         }
 
         //Setup background task dialog. Lets user see progress and blocks input/keybinds to prevent accidentally data races
-        gTaskDialog.Show(numSteps: 6);
+        gTaskDialog.Show(numSteps: 7);
 
         //Copy cached files to the temp folder. We cache the contents of the vpp_pc on import so nothing breaks if the source vpp_pc is modified after import.
         gTaskDialog.SetStatus("Copying cached files to temp folder...");
@@ -113,6 +114,17 @@ public class MapExporter
         gTaskDialog.Step();
 
 
+        gTaskDialog.SetStatus("Writing EditorData.xml...");
+        String editorDataPath = scope $"{tempFolder}EditorData.xml";
+        if (WriteEditorDataFile(editorDataPath, map) case .Err)
+        {
+            gTaskDialog.Log(scope $"Failed to write EditorData.xml");
+            Logger.Error(scope $"Failed to write EditorData.xml");
+            ExitTask!();
+        }
+        gTaskDialog.Step();
+
+
         //Repack the vpp_pc file
         gTaskDialog.SetStatus(scope $"Repacking {map.PackfileName}...");
         String vppExportPath = scope $"{NanoDB.CurrentProject.Directory}Temp\\{map.PackfileName}";
@@ -137,6 +149,7 @@ public class MapExporter
         {
             Directory.DelTree(tempFolder); //Delete data from previous exports
         }
+        File.Delete(vppExportPath);
         gTaskDialog.Step();
 
         gTaskDialog.SetStatus("Export complete!");
@@ -275,6 +288,33 @@ public class MapExporter
             return .Err;
         }
 
+        return .Ok;
+    }
+
+    private Result<void> WriteEditorDataFile(StringView outputPath, Territory map)
+    {
+        Xml xml = scope .();
+        XmlNode rootXml = xml.AddChild("EditorData");
+        XmlNode zonesXml = rootXml.AddChild("Zones");
+        for (Zone zone in map.Zones)
+        {
+            XmlNode zoneXml = zonesXml.AddChild("Zone");
+            zoneXml.AddChild("Name").NodeValue.Set(zone.Name);
+
+            XmlNode objectsXml = zoneXml.AddChild("Objects");
+            for (ZoneObject object in zone.Objects)
+            {
+                XmlNode objectXml = objectsXml.AddChild("Object");
+                objectXml.AddChild("Name").NodeValue.Set(object.Name);
+                objectXml.AddChild("Handle").NodeValue.Set(object.Handle.ToString(.. scope .()));
+                objectXml.AddChild("Num").NodeValue.Set(object.Num.ToString(.. scope .()));
+                objectXml.AddChild("Description").NodeValue.Set(object.Description.Enabled ? object.Description.Value : "");
+            }
+        }
+
+        //TODO: Either improve the xml library or replace it with one that can take StringView as input and has proper error handling.
+        //      This function shouldn't take String as input and should return Result<void> at least so you can know when it failed.
+        xml.SaveToFile(scope $"{outputPath}");
         return .Ok;
     }
 }

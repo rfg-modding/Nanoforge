@@ -46,20 +46,72 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
 
     private static append String _parentSelectorSearch;
 
+    private static bool _editingName = false;
+    private static ZoneObject _objectGettingNameEdited = null; //Used to cancel name edit if selected object changes
+    private static append String _nameEditBuffer;
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ZoneObject obj)
     {
-        Fonts.FontL.Push();
-        ImGui.Text(obj.Classname);
-        Fonts.FontL.Pop();
-        ImGui.Text(scope $"{obj.Handle}, {obj.Num}");
-        ImGui.Separator();
-
-        //TODO: Add description and display name and load/save it in EditorData.xml or equivalent
-
-        if (ImGui.InputOptionalString("RFG Display name", obj.RfgDisplayName))
+        //Cancel name edit if user selects a different one
+        if (_objectGettingNameEdited != null && _objectGettingNameEdited != obj)
         {
-            editor.UnsavedChanges = true;
+            _objectGettingNameEdited = null;
+            _editingName = false;
+            _nameEditBuffer.Set("");
         }
+
+        //Name display and editing
+        Fonts.FontM.Push();
+        if (_editingName)
+        {
+            mixin ApplyNameEdit()
+            {
+                obj.Name.Set(_nameEditBuffer);
+                _objectGettingNameEdited = null;
+                _editingName = false;
+                editor.UnsavedChanges = true;
+                _nameEditBuffer.Set("");
+            }
+
+            if (ImGui.InputText("##ObjectNameEdit", _nameEditBuffer, .EnterReturnsTrue))
+            {
+                ApplyNameEdit!();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Cancel"))
+            {
+                _editingName = false;
+                _objectGettingNameEdited = null;
+                _nameEditBuffer.Set("");
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Save"))
+            {
+                ApplyNameEdit!();
+            }
+        }
+        else
+        {
+            f32 nameTextAdjustment = 2.5f; //Little hack to align the name text and rename button
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + nameTextAdjustment);
+            ImGui.Text(obj.Name);
+            ImGui.SameLine();
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() - nameTextAdjustment);
+            if (ImGui.Button("Rename"))
+            {
+                _editingName = true;
+                _nameEditBuffer.Set(obj.Name);
+                _objectGettingNameEdited = obj;
+            }
+        }
+        Fonts.FontM.Pop();
+
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 7.0f);
+        using (ImGui.DisposableStyleColor(ImGui.Col.Text, ImGui.SecondaryTextColor))
+        {
+            ImGui.Text(scope $"{obj.Classname} - {obj.Handle}, {obj.Num}");
+        }    
+        ImGui.Separator();
 
         if (ImGui.InputBoundingBox("Bounding Box", ref obj.BBox))
         {
@@ -69,6 +121,17 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         {
             editor.UnsavedChanges = true;
         }
+
+        if (ImGui.InputOptionalString("Description", obj.Description))
+        {
+            editor.UnsavedChanges = true;
+        }
+
+        if (ImGui.InputOptionalString("RFG Display name", obj.RfgDisplayName))
+        {
+            editor.UnsavedChanges = true;
+        }
+
         DrawRelativeEditor(app, editor, zone, obj);
         _flagsCombo.Draw(editor, ref obj.Flags);
 

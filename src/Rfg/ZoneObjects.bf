@@ -54,6 +54,8 @@ namespace Nanoforge.Rfg
         public OptionalValue<Mat3> Orient = .(.Identity);
         [EditorProperty]
         public OptionalObject<String> RfgDisplayName = new .(new String()) ~delete _;
+        [EditorProperty]
+        public OptionalObject<String> Description = new .(new String()) ~delete _;
 
         [Reflect(.All)]
         public enum Flags : u16
