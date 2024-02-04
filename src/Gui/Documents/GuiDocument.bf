@@ -37,7 +37,6 @@ namespace Nanoforge.Gui
         public bool HasMenuBar = false;
         public bool NoWindowPadding = false;
         public bool HasCustomOutlinerAndInspector = false;
-        public bool ResetOnClose = false;
 
         public virtual void Update(App app, Gui gui)
         {

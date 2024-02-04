@@ -346,7 +346,12 @@ namespace Nanoforge.App
         {
             Loading = true;
             Ready = false;
-            ThreadPool.QueueUserWorkItem(new () => { Load(projectFilePath, true); });
+            String pathCopy = new .()..Append(projectFilePath); //Original string goes out of scope quickly since all code so far is pulling it from NanoDB.CurrentProject.FilePath (which gets reset before loading project)
+            ThreadPool.QueueUserWorkItem(new () =>
+			{
+				Load(pathCopy, true);
+                delete pathCopy;
+		    });
         }
 
         //TODO: Come up with a better way of toggling the task dialog. showDialog works for now but it's ugly and I don't like mixing in UI and logic code like this.

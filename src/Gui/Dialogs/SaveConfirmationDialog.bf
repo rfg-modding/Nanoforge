@@ -9,6 +9,8 @@ namespace Nanoforge.Gui.Dialogs
     //Confirms that the user wants to close documents with unsaved changes
 	public class SaveConfirmationDialog : Dialog
 	{
+        public bool UserChoseDontSave = false;
+
         public this() : base("Save?")
         {
 
@@ -53,6 +55,10 @@ namespace Nanoforge.Gui.Dialogs
             {
                 //List of files with unsaved changes
                 ImGui.Text("Save changes to the following file(s)?");
+                ImGui.PushStyleColor(.Text, ImGui.Red);
+                ImGui.TextWrapped("WARNING! Nanoforge can't save or discard changes per map at the moment. So if you click 'Save' or 'Don't save' it'll apply that to ALL MAPS you have open with unsaved changes.");
+                ImGui.TextWrapped("Per map saving & discarding will be added in a future release.");
+                ImGui.PopStyleColor();
                 f32 itemHeight = ImGui.GetTextLineHeightWithSpacing();
                 if (ImGui.BeginChildFrame(ImGui.GetID("FilesWithUnsavedChanges"), .(-f32.Epsilon, 6.25f * itemHeight)))
                 {
@@ -81,10 +87,11 @@ namespace Nanoforge.Gui.Dialogs
                         if (!doc.Open && doc.UnsavedChanges)
                         {
                             doc.UnsavedChanges = false;
-                            doc.ResetOnClose = true;
                         }
                     }
                     Close();
+
+                    UserChoseDontSave = true;
                 }
 
                 ImGui.SameLine();
@@ -103,6 +110,13 @@ namespace Nanoforge.Gui.Dialogs
                     gui.[Friend]_createProjectRequested = false;
                     gui.[Friend]_openProjectRequested = false;
                     gui.[Friend]_closeProjectRequested = false;
+
+                    //Cancel app close if thats in progress
+                    if (app.Exit)
+                    {
+                        app.Exit = false;
+                    }
+
                     Close();
                 }
 

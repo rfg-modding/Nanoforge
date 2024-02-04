@@ -83,7 +83,10 @@ namespace Nanoforge.Misc
             }
 
             if (ShouldClose)
+            {
                 app.Exit = true;
+                ShouldClose = false;
+            }
         }
 
         LRESULT InstanceWNDPROC(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam)

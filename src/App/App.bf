@@ -6,6 +6,7 @@ using Nanoforge.Misc;
 using Common.Math;
 using Common;
 using System;
+using Nanoforge.Gui;
 
 namespace Nanoforge.App
 {
@@ -107,9 +108,25 @@ namespace Nanoforge.App
 				startupSystem(this);
 			}
 
+            //Stupid hack so the gui can complete its save confirmation dialog before closing the app.
+			//Bad practice but it will work for now. I made issue (https://github.com/rfg-modding/Nanoforge/issues/140) and put it on the v1.1.0 project list so it gets handled in the near future.
+            Gui gui = GetResource<Gui>();
+
 			//Main loop
-			while (!Exit)
+			while (true)
 			{
+                if (Exit)
+                {
+                    if (!gui.CloseInProgress)
+                    {
+                        gui.CloseNanoforge(); //Make the gui open the save confirmation dialog if needed
+                    }
+                    if (gui.ReadyForExit)
+                    {
+                        break;
+                    }
+                }
+
 				FrameData frameData = GetResource<FrameData>();
                 _frameTimer.Restart();
 

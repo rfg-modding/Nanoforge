@@ -30,6 +30,7 @@ namespace Nanoforge.Gui
         public GuiDocumentBase FocusedDocument = null;
 
         public int NumUnsavedDocuments => Documents.Select((doc) => doc).Where((doc) => !doc.Open && doc.UnsavedChanges).Count();
+        public bool CloseInProgress => _closeNanoforgeRequested;
         private bool _closeNanoforgeRequested = false;
         private bool _createProjectRequested = false;
         private bool _openProjectRequested = false;
@@ -41,6 +42,8 @@ namespace Nanoforge.Gui
         private append NewProjectDialog _newProjectDialog;
         [RegisterDialog]
         public append DataFolderSelectDialog DataFolderSelector;
+
+        public bool ReadyForExit { get; private set; } = false;
 
 		static void ISystem.Build(App app)
 		{
@@ -131,20 +134,38 @@ namespace Nanoforge.Gui
                     _newProjectDialog.Show();
                     _createProjectRequested = false;
                 }
-                if (_openProjectRequested)
+                else if (_openProjectRequested)
                 {
                     TryOpenProject();
                     _openProjectRequested = false;
                 }
-                if (_closeProjectRequested)
+                else if (_closeProjectRequested)
                 {
                     NanoDB.Reset();
                     _closeProjectRequested = false;
                 }
-                if (_closeNanoforgeRequested)
+                else if (_closeNanoforgeRequested && !NanoDB.Saving)
                 {
                     app.Exit = true;
+                    ReadyForExit = true;
                 }
+                else if (SaveConfirmationDialog.UserChoseDontSave)
+                {
+                    for (var document in Documents)
+                    {
+                        document.UnsavedChanges = false;
+                        document.Open = false;
+                    }
+
+                    //We're not creating a new project or opening another. So we must've just closed a map document and clicked "Don't Save". Force a project reload to discard the changes.
+                    //Temporary code until we get proper undo/redo support. We're forced to reload the last saved copy of the project to discard changes made since the last save.
+                    //Currently NF has no way to rollback changes for a single map or object, so if multiple maps have been edited we either need to save them all or discard them all.
+                    //Two possible ways to fix this in future:
+                    //    - Fix when undo/redo is added. It'll need a way to track and rollback changes per object. So we could use that to fix this.
+                    //    - Fix when maps are split into separate .nanodata files. I want to do this in the future to reduce load times and avoid loading objects for maps that aren't opened in the editor. Would make it easy to discard per map.
+                    NanoDB.LoadAsync(NanoDB.CurrentProject.FilePath);
+                }
+                SaveConfirmationDialog.UserChoseDontSave = false;
             }
 
             //Draw dialogs
@@ -313,6 +334,7 @@ namespace Nanoforge.Gui
         public void CloseNanoforge()
         {
             _closeNanoforgeRequested = true;
+            ReadyForExit = false;
             for (GuiDocumentBase doc in Documents)
 	            doc.Open = false; //Close all documents so unsaved changes popup lists them
 
