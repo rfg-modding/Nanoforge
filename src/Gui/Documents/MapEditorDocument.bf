@@ -70,7 +70,7 @@ namespace Nanoforge.Gui.Documents
         //private bool _highlightHoveredZone = false; //TODO: Implement once multi zone maps are supported again
         //private float _zoneBoxHeight = 150.0f;
         private bool _highlightHoveredObject = false;
-        private bool _autoMoveChildren = true; //Auto move children when the parent object is moved
+        public bool AutoMoveChildren = true; //Auto move children when the parent object is moved
 
         [BonTarget, ReflectAll]
         public class MapEditorSettings : EditorObject
@@ -746,7 +746,7 @@ namespace Nanoforge.Gui.Documents
                 ImGui.SameLine();
                 ImGui.HelpMarker("Draw a solid box over objects when they're moused over in the outliner. Can also be toggled with the G key");
 
-                ImGui.Checkbox("Auto move children", &_autoMoveChildren);
+                ImGui.Checkbox("Auto move children", &AutoMoveChildren);
                 ImGui.SameLine();
                 ImGui.HelpMarker("Automatically move child objects by the same amount when moving their parents");
 

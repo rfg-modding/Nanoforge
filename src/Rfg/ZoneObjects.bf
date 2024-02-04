@@ -4,6 +4,8 @@ using Common.Math;
 using Common;
 using System;
 using Nanoforge.Misc;
+using Nanoforge.Render.Resources;
+using Bon;
 
 namespace Nanoforge.Rfg
 {
@@ -56,6 +58,10 @@ namespace Nanoforge.Rfg
         public OptionalObject<String> RfgDisplayName = new .(new String()) ~delete _;
         [EditorProperty]
         public OptionalObject<String> Description = new .(new String()) ~delete _;
+
+        //Reference to renderer data. Only set for objects which have visible mesh in the editor
+        [BonIgnore]
+        public RenderObject RenderObject = null;
 
         [Reflect(.All)]
         public enum Flags : u16

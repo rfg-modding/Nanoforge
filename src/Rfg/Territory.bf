@@ -189,12 +189,13 @@ namespace Nanoforge.Rfg
                     Mat3 moverOrient = mover.Orient.Enabled ? mover.Orient.Value : .Identity;
                     switch (scene.CreateRenderChunk(chunk.Mesh.VertexFormat.ToString(.. scope .()), chunkMesh, mover.Position, moverOrient, variant))
                     {
-                        case .Ok(RenderChunk obj):
-                            obj.Visible = true;
-                            obj.Textures[0] = diffuse;
-                            obj.Textures[1] = specular;
-                            obj.Textures[2] = normal;
-                            obj.UseTextures = true;
+                        case .Ok(RenderChunk chunkRenderObject):
+                            chunkRenderObject.Visible = true;
+                            chunkRenderObject.Textures[0] = diffuse;
+                            chunkRenderObject.Textures[1] = specular;
+                            chunkRenderObject.Textures[2] = normal;
+                            chunkRenderObject.UseTextures = true;
+                            obj.RenderObject = chunkRenderObject;
                         case .Err:
                             delete chunkMesh;
                             Logger.Error("Failed to create render chunk for object {}", mover.Name);

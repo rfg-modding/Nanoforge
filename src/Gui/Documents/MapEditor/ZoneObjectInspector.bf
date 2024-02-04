@@ -113,15 +113,6 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         }    
         ImGui.Separator();
 
-        if (ImGui.InputBoundingBox("Bounding Box", ref obj.BBox))
-        {
-            editor.UnsavedChanges = true;
-        }
-        if (ImGui.InputOptionalMat3("Orientation", ref obj.Orient))
-        {
-            editor.UnsavedChanges = true;
-        }
-
         if (ImGui.InputOptionalString("Description", obj.Description))
         {
             editor.UnsavedChanges = true;
@@ -142,16 +133,29 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
             Vec3 delta = obj.Position - initialPos;
             obj.BBox += delta;
 
-            //TODO: Update render chunk position
+            //Update mesh position
+            if (obj.RenderObject != null)
+            {
+                obj.RenderObject.Position = obj.Position;
+            }
 
-            bool autoMoveChildren = true;
-            if (autoMoveChildren)
+            if (editor.AutoMoveChildren)
             {
                 MoveObjectChildrenRecursive(obj, delta);
-                //TODO: Auto move children if setting is enabled
-                //TODO:    Pass MapEditorDocument in for ease of access
-                //TODO:    Implement CVar. Maybe use bon this time for wider type options
             }    
+        }
+
+        if (ImGui.InputBoundingBox("Bounding Box", ref obj.BBox))
+        {
+            editor.UnsavedChanges = true;
+        }
+        if (ImGui.InputOptionalMat3("Orientation", ref obj.Orient))
+        {
+            editor.UnsavedChanges = true;
+            if (obj.RenderObject != null && obj.Orient.Enabled)
+            {
+                obj.RenderObject.Rotation = obj.Orient.Value;
+            }
         }
 
         ImGui.Separator();
