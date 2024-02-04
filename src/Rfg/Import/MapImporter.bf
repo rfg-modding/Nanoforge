@@ -301,22 +301,23 @@ namespace Nanoforge.Rfg.Import
                                 }
 
                                 //Find the object
-                                var search = zone.Objects.Select((obj) => obj).Where((obj) => obj.Handle == handle && obj.Num == num).First();
-                                if (search == null)
+                                var search = zone.Objects.Select((obj) => obj).Where((obj) => obj.Handle == handle && obj.Num == num);
+                                if (search.Count() == 0)
                                 {
                                     Logger.Error("Couldn't find object [{}, {}] while loading EditorData.xml", handle, num);
                                     continue;
                                 }
+                                var object = search.First();
 
                                 //Set fields if present
                                 if (objName != null)
                                 {
-                                    search.Name.Set(objName);
+                                    object.Name.Set(objName);
                                 }
                                 if (objDescription != null && !objDescription.IsEmpty)
                                 {
-                                    search.Description.Value.Set(objDescription);
-                                    search.Description.Enabled = true;
+                                    object.Description.Value.Set(objDescription);
+                                    object.Description.Enabled = true;
                                 }
                             }
                             break;
