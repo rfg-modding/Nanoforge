@@ -441,14 +441,14 @@ namespace Nanoforge.Rfg.Export
                 Try!(_writer.WriteFloatProperty("game_destroyed_pct", object.GameDestroyedPercentage.Value));
             }
 
-            if (object.WorldAnchors != null)
+            if (object.WorldAnchors.Enabled && object.WorldAnchors.Value != null)
             {
-                Try!(_writer.WriteBuffer("world_anchors", object.WorldAnchors));
+                Try!(_writer.WriteBuffer("world_anchors", object.WorldAnchors.Value));
             }
 
-            if (object.DynamicLinks != null)
+            if (object.DynamicLinks.Enabled && object.DynamicLinks.Value != null)
             {
-                Try!(_writer.WriteBuffer("dynamic_links", object.DynamicLinks));
+                Try!(_writer.WriteBuffer("dynamic_links", object.DynamicLinks.Value));
             }
 
             return .Ok;
@@ -803,7 +803,7 @@ namespace Nanoforge.Rfg.Export
             RfgConstraint object = (RfgConstraint)objBase;
             Try!(ObjectWriter(object));
 
-            if (object.Template.Enabled)
+            if (object.Template.Enabled && object.Template.Value != null)
             {
                 Try!(_writer.WriteConstraintTemplate("template", object.Template.Value));
             }

@@ -699,26 +699,14 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetBuffer("world_anchors") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"world_anchors_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.WorldAnchors = buffer;
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store world_anchors for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create world_anchors buffer");
-                }
+                obj.WorldAnchors.Value = bytes.CreateArrayCopy();
+                obj.WorldAnchors.Enabled = true;
             }
 
             if (rfgObj.GetBuffer("dynamic_links") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"dynamic_links_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.DynamicLinks = buffer;
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store dynamic_links for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create dynamic_links buffer");
-                }
+                obj.DynamicLinks.Value = bytes.CreateArrayCopy();
+                obj.DynamicLinks.Enabled = true;
             }
 
             return obj;
@@ -1054,14 +1042,8 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetBuffer("navpoint_data") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"navpoint_data_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.NavpointData.SetAndEnable(buffer);
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store navpoint_data for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create navpoint_data buffer");
-                }
+                obj.NavpointData.Value = bytes.CreateArrayCopy();
+                obj.NavpointData.Enabled = true;
             }
             else
             {
@@ -1109,25 +1091,13 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetBuffer("obj_links") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"obj_links_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.Links.SetAndEnable(buffer);
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store obj_links for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create obj_links buffer");
-                }
+                obj.Links.Value = bytes.CreateArrayCopy();
+                obj.Links.Enabled = true;
             }
             else if (rfgObj.GetBuffer("navlinks") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"navlinks_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.NavLinks.SetAndEnable(buffer);
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store navlinks for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create navlinks buffer");
-                }
+                obj.NavLinks.Value = bytes.CreateArrayCopy();
+                obj.NavLinks.Enabled = true;
             }
 
             if (obj.NavpointType.Enabled && obj.NavpointType.Value == .RoadCheckpoint)
@@ -1150,25 +1120,13 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetBuffer("covernode_data") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"covernode_data_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.CovernodeData.SetAndEnable(buffer);
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store covernode_data for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create covernode_data buffer");
-                }
+                obj.CovernodeData.Value = bytes.CreateArrayCopy();
+                obj.CovernodeData.Enabled = true;
             }
             else if (rfgObj.GetBuffer("cnp") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"covernode_data_old_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.OldCovernodeData.SetAndEnable(buffer);
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store covernode_data_old for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create covernode_data_old buffer");
-                }
+                obj.OldCovernodeData.Value = bytes.CreateArrayCopy();
+                obj.OldCovernodeData.Enabled = true;
             }
 
             if (rfgObj.GetF32("def_angle_left") case .Ok(f32 val))
@@ -1236,14 +1194,8 @@ namespace Nanoforge.Rfg.Import
                     return .Err("Constraint template field isn't the correct size.");
                 }
 
-                switch (NanoDB.CreateBuffer(bytes, scope $"constraint_template_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.Template.SetAndEnable(buffer);
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store constraint_template for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create constraint_template buffer");
-                }
+                obj.Template.Value = bytes.CreateArrayCopy();
+                obj.Template.Enabled = true;
             }
 
             if (rfgObj.GetU32("host_handle") case .Ok(u32 val))
@@ -1319,25 +1271,13 @@ namespace Nanoforge.Rfg.Import
 
             if (rfgObj.GetBuffer("obj_links") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"an_obj_links_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.ObjLinks.SetAndEnable(buffer);
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store an_obj_links for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create an_obj_links buffer");
-                }
+                obj.ObjLinks.Value = bytes.CreateArrayCopy();
+                obj.ObjLinks.Enabled = true;
             }
             else if (rfgObj.GetBuffer("links") case .Ok(Span<u8> bytes))
             {
-                switch (NanoDB.CreateBuffer(bytes, scope $"an_links_{obj.Handle}"))
-                {
-                    case .Ok(ProjectBuffer buffer):
-                        obj.Links.SetAndEnable(buffer);
-                    case .Err:
-                        Logger.Error("Failed to create buffer to store an_links for rfg object {}, {}", obj.Handle, obj.Num);
-                        return .Err("Failed to create an_links buffer");
-                }
+                obj.Links.Value = bytes.CreateArrayCopy();
+                obj.Links.Enabled = true;
             }
 
             return obj;

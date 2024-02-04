@@ -405,14 +405,10 @@ namespace Nanoforge.Rfg
         //[EditorProperty]
         //public i32 StreamOutPlayTime;
 
-        //TODO: Enable once buffer support is added to ProjectDB
-        //[EditorProperty]
-        //public u8[] WorldAnchors;
-        //[EditorProperty]
-        //public u8[] DynamicLinks;
-
-        public ProjectBuffer WorldAnchors;
-        public ProjectBuffer DynamicLinks;
+        [EditorProperty]
+        public OptionalObject<u8[]> WorldAnchors = new .(null) ~delete _;
+        [EditorProperty]
+        public OptionalObject<u8[]> DynamicLinks = new .(null) ~delete _;
 
         [Reflect(.All)]
         public enum MoveTypeEnum
@@ -586,6 +582,7 @@ namespace Nanoforge.Rfg
     [ReflectAll]
     public class MultiFlag : Item
     {
+        [EditorProperty]
         public Team MpTeam;
     }
 
@@ -593,7 +590,7 @@ namespace Nanoforge.Rfg
     public class NavPoint : ZoneObject
     {
         [EditorProperty]
-        public OptionalObject<ProjectBuffer> NavpointData = new .(null) ~delete _;
+        public OptionalObject<u8[]> NavpointData = new .(null) ~delete _;
         [EditorProperty]
         public OptionalValue<NavpointType> NavpointType = .(.Ground);
         [EditorProperty]
@@ -605,9 +602,9 @@ namespace Nanoforge.Rfg
         [EditorProperty]
         public OptionalValue<bool> IgnoreLanes;
         [EditorProperty]
-        public OptionalObject<ProjectBuffer> Links = new .(null) ~delete _;
+        public OptionalObject<u8[]> Links = new .(null) ~delete _;
         [EditorProperty]
-        public OptionalObject<ProjectBuffer> NavLinks = new .(null) ~delete _;
+        public OptionalObject<u8[]> NavLinks = new .(null) ~delete _;
         [EditorProperty]
         public OptionalValue<Mat3> NavOrient = .(.Identity);
 
@@ -696,9 +693,9 @@ namespace Nanoforge.Rfg
     {
         //TODO: Figure out what data these hold and store them in actual fields instead of using buffers
         [EditorProperty]
-        public OptionalObject<ProjectBuffer> CovernodeData = new .(null) ~delete _;
+        public OptionalObject<u8[]> CovernodeData = new .(null) ~delete _;
         [EditorProperty]
-        public OptionalObject<ProjectBuffer> OldCovernodeData = new .(null) ~delete _;
+        public OptionalObject<u8[]> OldCovernodeData = new .(null) ~delete _;
 
         [EditorProperty]
         public OptionalValue<f32> DefensiveAngleLeft = .(90.0f);
@@ -764,7 +761,7 @@ namespace Nanoforge.Rfg
     {
         //TODO: Convert this to fields. Storing it in a buffer temporarily since constraints aren't needed for MP map editing. We'll need the actual fields when SP editing is added.
         [EditorProperty]
-        public OptionalObject<ProjectBuffer> Template = new .(null) ~delete _;
+        public OptionalObject<u8[]> Template = new .(null) ~delete _;
         [EditorProperty]
         public OptionalValue<u32> HostHandle = .(u32.MaxValue);
         [EditorProperty]
@@ -798,9 +795,9 @@ namespace Nanoforge.Rfg
 
         //TODO: Convert these to their actual data structure. Using buffers for now since we don't need these for MP map editing.
         [EditorProperty]
-        public OptionalObject<ProjectBuffer> ObjLinks = new .(null) ~delete _;
+        public OptionalObject<u8[]> ObjLinks = new .(null) ~delete _;
         [EditorProperty]
-        public OptionalObject<ProjectBuffer> Links = new .(null) ~delete _;
+        public OptionalObject<u8[]> Links = new .(null) ~delete _;
     }
 
     [ReflectAll]

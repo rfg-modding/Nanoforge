@@ -338,30 +338,21 @@ namespace Nanoforge.Rfg.Export
             return .Ok;
         }	
 
-        public Result<void> WriteBuffer(StringView propertyName, ProjectBuffer buffer)
+        public Result<void> WriteBuffer(StringView propertyName, u8[] bytes)
         {
-            switch (buffer.Load())
+            if (bytes.Count > u16.MaxValue - 1)
             {
-                case .Ok(List<u8> bytes):
-                    defer delete bytes;
-                    if (bytes.Count > u16.MaxValue - 1)
-                    {
-                        Logger.Error("Exceeded maximum zone object buffer property length when loading zone property '{}'", propertyName);
-                        return .Err;
-                    }
-
-                    Try!(_stream.Write<u16>(6)); //Property type
-                    Try!(_stream.Write<u16>((u16)bytes.Count)); //Property size
-                    Try!(_stream.Write<u32>(Hash.HashVolitionCRC(propertyName, 0))); //Property name hash
-                    Try!(_stream.TryWrite(bytes));
-                    _stream.Align2(4);
-                    _numPropertiesWritten++;
-                    return .Ok;
-
-                case .Err:
-                    Logger.Error(scope $"Failed to load project buffer '{buffer.Name}' while writing zone property '{propertyName}'.");
-                    return .Err;
+                Logger.Error("Exceeded maximum zone object buffer property length when loading zone property '{}'", propertyName);
+                return .Err;
             }
+
+            Try!(_stream.Write<u16>(6)); //Property type
+            Try!(_stream.Write<u16>((u16)bytes.Count)); //Property size
+            Try!(_stream.Write<u32>(Hash.HashVolitionCRC(propertyName, 0))); //Property name hash
+            Try!(_stream.TryWrite(bytes));
+            _stream.Align2(4);
+            _numPropertiesWritten++;
+            return .Ok;
         }
 
         //Helper to write plain enums to strings. For bitflags like TriggerRegionFlags use WriteFlagsEnum()
@@ -382,37 +373,28 @@ namespace Nanoforge.Rfg.Export
             return .Ok;
         }
 
-        //Note: Using ProjectBuffer temporarily instead of a struct until SP editing is added.
-        public Result<void> WriteConstraintTemplate(StringView propertyName, ProjectBuffer data)
+        //Note: Using u8[] temporarily instead of a struct until SP editing is added.
+        public Result<void> WriteConstraintTemplate(StringView propertyName, u8[] bytes)
         {
-            switch (data.Load())
+            if (bytes.Count != 156)
             {
-                case .Ok(List<u8> bytes):
-                    defer delete bytes;
-                    if (bytes.Count != 156)
-                    {
-                        Logger.Error("Unexpected data size when writing constraint template zone property '{}'. Expected size is 156 bytes. Actual size is {} bytes", propertyName, bytes.Count);
-                        return .Err;
-                    }
-                    if (bytes.Count > u16.MaxValue - 1)
-                    {
-                        Logger.Error("Exceeded maximum zone object buffer property length when loading constraint template zone property '{}'", propertyName);
-                        return .Err;
-                    }
-
-                    //Only difference from WriteBuffer is the property type
-                    Try!(_stream.Write<u16>(5)); //Property type
-                    Try!(_stream.Write<u16>((u16)bytes.Count)); //Property size
-                    Try!(_stream.Write<u32>(Hash.HashVolitionCRC(propertyName, 0))); //Property name hash
-                    Try!(_stream.TryWrite(bytes));
-                    _stream.Align2(4);
-                    _numPropertiesWritten++;
-                    return .Ok;
-
-                case .Err:
-                    Logger.Error(scope $"Failed to load project buffer '{data.Name}' while writing constraint template for zone property '{propertyName}'.");
-                    return .Err;
+                Logger.Error("Unexpected data size when writing constraint template zone property '{}'. Expected size is 156 bytes. Actual size is {} bytes", propertyName, bytes.Count);
+                return .Err;
             }
+            if (bytes.Count > u16.MaxValue - 1)
+            {
+                Logger.Error("Exceeded maximum zone object buffer property length when loading constraint template zone property '{}'", propertyName);
+                return .Err;
+            }
+
+            //Only difference from WriteBuffer is the property type
+            Try!(_stream.Write<u16>(5)); //Property type
+            Try!(_stream.Write<u16>((u16)bytes.Count)); //Property size
+            Try!(_stream.Write<u32>(Hash.HashVolitionCRC(propertyName, 0))); //Property name hash
+            Try!(_stream.TryWrite(bytes));
+            _stream.Align2(4);
+            _numPropertiesWritten++;
+            return .Ok;
         }
     }
 }
