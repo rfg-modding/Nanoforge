@@ -11,6 +11,7 @@ namespace Nanoforge.Gui
 	{
         public static ImGuiFont FontSmall;
         public static ImGuiFont FontDefault;
+        public static ImGuiFont FontM;
         public static ImGuiFont FontL;
         public static ImGuiFont FontXL;
         private static append List<u16> _iconRanges = .();
@@ -76,6 +77,7 @@ namespace Nanoforge.Gui
 
 			FontSmall.Load(16.0f, &iconConfig, _iconRanges.Ptr);
 			FontDefault.Load(18.0f, &iconConfig, _iconRanges.Ptr);
+            FontM.Load(21.0f, &iconConfig, _iconRanges.Ptr);
 			FontL.Load(26.0f, &iconConfig, _iconRanges.Ptr);
 			FontXL.Load(33.5f, &iconConfig, _iconRanges.Ptr);
 

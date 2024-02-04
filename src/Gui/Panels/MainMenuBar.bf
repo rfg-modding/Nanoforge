@@ -279,19 +279,20 @@ namespace Nanoforge.Gui.Panels
             //Set default docking positions on first draw
             if (FirstDraw)
             {
-                ImGui.ID dockLeftId = ImGui.DockBuilderSplitNode(DockspaceId, .Left, 0.22f, var outIdLeft, out DockspaceId);
-                ImGui.ID dockLeftBottomId = ImGui.DockBuilderSplitNode(dockLeftId, .Down, 0.58f, var outIdBottom, out dockLeftId);
+                //ImGui.ID dockLeftId = ImGui.DockBuilderSplitNode(DockspaceId, .Left, 0.22f, var outIdLeft, out DockspaceId);
+                ImGui.ID dockRightId = ImGui.DockBuilderSplitNode(DockspaceId, .Right, 0.22f, var outIdRight, out DockspaceId);
+                ImGui.ID dockLeftBottomId = ImGui.DockBuilderSplitNode(dockRightId, .Down, 0.58f, var outIdBottom, out dockRightId);
                 //ImGui.ID dockRightId = ImGui.DockBuilderSplitNode(DockspaceId, .Right, 0.28f, var outIdRight, out DockspaceId);
                 //ImGui.ID dockRightUp = ImGui.DockBuilderSplitNode(dockRightId, .Up, 0.35f, var outIdRightUp, out dockRightId);
                 DockspaceCentralNodeId = ImGui.DockBuilderGetCentralNode(DockspaceId).ID;
                 ImGui.ID dockCentralDownSplitId = ImGui.DockBuilderSplitNode(DockspaceCentralNodeId, .Down, 0.20f, var outIdCentralDown, out DockspaceCentralNodeId);
 
                 //Todo: Tie panel titles to these calls so both copies of the strings don't need to be updated every time the code changes
-                ImGui.DockBuilderDockWindow("Start page", DockspaceCentralNodeId);
-                ImGui.DockBuilderDockWindow("File explorer", dockLeftId);
-                ImGui.DockBuilderDockWindow("Dear ImGui Demo", dockLeftId);
-                ImGui.DockBuilderDockWindow(StateViewer.ID.Ptr, dockLeftId);
-                ImGui.DockBuilderDockWindow(gui.OutlinerIdentifier, dockLeftId);
+                //ImGui.DockBuilderDockWindow("Start page", DockspaceCentralNodeId);
+                //ImGui.DockBuilderDockWindow("File explorer", dockLeftId);
+                ImGui.DockBuilderDockWindow("Dear ImGui Demo", dockRightId);
+                ImGui.DockBuilderDockWindow(StateViewer.ID.Ptr, dockRightId);
+                ImGui.DockBuilderDockWindow(gui.OutlinerIdentifier, dockRightId);
                 ImGui.DockBuilderDockWindow(gui.InspectorIdentifier, dockLeftBottomId);
                 ImGui.DockBuilderDockWindow("Log", dockCentralDownSplitId);
             }
