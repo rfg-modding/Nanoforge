@@ -9,15 +9,15 @@ using System.Threading;
 
 static
 {
-    public static Nanoforge.Gui.Dialogs.BackgroundTaskDialog gTaskDialog = new .() ~delete _;
+    public static Nanoforge.Gui.Dialogs.TaskDialog gTaskDialog = new .() ~delete _;
 }
 
 namespace Nanoforge.Gui.Dialogs
 {
-    //Modal dialog that's meant to be shown whenever a threaded background task is running. Intended to block all user input and keybinds while running to prevent any accidental data races.
+    //Modal dialog that's meant to be shown whenever a threaded task is running. Intended to block all user input and keybinds while running to prevent any accidental data races.
     //This is part of the new approach to threading being taken for the rewrite initially. Try to use threading cautiously and sparingly.
 	//Don't want users to click the map editor or hit keybinds mid load/save/import/export and cause data to get touched in the middle of the process. 
-	public class BackgroundTaskDialog : Dialog 
+	public class TaskDialog : Dialog 
 	{
         public bool CanClose = false;
         private append String _status;

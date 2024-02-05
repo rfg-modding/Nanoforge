@@ -57,7 +57,7 @@ namespace Nanoforge.Gui
             AddPanel("View/State viewer", true, new StateViewer());
             RegisterDialogs(this);
 
-            //Hardcoded static instance of BackgroundTaskDialog for global use
+            //Hardcoded static instance of TaskDialog for global use
             _guiDialogs[this].Add(gTaskDialog);
 		}
 
