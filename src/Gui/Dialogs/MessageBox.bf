@@ -20,7 +20,7 @@ namespace Nanoforge.Gui.Dialogs
 
         public this(StringView title) : base(title)
         {
-
+            DisableKeybindsWhileOpen = true;
         }
 
         public void Show(StringView content, MessageBoxType type, delegate void(DialogResult result) onClose = null)

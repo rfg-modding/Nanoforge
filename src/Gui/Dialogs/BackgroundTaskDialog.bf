@@ -29,7 +29,7 @@ namespace Nanoforge.Gui.Dialogs
 
         public this() : base("Task in progress...")
         {
-
+            DisableKeybindsWhileOpen = true;
         }
 
         public void Step()
@@ -72,7 +72,6 @@ namespace Nanoforge.Gui.Dialogs
             _statusLog.ClearAndDeleteItems();
             _numSteps = numSteps;
             _step = 0;
-            Input.KeysEnabled = false;
         }
 
         public override void Draw(App app, Gui gui)
@@ -145,7 +144,6 @@ namespace Nanoforge.Gui.Dialogs
             Result = result;
             _firstDraw = true;
             ImGui.CloseCurrentPopup();
-            Input.KeysEnabled = true;
         }
 	}
 }

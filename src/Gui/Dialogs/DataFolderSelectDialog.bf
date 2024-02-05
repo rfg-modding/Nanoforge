@@ -23,7 +23,7 @@ namespace Nanoforge.Gui.Dialogs
 
         public this() : base("Data folder selector")
         {
-
+            DisableKeybindsWhileOpen = true;
         }
 
         public void Show()

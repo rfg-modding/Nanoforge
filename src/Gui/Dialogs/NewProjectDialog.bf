@@ -22,7 +22,7 @@ namespace Nanoforge.Gui.Dialogs
 
         public this() : base("New project")
         {
-
+            DisableKeybindsWhileOpen = true;
         }
 
         public void Show()

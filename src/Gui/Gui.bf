@@ -169,6 +169,7 @@ namespace Nanoforge.Gui
             }
 
             //Draw dialogs
+            bool anyKeyDisableDialogsOpen = false;
             for (var kv in _guiDialogs)
             {
                 for (Dialog dialog in kv.value)
@@ -176,9 +177,15 @@ namespace Nanoforge.Gui
                     if (dialog.Open)
                     {
                         dialog.Draw(app, this);
+
+                        if (dialog.DisableKeybindsWhileOpen)
+                            anyKeyDisableDialogsOpen = true;
                     }
                 }
             }
+
+            //Disable keybinds if there are currently any dialogs open that request that
+            Input.KeysEnabled = !anyKeyDisableDialogsOpen;
 
             //Auto open data folder selector if its not set
             if (!PackfileVFS.Ready && !PackfileVFS.Loading)

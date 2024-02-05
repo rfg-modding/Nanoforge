@@ -13,7 +13,7 @@ namespace Nanoforge.Gui.Dialogs
 
         public this() : base("Save?")
         {
-
+            DisableKeybindsWhileOpen = true;
         }
 
         public void Show()
