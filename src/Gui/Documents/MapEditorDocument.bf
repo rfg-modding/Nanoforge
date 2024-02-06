@@ -87,7 +87,7 @@ namespace Nanoforge.Gui.Documents
         {
             SetupObjectClasses();
             MapName.Set(mapName);
-            HasMenuBar = false;
+            HasMenuBar = true;
             NoWindowPadding = true;
             HasCustomOutlinerAndInspector = true;
 
@@ -273,6 +273,8 @@ namespace Nanoforge.Gui.Documents
                     ZoneObjectClass objectClass = GetObjectClass(obj);
                     if (!objectClass.Visible)
                         continue;
+                    if (_onlyShowPersistentObjects && !obj.Flags.HasFlag(.Persistent))
+                        continue;
 
                     Vec4 color = .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f);
                     _scene.DrawBox(obj.BBox.Min, obj.BBox.Max, color);
@@ -284,106 +286,122 @@ namespace Nanoforge.Gui.Documents
         {
             ImGui.SetNextItemWidth(_scene.ViewWidth);
             ImGui.PushStyleVar(.WindowPadding, .(8.0f, 8.0f)); //Must manually set padding here since the parent window has padding disabled to get the viewport flush with the window border.
+            defer { ImGui.PopStyleVar(); }
             bool openScenePopup = false;
             bool openCameraPopup = false;
             bool openExportPopup = false;
 
-            Fonts.FontXL.Push();
-            if (ImGui.Button(Icons.ICON_FA_FILE_EXPORT))
+            //TODO: Implement the menu bar buttons and the camera + scene popups. Put the camera and scene popups in separate functions
+            if (ImGui.BeginMenuBar())
             {
-                openExportPopup = true;
-            }
-            Fonts.FontXL.Pop();
-
-            //NOTE: I left in the C++ versions of these to be ported later. It won't be very long until then.
-            //      Also, for some reason this main menu bar won't draw in the rewrite despite the code being identical aside from the disabled menu options. For now a button works but I'll try fixing it again when I implement the rest of the menu bar.
-
-            /*if (ImGui.BeginMenuBar())
-            {
-
-                /*if (ImGui.BeginMenu("View"))
+                if (ImGui.BeginMenu("Editor"))
                 {
                     if (ImGui.MenuItem("Scene"))
                         openScenePopup = true;
                     if (ImGui.MenuItem("Camera"))
                         openCameraPopup = true;
 
+                    ImGui.Separator();
+
+                    if (ImGui.BeginMenu("Settings"))
+                    {
+                        if (ImGui.MenuItem("Auto move children", null, &AutoMoveChildren))
+                        {
+
+                        }
+                        ImGui.TooltipOnPrevious("Automatically move child objects by the same amount when moving their parents");
+
+                        if (ImGui.MenuItem("Highlight hovered objects in outliner", null, &_highlightHoveredObject))
+                        {
+
+                        }
+
+                        if (ImGui.MenuItem("Only show persistent objects", null, &_onlyShowPersistentObjects))
+                        {
+
+                        }
+                        ImGui.TooltipOnPrevious("Only display objects with the 'Persistent' flag set");
+
+                        ImGui.EndMenu();
+                    }
+
                     ImGui.EndMenu();
                 }
+
                 if (ImGui.BeginMenu("Object"))
                 {
-                    bool canClone = selectedObject_.Valid();
-                    bool canDelete = selectedObject_.Valid();
-                    bool canRemoveWorldAnchors = selectedObject_.Valid() && selectedObject_.Has("world_anchors");
-                    bool canRemoveDynamicLinks = selectedObject_.Valid() && selectedObject_.Has("dynamic_links");
-                    bool hasChildren = selectedObject_.Valid() && selectedObject_.Has("Children") && selectedObject_.GetObjectList("Children").size() > 0;
-                    bool hasParent = selectedObject_.Valid() && selectedObject_.Get<ObjectHandle>("Parent").Valid();
+                    bool canClone = (_selectedObject != null);
+                    bool canDelete = (_selectedObject != null);
+                    bool canRemoveWorldAnchors = (_selectedObject != null) && _selectedObject.GetType() == typeof(RfgMover);
+                    bool canRemoveDynamicLinks = (_selectedObject != null) && _selectedObject.GetType() == typeof(RfgMover);
+                    bool hasChildren = (_selectedObject != null) && _selectedObject.Children.Count > 0;
+                    bool hasParent = (_selectedObject != null) && _selectedObject.Parent != null;
 
                     if (ImGui.MenuItem("Clone", "Ctrl + D", null, canClone))
                     {
-                        ShallowCloneObject(selectedObject_);
-                        _scrollToObjectInOutliner = selectedObject_;
+                        //ShallowCloneObject(selectedObject_);
+                        //_scrollToObjectInOutliner = selectedObject_;
                     }
                     if (ImGui.MenuItem("Deep clone", "", null, canClone))
                     {
-                        DeepCloneObject(selectedObject_, true);
-                        _scrollToObjectInOutliner = selectedObject_;
+                        //DeepCloneObject(selectedObject_, true);
+                        //_scrollToObjectInOutliner = selectedObject_;
                     }
 
                     ImGui.Separator();
                     if (ImGui.MenuItem("Orphan object", null, null, hasParent))
                     {
-                        orphanObjectPopupHandle_ = selectedObject_;
-                        orphanObjectPopup_.Open();
+                        //orphanObjectPopupHandle_ = selectedObject_;
+                        //orphanObjectPopup_.Open();
                     }
                     if (ImGui.MenuItem("Orphan children", null, null, hasChildren))
                     {
-                        orphanChildrenPopupHandle_ = selectedObject_;
-                        orphanChildrenPopup_.Open();
+                        //orphanChildrenPopupHandle_ = selectedObject_;
+                        //orphanChildrenPopup_.Open();
                     }
-                    if (ImGui.MenuItem("Add dummy object", null))
+                    if (ImGui.MenuItem("Create object", null))
                     {
-                        AddGenericObject();
-                        _scrollToObjectInOutliner = selectedObject_;
+                        //_objectCreationPopup.Show();
+                        //_scrollToObjectInOutliner = selectedObject_;
                     }
                     ImGui.SameLine();
-                    gui::HelpMarker("Creates a dummy object that you can turn into any object type. Improperly configured objects can crash the game, so use at your own risk.", null);
 
                     ImGui.Separator();
                     if (ImGui.MenuItem("Delete", "Delete", null, canDelete))
                     {
-                        DeleteObject(selectedObject_);
+                        //DeleteObject(selectedObject_);
                     }
 
                     ImGui.Separator();
                     if (ImGui.MenuItem("Copy scriptx reference", "Ctrl + I", null, canDelete))
                     {
-                        CopyScriptxReference(selectedObject_);
+                        //CopyScriptxReference(selectedObject_);
                     }
                     if (ImGui.MenuItem("Remove world anchors", "Ctrl + B", null, canRemoveWorldAnchors))
                     {
-                        RemoveWorldAnchors(selectedObject_);
+                        //RemoveWorldAnchors(selectedObject_);
                     }
                     if (ImGui.MenuItem("Remove dynamic links", "Ctrl + N", null, canRemoveDynamicLinks))
                     {
-                        RemoveDynamicLinks(selectedObject_);
+                        //RemoveDynamicLinks(selectedObject_);
                     }
 
                     ImGui.EndMenu();
-                }*/
+                }
+
                 if (ImGui.MenuItem("Export"))
                 {
                     openExportPopup = true;
                 }
 
                 ImGui.EndMenuBar();
-            }*/
+            }
 
             //Have to open the popup in the same scope as BeginPopup(), can't do it in the menu item result. Annoying restriction for imgui popups.
-            /*if (openScenePopup)
+            if (openScenePopup)
                 ImGui.OpenPopup("##ScenePopup");
             if (openCameraPopup)
-                ImGui.OpenPopup("##CameraPopup");*/
+                ImGui.OpenPopup("##CameraPopup");
             if (openExportPopup)
                 ImGui.OpenPopup("##MapExportPopup");
 
@@ -602,8 +620,6 @@ namespace Nanoforge.Gui.Documents
 
                 ImGui.EndPopup();
             }
-
-            ImGui.PopStyleVar();
         }
 
         public override void Save(App app, Gui gui)
@@ -724,7 +740,7 @@ namespace Nanoforge.Gui.Documents
                         objectClass.Visible = false;
                     }
                 }
-                
+
                 if (ImGui.Checkbox("Only show persistent", &_onlyShowPersistentObjects))
                 {
                     filtersChanged = true;
@@ -740,15 +756,6 @@ namespace Nanoforge.Gui.Documents
                 ImGui.InputFloat("Height", &_zoneBoxHeight);
                 ImGui.SameLine();
                 ImGui.HelpMarker("Draw a solid box over zones when they're moused over in the outliner. Can also be toggled with the F key");*/
-
-                //When checked draw solid bbox over moused over objects
-                ImGui.Checkbox("Highlight objects", &_highlightHoveredObject);
-                ImGui.SameLine();
-                ImGui.HelpMarker("Draw a solid box over objects when they're moused over in the outliner. Can also be toggled with the G key");
-
-                ImGui.Checkbox("Auto move children", &AutoMoveChildren);
-                ImGui.SameLine();
-                ImGui.HelpMarker("Automatically move child objects by the same amount when moving their parents");
 
                 //Set custom highlight colors for the table. It looks nicer this way.
                 ImGui.Vec4 selectedColor = .(0.157f, 0.350f, 0.588f, 1.0f);
