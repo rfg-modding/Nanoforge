@@ -118,6 +118,13 @@ namespace Nanoforge.App
             return buffer;
         }
 
+        public static void DeleteObject(EditorObject obj)
+        {
+            ScopedLock!(_objectCreationLock);
+            _objects.Remove(obj.UID);
+            delete obj;
+        }
+
         //Used to add objects created by DiffUtil when it commits changes. It creates its own objects so they can be destroyed on rollback and don't exist program wide until commit.
         public static void AddObject(EditorObject obj)
         {

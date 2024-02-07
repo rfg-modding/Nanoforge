@@ -20,6 +20,7 @@ using Nanoforge.Rfg.Export;
 
 namespace Nanoforge.Gui.Documents
 {
+    [ReflectAll]
 	public class MapEditorDocument : GuiDocumentBase
 	{
         public static Stopwatch TotalImportTimer = new Stopwatch(false) ~delete _;
@@ -82,6 +83,9 @@ namespace Nanoforge.Gui.Documents
 
         private bool _showMapExportFolderSelectorError = false;
         private append String _mapExportFolderSelectorError;
+
+        [RegisterDialog]
+        public append DeleteObjectConfirmationDialog DeleteConfirmationDialog;
 
         public this(StringView mapName)
         {
@@ -260,6 +264,8 @@ namespace Nanoforge.Gui.Documents
                 DrawMenuBar(app, gui);
             }
 
+            Keybinds(app);
+
             //Don't redraw if this document isn't focused by the user. 
             _scene.Active = (this == gui.FocusedDocument);
             if (!_scene.Active)
@@ -369,7 +375,7 @@ namespace Nanoforge.Gui.Documents
                     ImGui.Separator();
                     if (ImGui.MenuItem("Delete", "Delete", null, canDelete))
                     {
-                        //DeleteObject(selectedObject_);
+                        DeleteObjectAfterConfirmation(_selectedObject);
                     }
 
                     ImGui.Separator();
@@ -619,6 +625,25 @@ namespace Nanoforge.Gui.Documents
                 }
 
                 ImGui.EndPopup();
+            }
+        }
+
+        private void Keybinds(App app)
+        {
+            Input input = app.GetResource<Input>();
+            if (input.ControlDown)
+            {
+
+            }
+            else
+            {
+                if (input.KeyPressed(.Delete) && !ImGui.IsAnyItemActive())
+                {
+                    if (_selectedObject != null)
+					{
+                        DeleteObjectAfterConfirmation(_selectedObject);
+					}
+                }
             }
         }
 
@@ -881,7 +906,7 @@ namespace Nanoforge.Gui.Documents
             f32 nodeXPos = ImGui.GetCursorPosX(); //Store position of the node for drawing the node icon later
             bool nodeOpen = ImGui.TreeNodeEx(label.CStr(), .SpanAvailWidth | .OpenOnDoubleClick | .OpenOnArrow | (hasChildren ? .None : .Leaf) | (selected ? .Selected : .None));
 
-            if (ImGui.IsItemClicked())
+            if (ImGui.IsItemClicked(.Left) || ImGui.IsItemClicked(.Right))
             {
                 if (obj == SelectedObject)
                     SelectedObject = null;
@@ -893,6 +918,7 @@ namespace Nanoforge.Gui.Documents
                 obj.Classname.EnsureNullTerminator();
                 ImGui.TooltipOnPrevious(obj.Classname);
             }
+            Outliner_DrawContextMenu(obj);
 
             //Draw node icon
             ImGui.PushStyleColor(.Text, .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f));
@@ -923,6 +949,100 @@ namespace Nanoforge.Gui.Documents
                 ImGui.TreePop();
             }
             ImGui.PopID();
+        }
+
+        private void Outliner_DrawContextMenu(ZoneObject obj)
+        {
+            if (ImGui.BeginPopupContextItem())
+            {
+                if (obj == null)
+                {
+                    ImGui.Text("No object selected...");
+                    ImGui.EndPopup();
+                    return;
+                }
+
+                readonly bool hasParent = obj.Parent != null;
+                readonly bool hasChildren = obj.Children.Count > 0;
+
+                var objClass = GetObjectClass(obj);
+                String objLabel = scope .();
+                if (!obj.Name.IsEmpty)
+                    objLabel.Set(obj.Name);
+                else
+                    objLabel.Set(obj.Classname);
+
+                ImGui.TextColored(.(objClass.Color.x, objClass.Color.y, objClass.Color.z, 1.0f), objLabel);
+                ImGui.Separator();
+
+                ImGui.BeginDisabled(); //TODO: Temporary until other options are ported soon.
+
+                if (ImGui.Selectable("Clone"))
+                {
+                    //TODO: Implement
+                }
+
+                if (ImGui.BeginMenu("Clone too..."))
+                {
+                    //TODO: Implement with submenu containing list of other open maps to clone to
+                    ImGui.EndMenu();
+                }
+
+                if (ImGui.Selectable("Deep clone"))
+                {
+                    //TODO: Implement
+                }
+
+                if (ImGui.BeginMenu("Deep clone too..."))
+                {
+                    //TODO: Implement with submenu containing list of other open maps to clone to
+                    ImGui.EndMenu();
+                }
+
+                ImGui.Separator();
+                if (ImGui.Selectable("Create object"))
+                {
+                    //TODO: Implement
+                }
+
+                //ImGui.BeginDisabled(!hasParent);
+                if (ImGui.Selectable("Orphan"))
+                {
+                    //TODO: Implement
+                }
+                //ImGui.EndDisabled();
+
+                //ImGui.BeginDisabled(!hasChildren);
+                if (ImGui.Selectable("Orphan children"))
+                {
+                    //TODO: Implement
+                }
+                //ImGui.EndDisabled();
+
+                ImGui.EndDisabled();
+
+                ImGui.Separator();
+                if (ImGui.Selectable("Delete"))
+                {
+                    DeleteObjectAfterConfirmation(obj);
+                }
+
+                ImGui.Separator();
+                ImGui.BeginDisabled(); //TODO: Temporary until other options are ported soon.
+                if (ImGui.Selectable("Copy scriptx reference"))
+                {
+                    //TODO: Implement
+                }
+
+                if (ImGui.Selectable("Jump to"))
+                {
+                    //TODO: Implement
+                    //TODO: Also add a keybind and menu bar option for this
+                }
+                ImGui.EndDisabled();
+
+                ImGui.EndPopup();
+            }
         }
 
         public override void Inspector(App app, Gui gui)
@@ -1260,6 +1380,68 @@ namespace Nanoforge.Gui.Documents
                     }
                 }
             }
+        }
+
+        //Trigger the deletion confirmation dialog to appear and setup a delegate to run on close that'll perform the deletion if confirmed.
+        private void DeleteObjectAfterConfirmation(ZoneObject object)
+        {
+            DeleteConfirmationDialog.Show(object, new (dialogResult) =>
+			{
+                if (dialogResult == .Yes)
+                {
+                    DeleteObject(object, DeleteConfirmationDialog.ParentAdoptsChildren);
+                }
+			});
+        }
+
+        //parentAdoptsChildren causes the deleted objects parent to adopt its children. E.g. A -> B -> { C, D } We delete B and now A is the parent of C and D
+        private void DeleteObject(ZoneObject object, bool parentAdoptsChildren)
+        {
+            if (_selectedObject == object)
+            {
+                _selectedObject = null;
+            }
+
+            //Update child objects parent reference
+            for (ZoneObject child in object.Children)
+            {
+                if (parentAdoptsChildren && object.Parent != null)
+                {
+                    //Parent of deleted object adopts children
+                    child.Parent = object.Parent;
+                }
+                else
+				{
+                    child.Parent = null;
+				}
+            }
+
+            //Remove from parents children list
+            if (object.Parent != null)
+            {
+                object.Parent.Children.Remove(object);
+            }
+
+            //Remove from objects list in zone
+            for (Zone zone in Map.Zones)
+            {
+                if (zone.Objects.Contains(object))
+                {
+                    zone.Objects.Remove(object);
+                    break;
+                }
+            }
+
+            //Delete renderer data if the object has any
+            if (object.RenderObject != null)
+            {
+                _scene.DeleteRenderObject(object.RenderObject);
+            }
+
+            //Delete from NanoDB
+            NanoDB.DeleteObject(object);
+
+            UnsavedChanges = true;
         }
 	}
 }

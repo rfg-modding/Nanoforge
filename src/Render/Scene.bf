@@ -243,6 +243,30 @@ namespace Nanoforge.Render
             }
         }
 
+        public void DeleteRenderObject(RenderObject object)
+        {
+            ScopedLock!(_renderObjectCreationLock);
+
+            //Remove from object material dictionary
+            for (var kv in ObjectsByMaterial)
+            {
+                for (int i in 0..<kv.value.Count)
+                {
+                    if (kv.value[i] == object)
+                    {
+                        kv.value.Remove(object);
+                        break;
+                    }
+                }
+            }
+
+            //Remove from objects list
+            RenderObjects.Remove(object);
+
+            //Delete it
+            delete object;
+        }
+
         private void UpdatePrimitiveBuffers()
         {
             //Update line list vertex buffer
