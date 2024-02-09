@@ -58,7 +58,7 @@ namespace Nanoforge.Gui.Documents
         private Zone _selectedZone = null;
 
         //Deepest tree level the outliner will draw. Need to limit to prevent accidental stack overflow
-        private const int MAX_OUTLINER_DEPTH = 7;
+        private const int MAX_OUTLINER_DEPTH = 16;
 
         private append Dictionary<Type, Type> _inspectorTypes;
         //private append List<ZoneObjectClass> _objectClasses ~ClearAndDeleteItems(_);
