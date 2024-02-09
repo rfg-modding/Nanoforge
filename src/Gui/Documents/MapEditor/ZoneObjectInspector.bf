@@ -181,6 +181,8 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
                     continue;
                 if (newParent == null)
                     continue;
+                if (IsObjectDescendant(obj, newParent))
+                    continue; //Can't make an objects descendant into its parent
 
                 String newParentName = scope String()..Append(newParent.Name);
                 if (newParentName.IsEmpty)
@@ -211,6 +213,24 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         }
     }
 
+    //Recursively iterates child tree of rootObject and returns true if target is found.
+    private static bool IsObjectDescendant(ZoneObject rootObject, ZoneObject target)
+    {
+        for (ZoneObject child in rootObject.Children)
+        {
+            if (child == target)
+            {
+                return true;
+            }
+            if (IsObjectDescendant(child, target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     //TODO: Move this into ZoneObject and make sure parent can only be set through this or an equivalent property. May need to make tweaks for it to work with bon
     private static void SetObjectParent(ZoneObject obj, ZoneObject newParent)
     {
@@ -222,6 +242,11 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         if (obj == newParent)
         {
             Logger.Error("Failed to update relation data! Tried to make an object its own parent.");
+            return;
+        }
+        if (IsObjectDescendant(obj, newParent))
+        {
+            Logger.Error("Failed to update relation data! Tried to make an objects descendant into its parent.");
             return;
         }
 
