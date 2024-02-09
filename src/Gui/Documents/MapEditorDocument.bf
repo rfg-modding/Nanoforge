@@ -87,6 +87,28 @@ namespace Nanoforge.Gui.Documents
         [RegisterDialog]
         public append DeleteObjectConfirmationDialog DeleteConfirmationDialog;
 
+        //Used by the outliner to queue up actions that get run after the outliner is drawn. Don't want to do things like edit the child list of an object while iterating it.
+        private struct ChangeParentAction
+        {
+            public ZoneObject Target;
+            public ZoneObject NewParent;
+
+            public this(ZoneObject target, ZoneObject newParent)
+            {
+                Target = target;
+                NewParent = newParent;
+            }
+        }
+
+        private append List<ChangeParentAction> _queuedActions;
+
+        //Set this and the objects node will get expanded next frame
+        private ZoneObject _expandObjectInOutliner = null;
+        private ZoneObject _scrollToObjectInOutliner = null;
+
+        private Vec4 _outlinerNodeHeaderColor = .(0.157f, 0.350f, 0.588f, 1.0f);
+        private Vec4 _outlinerNodeHighlightColor = _outlinerNodeHeaderColor * 1.1f;
+
         public this(StringView mapName)
         {
             SetupObjectClasses();
@@ -678,11 +700,9 @@ namespace Nanoforge.Gui.Documents
             Outliner_DrawFilters();
 
             //Set custom highlight colors for the table
-            Vec4 selectedColor = .(0.157f, 0.350f, 0.588f, 1.0f);
-            Vec4 highlightedColor = selectedColor * 1.1f;
-            ImGui.PushStyleColor(.Header, selectedColor);
-            ImGui.PushStyleColor(.HeaderHovered, highlightedColor);
-            ImGui.PushStyleColor(.HeaderActive, highlightedColor);
+            ImGui.PushStyleColor(.Header, _outlinerNodeHeaderColor);
+            ImGui.PushStyleColor(.HeaderHovered, _outlinerNodeHighlightColor);
+            ImGui.PushStyleColor(.HeaderActive, _outlinerNodeHighlightColor);
             ImGui.TableFlags tableFlags = .ScrollY | .ScrollX | .RowBg | .BordersOuter | .BordersV | .Resizable | .Reorderable | .Hideable | .SizingFixedFit;
             if (ImGui.BeginTable("ZoneObjectTable", 4, tableFlags))
             {
@@ -738,6 +758,31 @@ namespace Nanoforge.Gui.Documents
             }
 
             ImGui.PopStyleColor(3);
+
+            //Run queued actions. They're run now so we don't modify the object tree while iterating it.
+            for (ChangeParentAction action in _queuedActions)
+            {
+                //Don't allow parent to be made a descendant of its descendants. Will make circular loop. There's ways we could handle this in code but for now I'd rather just not allow it.
+                if (IsObjectDescendant(action.Target, action.NewParent))
+                {
+                    //At the moment swapping child and parent this way isn't allowed
+                    Logger.Warning("Attempted to swap parent and child in outliner. Blocked. Parent: [{}, {}]. Child: [{}, {}]", action.NewParent.Handle, action.NewParent.Num, action.Target.Handle, action.Target.Num);
+                    continue;
+                }
+                if (action.Target.Parent != null)
+                {
+                    action.Target.Parent.Children.Remove(action.Target);
+                    action.Target.Parent = null;
+                }
+                action.Target.Parent = action.NewParent;
+                action.NewParent.Children.Add(action.Target);
+
+                //Scroll to and expand the node of the new parent
+                _expandObjectInOutliner = action.NewParent;
+                _scrollToObjectInOutliner = action.NewParent;
+                UnsavedChanges = true;
+            }
+            _queuedActions.Clear();
         }
 
         private void Outliner_DrawFilters()
@@ -901,11 +946,22 @@ namespace Nanoforge.Gui.Documents
             bool hasChildren = obj.Children.Count > 0;
             bool hasParent = obj.Parent != null;
 
-            //Draw node
             ImGui.PushID(Internal.UnsafeCastToPtr(obj));
+            if (_expandObjectInOutliner == obj) //Open node if set
+            {
+                ImGui.SetNextItemOpen(true);
+                _expandObjectInOutliner = null;
+            }
+
+            //Draw node
             f32 nodeXPos = ImGui.GetCursorPosX(); //Store position of the node for drawing the node icon later
             bool nodeOpen = ImGui.TreeNodeEx(label.CStr(), .SpanAvailWidth | .OpenOnDoubleClick | .OpenOnArrow | (hasChildren ? .None : .Leaf) | (selected ? .Selected : .None));
 
+            if (_scrollToObjectInOutliner == obj) //Scroll to node if set
+            {
+                ImGui.ScrollToItem();
+                _scrollToObjectInOutliner = null;
+            }
             if (ImGui.IsItemClicked(.Left) || ImGui.IsItemClicked(.Right))
             {
                 if (obj == SelectedObject)
@@ -919,6 +975,46 @@ namespace Nanoforge.Gui.Documents
                 ImGui.TooltipOnPrevious(obj.Classname);
             }
             Outliner_DrawContextMenu(obj);
+
+            //When drag and drop starts record object being dragged
+            if (ImGui.BeginDragDropSource())
+            {
+                void* objPtr = Internal.UnsafeCastToPtr(obj); //Dear ImGui makes a copy of the data passed to it. We don't want a copy of the object so we make a copy of a pointer holding its address.
+                ImGui.SetDragDropPayload("Outliner_ObjectDragDrop", &objPtr, sizeof(void*));
+                ImGui.EndDragDropSource();
+            }
+
+            //Handle object getting dropped. Changes the target object the source objects new parent.
+            if (ImGui.BeginDragDropTarget())
+            {
+                //Queue up a parent change action
+                ImGui.Payload* peekPayload = ImGui.GetDragDropPayload();
+                void** objPtr = (void**)peekPayload.Data;
+                ZoneObject objectBeingDropped = (ZoneObject)Internal.UnsafeCastToObject(*objPtr);
+                bool isValidDropTarget = !IsObjectDescendant(objectBeingDropped, obj); //Can't become your parents ancestor
+
+                if (isValidDropTarget && ImGui.AcceptDragDropPayload("Outliner_ObjectDragDrop",  .AcceptNoDrawDefaultRect | .AcceptNoPreviewTooltip) != null)
+                {
+                    if (objectBeingDropped.Parent != obj)
+                    {
+                        _queuedActions.Add(.(target: objectBeingDropped, newParent: obj));
+                    }
+                }
+
+                if (!isValidDropTarget) //Highlight invalid target nodes red
+                {
+                    ImGui.Vec4 invalidTargetHighlightColor = .(1.0f, 0.0f, 0.0f, 0.5f);
+                    ImGui.GetForegroundDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), ImGui.GetColorU32(invalidTargetHighlightColor));
+                }
+                else if (!hasChildren) //For some reason non leaf nodes don't get highlighted with drag and drop. Little hack to fix it for the time being.
+                {
+                    ImGui.Vec4 highlightColor = _outlinerNodeHighlightColor;
+                    highlightColor.w = 0.5f; //Transparent so it doesn't block the text. Doesn't look 100% like the normal highlight but close enough. Couldn't figure out a way to draw behind the text (background draw list goes under the window)
+                    ImGui.GetForegroundDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), ImGui.GetColorU32(highlightColor));
+                }
+
+                ImGui.EndDragDropTarget();
+            }
 
             //Draw node icon
             ImGui.PushStyleColor(.Text, .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f));
@@ -949,6 +1045,24 @@ namespace Nanoforge.Gui.Documents
                 ImGui.TreePop();
             }
             ImGui.PopID();
+        }
+
+        //Recursively iterates child tree of rootObject and returns true if target is found.
+        private bool IsObjectDescendant(ZoneObject rootObject, ZoneObject target)
+        {
+            for (ZoneObject child in rootObject.Children)
+            {
+                if (child == target)
+                {
+                    return true;
+                }
+                if (IsObjectDescendant(child, target))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void Outliner_DrawContextMenu(ZoneObject obj)
