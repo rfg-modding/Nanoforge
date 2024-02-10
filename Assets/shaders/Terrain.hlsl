@@ -81,14 +81,13 @@ VS_OUTPUT VS(int2 inPos : POSITION0, float4 inNormal : NORMAL0)
     return output;
 }
 
+float4 NormalToObjectSpace(float3 normal, float3x3 tangentSpace)
+{
+    return float4(normalize(mul(normal, tangentSpace)), 1.0f);
+}
+
 float4 CalcTerrainColorOld(VS_OUTPUT input, float4 blendWeights)
 {
-    //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps
-    //Nanoforge uses it as a temporary way to get colors closer to the games colors
-    float4 combColor = Texture1.Sample(Sampler1, input.UvBase);
-    float combGamma = 0.5f;
-    combColor = pow(combColor.xyzw, 1.0 / combGamma);
-
     //Get data for terrain materials. 4 of them, each with their own diffuse and normal maps
     //Sample diffuse maps
     float4 color0 = Texture2.Sample(Sampler2, input.Uv0);
@@ -97,7 +96,7 @@ float4 CalcTerrainColorOld(VS_OUTPUT input, float4 blendWeights)
     float4 color3 = Texture8.Sample(Sampler8, input.Uv3);
 
     //Calculate final diffuse color
-    float4 finalColor = color0 + combColor;
+    float4 finalColor = color0;
     finalColor += color3 * blendWeights.w;
     finalColor += color1 * blendWeights.z;
     finalColor += color2 * blendWeights.y;
@@ -109,10 +108,20 @@ float4 CalcTerrainColorOld(VS_OUTPUT input, float4 blendWeights)
 float4 CalcTerrainNormalOld(VS_OUTPUT input, float4 blendWeights)
 {
     //Sample normal maps
-    float4 normal0 = normalize(Texture3.Sample(Sampler3, input.Uv0));
-    float4 normal1 = normalize(Texture5.Sample(Sampler5, input.Uv1));
-    float4 normal2 = normalize(Texture7.Sample(Sampler7, input.Uv2));
-    float4 normal3 = normalize(Texture9.Sample(Sampler9, input.Uv3));
+    float4 normal0 = normalize(Texture3.Sample(Sampler3, input.Uv0) * 2.0 - 1.0);
+    float4 normal1 = normalize(Texture5.Sample(Sampler5, input.Uv1) * 2.0 - 1.0);
+    float4 normal2 = normalize(Texture7.Sample(Sampler7, input.Uv2) * 2.0 - 1.0);
+    float4 normal3 = normalize(Texture9.Sample(Sampler9, input.Uv3) * 2.0 - 1.0);
+
+    //Convert normal maps to object space
+    float3 tangentPrime = float3(1.0f, 0.0f, 0.0f);
+    float3 bitangent = cross(input.Normal, tangentPrime);
+    float3 tangent = cross(bitangent, input.Normal);
+    float3x3 texSpace = float3x3(tangent, bitangent, input.Normal);
+    normal0 = NormalToObjectSpace(normal0.xyz, texSpace);
+    normal1 = NormalToObjectSpace(normal1.xyz, texSpace);
+    normal2 = NormalToObjectSpace(normal2.xyz, texSpace);
+    normal3 = NormalToObjectSpace(normal3.xyz, texSpace);
 
     //Calculate final normal
     float4 finalNormal = float4(input.Normal, 1.0f);
@@ -143,12 +152,6 @@ static float4 material3ScaleTranslate = float4(0.05f.xx, 0.0f.xx);
 
 float4 CalcTerrainColorTriplanar(VS_OUTPUT input, float4 blendWeights)
 {
-    //Sample terrname_comb.cvbm_pc texture. This is used by the game for minimaps
-    //Nanoforge uses it as a temporary way to get colors closer to the games colors
-    float4 combColor = Texture1.Sample(Sampler1, input.UvBase);
-    float combGamma = 0.5f;
-    combColor = pow(combColor.xyzw, 1.0 / combGamma);
-
     //Calculate triplanar mapping blend
     float3 blend = abs(input.Normal);
     blend = normalize(max(blend, 0.00001)); //Force weights to sum to 1.0
@@ -161,7 +164,7 @@ float4 CalcTerrainColorTriplanar(VS_OUTPUT input, float4 blendWeights)
     float4 color3 = TriplanarSample(input, Texture8, Sampler8, blend, material3ScaleTranslate);
 
     //Calculate final diffuse color with blend weights
-    float4 finalColor = color0 + combColor;
+    float4 finalColor = color0;
     finalColor += color3 * blendWeights.w;
     finalColor += color1 * blendWeights.z;
     finalColor += color2 * blendWeights.y;
@@ -178,10 +181,20 @@ float4 CalcTerrainNormalTriplanar(VS_OUTPUT input, float4 blendWeights)
     blend /= (blend.x + blend.y + blend.z);
 
     //Sample textures using triplanar mapping
-    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, blend, material0ScaleTranslate));
-    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, blend, material1ScaleTranslate));
-    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, blend, material2ScaleTranslate));
-    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, blend, material3ScaleTranslate));
+    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, blend, material0ScaleTranslate) * 2.0 - 1.0); //Convert from range [-1, 1] to [0, 1]
+    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, blend, material1ScaleTranslate) * 2.0 - 1.0);
+    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, blend, material2ScaleTranslate) * 2.0 - 1.0);
+    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, blend, material3ScaleTranslate) * 2.0 - 1.0);
+
+    //Convert normal maps to object space
+    float3 tangentPrime = float3(1.0f, 0.0f, 0.0f);
+    float3 bitangent = cross(input.Normal, tangentPrime);
+    float3 tangent = cross(bitangent, input.Normal);
+    float3x3 texSpace = float3x3(tangent, bitangent, input.Normal);
+    normal0 = NormalToObjectSpace(normal0.xyz, texSpace);
+    normal1 = NormalToObjectSpace(normal1.xyz, texSpace);
+    normal2 = NormalToObjectSpace(normal2.xyz, texSpace);
+    normal3 = NormalToObjectSpace(normal3.xyz, texSpace);
 
     //Calculate final normal
     float4 finalNormal = float4(input.Normal, 1.0f) + normal0;
@@ -213,7 +226,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     }
 
     //Ambient
-    float ambientIntensity = 0.10f;
+    float ambientIntensity = 0.15f;
     float3 ambient = ambientIntensity * finalColor;
 
     //Diffuse
