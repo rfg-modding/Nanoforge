@@ -131,6 +131,10 @@ namespace Nanoforge.Gui.Dialogs
                     {
                         Close();
                     }
+                    else if (CanClose && (ImGui.IsKeyPressed(.Escape) || ImGui.IsKeyPressed(.Enter)))
+                    {
+                        Close();
+                    }
                 }
 
                 ImGui.EndPopup();
