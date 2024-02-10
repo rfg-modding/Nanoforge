@@ -35,6 +35,7 @@ namespace Nanoforge.Gui
         private bool _createProjectRequested = false;
         private bool _openProjectRequested = false;
         private bool _closeProjectRequested = false;
+        private append String _pathOfProjectToOpen;
 
         [RegisterDialog]
         public append SaveConfirmationDialog SaveConfirmationDialog;
@@ -136,7 +137,17 @@ namespace Nanoforge.Gui
                 }
                 else if (_openProjectRequested)
                 {
-                    TryOpenProject();
+                    if (_pathOfProjectToOpen.IsEmpty)
+                    {
+                        TryOpenProject(); //Path of project to open wasn't specified. Ask the user to pick a project file
+                        SaveConfirmationDialog.UserChoseDontSave = false; //Disable since we're already loading a different project
+                    }
+                    else
+                    {
+                        NanoDB.LoadAsync(_pathOfProjectToOpen);
+                        SaveConfirmationDialog.UserChoseDontSave = false;
+                    }
+                    _pathOfProjectToOpen.Set("");
                     _openProjectRequested = false;
                 }
                 else if (_closeProjectRequested)
@@ -357,9 +368,10 @@ namespace Nanoforge.Gui
             SaveConfirmationDialog.Show();
         }
 
-        public void OpenProject()
+        public void OpenProject(StringView pathOfProjectToOpen = "")
         {
             _openProjectRequested = true;
+            _pathOfProjectToOpen.Set(pathOfProjectToOpen);
             for (GuiDocumentBase doc in Documents)
 	            doc.Open = false;
 

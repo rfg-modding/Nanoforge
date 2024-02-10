@@ -92,7 +92,7 @@ namespace Nanoforge.Gui.Panels
                         {
                             if (ImGui.MenuItem(projectPath..EnsureNullTerminator()))
                             {
-                                NanoDB.LoadAsync(projectPath);
+                                gui.OpenProject(projectPath);
                             }
                             if (ImGui.BeginPopupContextItem())
                             {
