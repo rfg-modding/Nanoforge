@@ -197,15 +197,12 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
         finalNormal = CalcTerrainNormalOld(input, blendWeights);
     }
 
-    //Sun direction for diffuse lighting
-    float3 sunDir = float3(0.3f, -1.0f, -1.0f);
-
     //Ambient
     float ambientIntensity = 0.1f;
     float3 ambient = ambientIntensity * finalColor;
 
     //Diffuse
-    float3 lightDir = -normalize(sunDir);
+    float3 lightDir = -normalize(SunDirection);
     float diff = max(dot(lightDir, finalNormal), 0.0f);
     float3 diffuse = diff * finalColor * DiffuseColor * DiffuseIntensity;
 

@@ -18,7 +18,7 @@ namespace Nanoforge.Render
         public bool Active = true;
         public Camera3D Camera = new .() ~delete _;
         public Vec4 ClearColor = .(0.0f, 0.0f, 0.0f, 1.0f);
-        public PerFrameConstants PerFrameConstants;
+        public PerFrameConstants PerFrameConstants = .();
         public f32 TotalTime { get; private set; } = 0.0f;
         public u32 ViewWidth { get; private set; } = 512;
         public u32 ViewHeight { get; private set; } = 512;
@@ -638,5 +638,8 @@ namespace Nanoforge.Render
         public i32 ShadeMode = 1;
         public f32 Time = 0.0f;
         public Vec2 ViewportDimensions = .Zero;
+        public i32 padding0;
+        public i32 padding1;
+        public Vec3 SunDirection = .(0.8f, -1.0f, -0.5f);
     }
 }

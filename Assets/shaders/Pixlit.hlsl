@@ -26,12 +26,9 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     //Ambient light
     float ambientIntensity = 0.01f;
     float3 ambient = float3(ambientIntensity, ambientIntensity, ambientIntensity);
-    
-    //Sun direction
-    float3 sunDir = float3(1.0f, -1.0f, 0.0f);
 
     //Diffuse
-    float3 lightDir = normalize(-sunDir);
+    float3 lightDir = -normalize(SunDirection);
     float diff = max(dot(lightDir, normal), 0.0f);
     float3 diffuse = diff * color.xyz * DiffuseColor * DiffuseIntensity;
 

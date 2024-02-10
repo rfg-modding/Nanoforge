@@ -25,5 +25,8 @@ cbuffer cbPerFrame
     //Shade mode 1: Color terrain with basic lighting + option elevation coloring
     int ShadeMode;
     float Time;
+
     float2 ViewportDimensions;
+
+    float3 SunDirection;
 };
