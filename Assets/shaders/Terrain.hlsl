@@ -153,15 +153,15 @@ static float4 material3ScaleTranslate = float4(0.05f.xx, 0.0f.xx);
 float4 CalcTerrainColorTriplanar(VS_OUTPUT input, float4 blendWeights)
 {
     //Calculate triplanar mapping blend
-    float3 blend = abs(input.Normal);
-    blend = normalize(max(blend, 0.00001)); //Force weights to sum to 1.0
-    blend /= (blend.x + blend.y + blend.z);
+    float3 tpmBlend = abs(input.Normal);
+    tpmBlend = normalize(max(tpmBlend, 0.00001)); //Force weights to sum to 1.0
+    tpmBlend /= (tpmBlend.x + tpmBlend.y + tpmBlend.z);
 
     //Sample textures using triplanar mapping
-    float4 color0 = TriplanarSample(input, Texture2, Sampler2, blend, material0ScaleTranslate);
-    float4 color1 = TriplanarSample(input, Texture4, Sampler4, blend, material1ScaleTranslate);
-    float4 color2 = TriplanarSample(input, Texture6, Sampler6, blend, material2ScaleTranslate);
-    float4 color3 = TriplanarSample(input, Texture8, Sampler8, blend, material3ScaleTranslate);
+    float4 color0 = TriplanarSample(input, Texture2, Sampler2, tpmBlend, material0ScaleTranslate);
+    float4 color1 = TriplanarSample(input, Texture4, Sampler4, tpmBlend, material1ScaleTranslate);
+    float4 color2 = TriplanarSample(input, Texture6, Sampler6, tpmBlend, material2ScaleTranslate);
+    float4 color3 = TriplanarSample(input, Texture8, Sampler8, tpmBlend, material3ScaleTranslate);
 
     //Calculate final diffuse color with blend weights
     float4 finalColor = color0;
@@ -176,15 +176,15 @@ float4 CalcTerrainColorTriplanar(VS_OUTPUT input, float4 blendWeights)
 float4 CalcTerrainNormalTriplanar(VS_OUTPUT input, float4 blendWeights)
 {
     //Calculate triplanar mapping blend
-    float3 blend = abs(input.Normal);
-    blend = normalize(max(blend, 0.00001)); //Force weights to sum to 1.0
-    blend /= (blend.x + blend.y + blend.z);
+    float3 tpmBlend = abs(input.Normal);
+    tpmBlend = normalize(max(tpmBlend, 0.00001)); //Force weights to sum to 1.0
+    tpmBlend /= (tpmBlend.x + tpmBlend.y + tpmBlend.z);
 
     //Sample textures using triplanar mapping
-    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, blend, material0ScaleTranslate) * 2.0 - 1.0); //Convert from range [-1, 1] to [0, 1]
-    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, blend, material1ScaleTranslate) * 2.0 - 1.0);
-    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, blend, material2ScaleTranslate) * 2.0 - 1.0);
-    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, blend, material3ScaleTranslate) * 2.0 - 1.0);
+    float4 normal0 = normalize(TriplanarSample(input, Texture3, Sampler3, tpmBlend, material0ScaleTranslate) * 2.0 - 1.0); //Convert from range [0, 1] to [-1, 1]
+    float4 normal1 = normalize(TriplanarSample(input, Texture5, Sampler5, tpmBlend, material1ScaleTranslate) * 2.0 - 1.0);
+    float4 normal2 = normalize(TriplanarSample(input, Texture7, Sampler7, tpmBlend, material2ScaleTranslate) * 2.0 - 1.0);
+    float4 normal3 = normalize(TriplanarSample(input, Texture9, Sampler9, tpmBlend, material3ScaleTranslate) * 2.0 - 1.0);
 
     //Convert normal maps to object space
     float3 tangentPrime = float3(1.0f, 0.0f, 0.0f);
@@ -209,11 +209,13 @@ float4 CalcTerrainNormalTriplanar(VS_OUTPUT input, float4 blendWeights)
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
-    //Get weight of each texture from alpha00 texture
+    //Get weight of each texture from alpha00 texture and make sure they sum to 1.0
     float4 blendWeights = Texture0.Sample(Sampler0, input.UvBase);
+    blendWeights = normalize(max(blendWeights, 0.001));
+    blendWeights /= (blendWeights.x + blendWeights.y + blendWeights.z + blendWeights.w);
+
     float4 finalColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
     float4 finalNormal = float4(1.0f, 1.0f, 1.0f, 1.0f);
-
     if (UseTriplanarMapping)
     {
         finalColor = CalcTerrainColorTriplanar(input, blendWeights);
@@ -245,7 +247,9 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     else if(ShadeMode == 1)
     {
         //Color terrain with basic lighting
+        //return finalColor;
         return float4(ambient + diffuse, 1.0f);
+        //return float4(finalNormal.xyz, 1.0f);
     }
     else
     {
