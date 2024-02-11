@@ -87,6 +87,9 @@ namespace Nanoforge.Gui.Documents
         [RegisterDialog]
         public append DeleteObjectConfirmationDialog DeleteConfirmationDialog;
 
+        [RegisterDialog]
+        public append CreateObjectDialog CreateObjectDialog;
+
         //Used by the outliner to queue up actions that get run after the outliner is drawn. Don't want to do things like edit the child list of an object while iterating it.
         private struct ChangeParentAction
         {
@@ -260,6 +263,13 @@ namespace Nanoforge.Gui.Documents
                 //Camera should only handle input when the viewport is focused or mouse hovered. Otherwise it'll react while you're typing into the inspector/outliner
                 _scene.Camera.InputEnabled = ImGui.IsWindowFocused() && ImGui.IsWindowHovered();
 
+                //Draw line showing direction of sunlight
+                /*_scene.PerFrameConstants.SunDirection = .(0.8f, -0.5f, -1.0f); //.(0.8f, -1.0f, -0.5f);
+                f32 sunLineLength = 3000.0f;
+                Vec3 sunLineStart = .(255.0f, 0.0f, -255.0f);
+                Vec3 sunLineEnd = (-1.0f * _scene.PerFrameConstants.SunDirection.Normalized()) * sunLineLength + sunLineStart;
+                _scene.DrawLine(sunLineStart, sunLineEnd, .(1.0f, 0.7f, 0.0f, 1.0f));*/
+
                 //Update scene viewport size
                 ImGui.Vec2 contentAreaSize;
                 contentAreaSize.x = ImGui.GetWindowContentRegionMax().x - ImGui.GetWindowContentRegionMin().x;
@@ -370,10 +380,73 @@ namespace Nanoforge.Gui.Documents
                         //ShallowCloneObject(selectedObject_);
                         //_scrollToObjectInOutliner = selectedObject_;
                     }
-                    if (ImGui.MenuItem("Deep clone", "", null, canClone))
+                    if (ImGui.MenuItem("Deep clone", "Ctrl + Shift + D", null, canClone))
                     {
                         //DeepCloneObject(selectedObject_, true);
                         //_scrollToObjectInOutliner = selectedObject_;
+                    }
+
+                    ImGui.Separator();
+                    mixin CreateObjectMenuItem(char8* displayName, bool disabled = false, ZoneObject parent = null)
+                    {
+                        ImGui.BeginDisabled(disabled);
+                        if (ImGui.MenuItem(displayName))
+                        {
+                            OpenObjectCreationDialog(StringView(displayName), parent);
+                        }
+                        ImGui.EndDisabled();
+                        if (disabled)
+                        {
+                            ImGui.TooltipOnPrevious(scope $"Nanoforge can't create these from scratch yet. Copy an existing {StringView(displayName)} instead and modify it."..EnsureNullTerminator());
+                        }
+                    }
+                    if (ImGui.BeginMenu("Create object..."))
+                    {
+                        CreateObjectMenuItem!("obj_zone");
+                        CreateObjectMenuItem!("object_bounding_box");
+                        CreateObjectMenuItem!("object_dummy");
+                        CreateObjectMenuItem!("player_start");
+                        CreateObjectMenuItem!("trigger_region");
+                        CreateObjectMenuItem!("object_mover", disabled: true);
+                        CreateObjectMenuItem!("general_mover", disabled: true);
+                        CreateObjectMenuItem!("rfg_mover", disabled: true);
+                        CreateObjectMenuItem!("shape_cutter");
+                        CreateObjectMenuItem!("object_effect");
+                        CreateObjectMenuItem!("item");
+                        CreateObjectMenuItem!("weapon");
+                        CreateObjectMenuItem!("ladder");
+                        CreateObjectMenuItem!("obj_light");
+                        CreateObjectMenuItem!("multi_object_marker");
+                        CreateObjectMenuItem!("multi_object_flag");
+
+                        ImGui.EndMenu();
+                    }
+                    if (ImGui.BeginMenu("Create child object...", SelectedObject != null))
+                    {
+                        CreateObjectMenuItem!("obj_zone");
+                        CreateObjectMenuItem!("object_bounding_box");
+                        CreateObjectMenuItem!("object_dummy");
+                        CreateObjectMenuItem!("player_start");
+                        CreateObjectMenuItem!("trigger_region");
+                        CreateObjectMenuItem!("object_mover", disabled: true);
+                        CreateObjectMenuItem!("general_mover", disabled: true);
+                        CreateObjectMenuItem!("rfg_mover", disabled: true);
+                        CreateObjectMenuItem!("shape_cutter");
+                        CreateObjectMenuItem!("object_effect");
+                        CreateObjectMenuItem!("item");
+                        CreateObjectMenuItem!("weapon");
+                        CreateObjectMenuItem!("ladder");
+                        CreateObjectMenuItem!("obj_light");
+                        CreateObjectMenuItem!("multi_object_marker");
+                        CreateObjectMenuItem!("multi_object_flag");
+
+                        ImGui.EndMenu();
+                    }
+
+                    ImGui.Separator();
+                    if (ImGui.MenuItem("Delete object", "Delete", null, canDelete))
+                    {
+                        OpenDeleteObjectDialog(_selectedObject);
                     }
 
                     ImGui.Separator();
@@ -386,18 +459,6 @@ namespace Nanoforge.Gui.Documents
                     {
                         //orphanChildrenPopupHandle_ = selectedObject_;
                         //orphanChildrenPopup_.Open();
-                    }
-                    if (ImGui.MenuItem("Create object", null))
-                    {
-                        //_objectCreationPopup.Show();
-                        //_scrollToObjectInOutliner = selectedObject_;
-                    }
-                    ImGui.SameLine();
-
-                    ImGui.Separator();
-                    if (ImGui.MenuItem("Delete", "Delete", null, canDelete))
-                    {
-                        DeleteObjectAfterConfirmation(_selectedObject);
                     }
 
                     ImGui.Separator();
@@ -652,10 +713,22 @@ namespace Nanoforge.Gui.Documents
 
         private void Keybinds(App app)
         {
+            if (Loading)
+            {
+                return;
+            }
+
             Input input = app.GetResource<Input>();
             if (input.ControlDown)
             {
-
+                if (SelectedObject != null && input.ShiftDown && input.KeyPressed(.Spacebar) && !ImGui.IsAnyItemActive())
+                {
+                    OpenObjectCreationDialog("object_dummy", SelectedObject);
+                }
+                else if (input.KeyPressed(.Spacebar) && !ImGui.IsAnyItemActive())
+                {
+                    OpenObjectCreationDialog();
+                }
             }
             else
             {
@@ -663,7 +736,7 @@ namespace Nanoforge.Gui.Documents
                 {
                     if (_selectedObject != null)
 					{
-                        DeleteObjectAfterConfirmation(_selectedObject);
+                        OpenDeleteObjectDialog(_selectedObject);
 					}
                 }
             }
@@ -1116,7 +1189,15 @@ namespace Nanoforge.Gui.Documents
                 ImGui.Separator();
                 if (ImGui.Selectable("Create object"))
                 {
-                    //TODO: Implement
+                    OpenObjectCreationDialog();
+                }
+
+                using (ImGui.DisabledBlock(SelectedObject == null))
+                {
+                    if (ImGui.Selectable("Create child object"))
+                    {
+                        OpenObjectCreationDialog("object_dummy", SelectedObject);
+                    }
                 }
 
                 //ImGui.BeginDisabled(!hasParent);
@@ -1138,7 +1219,7 @@ namespace Nanoforge.Gui.Documents
                 ImGui.Separator();
                 if (ImGui.Selectable("Delete"))
                 {
-                    DeleteObjectAfterConfirmation(obj);
+                    OpenDeleteObjectDialog(obj);
                 }
 
                 ImGui.Separator();
@@ -1497,7 +1578,7 @@ namespace Nanoforge.Gui.Documents
         }
 
         //Trigger the deletion confirmation dialog to appear and setup a delegate to run on close that'll perform the deletion if confirmed.
-        private void DeleteObjectAfterConfirmation(ZoneObject object)
+        private void OpenDeleteObjectDialog(ZoneObject object)
         {
             DeleteConfirmationDialog.Show(object, new (dialogResult) =>
 			{
@@ -1556,6 +1637,92 @@ namespace Nanoforge.Gui.Documents
             NanoDB.DeleteObject(object);
 
             UnsavedChanges = true;
+        }
+
+        private u32 GetNewObjectHandle()
+        {
+            //Find largest handle in use and add one
+            u32 largestHandle = 0;
+            for (Zone zone in Map.Zones)
+            {
+                for (ZoneObject obj in zone.Objects)
+                {
+                    if (obj.Handle > largestHandle)
+                    {
+                        largestHandle = obj.Handle;
+                    }
+                }
+            }
+
+            //Error if handle is out of valid range
+            if (largestHandle == u32.MaxValue)
+            {
+                Logger.Error("Failed to find new object handle. Returning 0xFFFFFFFF");
+                return u32.MaxValue;
+            }
+
+            //TODO: See if we can start at 0 instead. All vanilla game handles are very large but they might've be generated them with a hash or something
+            //TODO: See if we can discard handle + num completely and regenerate them on export. One problem is that changes to one zone might require regenerating all zones on the SP map (assuming there's cross zone object relations)
+            return largestHandle + 1;
+        }
+
+        private u32 GetNewObjectNum()
+        {
+            //Find largest handle in use and add one
+            u32 largestNum = 0;
+            for (Zone zone in Map.Zones)
+            {
+                for (ZoneObject obj in zone.Objects)
+                {
+                    if (obj.Num > largestNum)
+                    {
+                        largestNum = obj.Num;
+                    }
+                }
+            }
+
+            //Error if Num is out of range
+            if (largestNum == u32.MaxValue)
+            {
+                Logger.Error("Failed to find new object num. Returning 0xFFFFFFFF");
+                return u32.MaxValue;
+            }
+
+            //TODO: See if we can start at 0 instead
+            //TODO: See if we can discard handle + num completely and regenerate them on export. One problem is that changes to one zone might require regenerating all zones on the SP map (assuming there's cross zone object relations)
+            return largestNum + 1;
+        }
+
+        private void OpenObjectCreationDialog(StringView initialObjectType = "object_dummy", ZoneObject parent = null)
+        {
+            CreateObjectDialog.Show(this.Map, new (dialogResult) =>
+	        {
+	            if (dialogResult == .Yes && CreateObjectDialog.PendingObject != null)
+	            {
+                    ZoneObject newObject = CreateObjectDialog.PendingObject;
+                    NanoDB.AddObject(newObject);
+                    Map.Zones[0].Objects.Add(newObject); //TODO: Will need to let user choose which zone to add it to when SP editing is added
+
+                    newObject.Name.Set(CreateObjectDialog.[Friend]_nameBuffer);
+                    newObject.Classname.Set(CreateObjectDialog.[Friend]_selectedType.Classname);
+                    newObject.Handle = GetNewObjectHandle();
+                    newObject.Num = GetNewObjectNum();
+                    newObject.BBox.Min = .Zero;
+                    newObject.BBox.Max = .(10.0f, 10.0f, 10.0f);
+                    newObject.Position = newObject.BBox.Center();
+                    if (CreateObjectDialog.Parent != null)
+                    {
+                        newObject.Parent = CreateObjectDialog.Parent;
+                        CreateObjectDialog.Parent.Children.Add(newObject);
+                        _expandObjectInOutliner = CreateObjectDialog.Parent;
+                    }
+
+                    CreateObjectDialog.Parent = null;
+                    CreateObjectDialog.PendingObject = null;
+                    _scrollToObjectInOutliner = newObject;
+                    UnsavedChanges = true;
+	            }
+	        }, initialObjectType, parent);
         }
 	}
 }

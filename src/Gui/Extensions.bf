@@ -86,7 +86,7 @@ namespace ImGui
         	if(font == null)
         		font = Fonts.FontDefault.Font;
 
-        	bool hovered = ImGui.IsItemHovered();
+        	bool hovered = ImGui.IsItemHovered(.AllowWhenDisabled);
             if (hovered)
             {
                 ImGui.PushFont(Font);
