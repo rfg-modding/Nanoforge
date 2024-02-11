@@ -640,6 +640,6 @@ namespace Nanoforge.Render
         public Vec2 ViewportDimensions = .Zero;
         public i32 padding0;
         public i32 padding1;
-        public Vec3 SunDirection = .(0.8f, -1.0f, -0.5f);
+        public Vec3 SunDirection = .(0.8f, -0.5f, -1.0f);
     }
 }
