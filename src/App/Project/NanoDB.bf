@@ -342,7 +342,7 @@ namespace Nanoforge.App
             if (showDialog)
             {
                 gTaskDialog.SetStatus("Done saving project.");
-                gTaskDialog.CanClose = true;
+                gTaskDialog.Close();
             }
 
             Ready = true;
@@ -490,7 +490,7 @@ namespace Nanoforge.App
             if (showDialog)
             {
                 gTaskDialog.SetStatus(scope $"Done loading {CurrentProject.Name}.");
-                gTaskDialog.CanClose = true;
+                gTaskDialog.Close();
             }
 
             //Success. Add to recent projects list.
