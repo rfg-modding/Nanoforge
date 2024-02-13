@@ -110,10 +110,8 @@ namespace Nanoforge.Gui.Dialogs
                         ImGui.PushStyleColor(.HeaderActive, highlightedColor);
                         for (String path in _statusLog)
                         {
-                            if (ImGui.Selectable(path))
-                            {
-
-                            }
+                            ImGui.TextWrapped(path);
+                            ImGui.Separator();
                         }
                         if (_scrollLogToBottom)
                         {
