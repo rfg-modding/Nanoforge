@@ -55,7 +55,9 @@ namespace Nanoforge.Gui
 		void Init(App app)
 		{
             AddPanel("", true, MainMenuBar);
+#if DEBUG
             AddPanel("View/State viewer", true, new StateViewer());
+#endif
             RegisterDialogs(this);
 
             //Hardcoded static instance of TaskDialog for global use

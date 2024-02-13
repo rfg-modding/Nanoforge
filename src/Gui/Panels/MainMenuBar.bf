@@ -21,7 +21,7 @@ namespace Nanoforge.Gui.Panels
         public List<MenuItem> MenuItems = new .() ~ DeleteContainerAndItems!(_);
         public ImGui.ID DockspaceId = 0;
         public ImGui.ID DockspaceCentralNodeId = 0;
-        bool ShowImGuiDemo = true;
+        bool ShowImGuiDemo = false;
 
         private class MapOption
         {
@@ -42,6 +42,9 @@ namespace Nanoforge.Gui.Panels
         public this()
         {
             PackfileVFS.DataFolderChangedEvent.Add(new => this.OnDataFolderChanged);
+#if DEBUG
+            ShowImGuiDemo = true;
+#endif
         }
 
         public override void Update(App app, Gui gui)
@@ -213,6 +216,7 @@ namespace Nanoforge.Gui.Panels
                 cursorPos.x += ImGui.CalcTextSize(projectName.CStr()).x;
 
                 //Frametime meter
+#if DEBUG
                 String realFrameTime = scope String()..AppendF("{0:G3}", frameData.AverageFrameTime * 1000.0f);
                 String totalFrameTime = scope String()..AppendF("/  {0:G4}", frameData.DeltaTime * 1000.0f);
                 char8* frametimeLabel = "     |    Frametime (ms): ";
@@ -222,6 +226,7 @@ namespace Nanoforge.Gui.Panels
                 drawList.AddText(cursorPos, ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), realFrameTime.CStr());
                 cursorPos.x += 42.0f;
                 drawList.AddText(cursorPos, ImGui.ColorConvertFloat4ToU32(ImGui.SecondaryTextColor), totalFrameTime.CStr());
+#endif
 
                 //Draw NF version on the right side
                 {
