@@ -356,7 +356,10 @@ namespace Nanoforge.App
             String pathCopy = new .()..Append(projectFilePath); //Original string goes out of scope quickly since all code so far is pulling it from NanoDB.CurrentProject.FilePath (which gets reset before loading project)
             ThreadPool.QueueUserWorkItem(new () =>
 			{
-				Load(pathCopy, true);
+				if (Load(pathCopy, true) case .Err(StringView err))
+                {
+                    Logger.Error("NanoDB.Load() failed. Error: {}", err);
+                }
                 delete pathCopy;
 		    });
         }
@@ -379,6 +382,35 @@ namespace Nanoforge.App
 
             if (showDialog)
 				gTaskDialog.Show(5);
+
+            //Load .nanoproj file
+            if (showDialog)
+            	gTaskDialog.SetStatus("Loading .nanoproj file...");
+
+            {
+                String nanoprojText = File.ReadAllText(projectFilePath, .. scope .());
+                if (StringView(nanoprojText)..Trim().StartsWith("<"))
+                {
+                    gTaskDialog.SetStatus("Error! This is a project from a version of Nanoforge older than v1.0.0. It can't be loaded by this version. Please create a new project in this version of Nanoforge and re-import your maps.");
+                    gTaskDialog.CanClose = true;
+                    Logger.Error("Attempted to load a project file from the old version of Nanoforge. That project file format is no longer supported. Project file path: '{}'", projectFilePath);
+                    return .Err("Attempted to load a project from a version of Nanoforge before v1.0.0");
+                }
+
+                BonContext context = .(nanoprojText);
+                if (Bon.Deserialize(ref CurrentProject, context) case .Ok(var updatedContext))
+                {
+                    context = updatedContext;
+                    CurrentProject.[Friend]Loaded = true;
+                }
+                else
+                {
+                    Logger.Error("Failed to load {}", projectFilePath);
+                    return .Err("Failed to load nanoproj file");
+                }
+            }
+            if (showDialog)
+            	gTaskDialog.Step();
 
             //Parse objects
             if (showDialog)
@@ -465,27 +497,6 @@ namespace Nanoforge.App
             if (showDialog)
 				gTaskDialog.Step();
             _nextBufferUID = _buffers.Keys.Max() + 1;
-
-            //Load .nanoproj file
-            if (showDialog)
-				gTaskDialog.SetStatus("Loading .nanoproj file...");
-
-            {
-                String nanoprojText = File.ReadAllText(projectFilePath, .. scope .());
-                BonContext context = .(nanoprojText);
-                if (Bon.Deserialize(ref CurrentProject, context) case .Ok(var updatedContext))
-                {
-                    context = updatedContext;
-                    CurrentProject.[Friend]Loaded = true;
-                }
-                else
-                {
-                    Logger.Error("Failed to load {}", projectFilePath);
-                    return .Err("Failed to load nanoproj file");
-                }
-            }
-            if (showDialog)
-				gTaskDialog.Step();
 
             if (showDialog)
             {
