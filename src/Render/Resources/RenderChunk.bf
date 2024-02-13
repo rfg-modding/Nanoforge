@@ -10,6 +10,11 @@ namespace Nanoforge.Render.Resources
 	{
         private ChunkVariant _chunkData = null;
 
+        public this()
+        {
+
+        }
+
         public this(Mesh mesh, Vec3 position, Mat3 rotation, ChunkVariant variant) : base(mesh, position, rotation)
         {
             _chunkData = variant;
@@ -76,6 +81,16 @@ namespace Nanoforge.Render.Resources
 
                 ObjectMesh.Draw(context, numSubmeshOverrides);
             }
+        }
+
+        public override RenderObject Clone(RenderObject existingObject = null)
+        {
+            RenderChunk clone = (existingObject == null) ? new RenderChunk() : (RenderChunk)existingObject;
+            base.Clone(clone);
+
+            clone._chunkData = _chunkData;
+
+            return clone;
         }
 	}
 }

@@ -23,6 +23,11 @@ namespace Nanoforge.Render.Resources
         public bool UseTextures = false;
         public Texture2D[10] Textures;
 
+        public this()
+        {
+
+        }
+
         public this(Mesh mesh, Vec3 position, Mat3 rotation = .Identity)
         {
             ObjectMesh = mesh;
@@ -68,6 +73,24 @@ namespace Nanoforge.Render.Resources
             }
 
             ObjectMesh.Draw(context);
+        }
+
+        public virtual RenderObject Clone(RenderObject existingObject = null)
+        {
+            RenderObject clone = (existingObject == null) ? new RenderObject() : existingObject;
+
+            clone.ObjectMesh = ObjectMesh;
+            clone.Scale = Scale;
+            clone.Position = Position;
+            clone.Rotation = Rotation;
+            clone.Visible = Visible;
+            clone.UseTextures = UseTextures;
+            for (int i in 0..<10)
+            {
+                clone.Textures[i] = Textures[i];
+            }
+
+            return clone;
         }
 	}
 }

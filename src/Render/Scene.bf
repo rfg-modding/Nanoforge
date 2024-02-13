@@ -205,6 +205,25 @@ namespace Nanoforge.Render
             ClearPrimitiveVertexBuffers();
         }
 
+        public RenderObject CloneRenderObject(RenderObject object)
+        {
+            ScopedLock!(_renderObjectCreationLock);
+            RenderObject clone = object.Clone();
+            RenderObjects.Add(clone);
+
+            //Find out which material the object uses and add it to ObjectsByMaterial
+            for (var materialObjects in ObjectsByMaterial)
+            {
+                if (materialObjects.value.Contains(object))
+                {
+                    materialObjects.value.Add(clone);
+                    break;
+                }
+            }
+
+            return clone;
+        }
+
         public Result<RenderObject> CreateRenderObject(StringView materialName, Mesh mesh, Vec3 position, Mat3 rotation)
         {
             ScopedLock!(_renderObjectCreationLock);

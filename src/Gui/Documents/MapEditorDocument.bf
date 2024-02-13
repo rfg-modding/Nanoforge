@@ -17,6 +17,7 @@ using System.Reflection;
 using Bon;
 using NativeFileDialog;
 using Nanoforge.Rfg.Export;
+using System.Linq;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -108,6 +109,10 @@ namespace Nanoforge.Gui.Documents
         //Set this and the objects node will get expanded next frame
         private ZoneObject _expandObjectInOutliner = null;
         private ZoneObject _scrollToObjectInOutliner = null;
+
+        //Set by the outliner context menu. Action is performed in Outliner() at the end of the from so the objects list isn't changed while iterating it.
+        private ZoneObject _outlinerCloneObject = null;
+        private ZoneObject _outlinerDeepCloneObject = null;
 
         private Vec4 _outlinerNodeHeaderColor = .(0.157f, 0.350f, 0.588f, 1.0f);
         private Vec4 _outlinerNodeHighlightColor = _outlinerNodeHeaderColor * 1.1f;
@@ -380,13 +385,15 @@ namespace Nanoforge.Gui.Documents
 
                     if (ImGui.MenuItem("Clone", "Ctrl + D", null, canClone))
                     {
-                        //ShallowCloneObject(selectedObject_);
-                        //_scrollToObjectInOutliner = selectedObject_;
+                        ZoneObject clone = ShallowCloneObject(SelectedObject);
+                        _scrollToObjectInOutliner = clone;
+                        _selectedObject = clone;
                     }
                     if (ImGui.MenuItem("Deep clone", "Ctrl + Shift + D", null, canClone))
                     {
-                        //DeepCloneObject(selectedObject_, true);
-                        //_scrollToObjectInOutliner = selectedObject_;
+                        ZoneObject clone = DeepCloneObject(SelectedObject);
+                        _scrollToObjectInOutliner = clone;
+                        _selectedObject = clone;
                     }
 
                     ImGui.Separator();
@@ -716,7 +723,7 @@ namespace Nanoforge.Gui.Documents
 
         private void Keybinds(App app)
         {
-            if (Loading)
+            if (Loading || !Input.KeysEnabled)
             {
                 return;
             }
@@ -724,13 +731,25 @@ namespace Nanoforge.Gui.Documents
             Input input = app.GetResource<Input>();
             if (input.ControlDown)
             {
-                if (SelectedObject != null && input.ShiftDown && input.KeyPressed(.Spacebar) && !ImGui.IsAnyItemActive())
+                if (SelectedObject != null && input.ShiftDown && input.KeyPressed(.D) && !ImGui.IsAnyItemActive()) //Ctrl + Shift + D
                 {
-                    OpenObjectCreationDialog("object_dummy", SelectedObject);
+                    ZoneObject clone = DeepCloneObject(SelectedObject);
+                    _scrollToObjectInOutliner = clone;
+                    _selectedObject = clone;
                 }
-                else if (input.KeyPressed(.Spacebar) && !ImGui.IsAnyItemActive())
+                else if (SelectedObject != null && input.KeyPressed(.D) && !ImGui.IsAnyItemActive()) //Ctrl + D
                 {
-                    OpenObjectCreationDialog();
+                    ZoneObject clone = ShallowCloneObject(SelectedObject);
+                    _scrollToObjectInOutliner = clone;
+                    _selectedObject = clone;
+                }
+                else if (SelectedObject != null && input.ShiftDown && input.KeyPressed(.Spacebar) && !ImGui.IsAnyItemActive()) //Ctrl + Shift + Space
+                {
+                    OpenObjectCreationDialog("object_dummy", SelectedObject); //Create object as child of the selected object
+                }
+                else if (input.KeyPressed(.Spacebar) && !ImGui.IsAnyItemActive()) //Ctrl + Space
+                {
+                    OpenObjectCreationDialog(); //Create object with no parent
                 }
             }
             else
@@ -850,7 +869,7 @@ namespace Nanoforge.Gui.Documents
                                 continue;
 
                             int depth = 0;
-                            Outliner_DrawObjectNode(obj, depth + 1);
+                            Outliner_DrawObjectNode(gui, obj, depth + 1);
                         }
                     }
 
@@ -887,6 +906,21 @@ namespace Nanoforge.Gui.Documents
                 UnsavedChanges = true;
             }
             _queuedActions.Clear();
+
+            if (_outlinerCloneObject != null)
+            {
+                ZoneObject clone = ShallowCloneObject(_outlinerCloneObject);
+                _scrollToObjectInOutliner = clone;
+                SelectedObject = clone;
+                _outlinerCloneObject = null;
+            }
+            if (_outlinerDeepCloneObject != null)
+            {
+                ZoneObject clone = DeepCloneObject(_outlinerDeepCloneObject);
+                _scrollToObjectInOutliner = clone;
+                SelectedObject = clone;
+                _outlinerDeepCloneObject = null;
+            }
         }
 
         private void Outliner_DrawFilters()
@@ -1109,7 +1143,7 @@ namespace Nanoforge.Gui.Documents
                 obj.Classname.EnsureNullTerminator();
                 ImGui.TooltipOnPrevious(obj.Classname);
             }
-            Outliner_DrawContextMenu(obj);
+            Outliner_DrawContextMenu(gui, obj);
 
             //When drag and drop starts record object being dragged
             if (ImGui.BeginDragDropSource())
@@ -1175,7 +1209,7 @@ namespace Nanoforge.Gui.Documents
             {
                 for (ZoneObject child in obj.Children)
                 {
-                    Outliner_DrawObjectNode(child, depth + 1);
+                    Outliner_DrawObjectNode(gui, child, depth + 1);
                 }
                 ImGui.TreePop();
             }
@@ -1200,7 +1234,7 @@ namespace Nanoforge.Gui.Documents
             return false;
         }
 
-        private void Outliner_DrawContextMenu(ZoneObject obj)
+        private void Outliner_DrawContextMenu(Gui gui, ZoneObject obj)
         {
             if (ImGui.BeginPopupContextItem())
             {
@@ -1224,27 +1258,57 @@ namespace Nanoforge.Gui.Documents
                 ImGui.TextColored(.(objClass.Color.x, objClass.Color.y, objClass.Color.z, 1.0f), objLabel);
                 ImGui.Separator();
 
-                ImGui.BeginDisabled(); //TODO: Temporary until other options are ported soon.
+                //Get list of open maps for 'Clone to...' and 'Deep clone to...' options
+                List<GuiDocumentBase> otherMaps = gui.Documents.Select((doc) => doc)
+					                                           .Where((doc) => doc.GetType() == typeof(MapEditorDocument) && doc != this)
+					                                           .ToList(.. new .());
+                defer delete otherMaps;
 
                 if (ImGui.Selectable("Clone"))
                 {
-                    //TODO: Implement
+                    _outlinerCloneObject = obj;
                 }
 
-                if (ImGui.BeginMenu("Clone too..."))
+                if (ImGui.BeginMenu("Clone to...", enabled: otherMaps.Count > 0))
                 {
-                    //TODO: Implement with submenu containing list of other open maps to clone to
+                    for (var doc in otherMaps)
+                    {
+                        //Note: Since gui rendering and logic is single threaded we can perform these clones immediately instead of waiting like we do with copies on the same map
+                        MapEditorDocument otherMap = (MapEditorDocument)doc;
+                        String otherMapLabel = scope $"{doc.Title}{otherMap.Loading ? " - Loading..." : ""}";
+                        if (ImGui.MenuItem(otherMapLabel, null, null, !otherMap.Loading))
+                        {
+                            ZoneObject newObject = otherMap.ShallowCloneObject(obj);
+                            otherMap.SelectedObject = newObject;
+                            otherMap._scrollToObjectInOutliner = newObject;
+                            newObject.Parent = null;
+                            newObject.Children.Clear();
+                        }
+                    }
                     ImGui.EndMenu();
                 }
 
                 if (ImGui.Selectable("Deep clone"))
                 {
-                    //TODO: Implement
+                    _outlinerDeepCloneObject = obj;
                 }
 
-                if (ImGui.BeginMenu("Deep clone too..."))
+                if (ImGui.BeginMenu("Deep clone to...", enabled: otherMaps.Count > 0))
                 {
-                    //TODO: Implement with submenu containing list of other open maps to clone to
+                    for (var doc in otherMaps)
+                    {
+                        //Note: Since gui rendering and logic is single threaded we can perform these clones immediately instead of waiting like we do with copies on the same map
+                        MapEditorDocument otherMap = (MapEditorDocument)doc;
+                        String otherMapLabel = scope $"{doc.Title}{otherMap.Loading ? " - Loading..." : ""}";
+                        if (ImGui.MenuItem(otherMapLabel, null, null, !otherMap.Loading))
+                        {
+                            ZoneObject newObject = otherMap.DeepCloneObject(obj);
+                            otherMap.SelectedObject = newObject;
+                            otherMap._scrollToObjectInOutliner = newObject;
+                            newObject.Parent = null;
+                            newObject.Children.Clear();
+                        }
+                    }
                     ImGui.EndMenu();
                 }
 
@@ -1254,11 +1318,11 @@ namespace Nanoforge.Gui.Documents
                     OpenObjectCreationDialog();
                 }
 
-                using (ImGui.DisabledBlock(SelectedObject == null))
+                using (ImGui.DisabledBlock(obj == null))
                 {
                     if (ImGui.Selectable("Create child object"))
                     {
-                        OpenObjectCreationDialog("object_dummy", SelectedObject);
+                        OpenObjectCreationDialog("object_dummy", obj);
                     }
                 }
 
@@ -1276,27 +1340,11 @@ namespace Nanoforge.Gui.Documents
                 }
                 //ImGui.EndDisabled();
 
-                ImGui.EndDisabled();
-
                 ImGui.Separator();
                 if (ImGui.Selectable("Delete"))
                 {
                     OpenDeleteObjectDialog(obj);
                 }
-
-                ImGui.Separator();
-                ImGui.BeginDisabled(); //TODO: Temporary until other options are ported soon.
-                if (ImGui.Selectable("Copy scriptx reference"))
-                {
-                    //TODO: Implement
-                }
-
-                if (ImGui.Selectable("Jump to"))
-                {
-                    //TODO: Implement
-                    //TODO: Also add a keybind and menu bar option for this
-                }
-                ImGui.EndDisabled();
 
                 ImGui.EndPopup();
             }
@@ -1785,6 +1833,45 @@ namespace Nanoforge.Gui.Documents
                     UnsavedChanges = true;
 	            }
 	        }, initialObjectType, parent);
+        }
+
+        private ZoneObject ShallowCloneObject(ZoneObject object)
+        {
+            ZoneObject clone = object.Clone();
+            clone.Handle = GetNewObjectHandle();
+            clone.Num = GetNewObjectNum();
+            clone.Children.Clear();
+
+            //Add RenderObject to scene so it gets drawn and destroyed when the scene is destroyed
+            if (object.RenderObject != null)
+            {
+                clone.RenderObject = _scene.CloneRenderObject(object.RenderObject);
+            }
+
+            //Add to NanoDB
+            NanoDB.AddObject(clone);
+
+            //TODO: Will need to be updated to use the zone the original is in when SP editing is added. Probably should just a Zone field to ZoneObject
+            //Add to zone
+            Zone zone = Map.Zones[0];
+            zone.Objects.Add(clone);
+
+            UnsavedChanges = true;
+            return clone;
+        }
+
+        private ZoneObject DeepCloneObject(ZoneObject object)
+        {
+            ZoneObject clone = ShallowCloneObject(object);
+            for (ZoneObject child in object.Children)
+            {
+                ZoneObject childClone = DeepCloneObject(child);
+                childClone.Parent = clone;
+                clone.Children.Add(childClone);
+            }
+
+            UnsavedChanges = true;
+            return clone;
         }
 	}
 }

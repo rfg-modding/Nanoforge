@@ -84,6 +84,33 @@ namespace Nanoforge.Rfg
             SpawnInTeamBagman        = 1 << 14,
             SpawnInDemolition        = 1 << 15
         }
+
+        //Note: Wrote these manually to start since theres so few object types and they won't change much.
+        //      In the future it might be a good idea to switch to comptime generated clone functions that are configurable with attributes on the fields.
+        public virtual ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ZoneObject clone = (existingObject == null) ? new ZoneObject() : existingObject;
+
+            clone.Name.Set(Name);
+            clone.[Friend]_uid = EditorObject.NullUID; //Default to NullUID so its clear in the debugger that the object isn't valid yet. Gets a valid UID when finally added to NanoDB.
+            clone.Classname.Set(Classname);
+            clone.Handle = u32.MaxValue; //Default Handle and Num to invalid values so there aren't two objects with the same handle/num and so its obvious in the debugger if they mistakenly don't get set.
+            clone.Num = u32.MaxValue;
+            clone.Flags = Flags;
+            clone.BBox = BBox;
+            clone.Parent = Parent;
+            //clone.Children not set. RFG objects can't share children.
+            clone.Position = Position;
+            clone.Orient.Value = Orient.Value;
+            clone.Orient.Enabled = Orient.Enabled;
+            clone.RfgDisplayName.Value.Set(RfgDisplayName.Value);
+            clone.RfgDisplayName.Enabled = RfgDisplayName.Enabled;
+            clone.Description.Value.Set(Description.Value);
+            clone.Description.Enabled = Description.Enabled;
+            //Note: Its the responsibility of the caller to clone the RenderObject since they have handles to the Scene
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -99,6 +126,24 @@ namespace Nanoforge.Rfg
         public OptionalValue<f32> WindMinSpeed = .(0.0f);
         [EditorProperty]
         public OptionalValue<f32> WindMaxSpeed = .(0.0f);
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ObjZone clone = (existingObject == null) ? new ObjZone() : (ObjZone)existingObject;
+            base.Clone(clone);
+
+            clone.AmbientSpawn.Value.Set(AmbientSpawn.Value);
+            clone.AmbientSpawn.Enabled = AmbientSpawn.Enabled;
+            clone.SpawnResource.Value.Set(SpawnResource.Value);
+            clone.SpawnResource.Enabled = SpawnResource.Enabled;
+            clone.TerrainFileName.Set(TerrainFileName);
+            clone.WindMinSpeed.Value = WindMinSpeed.Value;
+            clone.WindMinSpeed.Enabled = WindMinSpeed.Enabled;
+            clone.WindMaxSpeed.Value = WindMaxSpeed.Value;
+            clone.WindMaxSpeed.Enabled = WindMaxSpeed.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -117,6 +162,18 @@ namespace Nanoforge.Rfg
 
             [RfgName("GPS Target")]
             GpsTarget
+        }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ObjectBoundingBox clone = (existingObject == null) ? new ObjectBoundingBox() : (ObjectBoundingBox)existingObject;
+            base.Clone(clone);
+
+            clone.LocalBBox = LocalBBox;
+            clone.BBType.Value = BBType.Value;
+            clone.BBType.Enabled = BBType.Enabled;
+
+            return clone;
         }
     }
 
@@ -162,6 +219,16 @@ namespace Nanoforge.Rfg
             [RfgName("Demolition")]
             Demolition
         }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ObjectDummy clone = (existingObject == null) ? new ObjectDummy() : (ObjectDummy)existingObject;
+            base.Clone(clone);
+
+            clone.DummyType = DummyType;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -181,6 +248,24 @@ namespace Nanoforge.Rfg
         public bool ActivityRespawn;
         [EditorProperty]
         public OptionalObject<String> MissionInfo = new .(new .()) ~delete _;
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            PlayerStart clone = (existingObject == null) ? new PlayerStart() : (PlayerStart)existingObject;
+            base.Clone(clone);
+
+            clone.Indoor = Indoor;
+            clone.MpTeam.Value = MpTeam.Value;
+            clone.MpTeam.Enabled = MpTeam.Enabled;
+            clone.InitialSpawn = InitialSpawn;
+            clone.Respawn = Respawn;
+            clone.CheckpointRespawn = CheckpointRespawn;
+            clone.ActivityRespawn = ActivityRespawn;
+            clone.MissionInfo.Value.Set(MissionInfo.Value);
+            clone.MissionInfo.Enabled = MissionInfo.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -238,6 +323,26 @@ namespace Nanoforge.Rfg
 
             [RfgName("not_in_mission")]
             NotInMission = 2
+        }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            TriggerRegion clone = (existingObject == null) ? new TriggerRegion() : (TriggerRegion)existingObject;
+            base.Clone(clone);
+
+            clone.TriggerShape.Value = TriggerShape.Value;
+            clone.TriggerShape.Enabled = TriggerShape.Enabled;
+            clone.LocalBBox = LocalBBox;
+            clone.OuterRadius = OuterRadius;
+            clone.Enabled = Enabled;
+            clone.RegionType.Value = RegionType.Value;
+            clone.RegionType.Enabled = RegionType.Enabled;
+            clone.KillType.Value = KillType.Value;
+            clone.KillType.Enabled = KillType.Enabled;
+            clone.TriggerFlags.Value = TriggerFlags.Value;
+            clone.TriggerFlags.Enabled = TriggerFlags.Enabled;
+
+            return clone;
         }
     }
 
@@ -369,6 +474,38 @@ namespace Nanoforge.Rfg
             [RfgName("casts_shadow")]
             CastsShadow = 1 << 20
         }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ObjectMover clone = (existingObject == null) ? new ObjectMover() : (ObjectMover)existingObject;
+            base.Clone(clone);
+
+            clone.BuildingType = BuildingType;
+            clone.DestructionChecksum = DestructionChecksum;
+            clone.GameplayProps.Value.Set(GameplayProps.Value);
+            clone.GameplayProps.Enabled = GameplayProps.Enabled;
+            //clone.InternalFlags = InternalFlags; //Disabled
+            clone.ChunkFlags.Value = ChunkFlags.Value;
+            clone.ChunkFlags.Enabled = ChunkFlags.Enabled;
+            clone.Dynamic.Value = Dynamic.Value;
+            clone.Dynamic.Enabled = Dynamic.Enabled;
+            clone.ChunkUID.Value = ChunkUID.Value;
+            clone.ChunkUID.Enabled = ChunkUID.Enabled;
+            clone.Props.Value.Set(Props.Value);
+            clone.Props.Enabled = Props.Enabled;
+            clone.ChunkName.Value.Set(ChunkName.Value);
+            clone.ChunkName.Enabled = ChunkName.Enabled;
+            clone.DestroyableUID = DestroyableUID;
+            clone.ShapeUID.Value = ShapeUID.Value;
+            clone.ShapeUID.Enabled = ShapeUID.Enabled;
+            clone.Team.Value = Team.Value;
+            clone.Team.Enabled = Team.Enabled;
+            clone.Control.Value = Control.Value;
+            clone.Control.Enabled = Control.Enabled;
+            clone.ChunkData = ChunkData; //The copy can reference the same Chunk since it just holds metadata like the buffers to load the meshes and textures from. Doesn't hold any instance specific data.
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -391,6 +528,30 @@ namespace Nanoforge.Rfg
         public OptionalValue<i32> Hitpoints = .(0);
         [EditorProperty]
         public OptionalValue<i32> DislodgeHitpoints = .(0);
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            GeneralMover clone = (existingObject == null) ? new GeneralMover() : (GeneralMover)existingObject;
+            base.Clone(clone);
+
+            clone.GmFlags = GmFlags;
+            clone.OriginalObject.Value = OriginalObject.Value;
+            clone.OriginalObject.Enabled = OriginalObject.Enabled;
+            clone.CollisionType.Value = CollisionType.Value;
+            clone.CollisionType.Enabled = CollisionType.Enabled;
+            clone.Idx.Value = Idx.Value;
+            clone.Idx.Enabled = Idx.Enabled;
+            clone.MoveType.Value = MoveType.Value;
+            clone.MoveType.Enabled = MoveType.Enabled;
+            clone.DestructionUID.Value = DestructionUID.Value;
+            clone.DestructionUID.Enabled = DestructionUID.Enabled;
+            clone.Hitpoints.Value = Hitpoints.Value;
+            clone.Hitpoints.Enabled = Hitpoints.Enabled;
+            clone.DislodgeHitpoints.Value = DislodgeHitpoints.Value;
+            clone.DislodgeHitpoints.Enabled = DislodgeHitpoints.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -426,6 +587,35 @@ namespace Nanoforge.Rfg
             WorldOnly = 4,
             NoCollision = 5
         }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            RfgMover clone = (existingObject == null) ? new RfgMover() : (RfgMover)existingObject;
+            base.Clone(clone);
+
+            clone.MoveType = MoveType;
+            //clone.RfgMoverFlags = RfgMoverFlags;
+            clone.DamagePercent.Value = DamagePercent.Value;
+            clone.DamagePercent.Enabled = DamagePercent.Enabled;
+            clone.GameDestroyedPercentage.Value = GameDestroyedPercentage.Value;
+            clone.GameDestroyedPercentage.Enabled = GameDestroyedPercentage.Enabled;
+            //clone.NumSalvagePieces = NumSalvagePieces;
+            //clone.StreamOutPlayTime = StreamOutPlayTime;
+            clone.WorldAnchors.Enabled = WorldAnchors.Enabled;
+            if (WorldAnchors.Value != null)
+            {
+                clone.WorldAnchors.Value = new u8[WorldAnchors.Value.Count];
+                WorldAnchors.Value.CopyTo(clone.WorldAnchors.Value);
+            }
+            clone.DynamicLinks.Enabled = DynamicLinks.Enabled;
+            if (DynamicLinks.Value != null)
+            {
+                clone.DynamicLinks.Value = new u8[DynamicLinks.Value.Count];
+                DynamicLinks.Value.CopyTo(clone.DynamicLinks.Value);
+            }
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -442,6 +632,25 @@ namespace Nanoforge.Rfg
         public OptionalValue<u32> Owner = .(u32.MaxValue);
         [EditorProperty]
         public OptionalValue<u8> ExplosionId = .(u8.MaxValue);
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ShapeCutter clone = (existingObject == null) ? new ShapeCutter() : (ShapeCutter)existingObject;
+            base.Clone(clone);
+
+            clone.ShapeCutterFlags.Value = ShapeCutterFlags.Value;
+            clone.ShapeCutterFlags.Enabled = ShapeCutterFlags.Enabled;
+            clone.OuterRadius.Value = OuterRadius.Value;
+            clone.OuterRadius.Enabled = OuterRadius.Enabled;
+            clone.Source.Value = Source.Value;
+            clone.Source.Enabled = Source.Enabled;
+            clone.Owner.Value = Owner.Value;
+            clone.Owner.Enabled = Owner.Enabled;
+            clone.ExplosionId.Value = ExplosionId.Value;
+            clone.ExplosionId.Enabled = ExplosionId.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -457,6 +666,25 @@ namespace Nanoforge.Rfg
         public OptionalObject<String> Visual = new .(new String()) ~delete _;
         [EditorProperty]
         public OptionalValue<bool> Looping = .(false);
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ObjectEffect clone = (existingObject == null) ? new ObjectEffect() : (ObjectEffect)existingObject;
+            base.Clone(clone);
+
+            clone.EffectType.Value.Set(EffectType.Value);
+            clone.EffectType.Enabled = EffectType.Enabled;
+            clone.SoundAlr.Value.Set(SoundAlr.Value);
+            clone.SoundAlr.Enabled = SoundAlr.Enabled;
+            clone.Sound.Value.Set(Sound.Value);
+            clone.Sound.Enabled = Sound.Enabled;
+            clone.Visual.Value.Set(Visual.Value);
+            clone.Visual.Enabled = Visual.Enabled;
+            clone.Looping.Value = Looping.Value;
+            clone.Looping.Enabled = Looping.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -468,6 +696,21 @@ namespace Nanoforge.Rfg
         public OptionalValue<bool> Respawns = .(false);
         [EditorProperty]
         public OptionalValue<bool> Preplaced = .(false);
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            Item clone = (existingObject == null) ? new Item() : (Item)existingObject;
+            base.Clone(clone);
+
+            clone.ItemType.Value.Set(ItemType.Value);
+            clone.ItemType.Enabled = ItemType.Enabled;
+            clone.Respawns.Value = Respawns.Value;
+            clone.Respawns.Enabled = Respawns.Enabled;
+            clone.Preplaced.Value = Preplaced.Value;
+            clone.Preplaced.Enabled = Preplaced.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -475,6 +718,16 @@ namespace Nanoforge.Rfg
     {
         [EditorProperty]
         public String WeaponType = new .() ~delete _; //Name of an entry in weapons.xtbl
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            Weapon clone = (existingObject == null) ? new Weapon() : (Weapon)existingObject;
+            base.Clone(clone);
+
+            clone.WeaponType.Set(WeaponType);
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -484,6 +737,18 @@ namespace Nanoforge.Rfg
         public i32 LadderRungs;
         [EditorProperty]
         public OptionalValue<bool> LadderEnabled = .(false);
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            Ladder clone = (existingObject == null) ? new Ladder() : (Ladder)existingObject;
+            base.Clone(clone);
+
+            clone.LadderRungs = LadderRungs;
+            clone.LadderEnabled.Value = LadderEnabled.Value;
+            clone.LadderEnabled.Enabled = LadderEnabled.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -536,6 +801,33 @@ namespace Nanoforge.Rfg
             [RfgName("omni")]
             Omni
         }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ObjLight clone = (existingObject == null) ? new ObjLight() : (ObjLight)existingObject;
+            base.Clone(clone);
+
+            clone.AttenuationStart.Value = AttenuationStart.Value;
+            clone.AttenuationStart.Enabled = AttenuationStart.Enabled;
+            clone.AttenuationEnd.Value = AttenuationEnd.Value;
+            clone.AttenuationEnd.Enabled = AttenuationEnd.Enabled;
+            clone.AttenuationRange.Value = AttenuationRange.Value;
+            clone.AttenuationRange.Enabled = AttenuationRange.Enabled;
+            clone.LightFlags.Value = LightFlags.Value;
+            clone.LightFlags.Enabled = LightFlags.Enabled;
+            clone.LightType.Value = LightType.Value;
+            clone.LightType.Enabled = LightType.Enabled;
+            clone.Color = Color;
+            clone.HotspotSize.Value = HotspotSize.Value;
+            clone.HotspotSize.Enabled = HotspotSize.Enabled;
+            clone.HotspotFalloffSize.Value = HotspotFalloffSize.Value;
+            clone.HotspotFalloffSize.Enabled = HotspotFalloffSize.Enabled;
+            clone.MinClip = MinClip;
+            clone.MaxClip = MaxClip;
+            //clone.ClipMesh = ClipMesh;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -583,13 +875,43 @@ namespace Nanoforge.Rfg
             [RfgName("Spectator camera")]
             SpectatorCamera
         }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            MultiMarker clone = (existingObject == null) ? new MultiMarker() : (MultiMarker)existingObject;
+            base.Clone(clone);
+
+            clone.LocalBBox = LocalBBox;
+            clone.MarkerType = MarkerType;
+            clone.MpTeam = MpTeam;
+            clone.Priority = Priority;
+            clone.BackpackType.Value.Set(BackpackType.Value);
+            clone.BackpackType.Enabled = BackpackType.Enabled;
+            clone.NumBackpacks.Value = NumBackpacks.Value;
+            clone.NumBackpacks.Enabled = NumBackpacks.Enabled;
+            clone.RandomBackpacks.Value = RandomBackpacks.Value;
+            clone.RandomBackpacks.Enabled = RandomBackpacks.Enabled;
+            clone.Group.Value = Group.Value;
+            clone.Group.Enabled = Group.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
     public class MultiFlag : Item
     {
-        [EditorProperty]
         public Team MpTeam;
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            MultiFlag clone = (existingObject == null) ? new MultiFlag() : (MultiFlag)existingObject;
+            base.Clone(clone);
+
+            clone.MpTeam = MpTeam;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -692,6 +1014,45 @@ namespace Nanoforge.Rfg
             [RfgName("transition door")]
             TransitionDoor = 24
         }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            NavPoint clone = (existingObject == null) ? new NavPoint() : (NavPoint)existingObject;
+            base.Clone(clone);
+
+            clone.NavpointData.Enabled = NavpointData.Enabled;
+            if (NavpointData.Value != null)
+            {
+                clone.NavpointData.Value = new u8[NavpointData.Value.Count];
+                NavpointData.Value.CopyTo(clone.NavpointData.Value);
+            }
+            clone.NavpointType.Value = NavpointType.Value;
+            clone.NavpointType.Enabled = NavpointType.Enabled;
+            clone.OuterRadius.Value = OuterRadius.Value;
+            clone.OuterRadius.Enabled = OuterRadius.Enabled;
+            clone.SpeedLimit.Value = SpeedLimit.Value;
+            clone.SpeedLimit.Enabled = SpeedLimit.Enabled;
+            clone.DontFollowRoad.Value = DontFollowRoad.Value;
+            clone.DontFollowRoad.Enabled = DontFollowRoad.Enabled;
+            clone.IgnoreLanes.Value = IgnoreLanes.Value;
+            clone.IgnoreLanes.Enabled = IgnoreLanes.Enabled;
+            clone.Links.Enabled = Links.Enabled;
+            if (Links.Value != null)
+            {
+                clone.Links.Value = new u8[Links.Value.Count];
+                Links.Value.CopyTo(clone.Links.Value);
+            }
+            clone.NavLinks.Enabled = NavLinks.Enabled;
+            if (NavLinks.Value != null)
+            {
+                clone.NavLinks.Value = new u8[NavLinks.Value.Count];
+                NavLinks.Value.CopyTo(clone.NavLinks.Value);
+            }
+            clone.NavOrient.Value = NavOrient.Value;
+            clone.NavOrient.Enabled = NavOrient.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -760,6 +1121,45 @@ namespace Nanoforge.Rfg
 
             Unknown15 = 1 << 15,
         }
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            CoverNode clone = (existingObject == null) ? new CoverNode() : (CoverNode)existingObject;
+            base.Clone(clone);
+
+            clone.CovernodeData.Enabled = CovernodeData.Enabled;
+            if (CovernodeData.Value != null)
+            {
+                clone.CovernodeData.Value = new u8[CovernodeData.Value.Count];
+                CovernodeData.Value.CopyTo(clone.CovernodeData.Value);
+            }
+            clone.OldCovernodeData.Enabled = OldCovernodeData.Enabled;
+            if (OldCovernodeData.Value != null)
+            {
+                clone.OldCovernodeData.Value = new u8[OldCovernodeData.Value.Count];
+                OldCovernodeData.Value.CopyTo(clone.OldCovernodeData.Value);
+            }
+            clone.DefensiveAngleLeft.Value = DefensiveAngleLeft.Value;
+            clone.DefensiveAngleLeft.Enabled = DefensiveAngleLeft.Enabled;
+            clone.DefensiveAngleRight.Value = DefensiveAngleRight.Value;
+            clone.DefensiveAngleRight.Enabled = DefensiveAngleRight.Enabled;
+            clone.OffensiveAngleLeft.Value = OffensiveAngleLeft.Value;
+            clone.OffensiveAngleLeft.Enabled = OffensiveAngleLeft.Enabled;
+            clone.OffensiveAngleRight.Value = OffensiveAngleRight.Value;
+            clone.OffensiveAngleRight.Enabled = OffensiveAngleRight.Enabled;
+            clone.AngleLeft.Value = AngleLeft.Value;
+            clone.AngleLeft.Enabled = AngleLeft.Enabled;
+            clone.AngleRight.Value = AngleRight.Value;
+            clone.AngleRight.Enabled = AngleRight.Enabled;
+            clone.CoverNodeFlags.Value = CoverNodeFlags.Value;
+            clone.CoverNodeFlags.Enabled = CoverNodeFlags.Enabled;
+            clone.Stance.Value.Set(Stance.Value);
+            clone.Stance.Enabled = Stance.Enabled;
+            clone.FiringFlags.Value.Set(FiringFlags.Value);
+            clone.FiringFlags.Enabled = FiringFlags.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -780,6 +1180,33 @@ namespace Nanoforge.Rfg
         public OptionalValue<u32> HostHavokAltIndex = .(u32.MaxValue);
         [EditorProperty]
         public OptionalValue<u32> ChildHavokAltIndex = .(u32.MaxValue);
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            RfgConstraint clone = (existingObject == null) ? new RfgConstraint() : (RfgConstraint)existingObject;
+            base.Clone(clone);
+
+            clone.Template.Enabled = Template.Enabled;
+            if (Template.Value != null)
+            {
+                clone.Template.Value = new u8[Template.Value.Count];
+                Template.Value.CopyTo(clone.Template.Value);
+            }
+            clone.HostHandle.Value = HostHandle.Value;
+            clone.HostHandle.Enabled = HostHandle.Enabled;
+            clone.ChildHandle.Value = ChildHandle.Value;
+            clone.ChildHandle.Enabled = ChildHandle.Enabled;
+            clone.HostIndex.Value = HostIndex.Value;
+            clone.HostIndex.Enabled = HostIndex.Enabled;
+            clone.ChildIndex.Value = ChildIndex.Value;
+            clone.ChildIndex.Enabled = ChildIndex.Enabled;
+            clone.HostHavokAltIndex.Value = HostHavokAltIndex.Value;
+            clone.HostHavokAltIndex.Enabled = HostHavokAltIndex.Enabled;
+            clone.ChildHavokAltIndex.Value = ChildHavokAltIndex.Value;
+            clone.ChildHavokAltIndex.Enabled = ChildHavokAltIndex.Enabled;
+
+            return clone;
+        }
     }
 
     [ReflectAll]
@@ -804,6 +1231,39 @@ namespace Nanoforge.Rfg
         public OptionalObject<u8[]> ObjLinks = new .(null) ~delete _;
         [EditorProperty]
         public OptionalObject<u8[]> Links = new .(null) ~delete _;
+
+        public override ZoneObject Clone(ZoneObject existingObject = null)
+        {
+            ActionNode clone = (existingObject == null) ? new ActionNode() : (ActionNode)existingObject;
+            base.Clone(clone);
+
+            clone.ActionNodeType.Value.Set(ActionNodeType.Value);
+            clone.ActionNodeType.Enabled = ActionNodeType.Enabled;
+            clone.HighPriority.Value = HighPriority.Value;
+            clone.HighPriority.Enabled = HighPriority.Enabled;
+            clone.InfiniteDuration.Value = InfiniteDuration.Value;
+            clone.InfiniteDuration.Enabled = InfiniteDuration.Enabled;
+            clone.DisabledBy.Value = DisabledBy.Value;
+            clone.DisabledBy.Enabled = DisabledBy.Enabled;
+            clone.RunTo.Value = RunTo.Value;
+            clone.RunTo.Enabled = RunTo.Enabled;
+            clone.OuterRadius.Value = OuterRadius.Value;
+            clone.OuterRadius.Enabled = OuterRadius.Enabled;
+            clone.ObjLinks.Enabled = ObjLinks.Enabled;
+            if (ObjLinks.Value != null)
+            {
+                clone.ObjLinks.Value = new u8[ObjLinks.Value.Count];
+                ObjLinks.Value.CopyTo(clone.ObjLinks.Value);
+            }
+            clone.Links.Enabled = Links.Enabled;
+            if (Links.Value != null)
+            {
+                clone.Links.Value = new u8[Links.Value.Count];
+                Links.Value.CopyTo(clone.Links.Value);
+            }
+
+            return clone;
+        }
     }
 
     [ReflectAll]
