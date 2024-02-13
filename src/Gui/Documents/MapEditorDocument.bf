@@ -112,6 +112,9 @@ namespace Nanoforge.Gui.Documents
         private Vec4 _outlinerNodeHeaderColor = .(0.157f, 0.350f, 0.588f, 1.0f);
         private Vec4 _outlinerNodeHighlightColor = _outlinerNodeHeaderColor * 1.1f;
 
+        private append String _outlinerSearch;
+        private bool _outlinerSearchIgnoreCase = true;
+
         public this(StringView mapName)
         {
             SetupObjectClasses();
@@ -772,6 +775,34 @@ namespace Nanoforge.Gui.Documents
 
             Outliner_DrawFilters();
 
+            if (ImGui.InputText("##Search", _outlinerSearch))
+            {
+
+            }
+
+            ImGui.Vec2 searchButtonSize = .(30.0f, 26.0f);
+            ImGui.SameLine();
+            ImGui.PushStyleVar(.FramePadding, .(0.0f, 6.0f));
+            Fonts.FontL.Push();
+            if (ImGui.ToggleButton(Icons.ICON_VS_CASE_SENSITIVE, &_outlinerSearchIgnoreCase, searchButtonSize))
+            {
+
+            }
+            Fonts.FontL.Pop();
+            ImGui.PopStyleVar(1);
+            ImGui.TooltipOnPrevious("Match case");
+
+            ImGui.SameLine();
+            ImGui.PushStyleVar(.FramePadding, .(0.0f, 6.0f));
+            Fonts.FontL.Push();
+            if (ImGui.Button(Icons.ICON_VS_X, searchButtonSize))
+            {
+                _outlinerSearch.Set("");
+            }
+            Fonts.FontL.Pop();
+            ImGui.PopStyleVar(1);
+            ImGui.TooltipOnPrevious("Clear search");
+
             //Set custom highlight colors for the table
             ImGui.PushStyleColor(.Header, _outlinerNodeHeaderColor);
             ImGui.PushStyleColor(.HeaderHovered, _outlinerNodeHighlightColor);
@@ -993,7 +1024,32 @@ namespace Nanoforge.Gui.Documents
             return false;
         }
 
-        private void Outliner_DrawObjectNode(ZoneObject obj, int depth)
+        private bool Outliner_ObjectOrChildrenMatchSearch(ZoneObject obj)
+        {
+            ZoneObjectClass objectClass = GetObjectClass(obj);
+            if (objectClass.Visible && (_outlinerSearch.IsEmpty || _outlinerSearch.IsWhiteSpace))
+            {
+                return true;
+            }
+
+            if (objectClass.Visible && obj.Name.Contains(_outlinerSearch, _outlinerSearchIgnoreCase))
+            {
+                return true;
+            }
+
+
+            for (ZoneObject child in obj.Children)
+            {
+                if (Outliner_ObjectOrChildrenMatchSearch(child))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void Outliner_DrawObjectNode(Gui gui, ZoneObject obj, int depth)
         {
             if (depth > MAX_OUTLINER_DEPTH)
             {
@@ -1012,6 +1068,12 @@ namespace Nanoforge.Gui.Documents
                 label.Append(obj.Name);
             else
                 label.Append(obj.Classname);
+
+            bool objectOrChildrenMatchSearch = Outliner_ObjectOrChildrenMatchSearch(obj);
+            if (!objectOrChildrenMatchSearch)
+            {
+                return;
+            }
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
