@@ -18,6 +18,7 @@ using Bon;
 using NativeFileDialog;
 using Nanoforge.Rfg.Export;
 using System.Linq;
+using Nanoforge.Gui.Dialogs;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -91,6 +92,9 @@ namespace Nanoforge.Gui.Documents
 
         [RegisterDialog]
         public append CreateObjectDialog CreateObjectDialog;
+
+        public append MessageBox OrphanObjectPopup = .("Orphan object?");
+        public append MessageBox OrphanChildrenPopup = .("Orphan children?");
 
         //Used by the outliner to queue up actions that get run after the outliner is drawn. Don't want to do things like edit the child list of an object while iterating it.
         private struct ChangeParentAction
@@ -566,20 +570,14 @@ namespace Nanoforge.Gui.Documents
                     ImGui.Separator();
                     if (ImGui.MenuItem("Orphan object", null, null, hasParent))
                     {
-                        //orphanObjectPopupHandle_ = selectedObject_;
-                        //orphanObjectPopup_.Open();
+                        OpenOrphanObjectConfirmationDialog(_selectedObject);
                     }
                     if (ImGui.MenuItem("Orphan children", null, null, hasChildren))
                     {
-                        //orphanChildrenPopupHandle_ = selectedObject_;
-                        //orphanChildrenPopup_.Open();
+                        OpenOrphanChildrenConfirmationDialog(_selectedObject);
                     }
 
-                    ImGui.Separator();
-                    if (ImGui.MenuItem("Copy scriptx reference", "Ctrl + I", null, canDelete))
-                    {
-                        //CopyScriptxReference(selectedObject_);
-                    }
+                    /*ImGui.Separator();
                     if (ImGui.MenuItem("Remove world anchors", "Ctrl + B", null, canRemoveWorldAnchors))
                     {
                         //RemoveWorldAnchors(selectedObject_);
@@ -587,7 +585,7 @@ namespace Nanoforge.Gui.Documents
                     if (ImGui.MenuItem("Remove dynamic links", "Ctrl + N", null, canRemoveDynamicLinks))
                     {
                         //RemoveDynamicLinks(selectedObject_);
-                    }
+                    }*/
 
                     ImGui.EndMenu();
                 }
@@ -1434,19 +1432,20 @@ namespace Nanoforge.Gui.Documents
                     }
                 }
 
-                //ImGui.BeginDisabled(!hasParent);
+                ImGui.Separator();
+                ImGui.BeginDisabled(!hasParent);
                 if (ImGui.Selectable("Orphan"))
                 {
-                    //TODO: Implement
+                    OpenOrphanObjectConfirmationDialog(obj);
                 }
-                //ImGui.EndDisabled();
+                ImGui.EndDisabled();
 
-                //ImGui.BeginDisabled(!hasChildren);
+                ImGui.BeginDisabled(!hasChildren);
                 if (ImGui.Selectable("Orphan children"))
                 {
-                    //TODO: Implement
+                    OpenOrphanChildrenConfirmationDialog(obj);
                 }
-                //ImGui.EndDisabled();
+                ImGui.EndDisabled();
 
                 ImGui.Separator();
                 if (ImGui.Selectable("Delete"))
@@ -1805,6 +1804,36 @@ namespace Nanoforge.Gui.Documents
                     DeleteObject(object, DeleteConfirmationDialog.ParentAdoptsChildren);
                 }
 			});
+        }
+
+        private void OpenOrphanObjectConfirmationDialog(ZoneObject object)
+        {
+            OrphanObjectPopup.Show("Are you sure you'd like to make this object an orphan?", .YesCancel, new (dialogResult) =>
+			{
+                if (dialogResult == .Yes)
+                {
+                    object.Parent.Children.Remove(object);
+                    object.Parent = null;
+                    SelectedObject = object;
+                    UnsavedChanges = true;
+                }
+			});
+        }
+
+        private void OpenOrphanChildrenConfirmationDialog(ZoneObject object)
+        {
+            OrphanChildrenPopup.Show("Are you sure you'd like to orphan all the children of this object? You'll need to manually add the children to parent if you want to undo this.", .YesCancel, new (dialogResult) =>
+        	{
+                if (dialogResult == .Yes)
+                {
+                    for (ZoneObject child in object.Children)
+                    {
+                        child.Parent = null;
+                    }
+                    object.Children.Clear();
+                    UnsavedChanges = true;
+                }
+        	});
         }
 
         //parentAdoptsChildren causes the deleted objects parent to adopt its children. E.g. A -> B -> { C, D } We delete B and now A is the parent of C and D
