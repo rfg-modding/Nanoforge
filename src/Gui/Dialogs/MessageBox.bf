@@ -28,9 +28,14 @@ namespace Nanoforge.Gui.Dialogs
             Open = true;
             _content.Set(content);
             _type = type;
-            _onClose = onClose;
             _firstDraw = true;
             Result = .None;
+
+            if (_onClose != null)
+            {
+                delete _onClose;
+            }
+            _onClose = onClose;
         }
 
         public override void Draw(App app, Gui gui)
@@ -43,7 +48,10 @@ namespace Nanoforge.Gui.Dialogs
             defer { _firstDraw = false; }
 
             //Manually set padding since the parent window might be a document with padding disabled
-            ImGui.PushStyleVar(.WindowPadding, .(8.0f, 8.0f));
+            ImGui.PushStyleVar(.WindowPadding, .(12.0f, 12.0f));
+
+            //Reasonable default size
+            ImGui.SetNextWindowSize(.(400.0f, 0.0f));
 
             //Auto center
             ImGui.IO* io = ImGui.GetIO();
