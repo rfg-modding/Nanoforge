@@ -25,6 +25,7 @@ namespace Nanoforge.Gui
                 //Base latin glyphs & FontAwesome fonts are always enabled
                 _iconRanges.AddRange(scope u16[](0x0020, 0x024F));
                 _iconRanges.AddRange(scope u16[](Icons.ICON_MIN_FA, Icons.ICON_MAX_FA));
+                _iconRanges.AddRange(scope u16[](Icons.ICON_MIN_VS, Icons.ICON_MAX_VS));
 
                 //Other glyphs can optionally be enabled. Disabled by default because they increase boot time and I only use english while programming.
                 //Want to be able to enable them later when I add localization
@@ -102,7 +103,9 @@ namespace Nanoforge.Gui
 				//Load font
 				io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/NotoSansDisplay-Medium.ttf", _size, null, glyphRanges);
 				//Load FontAwesome image font
-				_font = io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/fa-solid-900.ttf", _size, fontConfig, glyphRanges);
+                _font = io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/fa-solid-900.ttf", _size, fontConfig, glyphRanges);
+                //Load VSCode icons
+				_font = io.Fonts.AddFontFromFileTTF(scope $"{BuildConfig.AssetsBasePath}fonts/codicon.ttf", _size, fontConfig, glyphRanges);
 			}
 		}
 	}
