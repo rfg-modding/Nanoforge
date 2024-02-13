@@ -72,6 +72,7 @@ namespace Nanoforge.Gui.Documents
         //private bool _highlightHoveredZone = false; //TODO: Implement once multi zone maps are supported again
         //private float _zoneBoxHeight = 150.0f;
         private bool _highlightHoveredObject = false;
+        private ZoneObject _hoveredObject = null;
         public bool AutoMoveChildren = true; //Auto move children when the parent object is moved
 
         [BonTarget, ReflectAll]
@@ -311,6 +312,11 @@ namespace Nanoforge.Gui.Documents
             if (!_scene.Active)
                 return;
 
+            UpdateDebugDraw();
+        }
+
+        private void UpdateDebugDraw()
+        {
             //Draw object bounding boxes
             for (Zone zone in Map.Zones)
             {
@@ -322,10 +328,108 @@ namespace Nanoforge.Gui.Documents
                     if (_onlyShowPersistentObjects && !obj.Flags.HasFlag(.Persistent))
                         continue;
 
-                    Vec4 color = .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f);
-                    _scene.DrawBox(obj.BBox.Min, obj.BBox.Max, color);
+                    BoundingBox bbox = obj.BBox;
+
+                    //Holding down T will display the secondary bbox instead of the primary one for objects that have one
+                    if (ImGui.IsKeyDown(.T))
+                    {
+                        if (obj.GetType() == typeof(ObjectBoundingBox))
+                        {
+                            bbox = (obj as ObjectBoundingBox).LocalBBox;
+                        }
+                        else if (obj.GetType() == typeof(TriggerRegion))
+                        {
+                            bbox = (obj as TriggerRegion).LocalBBox;
+                        }
+                        else if (obj.GetType() == typeof(MultiMarker))
+                        {
+                            bbox = (obj as MultiMarker).LocalBBox;
+                        }
+                    }    
+
+                    if (SelectedObject != obj)
+                    {
+                        Vec4 color = .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f);
+                        _scene.DrawBox(bbox.Min, bbox.Max, color);
+                    }
+                    else
+                    {
+                        //For the selected object change the color of the BBox over time and draw a line into the sky so its easier to find
+                        Vec3 color = objectClass.Color;
+
+                        f32 colorMagnitude = objectClass.Color.Length;
+                        //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
+                        f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
+                        color.x = objectClass.Color.x + Math.Pow(Math.Sin(_scene.TotalTime * 2.0f), 2.0f) * multiplier;
+                        color.y = objectClass.Color.y + Math.Pow(Math.Sin(_scene.TotalTime), 2.0f) * multiplier;
+                        color.z = objectClass.Color.z + Math.Pow(Math.Sin(_scene.TotalTime), 2.0f) * multiplier;
+
+                        //Keep color in a certain range so it stays visible against the terrain
+                        f32 magnitudeMin = 0.20f;
+                        f32 colorMin = 0.20f;
+                        if (color.Length < magnitudeMin)
+                        {
+                            color.x = Math.Max(color.x, colorMin);
+                            color.y = Math.Max(color.y, colorMin);
+                            color.z = Math.Max(color.z, colorMin);
+                        }
+
+                        //Draw bbox
+                        _scene.DrawBox(bbox.Min, bbox.Max, Vec4(color.x, color.y, color.z, 1.0f));
+
+                        //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
+                        Vec3 lineStart;
+                        lineStart.x = (bbox.Min.x + bbox.Max.x) / 2.0f;
+                        lineStart.y = bbox.Min.y;
+                        lineStart.z = (bbox.Min.z + bbox.Max.z) / 2.0f;
+                        Vec3 lineEnd = lineStart;
+                        lineEnd.y += 300.0f;
+                        _scene.DrawLine(lineStart, lineEnd, Vec4(color.x, color.y, color.z, 1.0f));
+
+                        //Draw orientation lines
+                        {
+                            //Determine line length
+                            Vec3 size = bbox.Max - bbox.Min;
+                            f32 orientLineScale = 2.0f; //How many times larger than the object orient lines should be
+                            f32 lineLength = orientLineScale * Math.Max(Math.Max(size.x, size.y), size.z); //Make lines equal length, as long as the widest side of the bbox
+
+                            Mat3 orient = obj.Orient.Enabled ? obj.Orient.Value : .Identity;
+                            Vec3 center = obj.Position;
+                            _scene.DrawLine(center, center + (orient.Vectors[0] * lineLength), .(1.0f, 0.0f, 0.0f, 1.0f)); //Right
+                            _scene.DrawLine(center, center + (orient.Vectors[1] * lineLength), .(0.0f, 1.0f, 0.0f, 1.0f)); //Up
+                            _scene.DrawLine(center, center + (orient.Vectors[2] * lineLength), .(0.0f, 0.0f, 1.0f, 1.0f)); //Forward
+                        }
+                    }
                 }
             }
+
+            //Highlight object hovered in outliner
+            if (_highlightHoveredObject && _hoveredObject != null)
+			{
+                ZoneObjectClass objectClass = GetObjectClass(_hoveredObject);
+                Vec3 color = .(0.7f, 0.0f, 0.5f);
+                if (objectClass != null)
+                {
+                    f32 colorMagnitude = objectClass.Color.Length;
+                    //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
+                    f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
+                    color.x = objectClass.Color.x + Math.Pow(Math.Sin(_scene.TotalTime * 2.0f), 2.0f) * multiplier;
+                    color.y = objectClass.Color.y + Math.Pow(Math.Sin(_scene.TotalTime), 2.0f) * multiplier;
+                    color.z = objectClass.Color.z + Math.Pow(Math.Sin(_scene.TotalTime), 2.0f) * multiplier;
+                }
+
+                //Keep color in a certain range so it stays visible against the terrain
+                f32 magnitudeMin = 0.20f;
+                f32 colorMin = 0.20f;
+                if (color.Length < magnitudeMin)
+                {
+                    color.x = Math.Max(color.x, colorMin);
+                    color.y = Math.Max(color.y, colorMin);
+                    color.z = Math.Max(color.z, colorMin);
+                }
+
+                _scene.DrawBoxSolid(_hoveredObject.BBox.Min, _hoveredObject.BBox.Max, .(color.x, color.y, color.z, 1.0f));
+            }	
         }
 
         private void DrawMenuBar(App app, Gui gui)
@@ -822,6 +926,9 @@ namespace Nanoforge.Gui.Documents
             ImGui.PopStyleVar(1);
             ImGui.TooltipOnPrevious("Clear search");
 
+            //Clear so if no object is hovered this frame it doesn't keep highlighting the last object that was hovered
+            _hoveredObject = null;
+
             //Set custom highlight colors for the table
             ImGui.PushStyleColor(.Header, _outlinerNodeHeaderColor);
             ImGui.PushStyleColor(.HeaderHovered, _outlinerNodeHighlightColor);
@@ -1142,6 +1249,7 @@ namespace Nanoforge.Gui.Documents
             {
                 obj.Classname.EnsureNullTerminator();
                 ImGui.TooltipOnPrevious(obj.Classname);
+                _hoveredObject = obj;
             }
             Outliner_DrawContextMenu(gui, obj);
 
