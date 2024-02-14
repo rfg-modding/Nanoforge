@@ -268,8 +268,16 @@ namespace Nanoforge.Gui.Documents
                 _scene = _renderer.CreateScene(false);
                 ThreadPool.QueueUserWorkItem(new () => { this.Load(app); });
             }
-            if (Loading || _loadFailure)
-	            return;
+            if (Loading)
+            {
+                ImGui.Text("Loading map...");
+                return;
+            }
+            else if (_loadFailure)
+            {
+                ImGui.Text(scope $"Error while loading map: {_loadFailureReason}");
+                return;
+            }
 
             if (_scene != null)
             {

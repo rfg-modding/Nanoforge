@@ -234,6 +234,10 @@ namespace Nanoforge.Gui
             {
             	FocusedDocument.Outliner(app, this);
             }
+            else
+            {
+                ImGui.TextWrapped("Click on the viewport of map to see a list of its objects here.");
+            }
 
             ImGui.End();
         }
