@@ -177,6 +177,7 @@ namespace Nanoforge.Rfg
                     var variantSearch = chunk.Variants.Select((variant) => variant).Where((variant) => variant.VariantUID == mover.DestroyableUID);
                     if (variantSearch.Count() == 0)
                     {
+                        Logger.Warning("Couldn't find destroyable {} for object {}", mover.DestroyableUID, mover.UID);
                         continue;
                     }
                     ChunkVariant variant = variantSearch.First();
