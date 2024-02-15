@@ -4,6 +4,7 @@ using Common.Math;
 using Common;
 using System;
 using Win32;
+using System.Diagnostics;
 
 namespace Nanoforge.Misc
 {
@@ -15,16 +16,17 @@ namespace Nanoforge.Misc
         public static bool KeysEnabled = true;
 
         //Input state
-        private List<KeyState> _lastFrameKeyDownStates = new .()..Resize(349) ~ delete _;
-        private List<KeyState> _keyDownStates = new .()..Resize(349) ~ delete _;
-        private List<bool> _mouseDownStates = new .()..Resize(3) ~ delete _;
+        private List<KeyState> _lastFrameKeyStates = new .()..Resize(349) ~ delete _;
+        private List<KeyState> _keyStates = new .()..Resize(349) ~ delete _;
+        private List<KeyState> _lastFrameMouseButtonStates = new .()..Resize(3) ~ delete _;
+        private List<KeyState> _mouseButtonStates = new .()..Resize(3) ~ delete _;
         private float _lastMouseX = 0.0f;
         private float _lastMouseY = 0.0f;
 
         //Returns true if the provided is down, including if it's being held down for multiple frames.
-        public bool KeyDown(KeyCode keyCode) => KeysEnabled && _keyDownStates[(int)keyCode] > .Up;
+        public bool KeyDown(KeyCode keyCode) => KeysEnabled && _keyStates[(int)keyCode] > .Up;
         //Returns true if the provided key was pressed this frame. It will return false if the key has been down for several frames
-        public bool KeyPressed(KeyCode keyCode) => KeysEnabled && _keyDownStates[(int)keyCode] == .Down;
+        public bool KeyPressed(KeyCode keyCode) => KeysEnabled && _keyStates[(int)keyCode] == .Down;
 
         private bool _shiftDown = false;
         private bool _controlDown = false;
@@ -34,7 +36,9 @@ namespace Nanoforge.Misc
         public bool AltDown => KeysEnabled && _altDown;
 
         //Returns true if the provided mouse button is down
-        public bool MouseButtonDown(MouseButtonCode keyCode) => KeysEnabled && _mouseDownStates[(int)keyCode];
+        public bool MouseButtonDown(MouseButtonCode keyCode) => KeysEnabled && _mouseButtonStates[(int)keyCode] > .Up;
+        //Returns true if the mouse button was pressed this frame
+        public bool MouseButtonPressed(MouseButtonCode keyCode) => KeysEnabled && _mouseButtonStates[(int)keyCode] == .Down; 
         public float MousePosX { get; private set; } = 0.0f;
         public float MousePosY { get; private set; } = 0.0f;
         public float MouseDeltaX { get; private set; } = 0.0f;
@@ -42,8 +46,6 @@ namespace Nanoforge.Misc
         public float MouseScrollY { get; private set; } = 0.0f;
         //Returns true if the mouse moved this frame
         public bool MouseMoved { get; private set; } = false;
-        //Returns true if any mouse button was pressed this frame
-        public bool MouseButtonPressed { get; private set; } = false;
 
         static void ISystem.Build(App app)
         {
@@ -59,15 +61,24 @@ namespace Nanoforge.Misc
         [SystemStage(.BeginFrame)]
         private void BeginFrame()
         {
-            for (int i in 0..<_keyDownStates.Count)
+            for (int i in 0..<_keyStates.Count)
             {
                 //Set key to repeat if it's held down for two frames
                 //Note: Ideally this should be handled by WndProcKeyDown already, but in practice it doesn't seem to work. At least on my system the second keydown message can be delayed by 1-2 dozen frames
                 //      That breaks KeyPressed(). Unsure if it's an issue with the system update code, my system, or maybe my keyboard
-                if (_lastFrameKeyDownStates[i] == .Down && _keyDownStates[i] == .Down)
-                    _keyDownStates[i] = .Repeat;
+                if (_lastFrameKeyStates[i] == .Down && _keyStates[i] == .Down)
+                    _keyStates[i] = .Repeat;
 
-                _lastFrameKeyDownStates[i] = _keyDownStates[i];
+                _lastFrameKeyStates[i] = _keyStates[i];
+            }
+
+            //Set mouse button state to .Repeat when its down for more than 1 frame
+            for (int i in 0..<_mouseButtonStates.Count)
+            {
+                if (_lastFrameMouseButtonStates[i] == .Down && _mouseButtonStates[i] == .Down)
+                    _mouseButtonStates[i] = .Repeat;
+
+                _lastFrameMouseButtonStates[i] = _mouseButtonStates[i];
             }
         }
 
@@ -75,7 +86,6 @@ namespace Nanoforge.Misc
         [SystemStage(.EndFrame)]
         private void EndFrame()
         {
-            MouseButtonPressed = false;
             MouseMoved = false;
             MouseScrollY = 0.0f;
             MouseDeltaX = 0;
@@ -88,10 +98,10 @@ namespace Nanoforge.Misc
         //Takes WndProc WM_KEYDOWN message parameters as input
         private void WndProcKeyDown(WPARAM wParam, LPARAM lParam)
         {
-            if (wParam >= (uint)_keyDownStates.Count)
+            if (wParam >= (uint)_keyStates.Count)
                 return;
 
-            var keyState = ref _keyDownStates[(int)wParam];
+            var keyState = ref _keyStates[(int)wParam];
             switch (keyState)
             {
                 case .Up:
@@ -107,10 +117,10 @@ namespace Nanoforge.Misc
         //Takes WndProc WM_KEYUP message parameters as input
         private void WndProcKeyUp(WPARAM wParam, LPARAM lParam)
         {
-            if (wParam >= (uint)_keyDownStates.Count)
+            if (wParam >= (uint)_keyStates.Count)
                 return;
 
-            _keyDownStates[(int)wParam] = .Up;
+            _keyStates[(int)wParam] = .Up;
         }
 
         //Takes WndProc mouse message parameters as input
@@ -119,23 +129,22 @@ namespace Nanoforge.Misc
             switch (msg)
             {
                 case Win32.WM_LBUTTONDOWN:
-                    _mouseDownStates[(int)MouseButtonCode.Left] = true;
-                    MouseButtonPressed = true;
+                    _mouseButtonStates[(int)MouseButtonCode.Left] = .Down;
                 case Win32.WM_LBUTTONUP:
-                    _mouseDownStates[(int)MouseButtonCode.Left] = false;
-                    MouseButtonPressed = true;
+                    _mouseButtonStates[(int)MouseButtonCode.Left] = .Up;
+
                 case Win32.WM_RBUTTONDOWN:
-                    _mouseDownStates[(int)MouseButtonCode.Right] = true;
-                    MouseButtonPressed = true;
+                    _mouseButtonStates[(int)MouseButtonCode.Right] = .Down;
                 case Win32.WM_RBUTTONUP:
-                    _mouseDownStates[(int)MouseButtonCode.Right] = false;
-                    MouseButtonPressed = true;
+                    _mouseButtonStates[(int)MouseButtonCode.Right] = .Up;
+
+
                 case Win32.WM_MBUTTONDOWN:
-                    _mouseDownStates[(int)MouseButtonCode.Middle] = true;
-                    MouseButtonPressed = true;
+                    _mouseButtonStates[(int)MouseButtonCode.Middle] = .Down;
                 case Win32.WM_MBUTTONUP:
-                    _mouseDownStates[(int)MouseButtonCode.Middle] = false;
-                    MouseButtonPressed = true;
+                    _mouseButtonStates[(int)MouseButtonCode.Middle] = .Up;
+
+
                 case Win32.WM_MOUSEMOVE:
                     int mouseX = Win32.GET_X_LPARAM!(lParam);
                     int mouseY = Win32.GET_Y_LPARAM!(lParam);
@@ -147,6 +156,8 @@ namespace Nanoforge.Misc
                     MousePosY = mouseY;
                     MouseDeltaX = MousePosX - _lastMouseX;
                     MouseDeltaY = MousePosY - _lastMouseY;
+
+
                 case Win32.WM_MOUSEWHEEL:
                     int distance = Win32.HIWORD!(wParam); //Multiples of Win32.WHEEL_DELTA: https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel
                     MouseScrollY = distance * Win32.WHEEL_DELTA;
