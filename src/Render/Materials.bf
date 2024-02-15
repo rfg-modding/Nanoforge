@@ -134,8 +134,8 @@ namespace Nanoforge.Render
             CreateMaterial(device, "Linelist", "Linelist.hlsl",
 	            D3D11_INPUT_ELEMENT_DESC[]
 	            (
-	                .("POSITION", 0, .R32G32B32_FLOAT, 0, 0,  .VERTEX_DATA, 0),
-	                .("COLOR",    0, .R8G8B8A8_UNORM,  0, 12, .VERTEX_DATA, 0),
+	                .("POSITION", 0, .R32G32B32A32_FLOAT, 0, 0,  .VERTEX_DATA, 0),
+	                .("COLOR",    0, .R8G8B8A8_UNORM,  0, 16, .VERTEX_DATA, 0),
 	            ), enableGeometryShaders: true);
             CreateMaterial(device, "SolidTriList", "SolidTriList.hlsl",
 	            D3D11_INPUT_ELEMENT_DESC[]

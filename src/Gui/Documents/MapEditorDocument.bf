@@ -396,26 +396,26 @@ namespace Nanoforge.Gui.Documents
                         _scene.DrawBox(bbox.Min, bbox.Max, Vec4(color.x, color.y, color.z, 1.0f));
 
                         //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
-                        Vec3 lineStart;
+                        /*Vec3 lineStart;
                         lineStart.x = (bbox.Min.x + bbox.Max.x) / 2.0f;
                         lineStart.y = bbox.Min.y;
                         lineStart.z = (bbox.Min.z + bbox.Max.z) / 2.0f;
                         Vec3 lineEnd = lineStart;
                         lineEnd.y += 300.0f;
-                        _scene.DrawLine(lineStart, lineEnd, Vec4(color.x, color.y, color.z, 1.0f));
+                        _scene.DrawLine(lineStart, lineEnd, Vec4(color.x, color.y, color.z, 1.0f));*/
 
                         //Draw orientation lines
                         {
                             //Determine line length
                             Vec3 size = bbox.Max - bbox.Min;
-                            f32 orientLineScale = 2.0f; //How many times larger than the object orient lines should be
+                            f32 orientLineScale = 1.5f; //How many times larger than the object orient lines should be
                             f32 lineLength = orientLineScale * Math.Max(Math.Max(size.x, size.y), size.z); //Make lines equal length, as long as the widest side of the bbox
 
                             Mat3 orient = obj.Orient.Enabled ? obj.Orient.Value : .Identity;
                             Vec3 center = obj.Position;
-                            _scene.DrawLine(center, center + (orient.Vectors[0] * lineLength), .(1.0f, 0.0f, 0.0f, 1.0f)); //Right
-                            _scene.DrawLine(center, center + (orient.Vectors[1] * lineLength), .(0.0f, 1.0f, 0.0f, 1.0f)); //Up
-                            _scene.DrawLine(center, center + (orient.Vectors[2] * lineLength), .(0.0f, 0.0f, 1.0f, 1.0f)); //Forward
+                            _scene.DrawArrow(center, center + (orient.Vectors[0] * lineLength), color: .(1.0f, 0.0f, 0.0f, 1.0f), arrowLength: 5.0f, lineWidth: 3.0f, arrowBaseWidth: 25.0f, arrowTipWidth: 3.0f); //Right
+                            _scene.DrawArrow(center, center + (orient.Vectors[1] * lineLength), color: .(0.0f, 1.0f, 0.0f, 1.0f), arrowLength: 5.0f, lineWidth: 3.0f, arrowBaseWidth: 25.0f, arrowTipWidth: 3.0f); //Right
+                            _scene.DrawArrow(center, center + (orient.Vectors[2] * lineLength), color: .(0.0f, 0.0f, 1.0f, 1.0f), arrowLength: 5.0f, lineWidth: 3.0f, arrowBaseWidth: 25.0f, arrowTipWidth: 3.0f); //Right
                         }
                     }
                 }

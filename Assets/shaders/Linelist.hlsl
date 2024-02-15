@@ -1,25 +1,27 @@
 #include "Constants.hlsl"
 
-#define thickness 2.0f
-#define kAntialiasing 2.0f //Disabled by default. Must uncomment code in pixel shader to enable (line 94)
+#define kAntialiasing 2.0f
 
 struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
     float4 Color : COLOR;
+    float Size : SIZE;
 };
 
 struct PS_INPUT
 {
     float4 Pos : SV_POSITION;
     float4 Color : COLOR;
+    float Size : SIZE;
     float EdgeDistance : EDGE_DISTANCE;
 };
 
-VS_OUTPUT VS(float3 inPos : POSITION, float4 inColor : COLOR)
+VS_OUTPUT VS(float4 inPosAndSize : POSITION, float4 inColor : COLOR)
 {
     VS_OUTPUT output;
-    output.Pos = mul(float4(inPos.xyz, 1.0f), WVP);
+    output.Pos = mul(float4(inPosAndSize.xyz, 1.0f), WVP);
+    output.Size = max(inPosAndSize.w, kAntialiasing);
     output.Color = float4(inColor.xyz, 1.0f);
 
     return output;
@@ -39,36 +41,40 @@ void GS(line VS_OUTPUT vertices[2] : SV_POSITION, inout TriangleStream<PS_INPUT>
 	float2 dir = pos0 - pos1;
 	dir = normalize(float2(dir.x, dir.y * ViewportDimensions.y / ViewportDimensions.x)); //Correct for aspect ratio
 	float2 tng0 = float2(-dir.y, dir.x);
-	float2 tng1 = tng0 * thickness / ViewportDimensions;
-	tng0 = tng0 * thickness / ViewportDimensions;
+	float2 tng1 = tng0 * vert1.Size / ViewportDimensions;
+	tng0 = tng0 * vert0.Size / ViewportDimensions;
 	
 	PS_INPUT output;
 			
 	//Line start
+    output.Size = vert0.Size;
 	output.Color = vert0.Color;
 	output.Pos = float4((pos0 - tng0) * vert0.Pos.w, vert0.Pos.zw); 
-    output.EdgeDistance = -thickness;
+    output.EdgeDistance = -vert0.Size;
 	outputStream.Append(output);
 	output.Pos = float4((pos0 + tng0) * vert0.Pos.w, vert0.Pos.zw);
-    output.EdgeDistance = thickness;
+    output.EdgeDistance = vert0.Size;
 	outputStream.Append(output);
 			
 	//Line end
+    output.Size = vert1.Size;
 	output.Color = vert1.Color;
 	output.Pos = float4((pos1 - tng1) * vert1.Pos.w, vert1.Pos.zw);
-    output.EdgeDistance = -thickness;
+    output.EdgeDistance = -vert1.Size;
 	outputStream.Append(output);
 	output.Pos = float4((pos1 + tng1) * vert1.Pos.w, vert1.Pos.zw);
-    output.EdgeDistance = thickness;
+    output.EdgeDistance = vert1.Size;
 	outputStream.Append(output);
 }
 
 float4 PS(PS_INPUT input) : SV_TARGET
 {
-    //Code from im3d that can be used to anti alias the lines
-    //float d = abs(input.EdgeDistance) / thickness;
- 	//d = smoothstep(1.0, 1.0 - (kAntialiasing / thickness), d);
-    //return input.Color * d;
+    float4 ret = input.Color;
 
-    return input.Color;
+    //Code from im3d that can be used to anti alias the lines
+    float d = abs(input.EdgeDistance) / input.Size;
+ 	d = smoothstep(1.0, 1.0 - (kAntialiasing / input.Size), d);
+    
+    ret.a *= d;
+    return ret;
 }

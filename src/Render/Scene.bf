@@ -41,7 +41,7 @@ namespace Nanoforge.Render
 
         //For linelist primitives
         private Material _lineListMaterial = null;
-        private append List<ColoredVertex> _lineVertices;
+        private append List<LineVertex> _lineVertices;
         private append Buffer _lineVertexBuffer;
 
         //For solid shaded triangle list primitives
@@ -60,6 +60,46 @@ namespace Nanoforge.Render
         //We currently only delete resources when we close a map, so we don't need fancy reference counting or anything like that just yet.
         public append List<Texture2D> Textures ~ClearAndDeleteItems(_);
         public append List<Mesh> Meshes ~ClearAndDeleteItems(_);
+
+        //TODO: Make this and anti aliasing configurable via Cvar and gui
+        public f32 LineWidth = 3.0f;
+
+        [CRepr, RequiredSize(20)]
+        private struct LineVertex
+        {
+            //Position and Size positioned next to each other so they can be loaded in the vertex shader through a float4
+            public Vec3 Position;
+            public f32 Size;
+            public u8 r, g, b, a;
+
+            public this(Vec3 position, Vec4 color, f32 size)
+            {
+                Position = position;
+                r = (u8)(color.x * 255.0f);
+                g = (u8)(color.y * 255.0f);
+                b = (u8)(color.z * 255.0f);
+                a = (u8)(color.w * 255.0f);
+                Size = size;
+            }
+        }
+
+        [CRepr, RequiredSize(20)]
+        private struct PointVertex
+        {
+            public Vec3 Position;
+            public f32 Size;
+            public u8 r, g, b, a;
+
+            public this(Vec3 position, Vec4 color, f32 size)
+            {
+                Position = position;
+                r = (u8)(color.x * 255.0f);
+                g = (u8)(color.y * 255.0f);
+                b = (u8)(color.z * 255.0f);
+                a = (u8)(color.w * 255.0f);
+                Size = size;
+            }
+        }
 
         [CRepr, RequiredSize(16)]
         private struct ColoredVertex
@@ -179,13 +219,14 @@ namespace Nanoforge.Render
             }
 
             u32 offset = 0;
+            u32 strideLineVertex = sizeof(LineVertex);
             u32 strideColoredVertex = sizeof(ColoredVertex);
             u32 strideLitVertex = sizeof(ColoredVertexLit);
 
             //Draw linelist primitives
             _lineListMaterial.Use(_context);
             _context.IASetPrimitiveTopology(.D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-            _context.IASetVertexBuffers(0, 1, &_lineVertexBuffer.Ptr, &strideColoredVertex, &offset);
+            _context.IASetVertexBuffers(0, 1, &_lineVertexBuffer.Ptr, &strideLineVertex, &offset);
             _context.Draw((u32)_lineVertices.Count, 0);
 
             //Draw unlit triangle list primitives
@@ -290,11 +331,11 @@ namespace Nanoforge.Render
         {
             //Update line list vertex buffer
             {
-                _lineVertexBuffer.ResizeIfNeeded(_device, sizeof(ColoredVertex) * (u32)_lineVertices.Count);
+                _lineVertexBuffer.ResizeIfNeeded(_device, sizeof(LineVertex) * (u32)_lineVertices.Count);
                 D3D11_MAPPED_SUBRESOURCE mappedResource = .();
                 ZeroMemory(&mappedResource);
                 _context.Map(_lineVertexBuffer.Ptr, 0, .WRITE_DISCARD, 0, &mappedResource);
-                Internal.MemCpy(mappedResource.pData, _lineVertices.Ptr, sizeof(ColoredVertex) * (u32)_lineVertices.Count);
+                Internal.MemCpy(mappedResource.pData, _lineVertices.Ptr, sizeof(LineVertex) * (u32)_lineVertices.Count);
                 _context.Unmap(_lineVertexBuffer.Ptr, 0);
             }
 
@@ -473,19 +514,26 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawLine(Vec3 start, Vec3 end, Vec4 color)
+        public void DrawLine(Vec3 start, Vec3 end, Vec4 color, f32 width = 3.0f)
         {
-            _lineVertices.Add(.(start, color));
-            _lineVertices.Add(.(end, color));
+            _lineVertices.Add(.(start, color, width));
+            _lineVertices.Add(.(end, color, width));
+            _primitiveBufferNeedsUpdate = true;
+        }
+
+        public void DrawLine(Vec3 start, Vec3 end, Vec4 color, f32 widthStart = 3.0f, f32 widthEnd = 3.0f)
+        {
+            _lineVertices.Add(.(start, color, widthStart));
+            _lineVertices.Add(.(end, color, widthEnd));
             _primitiveBufferNeedsUpdate = true;
         }
 
         public void DrawQuad(Vec3 bottomLeft, Vec3 topLeft, Vec3 topRight, Vec3 bottomRight, Vec4 color)
         {
-            DrawLine(bottomLeft, topLeft, color);
-            DrawLine(topLeft, topRight, color);
-            DrawLine(topRight, bottomRight, color);
-            DrawLine(bottomRight, bottomLeft, color);
+            DrawLine(bottomLeft, topLeft, color, LineWidth);
+            DrawLine(topLeft, topRight, color, LineWidth);
+            DrawLine(topRight, bottomRight, color, LineWidth);
+            DrawLine(bottomRight, bottomLeft, color, LineWidth);
         }
 
         public void DrawBox(Vec3 min, Vec3 max, Vec4 color)
@@ -506,10 +554,10 @@ namespace Nanoforge.Render
             DrawQuad(bottomLeftBack, topLeftBack, topRightBack, bottomRightBack, color);
 
             //Draw lines connecting the two faces
-            DrawLine(bottomLeftFront, bottomLeftBack, color);
-            DrawLine(topLeftFront, topLeftBack, color);
-            DrawLine(topRightFront, topRightBack, color);
-            DrawLine(bottomRightFront, bottomRightBack, color);
+            DrawLine(bottomLeftFront, bottomLeftBack, color, LineWidth);
+            DrawLine(topLeftFront, topLeftBack, color, LineWidth);
+            DrawLine(topRightFront, topRightBack, color, LineWidth);
+            DrawLine(bottomRightFront, bottomRightBack, color, LineWidth);
 
             _primitiveBufferNeedsUpdate = true;
         }
@@ -559,10 +607,10 @@ namespace Nanoforge.Render
             DrawQuad(bottomLeftBack, topLeftBack, topRightBack, bottomRightBack, color);
 
             //Draw lines connecting the two faces
-            DrawLine(bottomLeftFront, bottomLeftBack, color);
-            DrawLine(topLeftFront, topLeftBack, color);
-            DrawLine(topRightFront, topRightBack, color);
-            DrawLine(bottomRightFront, bottomRightBack, color);
+            DrawLine(bottomLeftFront, bottomLeftBack, color, LineWidth);
+            DrawLine(topLeftFront, topLeftBack, color, LineWidth);
+            DrawLine(topRightFront, topRightBack, color, LineWidth);
+            DrawLine(bottomRightFront, bottomRightBack, color, LineWidth);
 
             _primitiveBufferNeedsUpdate = true;
         }
@@ -643,6 +691,15 @@ namespace Nanoforge.Render
             DrawQuadLit(bottomLeftFront, bottomLeftBack, bottomRightBack, bottomRightFront, color); //Bottom
 
             _primitiveBufferNeedsUpdate = true;
+        }
+
+        public void DrawArrow(Vec3 lineStart, Vec3 lineEnd, Vec4 color, f32 arrowLength, f32 lineWidth = 3.0f, f32 arrowBaseWidth = 10.0f, f32 arrowTipWidth = 3.0f)
+        {
+            Vec3 arrowDirection = (lineEnd - lineStart).Normalized();
+            Vec3 arrowStart = lineEnd;
+            Vec3 arrowEnd = arrowStart + (arrowLength * arrowDirection);
+            DrawLine(lineStart, arrowStart, color, lineWidth);
+            DrawLine(arrowStart, arrowEnd, color, arrowBaseWidth, arrowTipWidth);
         }
 	}
 
