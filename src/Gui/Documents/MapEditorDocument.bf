@@ -348,14 +348,20 @@ namespace Nanoforge.Gui.Documents
                         if (obj.GetType() == typeof(ObjectBoundingBox))
                         {
                             bbox = (obj as ObjectBoundingBox).LocalBBox;
+                            bbox.Min += obj.Position;
+                            bbox.Max += obj.Position;
                         }
                         else if (obj.GetType() == typeof(TriggerRegion))
                         {
                             bbox = (obj as TriggerRegion).LocalBBox;
+                            bbox.Min += obj.Position;
+                            bbox.Max += obj.Position;
                         }
                         else if (obj.GetType() == typeof(MultiMarker))
                         {
                             bbox = (obj as MultiMarker).LocalBBox;
+                            bbox.Min += obj.Position;
+                            bbox.Max += obj.Position;
                         }
                     }    
 
