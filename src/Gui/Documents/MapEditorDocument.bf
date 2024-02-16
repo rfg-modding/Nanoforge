@@ -19,6 +19,7 @@ using NativeFileDialog;
 using Nanoforge.Rfg.Export;
 using System.Linq;
 using Nanoforge.Gui.Dialogs;
+using Common.Math;
 
 namespace Nanoforge.Gui.Documents
 {
@@ -124,6 +125,10 @@ namespace Nanoforge.Gui.Documents
 
         private append String _outlinerSearch;
         private bool _outlinerSearchIgnoreCase = true;
+
+        //Ray emitted by the mouse from the viewport this frame (regardless of whether the mouse clicked or not)
+        public Ray? MouseRay = null;
+        public bool DrawMousePickingRay = true;
 
         public this(StringView mapName)
         {
@@ -301,7 +306,7 @@ namespace Nanoforge.Gui.Documents
                 }
 
                 //Store initial position so we can draw buttons over the scene texture after drawing it
-                ImGui.Vec2 initialPos = ImGui.GetCursorPos();
+                ImGui.Vec2 sceneViewportPos = ImGui.GetCursorPos();
 
                 //Render scene texture
                 ImGui.PushStyleColor(.WindowBg, .(_scene.ClearColor.x, _scene.ClearColor.y, _scene.ClearColor.z, _scene.ClearColor.w));
@@ -309,12 +314,21 @@ namespace Nanoforge.Gui.Documents
                 ImGui.PopStyleColor();
 
                 //Set cursor pos to top left corner to draw buttons over scene texture
-                ImGui.Vec2 adjustedPos = initialPos;
+                ImGui.Vec2 adjustedPos = sceneViewportPos;
                 adjustedPos.x += 10.0f;
                 adjustedPos.y += 10.0f;
                 ImGui.SetCursorPos(adjustedPos);
 
                 DrawMenuBar(app, gui);
+
+                Input input = app.GetResource<Input>();
+                ImGui.Vec2 windowPos = ImGui.GetWindowPos();
+                Vec2 adjustedViewportPos = .(sceneViewportPos.x, sceneViewportPos.y);
+                adjustedViewportPos.x += windowPos.x;
+                adjustedViewportPos.y += windowPos.y;
+
+                UpdateMouseRay(input, adjustedViewportPos, .(_scene.ViewWidth, _scene.ViewHeight));
+                UpdatePicking(input);
             }
 
             Keybinds(app);
@@ -324,10 +338,82 @@ namespace Nanoforge.Gui.Documents
             if (!_scene.Active)
                 return;
 
-            UpdateDebugDraw();
+            UpdateDebugDraw(app);
         }
 
-        private void UpdateDebugDraw()
+        //When the mouse hovers the viewport this calculates a ray emitting from the mouse into the scene
+        //This function doesn't do any picking collision detection.
+        private void UpdateMouseRay(Input input, Vec2 viewportPos, Vec2 viewportSize)
+        {
+            Rect rect = .(.(viewportPos.x, viewportPos.y), .(viewportPos.x + _scene.ViewWidth, viewportPos.y + _scene.ViewHeight));
+            bool mouseHoveringViewport = rect.IsPositionInRect(.(input.MousePosX, input.MousePosY));
+            if (mouseHoveringViewport)
+            {
+                //Adjust the mouse pos to be relative the viewport
+                Vec2 mousePos = .(input.MousePosX, input.MousePosY) - viewportPos;
+
+                Camera3D camera = _scene.Camera;
+                Vec3 mouseViewPos = .();
+                mouseViewPos.x = (((2.0f * mousePos.x) / _scene.ViewWidth) - 1.0f) / camera.Projection.Vectors[0].x;
+                mouseViewPos.y = -(((2.0f * mousePos.y) / _scene.ViewHeight) - 1.0f) / camera.Projection.Vectors[1].y;
+                mouseViewPos.z = 1.0f;
+
+                Mat4 pickRayToWorldMatrix = Mat4.Inverse(camera.View);
+                Vec3 pickRayInWorldSpacePos = DirectXMath.Vec3TransformCoord(.Zero, pickRayToWorldMatrix);
+                Vec3 pickRayWorldSpaceDir = DirectXMath.Vec3TransformNormal(mouseViewPos, pickRayToWorldMatrix).Normalized();
+
+                f32 pickRayLength = 1000.0f;
+                Vec3 pickRayStart = pickRayInWorldSpacePos;//camera.Position;
+                Vec3 pickRayEnd = pickRayStart + (pickRayLength * pickRayWorldSpaceDir);
+
+                MouseRay = Ray(pickRayStart, pickRayEnd);
+            }
+            else
+            {
+                MouseRay = null;
+            }    
+        }
+
+        private void UpdatePicking(Input input)
+        {
+            if (input.MouseButtonPressed(.Left) && MouseRay.HasValue)
+            {
+                Stopwatch timer = scope .(startNow: true);
+
+                //Figure out which objects bounding boxes the pick ray has collided with
+                f32 closestObjectDistanceFromCamera = f32.PositiveInfinity;
+                ZoneObject closestHitObject = null;
+                for (ZoneObject obj in Map.Zones[0].Objects) //TODO: For SP we'll need to come up with some other solution to avoid needing to loop through every zone. Maybe do GPU picking
+                {
+                    Vec3 intersection = .Zero;
+                    if (obj.BBox.IntersectsLine(MouseRay.Value, ref intersection))
+                    {
+                        f32 distanceFromCamera = (obj.Position - MouseRay.Value.Start).Length;
+                        if (distanceFromCamera < closestObjectDistanceFromCamera)
+                        {
+                            closestObjectDistanceFromCamera = distanceFromCamera;
+                            closestHitObject = obj;
+                        }
+                    }
+                }
+
+                timer.Stop();
+                if (input.MouseButtonPressed(.Left) && !hoveringYAxis && closestHitObject != null) //TODO: DO NOT COMMIT WITH hoveringYAxis yet! Gizmos not ready
+                {
+                    SelectedObject = closestHitObject;
+
+#if DEBUG
+                    String objectLabel = scope .();
+                    if (!closestHitObject.Name.IsEmpty)
+                        objectLabel.Set(closestHitObject.Name);
+                    else
+                        objectLabel.Set(closestHitObject.Classname);
+
+                    Debug.WriteLine("Mouse picking done. Picked {} - {}, {}. Took {}ms | {}us", objectLabel, closestHitObject.Handle, closestHitObject.Num, (f32)timer.ElapsedMicroseconds / 1000.0f, timer.ElapsedMicroseconds);
+#endif
+                }
+            }
+        }
         {
             //Draw object bounding boxes
             for (Zone zone in Map.Zones)
@@ -447,7 +533,13 @@ namespace Nanoforge.Gui.Documents
                 }
 
                 _scene.DrawBoxSolid(_hoveredObject.BBox.Min, _hoveredObject.BBox.Max, .(color.x, color.y, color.z, 1.0f));
-            }	
+            }
+
+            if (MouseRay.HasValue && DrawMousePickingRay)
+            {
+                Vec4 pickRayColor = .(1.0f, 0.0f, 1.0f, 1.0f);
+                _scene.DrawLine(MouseRay.Value.Start, MouseRay.Value.End, pickRayColor);
+            }
         }
 
         private void DrawMenuBar(App app, Gui gui)
