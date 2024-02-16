@@ -33,6 +33,7 @@ namespace Nanoforge.Render
         private ID3D11DeviceContext* _context = null;
         private ID3D11RasterizerState* _meshRasterizerState ~ReleaseCOM(&_);
         private ID3D11RasterizerState* _primitiveRasterizerState ~ReleaseCOM(&_);
+        private ID3D11DepthStencilState* _overlayDepthStencilState = null;
         private D3D11_VIEWPORT _viewport;
         private append Texture2D _viewTexture;
         private append Texture2D _depthBufferTexture;
@@ -43,6 +44,11 @@ namespace Nanoforge.Render
         private Material _lineListMaterial = null;
         private append List<LineVertex> _lineVertices;
         private append Buffer _lineVertexBuffer;
+
+        //Overlayed line lists
+        private Material _overlayLineListMaterial = null;
+        private append List<LineVertex> _overlayLineVertices;
+        private append Buffer _overlayLineVertexBuffer;
 
         //For solid shaded triangle list primitives
         private Material _triangleListMaterial = null;
@@ -55,7 +61,7 @@ namespace Nanoforge.Render
         private append Buffer _litTriangleListVertexBuffer;
 
         private bool _primitiveBufferNeedsUpdate = true; //Set to true when the cpu side buffers have changed and need to be sent to the GPU
-        public bool PrimitiveMaterialsSet => _lineListMaterial != null && _triangleListMaterial != null && _litTriangleListMaterial != null;
+        public bool PrimitiveMaterialsSet => _lineListMaterial != null && _overlayLineListMaterial != null && _triangleListMaterial != null && _litTriangleListMaterial != null;
 
         //We currently only delete resources when we close a map, so we don't need fancy reference counting or anything like that just yet.
         public append List<Texture2D> Textures ~ClearAndDeleteItems(_);
@@ -183,6 +189,7 @@ namespace Nanoforge.Render
             _context.VSSetConstantBuffers(0, 1, &_perObjectConstantsBuffer.Ptr);
             _context.RSSetState(_meshRasterizerState);
             _context.IASetPrimitiveTopology(.D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            _context.OMSetDepthStencilState(null, 0);
 
             //Render meshes
             for (var kv in ObjectsByMaterial)
@@ -242,6 +249,13 @@ namespace Nanoforge.Render
             _context.IASetPrimitiveTopology(.D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             _context.IASetVertexBuffers(0, 1, &_litTriangleListVertexBuffer.Ptr, &strideLitVertex, &offset);
             _context.Draw((u32)_litTriangleListVertices.Count, 0);
+
+            //Draw overlays
+            _context.OMSetDepthStencilState(_overlayDepthStencilState, 0);
+            _overlayLineListMaterial.Use(_context);
+            _context.IASetPrimitiveTopology(.D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+            _context.IASetVertexBuffers(0, 1, &_overlayLineVertexBuffer.Ptr, &strideLineVertex, &offset);
+            _context.Draw((u32)_overlayLineVertices.Count, 0);
 
             ClearPrimitiveVertexBuffers();
         }
@@ -337,6 +351,16 @@ namespace Nanoforge.Render
                 _context.Map(_lineVertexBuffer.Ptr, 0, .WRITE_DISCARD, 0, &mappedResource);
                 Internal.MemCpy(mappedResource.pData, _lineVertices.Ptr, sizeof(LineVertex) * (u32)_lineVertices.Count);
                 _context.Unmap(_lineVertexBuffer.Ptr, 0);
+            }
+
+            //Update overlay line list vertex buffer
+            {
+                _overlayLineVertexBuffer.ResizeIfNeeded(_device, sizeof(LineVertex) * (u32)_overlayLineVertices.Count);
+                D3D11_MAPPED_SUBRESOURCE mappedResource = .();
+                ZeroMemory(&mappedResource);
+                _context.Map(_overlayLineVertexBuffer.Ptr, 0, .WRITE_DISCARD, 0, &mappedResource);
+                Internal.MemCpy(mappedResource.pData, _overlayLineVertices.Ptr, sizeof(LineVertex) * (u32)_overlayLineVertices.Count);
+                _context.Unmap(_overlayLineVertexBuffer.Ptr, 0);
             }
 
             //Update triangle list vertex buffer
@@ -440,6 +464,23 @@ namespace Nanoforge.Render
             }
             _depthBufferTexture.CreateDepthStencilView();
 
+            //Create the depth stencil state for overlays. Lines/meshes/etc that should always be drawn on top of other meshes
+            {
+                D3D11_DEPTH_STENCIL_DESC depthStencilDesc = .();
+                ZeroMemory(&depthStencilDesc);
+                depthStencilDesc.DepthEnable = 1;
+                depthStencilDesc.DepthWriteMask = .ALL;
+                depthStencilDesc.DepthFunc = .ALWAYS;
+                depthStencilDesc.StencilEnable = 0;
+                depthStencilDesc.FrontFace.StencilFailOp = .KEEP;
+                depthStencilDesc.FrontFace.StencilPassOp = .KEEP;
+                depthStencilDesc.FrontFace.StencilDepthFailOp = .KEEP;
+                depthStencilDesc.FrontFace.StencilFunc = .ALWAYS;
+                depthStencilDesc.BackFace = depthStencilDesc.FrontFace;
+                _device.CreateDepthStencilState(depthStencilDesc, &_overlayDepthStencilState);
+            }
+
+
             //Initialize render target
             _context.OMSetRenderTargets(1, _viewTexture.RenderTargetViewPointer, _depthBufferTexture.DepthStencilView);
             _context.RSSetViewports(1, &_viewport);
@@ -469,9 +510,15 @@ namespace Nanoforge.Render
 
             //Create primitive vertex buffers
             let initialPrimitiveVertices = 25000; //Initial size of primitive buffers. Made fairly large to reduce the need for resizes at runtime. They cause lag when large enough.
-            if (_lineVertexBuffer.Init(_device, initialPrimitiveVertices * sizeof(ColoredVertex), .VERTEX_BUFFER, null, .DYNAMIC, .WRITE) case .Err)
+            if (_lineVertexBuffer.Init(_device, initialPrimitiveVertices * sizeof(LineVertex), .VERTEX_BUFFER, null, .DYNAMIC, .WRITE) case .Err)
             {
                 Logger.Error("Failed to initialize vertex buffer for line list primitives");
+                ErrorOccurred = true;
+                return;
+            }
+            if (_overlayLineVertexBuffer.Init(_device, initialPrimitiveVertices * sizeof(ColoredVertex), .VERTEX_BUFFER, null, .DYNAMIC, .WRITE) case .Err)
+            {
+                Logger.Error("Failed to initialize vertex buffer for overlay line list primitives");
                 ErrorOccurred = true;
                 return;
             }
@@ -491,6 +538,8 @@ namespace Nanoforge.Render
             //Get primitive materials
             if (RenderMaterials.GetMaterial("Linelist") case .Ok(var mat))
                 _lineListMaterial = mat;
+            if (RenderMaterials.GetMaterial("Linelist") case .Ok(var mat))
+	            _overlayLineListMaterial = mat;
             if (RenderMaterials.GetMaterial("SolidTriList") case .Ok(var mat))
                 _triangleListMaterial = mat;
             if (RenderMaterials.GetMaterial("LitTriList") case .Ok(var mat))
@@ -509,6 +558,7 @@ namespace Nanoforge.Render
         private void ClearPrimitiveVertexBuffers()
         {
             _lineVertices.Clear();
+            _overlayLineVertices.Clear();
             _triangleListVertices.Clear();
             _litTriangleListVertices.Clear();
             _primitiveBufferNeedsUpdate = true;
@@ -693,13 +743,36 @@ namespace Nanoforge.Render
             _primitiveBufferNeedsUpdate = true;
         }
 
-        public void DrawArrow(Vec3 lineStart, Vec3 lineEnd, Vec4 color, f32 arrowLength, f32 lineWidth = 3.0f, f32 arrowBaseWidth = 10.0f, f32 arrowTipWidth = 3.0f)
+        public void DrawArrow(Vec3 lineStart, Vec3 lineEnd, Vec4 color, f32 headLength, f32 lineWidth, f32 headWidth)
         {
             Vec3 arrowDirection = (lineEnd - lineStart).Normalized();
-            Vec3 arrowStart = lineEnd;
-            Vec3 arrowEnd = arrowStart + (arrowLength * arrowDirection);
-            DrawLine(lineStart, arrowStart, color, lineWidth);
-            DrawLine(arrowStart, arrowEnd, color, arrowBaseWidth, arrowTipWidth);
+            Vec3 arrowStart = lineEnd - (arrowDirection * headLength);
+            Vec3 arrowEnd = lineEnd;
+            DrawOverlayLine(lineStart, arrowStart, color, lineWidth);
+            DrawOverlayLine(arrowStart, arrowEnd, color, headWidth, LineWidth);
+        }
+
+        public void DrawOverlayLine(Vec3 start, Vec3 end, Vec4 color, f32 width = 3.0f)
+        {
+            _overlayLineVertices.Add(.(start, color, width));
+            _overlayLineVertices.Add(.(end, color, width));
+            _primitiveBufferNeedsUpdate = true;
+        }
+
+        public void DrawOverlayLine(Vec3 start, Vec3 end, Vec4 color, f32 widthStart = 3.0f, f32 widthEnd = 3.0f)
+        {
+            _overlayLineVertices.Add(.(start, color, widthStart));
+            _overlayLineVertices.Add(.(end, color, widthEnd));
+            _primitiveBufferNeedsUpdate = true;
+        }
+
+        public void DrawOverlayArrow(Vec3 lineStart, Vec3 lineEnd, Vec4 color, f32 headLength, f32 lineWidth, f32 headWidth)
+        {
+            Vec3 arrowDirection = (lineEnd - lineStart).Normalized();
+            Vec3 arrowStart = lineEnd - (arrowDirection * headLength);
+            Vec3 arrowEnd = lineEnd;
+            DrawOverlayLine(lineStart, arrowStart, color, lineWidth);
+            DrawOverlayLine(arrowStart, arrowEnd, color, headWidth, LineWidth);
         }
 	}
 
