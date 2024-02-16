@@ -35,7 +35,7 @@ namespace Nanoforge.Gui.Documents
         private StringView _loadFailureReason = .();
         public Territory Map = null;
         private Renderer _renderer = null;
-        private Scene _scene = null;
+        public Scene Scene = null;
         private ZoneObject _selectedObject = null;
         private ZoneObject SelectedObject
         {
@@ -128,7 +128,9 @@ namespace Nanoforge.Gui.Documents
 
         //Ray emitted by the mouse from the viewport this frame (regardless of whether the mouse clicked or not)
         public Ray? MouseRay = null;
-        public bool DrawMousePickingRay = true;
+        public bool DrawMousePickingRay = false;
+
+        private append TranslationGizmo _translationGizmo;
 
         public this(StringView mapName)
         {
@@ -159,10 +161,10 @@ namespace Nanoforge.Gui.Documents
 
         public ~this()
         {
-            if (_scene != null)
+            if (Scene != null)
             {
-                _renderer.DestroyScene(_scene);
-                _scene = null;
+                _renderer.DestroyScene(Scene);
+                Scene = null;
             }
         }
 
@@ -177,7 +179,7 @@ namespace Nanoforge.Gui.Documents
 
             //Create scene for rendering
             Renderer renderer = app.GetResource<Renderer>();
-            defer { _scene.Active = true; }
+            defer { Scene.Active = true; }
 
             //Check if the map was already imported
             Territory findResult = NanoDB.Find<Territory>(MapName);
@@ -211,7 +213,7 @@ namespace Nanoforge.Gui.Documents
             }
 
             //Import complete. Now load
-            if (Map.Load(renderer, _scene) case .Err(StringView err))
+            if (Map.Load(renderer, Scene) case .Err(StringView err))
             {
                 Logger.Error("An error occurred while loading {}. Halting loading. Error: {}", MapName, err);
                 _loadFailure = true;
@@ -220,9 +222,9 @@ namespace Nanoforge.Gui.Documents
             }
 
             //Temporary hardcoded settings for high lod terrain rendering. Will be removed once config gui is added
-            _scene.PerFrameConstants.ShadeMode = 1;
-            _scene.PerFrameConstants.DiffuseIntensity = 1.0f;
-            _scene.PerFrameConstants.DiffuseColor = Colors.RGBA.White;
+            Scene.PerFrameConstants.ShadeMode = 1;
+            Scene.PerFrameConstants.DiffuseIntensity = 1.0f;
+            Scene.PerFrameConstants.DiffuseColor = Colors.RGBA.White;
 
             //Auto center camera on zone closest to the map origin
             Vec3 closestZonePos = .(312.615f, 56.846f, -471.078f);
@@ -249,10 +251,10 @@ namespace Nanoforge.Gui.Documents
                     }
                 }
             }
-            _scene.Camera.TargetPosition = closestZonePos;
-            _scene.Camera.TargetPosition.x += 125.0f;
-            _scene.Camera.TargetPosition.y = 250.0f;
-            _scene.Camera.TargetPosition.z -= 250.0f;
+            Scene.Camera.TargetPosition = closestZonePos;
+            Scene.Camera.TargetPosition.x += 125.0f;
+            Scene.Camera.TargetPosition.y = 250.0f;
+            Scene.Camera.TargetPosition.z -= 250.0f;
 
             CountObjectClassInstances();
             Logger.Info("{} loaded in {}s", MapName, loadTimer.Elapsed.TotalSeconds);
@@ -270,7 +272,7 @@ namespace Nanoforge.Gui.Documents
             {
                 //Start loading process on first draw. We create the scene here to avoid needing to synchronize D3D11DeviceContext usage between multiple threads
                 _renderer = app.GetResource<Renderer>();
-                _scene = _renderer.CreateScene(false);
+                Scene = _renderer.CreateScene(false);
                 ThreadPool.QueueUserWorkItem(new () => { this.Load(app); });
             }
             if (Loading)
@@ -284,10 +286,10 @@ namespace Nanoforge.Gui.Documents
                 return;
             }
 
-            if (_scene != null)
+            if (Scene != null)
             {
                 //Camera should only handle input when the viewport is focused or mouse hovered. Otherwise it'll react while you're typing into the inspector/outliner
-                _scene.Camera.InputEnabled = ImGui.IsWindowFocused() && ImGui.IsWindowHovered();
+                Scene.Camera.InputEnabled = ImGui.IsWindowFocused() && ImGui.IsWindowHovered();
 
                 //Draw line showing direction of sunlight
                 /*_scene.PerFrameConstants.SunDirection = .(0.8f, -0.5f, -1.0f); //.(0.8f, -1.0f, -0.5f);
@@ -302,15 +304,15 @@ namespace Nanoforge.Gui.Documents
                 contentAreaSize.y = ImGui.GetWindowContentRegionMax().y - ImGui.GetWindowContentRegionMin().y;
                 if (contentAreaSize.x > 0.0f && contentAreaSize.y > 0.0f)
                 {
-                    _scene.Resize((u32)contentAreaSize.x, (u32)contentAreaSize.y);
+                    Scene.Resize((u32)contentAreaSize.x, (u32)contentAreaSize.y);
                 }
 
                 //Store initial position so we can draw buttons over the scene texture after drawing it
                 ImGui.Vec2 sceneViewportPos = ImGui.GetCursorPos();
 
                 //Render scene texture
-                ImGui.PushStyleColor(.WindowBg, .(_scene.ClearColor.x, _scene.ClearColor.y, _scene.ClearColor.z, _scene.ClearColor.w));
-                ImGui.Image(_scene.View, .(_scene.ViewWidth, _scene.ViewHeight));
+                ImGui.PushStyleColor(.WindowBg, .(Scene.ClearColor.x, Scene.ClearColor.y, Scene.ClearColor.z, Scene.ClearColor.w));
+                ImGui.Image(Scene.View, .(Scene.ViewWidth, Scene.ViewHeight));
                 ImGui.PopStyleColor();
 
                 //Set cursor pos to top left corner to draw buttons over scene texture
@@ -327,35 +329,36 @@ namespace Nanoforge.Gui.Documents
                 adjustedViewportPos.x += windowPos.x;
                 adjustedViewportPos.y += windowPos.y;
 
-                UpdateMouseRay(input, adjustedViewportPos, .(_scene.ViewWidth, _scene.ViewHeight));
+                UpdateMouseRay(input, adjustedViewportPos, .(Scene.ViewWidth, Scene.ViewHeight));
                 UpdatePicking(input);
             }
 
             Keybinds(app);
 
             //Don't redraw if this document isn't focused by the user. 
-            _scene.Active = (this == gui.FocusedDocument);
-            if (!_scene.Active)
+            Scene.Active = (this == gui.FocusedDocument);
+            if (!Scene.Active)
                 return;
 
             UpdateDebugDraw(app);
+            UpdateGizmos(app);
         }
 
         //When the mouse hovers the viewport this calculates a ray emitting from the mouse into the scene
         //This function doesn't do any picking collision detection.
         private void UpdateMouseRay(Input input, Vec2 viewportPos, Vec2 viewportSize)
         {
-            Rect rect = .(.(viewportPos.x, viewportPos.y), .(viewportPos.x + _scene.ViewWidth, viewportPos.y + _scene.ViewHeight));
+            Rect rect = .(.(viewportPos.x, viewportPos.y), .(viewportPos.x + Scene.ViewWidth, viewportPos.y + Scene.ViewHeight));
             bool mouseHoveringViewport = rect.IsPositionInRect(.(input.MousePosX, input.MousePosY));
             if (mouseHoveringViewport)
             {
                 //Adjust the mouse pos to be relative the viewport
                 Vec2 mousePos = .(input.MousePosX, input.MousePosY) - viewportPos;
 
-                Camera3D camera = _scene.Camera;
+                Camera3D camera = Scene.Camera;
                 Vec3 mouseViewPos = .();
-                mouseViewPos.x = (((2.0f * mousePos.x) / _scene.ViewWidth) - 1.0f) / camera.Projection.Vectors[0].x;
-                mouseViewPos.y = -(((2.0f * mousePos.y) / _scene.ViewHeight) - 1.0f) / camera.Projection.Vectors[1].y;
+                mouseViewPos.x = (((2.0f * mousePos.x) / Scene.ViewWidth) - 1.0f) / camera.Projection.Vectors[0].x;
+                mouseViewPos.y = -(((2.0f * mousePos.y) / Scene.ViewHeight) - 1.0f) / camera.Projection.Vectors[1].y;
                 mouseViewPos.z = 1.0f;
 
                 Mat4 pickRayToWorldMatrix = Mat4.Inverse(camera.View);
@@ -398,7 +401,7 @@ namespace Nanoforge.Gui.Documents
                 }
 
                 timer.Stop();
-                if (input.MouseButtonPressed(.Left) && !hoveringYAxis && closestHitObject != null) //TODO: DO NOT COMMIT WITH hoveringYAxis yet! Gizmos not ready
+                if (input.MouseButtonPressed(.Left) && !_translationGizmo.Hovering && closestHitObject != null)
                 {
                     SelectedObject = closestHitObject;
 
@@ -414,6 +417,16 @@ namespace Nanoforge.Gui.Documents
                 }
             }
         }
+
+        private void UpdateGizmos(App app)
+        {
+            if (SelectedObject != null)
+            {
+                _translationGizmo.Update(app, this, SelectedObject);
+            }
+        }
+
+        private void UpdateDebugDraw(App app)
         {
             //Draw object bounding boxes
             for (Zone zone in Map.Zones)
@@ -449,61 +462,10 @@ namespace Nanoforge.Gui.Documents
                             bbox.Min += obj.Position;
                             bbox.Max += obj.Position;
                         }
-                    }    
-
-                    if (SelectedObject != obj)
-                    {
-                        Vec4 color = .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f);
-                        _scene.DrawBox(bbox.Min, bbox.Max, color);
                     }
-                    else
-                    {
-                        //For the selected object change the color of the BBox over time and draw a line into the sky so its easier to find
-                        Vec3 color = objectClass.Color;
 
-                        f32 colorMagnitude = objectClass.Color.Length;
-                        //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
-                        f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
-                        color.x = objectClass.Color.x + Math.Pow(Math.Sin(_scene.TotalTime * 2.0f), 2.0f) * multiplier;
-                        color.y = objectClass.Color.y + Math.Pow(Math.Sin(_scene.TotalTime), 2.0f) * multiplier;
-                        color.z = objectClass.Color.z + Math.Pow(Math.Sin(_scene.TotalTime), 2.0f) * multiplier;
-
-                        //Keep color in a certain range so it stays visible against the terrain
-                        f32 magnitudeMin = 0.20f;
-                        f32 colorMin = 0.20f;
-                        if (color.Length < magnitudeMin)
-                        {
-                            color.x = Math.Max(color.x, colorMin);
-                            color.y = Math.Max(color.y, colorMin);
-                            color.z = Math.Max(color.z, colorMin);
-                        }
-
-                        //Draw bbox
-                        _scene.DrawBox(bbox.Min, bbox.Max, Vec4(color.x, color.y, color.z, 1.0f));
-
-                        //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
-                        /*Vec3 lineStart;
-                        lineStart.x = (bbox.Min.x + bbox.Max.x) / 2.0f;
-                        lineStart.y = bbox.Min.y;
-                        lineStart.z = (bbox.Min.z + bbox.Max.z) / 2.0f;
-                        Vec3 lineEnd = lineStart;
-                        lineEnd.y += 300.0f;
-                        _scene.DrawLine(lineStart, lineEnd, Vec4(color.x, color.y, color.z, 1.0f));*/
-
-                        //Draw orientation lines
-                        {
-                            //Determine line length
-                            Vec3 size = bbox.Max - bbox.Min;
-                            f32 orientLineScale = 1.5f; //How many times larger than the object orient lines should be
-                            f32 lineLength = orientLineScale * Math.Max(Math.Max(size.x, size.y), size.z); //Make lines equal length, as long as the widest side of the bbox
-
-                            Mat3 orient = obj.Orient.Enabled ? obj.Orient.Value : .Identity;
-                            Vec3 center = obj.Position;
-                            _scene.DrawArrow(center, center + (orient.Vectors[0] * lineLength), color: .(1.0f, 0.0f, 0.0f, 1.0f), arrowLength: 5.0f, lineWidth: 3.0f, arrowBaseWidth: 25.0f, arrowTipWidth: 3.0f); //Right
-                            _scene.DrawArrow(center, center + (orient.Vectors[1] * lineLength), color: .(0.0f, 1.0f, 0.0f, 1.0f), arrowLength: 5.0f, lineWidth: 3.0f, arrowBaseWidth: 25.0f, arrowTipWidth: 3.0f); //Right
-                            _scene.DrawArrow(center, center + (orient.Vectors[2] * lineLength), color: .(0.0f, 0.0f, 1.0f, 1.0f), arrowLength: 5.0f, lineWidth: 3.0f, arrowBaseWidth: 25.0f, arrowTipWidth: 3.0f); //Right
-                        }
-                    }
+                    Vec4 color = .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f);
+                    Scene.DrawBox(bbox.Min, bbox.Max, color);
                 }
             }
 
@@ -517,9 +479,9 @@ namespace Nanoforge.Gui.Documents
                     f32 colorMagnitude = objectClass.Color.Length;
                     //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
                     f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
-                    color.x = objectClass.Color.x + Math.Pow(Math.Sin(_scene.TotalTime * 2.0f), 2.0f) * multiplier;
-                    color.y = objectClass.Color.y + Math.Pow(Math.Sin(_scene.TotalTime), 2.0f) * multiplier;
-                    color.z = objectClass.Color.z + Math.Pow(Math.Sin(_scene.TotalTime), 2.0f) * multiplier;
+                    color.x = objectClass.Color.x + Math.Pow(Math.Sin(Scene.TotalTime * 2.0f), 2.0f) * multiplier;
+                    color.y = objectClass.Color.y + Math.Pow(Math.Sin(Scene.TotalTime), 2.0f) * multiplier;
+                    color.z = objectClass.Color.z + Math.Pow(Math.Sin(Scene.TotalTime), 2.0f) * multiplier;
                 }
 
                 //Keep color in a certain range so it stays visible against the terrain
@@ -532,19 +494,19 @@ namespace Nanoforge.Gui.Documents
                     color.z = Math.Max(color.z, colorMin);
                 }
 
-                _scene.DrawBoxSolid(_hoveredObject.BBox.Min, _hoveredObject.BBox.Max, .(color.x, color.y, color.z, 1.0f));
+                Scene.DrawBoxSolid(_hoveredObject.BBox.Min, _hoveredObject.BBox.Max, .(color.x, color.y, color.z, 1.0f));
             }
 
             if (MouseRay.HasValue && DrawMousePickingRay)
             {
                 Vec4 pickRayColor = .(1.0f, 0.0f, 1.0f, 1.0f);
-                _scene.DrawLine(MouseRay.Value.Start, MouseRay.Value.End, pickRayColor);
+                Scene.DrawLine(MouseRay.Value.Start, MouseRay.Value.End, pickRayColor);
             }
         }
 
         private void DrawMenuBar(App app, Gui gui)
         {
-            ImGui.SetNextItemWidth(_scene.ViewWidth);
+            ImGui.SetNextItemWidth(Scene.ViewWidth);
             ImGui.PushStyleVar(.WindowPadding, .(8.0f, 8.0f)); //Must manually set padding here since the parent window has padding disabled to get the viewport flush with the window border.
             defer { ImGui.PopStyleVar(); }
             bool openScenePopup = false;
@@ -1983,7 +1945,7 @@ namespace Nanoforge.Gui.Documents
             //Delete renderer data if the object has any
             if (object.RenderObject != null)
             {
-                _scene.DeleteRenderObject(object.RenderObject);
+                Scene.DeleteRenderObject(object.RenderObject);
             }
 
             //Delete from NanoDB
@@ -2088,7 +2050,7 @@ namespace Nanoforge.Gui.Documents
             //Add RenderObject to scene so it gets drawn and destroyed when the scene is destroyed
             if (object.RenderObject != null)
             {
-                clone.RenderObject = _scene.CloneRenderObject(object.RenderObject);
+                clone.RenderObject = Scene.CloneRenderObject(object.RenderObject);
             }
 
             //Add to NanoDB

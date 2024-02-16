@@ -772,7 +772,23 @@ namespace Nanoforge.Render
             Vec3 arrowStart = lineEnd - (arrowDirection * headLength);
             Vec3 arrowEnd = lineEnd;
             DrawOverlayLine(lineStart, arrowStart, color, lineWidth);
-            DrawOverlayLine(arrowStart, arrowEnd, color, headWidth, LineWidth);
+            DrawOverlayLine(arrowStart, arrowEnd, color, WorldSizeToPixels(arrowStart, headWidth), LineWidth);
+        }
+
+        private f32 PixelsToWorldSize(Vec3 position, f32 pixels)
+        {
+            //Assuming perspective camera
+            f32 d = (position - Camera.Position).Length;
+            f32 projScaleY = Math.Tan(Camera.[Friend]_fovRadians * 0.5f) * 2.0f;
+            return projScaleY * d * (pixels / ViewHeight);
+        }
+
+        private f32 WorldSizeToPixels(Vec3 position, f32 size)
+        {
+            //Assuming perspective camera
+            f32 d = (position - Camera.Position).Length;
+            f32 projScaleY = Math.Tan(Camera.[Friend]_fovRadians * 0.5f) * 2.0f;
+            return (size * ViewHeight) / d / projScaleY;
         }
 	}
 
