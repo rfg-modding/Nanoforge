@@ -32,7 +32,7 @@ public class TranslationGizmo
 
     public f32 Sensitivity = 100.0f;
 
-    public Vec3? _lastFrameMouseRay = .Zero;
+    public Vec3? _lastFrameMouseRay = null;
 
     //Track how far the mouse has moved along a plane parallel to the axis being translated along.
     //For the x and z axes thats the xz plane. For the y axis its either xy or zy depending on which direction the camera is pointing.
@@ -110,6 +110,11 @@ public class TranslationGizmo
         else if (!input.MouseButtonDown(.Left))
         {
             GrabbingZAxis = false;
+        }
+
+        if (!Grabbing)
+        {
+            _lastFrameMouseRay = null;
         }
 
         //TODO: Some other improvements to make:
