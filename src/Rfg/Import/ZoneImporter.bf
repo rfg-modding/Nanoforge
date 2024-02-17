@@ -237,6 +237,13 @@ namespace Nanoforge.Rfg.Import
             {
                 obj.Position = val.Position;
                 obj.Orient.SetAndEnable(val.Orient);
+
+                //Grab the euler angles when the orientation is first set. We track these to generate rotation delta matrices when time pitch/yaw/roll changes.
+                //This avoids issues with gimbal lock and indeterminate angles that we'd get if we tried to extract the euler angles from the matrix every time we edited it.
+                obj.Orient.Value.GetEulerAngles(ref obj.Pitch, ref obj.Yaw, ref obj.Roll);
+                obj.Pitch = Math.ToDegrees(obj.Pitch);
+                obj.Yaw = Math.ToDegrees(obj.Yaw);
+                obj.Roll = Math.ToDegrees(obj.Roll);
             }
             else
             {

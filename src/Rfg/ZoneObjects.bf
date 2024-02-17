@@ -54,6 +54,15 @@ namespace Nanoforge.Rfg
         public Vec3 Position = .Zero;
         [EditorProperty]
         public OptionalValue<Mat3> Orient = .(.Identity);
+        //We track pitch/yaw/roll to generate rotation delta matrices whenever they change.
+        //This avoids issues with gimbal lock and indeterminate angles that we'd get if we tried to extract the euler angles from the matrix every time we edited it.
+        [EditorProperty]
+        public f32 Pitch;
+        [EditorProperty]
+        public f32 Yaw;
+        [EditorProperty]
+        public f32 Roll;
+
         [EditorProperty]
         public OptionalObject<String> RfgDisplayName = new .(new String()) ~delete _;
         [EditorProperty]
@@ -103,6 +112,9 @@ namespace Nanoforge.Rfg
             clone.Position = Position;
             clone.Orient.Value = Orient.Value;
             clone.Orient.Enabled = Orient.Enabled;
+            clone.Pitch = Pitch;
+            clone.Yaw = Yaw;
+            clone.Roll = Roll;
             clone.RfgDisplayName.Value.Set(RfgDisplayName.Value);
             clone.RfgDisplayName.Enabled = RfgDisplayName.Enabled;
             clone.Description.Value.Set(Description.Value);

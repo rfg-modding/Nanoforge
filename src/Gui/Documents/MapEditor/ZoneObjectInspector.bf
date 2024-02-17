@@ -157,6 +157,40 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
                 obj.RenderObject.Rotation = obj.Orient.Value;
             }
         }
+        if (obj.Orient.Enabled)
+        {
+            f32 initialPitch = obj.Pitch;
+            f32 initialYaw = obj.Yaw;
+            f32 initialRoll = obj.Roll;
+
+            f32 angleMinDeg = -360.0f;
+            f32 angleMaxDeg = 360.0f;
+            bool orientChanged = false;
+            if (ImGui.SliderFloat("Pitch", &obj.Pitch, angleMinDeg, angleMaxDeg))
+            {
+                orientChanged = true;
+            }
+            if (ImGui.SliderFloat("Yaw", &obj.Yaw, angleMinDeg, angleMaxDeg))
+            {
+                orientChanged = true;
+            }
+            if (ImGui.SliderFloat("Roll", &obj.Roll, angleMinDeg, angleMaxDeg))
+            {
+                orientChanged = true;
+            }
+
+            //Make matrices from the angle deltas and multiply Orient by them to rotate it
+            Mat3 pitchDelta = Mat3.RotationAxis(.(0.0f, 0.0f, 1.0f), Math.ToRadians(obj.Pitch - initialPitch));
+            Mat3 yawDelta = Mat3.RotationAxis(.(0.0f, 1.0f, 0.0f), Math.ToRadians(obj.Yaw - initialYaw));
+            Mat3 rollDelta = Mat3.RotationAxis(.(1.0f, 0.0f, 0.0f), Math.ToRadians(obj.Roll - initialRoll));
+            Mat3 rotationDelta = rollDelta * yawDelta * pitchDelta;
+            obj.Orient.Value *= rotationDelta;
+
+            if (orientChanged && obj.RenderObject != null)
+            {
+                obj.RenderObject.Rotation = obj.Orient.Value;
+            }
+        }
 
         ImGui.Separator();
     }
