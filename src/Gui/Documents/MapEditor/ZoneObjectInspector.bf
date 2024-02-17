@@ -149,46 +149,54 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         {
             editor.UnsavedChanges = true;
         }
-        if (ImGui.InputOptionalMat3("Orientation", ref obj.Orient))
+        //Disabled in favor of pitch/yaw/roll sliders. Would be willing to re-enable as a opt-in feature so people can intentionally screw up the matrix and make cursed maps
+        /*if (ImGui.InputOptionalMat3("Orientation", ref obj.Orient))
         {
             editor.UnsavedChanges = true;
             if (obj.RenderObject != null && obj.Orient.Enabled)
             {
                 obj.RenderObject.Rotation = obj.Orient.Value;
             }
-        }
-        if (obj.Orient.Enabled)
+        }*/
+        ImGui.Checkbox("##AnglesEnabled", &obj.Orient.Enabled);
+        ImGui.SameLine();
+        using (ImGui.DisabledBlock(!obj.Orient.Enabled))
         {
-            f32 initialPitch = obj.Pitch;
-            f32 initialYaw = obj.Yaw;
-            f32 initialRoll = obj.Roll;
+            if (ImGui.TreeNodeEx("Orientation", .FramePadding))
+            {
+                f32 initialPitch = obj.Pitch;
+                f32 initialYaw = obj.Yaw;
+                f32 initialRoll = obj.Roll;
 
-            f32 angleMinDeg = -360.0f;
-            f32 angleMaxDeg = 360.0f;
-            bool orientChanged = false;
-            if (ImGui.SliderFloat("Pitch", &obj.Pitch, angleMinDeg, angleMaxDeg))
-            {
-                orientChanged = true;
-            }
-            if (ImGui.SliderFloat("Yaw", &obj.Yaw, angleMinDeg, angleMaxDeg))
-            {
-                orientChanged = true;
-            }
-            if (ImGui.SliderFloat("Roll", &obj.Roll, angleMinDeg, angleMaxDeg))
-            {
-                orientChanged = true;
-            }
+                f32 angleMinDeg = -360.0f;
+                f32 angleMaxDeg = 360.0f;
+                bool orientChanged = false;
+                if (ImGui.SliderFloat("Pitch", &obj.Pitch, angleMinDeg, angleMaxDeg))
+                {
+                    orientChanged = true;
+                }
+                if (ImGui.SliderFloat("Yaw", &obj.Yaw, angleMinDeg, angleMaxDeg))
+                {
+                    orientChanged = true;
+                }
+                if (ImGui.SliderFloat("Roll", &obj.Roll, angleMinDeg, angleMaxDeg))
+                {
+                    orientChanged = true;
+                }
 
-            //Make matrices from the angle deltas and multiply Orient by them to rotate it
-            Mat3 pitchDelta = Mat3.RotationAxis(.(0.0f, 0.0f, 1.0f), Math.ToRadians(obj.Pitch - initialPitch));
-            Mat3 yawDelta = Mat3.RotationAxis(.(0.0f, 1.0f, 0.0f), Math.ToRadians(obj.Yaw - initialYaw));
-            Mat3 rollDelta = Mat3.RotationAxis(.(1.0f, 0.0f, 0.0f), Math.ToRadians(obj.Roll - initialRoll));
-            Mat3 rotationDelta = rollDelta * yawDelta * pitchDelta;
-            obj.Orient.Value *= rotationDelta;
+                //Make matrices from the angle deltas and multiply Orient by them to rotate it
+                Mat3 pitchDelta = Mat3.RotationAxis(.(0.0f, 0.0f, 1.0f), Math.ToRadians(obj.Pitch - initialPitch));
+                Mat3 yawDelta = Mat3.RotationAxis(.(0.0f, 1.0f, 0.0f), Math.ToRadians(obj.Yaw - initialYaw));
+                Mat3 rollDelta = Mat3.RotationAxis(.(1.0f, 0.0f, 0.0f), Math.ToRadians(obj.Roll - initialRoll));
+                Mat3 rotationDelta = rollDelta * yawDelta * pitchDelta;
+                obj.Orient.Value *= rotationDelta;
 
-            if (orientChanged && obj.RenderObject != null)
-            {
-                obj.RenderObject.Rotation = obj.Orient.Value;
+                if (orientChanged && obj.RenderObject != null)
+                {
+                    obj.RenderObject.Rotation = obj.Orient.Value;
+                }
+
+                ImGui.TreePop();
             }
         }
 
