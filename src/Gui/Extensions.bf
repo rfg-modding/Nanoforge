@@ -358,6 +358,49 @@ namespace ImGui
             }
         }
 
+        //Spinner. From: https://github.com/ocornut/imgui/issues/1901
+        public static bool Spinner(StringView label, f32 radius, int thickness, ImGui.Vec4 color)
+        {
+            String labelNullTerminated = scope .()..Append(label)..EnsureNullTerminator();
+
+            ImGui.Window* window = GetCurrentWindow();
+            if (window.SkipItems)
+                return false;
+
+            ImGui.Context* g = ImGui.GetCurrentContext();
+            ref ImGui.Style style = ref g.Style;
+            ImGui.ID id = window.GetID(labelNullTerminated);
+
+            ImGui.Vec2 pos = GetCursorPos();//window.DC.CursorPos;
+            ImGui.Vec2 size = .((radius) * 2, (radius + style.FramePadding.y) * 2);
+
+            readonly ImGui.Rect bb = .(pos, .(pos.x + size.x, pos.y + size.y));
+            ItemSize(bb, style.FramePadding.y);
+            if (!ItemAdd(bb, id))
+                return false;
+
+            ImGui.DrawList* drawList = ImGui.GetWindowDrawList();
+
+            //Render
+            drawList.PathClear();
+
+            int num_segments = 30;
+            f32 start = (f32)Math.Abs(Math.Sin(g.Time * 1.8f) * (f32)(num_segments - 5));
+
+            readonly float a_min = Math.PI_f * 2.0f * ((float)start) / (float)num_segments;
+            readonly float a_max = Math.PI_f * 2.0f * ((float)num_segments - 3) / (float)num_segments;
+
+            readonly ImGui.Vec2 center = .(pos.x + radius, pos.y + radius + style.FramePadding.y);
+
+            for (int i = 0; i < num_segments; i++) {
+                readonly float a = a_min + ((float)i / (float)num_segments) * (a_max - a_min);
+                drawList.PathLineTo(.(center.x + (f32)Math.Cos(a + g.Time * 8) * radius, center.y + (f32)Math.Sin(a + g.Time * 8) * radius));
+            }
+
+            drawList.PathStroke(ImGui.GetColorU32(color), .None, thickness);
+            return true;
+        }
+
         extension Vec4
         {
             //Conversion from Mirror.Math.Vec4 to ImGui.Vec4

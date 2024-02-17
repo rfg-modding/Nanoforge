@@ -296,7 +296,25 @@ namespace Nanoforge.Gui.Documents
             }
             if (Loading)
             {
-                ImGui.Text("Loading map...");
+                Fonts.FontXL.Push();
+                {
+                    String text = "Loading map";
+
+                    ImGui.Vec2 windowPos = ImGui.GetWindowPos();
+                    ImGui.Vec2 windowSize = ImGui.GetWindowSize();
+                    ImGui.Vec2 textSize = ImGui.CalcTextSize(text);
+                    ImGui.Vec2 newCursorPos = .(windowPos.x + (windowSize.x / 2.0f) - textSize.x, windowPos.y + (windowSize.y / 2.0f) - textSize.y);
+                    ImGui.SetCursorPos(newCursorPos);
+
+                    ImGui.Text(text);
+
+                    newCursorPos.x += textSize.x;
+                    ImGui.SetCursorPos(newCursorPos);
+                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 18.0f);
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20.0f);
+                    ImGui.Spinner("##LoadingMapSpinner", 25.0f, 7, .SecondaryTextColor);
+                }
+                Fonts.FontXL.Pop();
                 return;
             }
             else if (_loadFailure)
