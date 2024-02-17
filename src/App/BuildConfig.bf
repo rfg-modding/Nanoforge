@@ -20,7 +20,7 @@ namespace Nanoforge.App
             AssetsBasePath.Set(@".\assets\");
 #endif
             ShadersPath.Set(scope $@"{AssetsBasePath}shaders\");
-            Version.Set("v1.0.0_pre6");
+            Version.Set("v1.0.0_pre7");
 		}
 	}
 }
