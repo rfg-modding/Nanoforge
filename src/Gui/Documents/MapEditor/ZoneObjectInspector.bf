@@ -16,6 +16,7 @@ namespace Nanoforge.Gui.Documents.MapEditor;
 //Inspector for a specific zone object type. Implemented as a separate class to keep a clean separation between data and UI logic.
 public interface IZoneObjectInspector<T> where T : ZoneObject
 {
+    public static void Init();
     public static void Draw(App app, MapEditorDocument editor, Zone zone, T obj);
 }
 
@@ -49,6 +50,11 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
     private static bool _editingName = false;
     private static ZoneObject _objectGettingNameEdited = null; //Used to cancel name edit if selected object changes
     private static append String _nameEditBuffer;
+
+    public static void Init()
+    {
+        _flagsCombo.Init();
+    }
 
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ZoneObject obj)
     {
@@ -323,6 +329,12 @@ public static class ObjZoneInspector : IZoneObjectInspector<ObjZone>
     private static append XtblComboBox _ambientSpawnCombo = .("Ambient spawn", "ambient_spawn_info.xtbl", "table;ambient_spawn_info;Name");
     private static append XtblComboBox _spawnResourceCombo = .("Spawn resource", "spawn_resource.xtbl", "Table;spawn_resource_entry;Name");
 
+    public static void Init()
+    {
+        _ambientSpawnCombo.Init();
+        _spawnResourceCombo.Init();
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjZone obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -353,6 +365,11 @@ public static class ObjectBoundingBoxInspector : IZoneObjectInspector<ObjectBoun
 {
     private static append EnumComboBox<ObjectBoundingBox.BoundingBoxType> _bboxTypeCombo = .("Local BBox Type");
 
+    public static void Init()
+    {
+        _bboxTypeCombo.Init();
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjectBoundingBox obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -369,6 +386,11 @@ public static class ObjectDummyInspector : IZoneObjectInspector<ObjectDummy>
 {
     private static append EnumComboBox<ObjectDummy.DummyType> _dummyTypeCombo = .("Dummy type");
 
+    public static void Init()
+    {
+        _dummyTypeCombo.Init();
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjectDummy obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -381,6 +403,12 @@ public static class PlayerStartInspector : IZoneObjectInspector<PlayerStart>
 {
     private static append EnumComboBox<Team> _teamCombo = .("MP Team");
     private static append XtblComboBox _missionInfoCombo = .("Mission Info", "missions.xtbl", "table;mission;Name", defaultOption: "none");
+
+    public static void Init()
+    {
+        _teamCombo.Init();
+        _missionInfoCombo.Init();
+    }
 
     public static void Draw(App app, MapEditorDocument editor, Zone zone, PlayerStart obj)
     {
@@ -417,6 +445,14 @@ public static class TriggerRegionInspector : IZoneObjectInspector<TriggerRegion>
     private static append EnumComboBox<TriggerRegion.RegionTypeEnum> _regionTypeCombo = .("Region Type");
     private static append EnumComboBox<TriggerRegion.KillTypeEnum> _killTypeCombo = .("Kill Type");
     private static append BitflagComboBox<TriggerRegion.TriggerRegionFlags> _triggerFlagsCombo = .("Trigger Flags");
+
+    public static void Init()
+    {
+        _triggerShapeCombo.Init();
+        _regionTypeCombo.Init();
+        _killTypeCombo.Init();
+        _triggerFlagsCombo.Init();
+    }
 
     public static void Draw(App app, MapEditorDocument editor, Zone zone, TriggerRegion obj)
     {
@@ -467,6 +503,15 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
     private static append BitflagComboBox<ObjectMover.ChunkFlagsEnum> _chunkFlagsCombo = .("Chunk Flags");
     private static append XtblComboBox _propertiesCombo = .("Properties", "level_objects.xtbl", "table;level_object;name");
     private static append EnumComboBox<Team> _teamComboBox = .("Team");
+
+    public static void Init()
+    {
+        _buildingTypeCombo.Init();
+        _gameplayPropsCombo.Init();
+        _chunkFlagsCombo.Init();
+        _propertiesCombo.Init();
+        _teamComboBox.Init();
+    }
 
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjectMover obj)
     {
@@ -527,6 +572,11 @@ public static class ObjectMoverInspector : IZoneObjectInspector<ObjectMover>
 [RegisterInspector(typeof(GeneralMover))]
 public static class GeneralMoverInspector : IZoneObjectInspector<GeneralMover>
 {
+    public static void Init()
+    {
+
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, GeneralMover obj)
     {
         ObjectMoverInspector.Draw(app, editor, zone, obj);
@@ -585,6 +635,11 @@ public static class RfgMoverInspector : IZoneObjectInspector<RfgMover>
 {
     private static append EnumComboBox<RfgMover.MoveTypeEnum> _moveTypeCombo = .("Move Type");
 
+    public static void Init()
+    {
+        _moveTypeCombo.Init();
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, RfgMover obj)
     {
         ObjectMoverInspector.Draw(app, editor, zone, obj);
@@ -606,6 +661,11 @@ public static class RfgMoverInspector : IZoneObjectInspector<RfgMover>
 [RegisterInspector(typeof(ShapeCutter))]
 public static class ShapeCutterInspector : IZoneObjectInspector<ShapeCutter>
 {
+    public static void Init()
+    {
+
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ShapeCutter obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -646,6 +706,11 @@ public static class ObjectEffectInspector : IZoneObjectInspector<ObjectEffect>
 {
     private static append XtblComboBox _effectTypeCombo = .("Effect Type", "effects.xtbl", "table;effect;name");
 
+    public static void Init()
+    {
+        _effectTypeCombo.Init();
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjectEffect obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -680,7 +745,12 @@ public static class ObjectEffectInspector : IZoneObjectInspector<ObjectEffect>
 public static class ItemInspector : IZoneObjectInspector<Item>
 {
     private static append XtblComboBox _itemTypeCombo = .("Item Type", "items_3d.xtbl", "table;item;name");
-    public static bool DrawItemCombo = true;
+    public static bool DrawItemCombo = true; //Used to hide the item combo box for classes that inherit item, like weapon
+
+    public static void Init()
+    {
+        _itemTypeCombo.Init();
+    }
 
     public static void Draw(App app, MapEditorDocument editor, Zone zone, Item obj)
     {
@@ -688,25 +758,25 @@ public static class ItemInspector : IZoneObjectInspector<Item>
         if (DrawItemCombo)
         {
             _itemTypeCombo.Draw(editor, obj.ItemType);
-
-            using (ImGui.DisabledBlock(!obj.Respawns.Enabled))
-            {
-                if (ImGui.Checkbox("Respawns", &obj.Respawns.Value))
-                {
-                    editor.UnsavedChanges = true;
-                }
-            }    
-
-            using (ImGui.DisabledBlock(!obj.Preplaced.Enabled))
-            {
-                if (ImGui.Checkbox("Preplaced", &obj.Preplaced.Value))
-                {
-                    editor.UnsavedChanges = true;
-                }
-            }    
-
-            ImGui.Separator();
         }
+
+        using (ImGui.DisabledBlock(!obj.Respawns.Enabled))
+        {
+            if (ImGui.Checkbox("Respawns", &obj.Respawns.Value))
+            {
+                editor.UnsavedChanges = true;
+            }
+        }    
+
+        using (ImGui.DisabledBlock(!obj.Preplaced.Enabled))
+        {
+            if (ImGui.Checkbox("Preplaced", &obj.Preplaced.Value))
+            {
+                editor.UnsavedChanges = true;
+            }
+        }    
+
+        ImGui.Separator();
     }
 }
 
@@ -714,6 +784,11 @@ public static class ItemInspector : IZoneObjectInspector<Item>
 public static class WeaponInspector : IZoneObjectInspector<Weapon>
 {
     private static append XtblComboBox _weaponTypeCombo = .("Weapon Type", "weapons.xtbl", "table;Weapon;Name");
+
+    public static void Init()
+    {
+        _weaponTypeCombo.Init();
+    }
 
     public static void Draw(App app, MapEditorDocument editor, Zone zone, Weapon obj)
     {
@@ -727,6 +802,11 @@ public static class WeaponInspector : IZoneObjectInspector<Weapon>
 [RegisterInspector(typeof(Ladder))]
 public static class LadderInspector : IZoneObjectInspector<Ladder>
 {
+    public static void Init()
+    {
+
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, Ladder obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -751,6 +831,12 @@ public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
 {
     private static append BitflagComboBox<ObjLight.ObjLightFlags> _objLightFlagsCombo = .("Light Flags");
     private static append EnumComboBox<ObjLight.LightTypeEnum> _objLightTypeCombo = .("Light Type");
+
+    public static void Init()
+    {
+        _objLightFlagsCombo.Init();
+        _objLightTypeCombo.Init();
+    }
 
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ObjLight obj)
     {
@@ -825,6 +911,13 @@ public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
     private static append EnumComboBox<Team> _teamCombo = .("MP Team");
     private static append XtblComboBox _backpackTypeCombo = .("Backpack type", "mp_backpacks.xtbl", "table;mp_backpacks;Name");
 
+    public static void Init()
+    {
+        _markerTypeCombo.Init();
+        _teamCombo.Init();
+        _backpackTypeCombo.Init();
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, MultiMarker obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -873,6 +966,11 @@ public static class MultiFlagInspector : IZoneObjectInspector<MultiFlag>
 {
     private static append EnumComboBox<Team> _teamCombo = .("MP Team");
 
+    public static void Init()
+    {
+        _teamCombo.Init();
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, MultiFlag obj)
     {
         ItemInspector.Draw(app, editor, zone, obj);
@@ -884,6 +982,11 @@ public static class MultiFlagInspector : IZoneObjectInspector<MultiFlag>
 [RegisterInspector(typeof(NavPoint))]
 public static class NavPointInspector : IZoneObjectInspector<NavPoint>
 {
+    public static void Init()
+    {
+
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, NavPoint obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -895,6 +998,11 @@ public static class NavPointInspector : IZoneObjectInspector<NavPoint>
 [RegisterInspector(typeof(CoverNode))]
 public static class CoverNodeInspector : IZoneObjectInspector<CoverNode>
 {
+    public static void Init()
+    {
+
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, CoverNode obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -906,6 +1014,11 @@ public static class CoverNodeInspector : IZoneObjectInspector<CoverNode>
 [RegisterInspector(typeof(RfgConstraint))]
 public static class RfgConstraintInspector : IZoneObjectInspector<RfgConstraint>
 {
+    public static void Init()
+    {
+
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, RfgConstraint obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);
@@ -917,6 +1030,11 @@ public static class RfgConstraintInspector : IZoneObjectInspector<RfgConstraint>
 [RegisterInspector(typeof(ActionNode))]
 public static class ActionNodeInspector : IZoneObjectInspector<ActionNode>
 {
+    public static void Init()
+    {
+
+    }
+
     public static void Draw(App app, MapEditorDocument editor, Zone zone, ActionNode obj)
     {
         BaseZoneObjectInspector.Draw(app, editor, zone, obj);

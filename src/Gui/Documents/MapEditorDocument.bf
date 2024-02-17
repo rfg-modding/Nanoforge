@@ -132,6 +132,8 @@ namespace Nanoforge.Gui.Documents
 
         private append TranslationGizmo _translationGizmo;
 
+        private bool _inspectorsInitialized = false;
+
         public this(StringView mapName)
         {
             SetupObjectClasses();
@@ -257,6 +259,23 @@ namespace Nanoforge.Gui.Documents
             Scene.Camera.TargetPosition.z -= 250.0f;
 
             CountObjectClassInstances();
+
+            //Initialize inspectors. Some of them need to load fields from xtbls. Caused a noticeable hitch when the first object was selected when it was done in the main thread.
+            for (var kv in _inspectorTypes)
+            {
+                Type inspectorType = kv.value;
+                if (inspectorType.GetMethod("Init") case .Ok(MethodInfo methodInfo))
+                {
+                    //No value is returned. Its left up to the inspectors to disable fields or display a warning if a field couldn't be initialized.
+                    methodInfo.Invoke(null).Dispose();
+                }
+                else
+                {
+                    Logger.Error(scope $"Failed to find '{inspectorType.GetName(.. scope .())}.Init()'");
+                }
+            }
+            _inspectorsInitialized = true;
+
             Logger.Info("{} loaded in {}s", MapName, loadTimer.Elapsed.TotalSeconds);
         }
 
@@ -1529,6 +1548,11 @@ namespace Nanoforge.Gui.Documents
         {
             if (SelectedObject == null)
                 return;
+
+            if (!_inspectorsInitialized)
+            {
+                ImGui.TextWrapped("Inspectors not initialized! Check the log.");
+            }
 
             //Draw inspector for viewing and editing object properties. They're type specific classes which implement IZoneObjectInspector
             Type objectType = SelectedObject.GetType();
