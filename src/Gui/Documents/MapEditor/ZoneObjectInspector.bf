@@ -177,18 +177,22 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
                 f32 angleMinDeg = -360.0f;
                 f32 angleMaxDeg = 360.0f;
                 bool orientChanged = false;
+                StringView angleTooltip = "Ctrl + left click to type";
                 if (ImGui.SliderFloat("Pitch", &obj.Pitch, angleMinDeg, angleMaxDeg))
                 {
                     orientChanged = true;
                 }
+                ImGui.TooltipOnPrevious(angleTooltip);
                 if (ImGui.SliderFloat("Yaw", &obj.Yaw, angleMinDeg, angleMaxDeg))
                 {
                     orientChanged = true;
                 }
+                ImGui.TooltipOnPrevious(angleTooltip);
                 if (ImGui.SliderFloat("Roll", &obj.Roll, angleMinDeg, angleMaxDeg))
                 {
                     orientChanged = true;
                 }
+                ImGui.TooltipOnPrevious(angleTooltip);
 
                 //Make matrices from the angle deltas and multiply Orient by them to rotate it
                 Mat3 pitchDelta = Mat3.RotationAxis(.(0.0f, 0.0f, 1.0f), Math.ToRadians(obj.Pitch - initialPitch));
