@@ -81,6 +81,7 @@ namespace Nanoforge.Gui.Documents
         public class MapEditorSettings : EditorObject
         {
             public String MapExportPath = new .() ~delete _;
+            public bool HighlightSelectedObject = true;
         }
 
         public static append CVar<MapEditorSettings> CVar_MapEditorSettings = .("Map Editor Settings");
@@ -501,8 +502,46 @@ namespace Nanoforge.Gui.Documents
                         }
                     }
 
-                    Vec4 color = .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f);
-                    Scene.DrawBox(bbox.Min, bbox.Max, color);
+                    if (SelectedObject == obj && CVar_MapEditorSettings.Value.HighlightSelectedObject)
+                    {
+                        //For the selected object change the color of the BBox over time and draw a line into the sky so its easier to find
+                        Vec3 color = objectClass.Color;
+
+                        f32 colorMagnitude = objectClass.Color.Length;
+                        //Negative values used for brighter colors so they get darkened instead of lightened//Otherwise doesn't work on objects with white debug color
+                        f32 multiplier = colorMagnitude > 0.85f ? -1.0f : 1.0f;
+                        color.x = objectClass.Color.x + Math.Pow(Math.Sin(Scene.TotalTime * 2.0f), 2.0f) * multiplier;
+                        color.y = objectClass.Color.y + Math.Pow(Math.Sin(Scene.TotalTime), 2.0f) * multiplier;
+                        color.z = objectClass.Color.z + Math.Pow(Math.Sin(Scene.TotalTime), 2.0f) * multiplier;
+
+                        //Keep color in a certain range so it stays visible against the terrain
+                        f32 magnitudeMin = 0.20f;
+                        f32 colorMin = 0.20f;
+                        if (color.Length < magnitudeMin)
+                        {
+                            color.x = Math.Max(color.x, colorMin);
+                            color.y = Math.Max(color.y, colorMin);
+                            color.z = Math.Max(color.z, colorMin);
+                        }
+
+                        //Draw bbox
+                        Scene.DrawBox(bbox.Min, bbox.Max, Vec4(color.x, color.y, color.z, 1.0f));
+
+                        //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
+                        /*Vec3 lineStart;
+                        lineStart.x = (bbox.Min.x + bbox.Max.x) / 2.0f;
+                        lineStart.y = bbox.Min.y;
+                        lineStart.z = (bbox.Min.z + bbox.Max.z) / 2.0f;
+                        Vec3 lineEnd = lineStart;
+                        lineEnd.y += 300.0f;
+                        Scene.DrawLine(lineStart, lineEnd, Vec4(color.x, color.y, color.z, 1.0f));*/
+                    }
+                    else
+                    {
+                        Vec4 color = .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f);
+                        Scene.DrawBox(bbox.Min, bbox.Max, color);
+                    }
+
                 }
             }
 
@@ -580,6 +619,12 @@ namespace Nanoforge.Gui.Documents
 
                         }
                         ImGui.TooltipOnPrevious("Only display objects with the 'Persistent' flag set");
+
+                        if (ImGui.MenuItem("Vary color of selected object", null, &CVar_MapEditorSettings.Value.HighlightSelectedObject))
+                        {
+
+                        }
+                        ImGui.TooltipOnPrevious("Vary the color of the selected object to make it more clear");
 
                         ImGui.EndMenu();
                     }
