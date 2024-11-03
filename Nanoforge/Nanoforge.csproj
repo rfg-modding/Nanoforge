@@ -3,6 +3,8 @@
         <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
+    	<WarningsAsErrors>Nullable</WarningsAsErrors>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
