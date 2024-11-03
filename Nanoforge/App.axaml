@@ -2,9 +2,26 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Nanoforge.App"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+    
+    <!-- <Application.Resources> -->
+    <!--     <ControlRecycling x:Key="ControlRecyclingKey" TryToUseIdAsKey="True" /> -->
+    <!--     <Color x:Key="RegionColor">Transparent</Color> -->
+    <!-- </Application.Resources> -->
 
     <Application.Styles>
         <FluentTheme />
+
+        <DockFluentTheme />
+
+        <Style Selector="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        
+        <!-- This and the related resource above were both in the Dock.Avalonia sample. I don't know what they do and this line causes a build 
+             error. I'm leaving this here to remind me to look into this at some point. -->
+        <!-- <Style Selector="DockControl"> -->
+        <!--     <Setter Property="(ControlRecyclingDataTemplate.ControlRecycling)" Value="{StaticResource ControlRecyclingKey}" /> -->
+        <!-- </Style> -->
     </Application.Styles>
 </Application>
