@@ -1,12 +1,17 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Nanoforge.Gui.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ids="using:Dock.Settings"
         xmlns:nanoforge="clr-namespace:Nanoforge"
-        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
-        x:Class="Nanoforge.MainWindow"
-        x:Name="MainWindowView"
+        xmlns:viewModels="clr-namespace:Nanoforge.Gui.ViewModels"
+        xmlns:views="clr-namespace:Nanoforge.Gui.Views"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="Nanoforge.Gui.Views.MainWindow"
+        x:DataType="viewModels:MainWindowViewModel"
         Title="Nanoforge"
+        x:Name="MainWindowView"
         UseLayoutRounding="True" RenderOptions.BitmapInterpolationMode="HighQuality"
         WindowState="Normal" WindowStartupLocation="CenterScreen"
         Background="{x:Null}"
@@ -15,7 +20,12 @@
         BorderThickness="1" BorderBrush="{DynamicResource DockThemeBorderLowBrush}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="PreferSystemChrome"
-        Width="1280" Height="720">
+        Width="1280" Height="720"
+        ids:DockProperties.IsDragEnabled="True" ids:DockProperties.IsDropEnabled="True">
+
+    <Design.DataContext>
+        <viewModels:MainWindowViewModel/>
+    </Design.DataContext>
 
     <Window.Resources>
         <ExperimentalAcrylicMaterial BackgroundSource="Digger"
@@ -30,8 +40,8 @@
         <ExperimentalAcrylicBorder IsHitTestVisible="False" Material="{StaticResource AcrylicMaterial}" />
         <Panel Margin="{Binding #MainWindowView.OffScreenMargin}">
             <Panel Margin="{Binding #MainWindowView.WindowDecorationMargin}">
-                <nanoforge:MainView>
-                    <nanoforge:MainView.Styles>
+                <views:MainView>
+                    <views:MainView.Styles>
                         <Style Selector="GridSplitter">
                             <Setter Property="Template">
                                 <Setter.Value>
@@ -43,9 +53,10 @@
                                 </Setter.Value>
                             </Setter>
                         </Style>
-                    </nanoforge:MainView.Styles>
-                </nanoforge:MainView>
+                    </views:MainView.Styles>
+                </views:MainView>
             </Panel>
         </Panel>
     </Panel>
+    
 </Window>

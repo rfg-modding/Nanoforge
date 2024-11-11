@@ -11,17 +11,35 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="11.1.0"/>
-        <PackageReference Include="Avalonia.Desktop" Version="11.1.0"/>
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.1.0"/>
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.1.0"/>
-        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.1.0"/>
-        <PackageReference Include="Dock.Avalonia" Version="11.1.0" />
-        <PackageReference Include="Dock.Model.Avalonia" Version="11.1.0" />
+        <AvaloniaResource Include="Assets\**"/>
+        <AvaloniaResource Include="Gui\Themes\FluentDark.axaml" />
+        <AvaloniaResource Include="Gui\Themes\FluentLight.axaml" />
+        <AvaloniaXaml Remove="Themes\FluentDark.axaml" />
+        <AvaloniaXaml Remove="Themes\FluentLight.axaml" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="MainView.axaml.cs~" />
+        <PackageReference Include="Avalonia" Version="11.2.0" />
+        <PackageReference Include="Avalonia.Desktop" Version="11.2.0" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.0" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.0" />
+        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.2.0" />
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+        <PackageReference Include="Dock.Avalonia" Version="11.2.0" />
+        <PackageReference Include="Dock.Model.Mvvm" Version="11.2.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Gui\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <AdditionalFiles Include="Gui\Views\Documents\DocumentView.axaml" />
+      <AdditionalFiles Include="Gui\Views\MainView.axaml" />
+      <AdditionalFiles Include="Gui\Views\MainWindow.axaml" />
+      <AdditionalFiles Include="Gui\Views\Tools\FileExplorerView.axaml" />
+      <AdditionalFiles Include="Gui\Views\Tools\InspectorView.axaml" />
+      <AdditionalFiles Include="Gui\Views\Tools\OutlinerView.axaml" />
     </ItemGroup>
 </Project>
