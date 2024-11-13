@@ -1,9 +1,16 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Microsoft.Extensions.DependencyInjection;
 using Nanoforge.Gui.Themes;
 using Nanoforge.Gui.Views;
+using Nanoforge.Services;
 using MainWindowViewModel = Nanoforge.Gui.ViewModels.MainWindowViewModel;
 
 namespace Nanoforge;
@@ -11,6 +18,17 @@ namespace Nanoforge;
 public partial class App : Application
 {
     public static IThemeManager? ThemeManager;
+
+    public new static App Current => (App)Application.Current!;
+
+    public ServiceProvider Services { get; }
+
+    private static IEnumerable<Window> Windows => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Windows ?? Array.Empty<Window>();
+    
+    public App()
+    {
+        Services = ConfigureServices();
+    }
     
     public override void Initialize()
     {
@@ -73,5 +91,17 @@ public partial class App : Application
 #if DEBUG
         this.AttachDevTools();
 #endif
+    }
+
+    private ServiceProvider ConfigureServices()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IFileDialogService, FileDialogService>();
+        return services.BuildServiceProvider();
+    }
+
+    public Window? FindWindowByViewModel(INotifyPropertyChanged viewModel)
+    {
+        return Windows.FirstOrDefault(x => ReferenceEquals(viewModel, x.DataContext));
     }
 }

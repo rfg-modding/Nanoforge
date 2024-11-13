@@ -28,6 +28,7 @@
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
         <PackageReference Include="Dock.Avalonia" Version="11.2.0" />
         <PackageReference Include="Dock.Model.Mvvm" Version="11.2.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
     </ItemGroup>
 
     <ItemGroup>
