@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using System;
+using Nanoforge.Editor;
 
 namespace Nanoforge;
 
@@ -11,6 +12,8 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        Config.Init();
+        
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }
