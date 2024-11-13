@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels.Dialogs"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        Width="800" Height="450"
+        x:Class="Nanoforge.Gui.Views.Dialogs.DataFolderSelectorDialog"
+        Title="Data folder selector"
+        Name="DataFolderSelector"
+        x:DataType="vm:DataFolderSelectorDialogViewModel" x:CompileBindings="True"
+        SizeToContent="Height" CanResize="False">
+
+    <Design.DataContext>
+        <vm:DataFolderSelectorDialogViewModel />
+    </Design.DataContext>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal">
+            <Label Content="Detected installs:" VerticalAlignment="Center" />
+            <Button Name="ButtonScanForRfgInstalls" Command="{Binding ScanForRfgInstallsCommand}">Scan</Button>
+        </StackPanel>
+
+        <Panel Grid.Row="1" Margin="0 8 0 0">
+            <!-- TODO: Make the listbox items shorter if possible - same with warnings listbox -->
+            <ListBox Name="ListBoxSearchResults" Height="120"
+                     ItemsSource="{Binding SearchResults}" SelectedValue="{Binding SelectedInstall}"
+                     IsVisible="{Binding HaveSearchResults}">
+            </ListBox>
+            <Label d:IsVisible="False" Content="No RFG installs detected" IsVisible="{Binding !HaveSearchResults}">
+
+            </Label>
+        </Panel>
+
+        <Separator Grid.Row="2" Margin="0 8 0 0" />
+
+        <StackPanel Grid.Row="3" Orientation="Vertical" Margin="0 4 0 0" IsVisible="{Binding HaveValidationWarnings}">
+            <Label Content="Warnings:"></Label>
+            <ListBox Name="ListBoxValidationWarnings" Height="120" ItemsSource="{Binding ValidationWarnings}">
+
+            </ListBox>
+        </StackPanel>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0 8 0 0">
+            <Label Content="Data folder" VerticalAlignment="Center" />
+            <Button Name="ButtonBrowseToDataFolder" Command="{Binding BrowseToDataFolderCommand}">...</Button>
+        </StackPanel>
+        <TextBox Grid.Row="5" Name="TextBoxDataFolderPath" Margin="0 4 0 0" Text="{Binding DataFolder}"></TextBox>
+
+        <Separator Grid.Row="6" Margin="0 8 0 0" />
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0 8 0 0">
+            <Button Name="ButtonConfirm" Command="{Binding ConfirmSelectionCommand}"
+                    CommandParameter="{Binding ElementName=DataFolderSelector}" IsEnabled="{Binding ValidDataPathSelected}">
+                Confirm
+            </Button>
+            <Button Name="ButtonCancel" Margin="8 0 0 0" Command="{Binding CancelSelectionCommand}"
+                    CommandParameter="{Binding ElementName=DataFolderSelector}">
+                Cancel
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

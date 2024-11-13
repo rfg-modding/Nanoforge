@@ -1,8 +1,11 @@
 ﻿using System;
-using System.Diagnostics;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
 using Dock.Model.Core;
+using Nanoforge.Editor;
+using Nanoforge.Gui.Views;
+using Nanoforge.Gui.Views.Dialogs;
 
 namespace Nanoforge.Gui.ViewModels;
 
@@ -31,6 +34,19 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 root.Navigate.Execute("Editor");
             }
+        }
+
+        //TODO: Make the data folder selector auto open when the app opens if you don't have one selected. This code is disabled since calling it immediately was causing weird
+        //TODO: and inconsistent behavior like the main window not maximizing correctly, or the data selector dialog not opening at all.
+        //MakeSureDataFolderIsSelectedAsync();
+    }
+
+    private async Task MakeSureDataFolderIsSelectedAsync()
+    {
+        if (Config.DataPath.Length == 0)
+        {
+            DataFolderSelectorDialog dataFolderSelector = new();
+            await dataFolderSelector.ShowDialog(MainWindow.Instance);
         }
     }
     
@@ -96,7 +112,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void SelectDataFolder()
     {
-        
+        DataFolderSelectorDialog dataFolderSelector = new();
+        dataFolderSelector.ShowDialog(MainWindow.Instance);
     }
 
     [RelayCommand]
