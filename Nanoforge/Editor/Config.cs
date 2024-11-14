@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -11,12 +12,22 @@ public static class Config
 {
     public static string DataPath = "";
 
+    public static List<string> RecentProjects = new();
+
+    public static string NewProjectDirectory = "";
+
     public static string ConfigPath => $"{BuildConfig.AssetsBasePath}config.json";
     
     private class ConfigData
     {
         [JsonInclude]
         public string DataPath = "";
+        
+        [JsonInclude]
+        public List<string> RecentProjects = new();
+        
+        [JsonInclude]
+        public string NewProjectDirectory = "";
     }
     
     public static void Init()
@@ -42,6 +53,8 @@ public static class Config
             }
             
             DataPath = data.DataPath;
+            RecentProjects = data.RecentProjects;
+            NewProjectDirectory = data.NewProjectDirectory;
         }
         catch (Exception ex)
         {
@@ -56,6 +69,8 @@ public static class Config
             ConfigData data = new()
             {
                 DataPath = Config.DataPath,
+                RecentProjects = RecentProjects,
+                NewProjectDirectory = NewProjectDirectory
             };
             
             string json = JsonSerializer.Serialize<ConfigData>(data);

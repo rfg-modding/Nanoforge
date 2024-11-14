@@ -82,7 +82,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void NewProject()
     {
-        
+        NewProjectDialog newProjectDialog = new();
+        newProjectDialog.ShowDialog(MainWindow.Instance);
     }
 
     [RelayCommand]
