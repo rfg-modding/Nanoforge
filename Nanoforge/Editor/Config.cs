@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Serilog;
 
 namespace Nanoforge.Editor;
 
@@ -44,7 +45,7 @@ public static class Config
         }
         catch (Exception ex)
         {
-            //TODO: Add logging
+            Log.Error(ex, "Failed to load config file");
         }
     }
 
@@ -62,7 +63,7 @@ public static class Config
         }
         catch (Exception ex)
         {
-            //TODO: Add logging
+            Log.Error(ex, "Failed to save config file");
         }
     }
 }

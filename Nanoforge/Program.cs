@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using System;
 using Nanoforge.Editor;
+using Serilog;
 
 namespace Nanoforge;
 
@@ -12,6 +13,11 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            .WriteTo.File("Log.txt")
+            .CreateLogger();
+        
         Config.Init();
         
         BuildAvaloniaApp()
