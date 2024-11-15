@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 using Nanoforge.Editor;
@@ -49,10 +50,6 @@ public partial class NewProjectDialogViewModel : ViewModelBase
                 {
                     Path = result[0].Path.AbsolutePath;
                 }
-            }
-            else
-            {
-                Debugger.Break();
             }
         }
     }

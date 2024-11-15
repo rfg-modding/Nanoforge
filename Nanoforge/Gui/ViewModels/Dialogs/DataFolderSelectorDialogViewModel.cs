@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using Nanoforge.Editor;
 using Nanoforge.FileSystem;
 using Nanoforge.Misc;
@@ -84,10 +85,6 @@ public partial class DataFolderSelectorDialogViewModel : ViewModelBase
                 {
                     DataFolder = result[0].Path.AbsolutePath;
                 }
-            }
-            else
-            {
-                Debugger.Break();
             }
         }
     }
