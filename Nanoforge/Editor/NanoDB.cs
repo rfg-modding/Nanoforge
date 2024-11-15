@@ -207,6 +207,8 @@ public static class NanoDB
             string nanoprojText = JsonSerializer.Serialize<Project>(CurrentProject);
             File.WriteAllText(CurrentProject.FilePath, nanoprojText);
 
+            Log.Information($"Saved project '{CurrentProject.FilePath}'");
+            
             //TODO: Port the code for saving objects and buffers.
         }
         catch (Exception ex)
@@ -249,6 +251,8 @@ public static class NanoDB
                 Config.RecentProjects.Add(project.FilePath);
                 Config.Save();
             }
+            
+            Log.Information($"Opened project '{projectFilePath}'");
             
             //TODO: Port code for loading objects and buffer metadata. Make sure to clear any object/buffer collections and UID counters first
         }

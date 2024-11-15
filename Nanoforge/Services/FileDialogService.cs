@@ -9,6 +9,22 @@ namespace Nanoforge.Services;
 
 public class FileDialogService : IFileDialogService
 {
+    public async Task<IReadOnlyList<IStorageFile>?> ShowOpenFileDialog(ViewModelBase parent, IReadOnlyList<FilePickerFileType>? filters)
+    {
+        var topLevel = TopLevel.GetTopLevel(MainWindow.Instance);
+        if (topLevel == null)
+            return null;
+
+        var result = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
+        {
+            AllowMultiple = false,
+            Title = "Select a nanoproj file",
+            FileTypeFilter = filters
+        });
+
+        return result;
+    }
+
     public async Task<IReadOnlyList<IStorageFolder>?> ShowOpenFolderDialogAsync(ViewModelBase parent)
     {
         var topLevel = TopLevel.GetTopLevel(MainWindow.Instance);

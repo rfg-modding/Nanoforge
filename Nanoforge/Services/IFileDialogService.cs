@@ -7,6 +7,6 @@ namespace Nanoforge.Services;
 
 public interface IFileDialogService
 {
-    // public Task<string[]?> ShowOpenFileDialog(ViewModelBase parent);
+    public Task<IReadOnlyList<IStorageFile>?> ShowOpenFileDialog(ViewModelBase parent, IReadOnlyList<FilePickerFileType>? filters = null);
     public Task<IReadOnlyList<IStorageFolder>?> ShowOpenFolderDialogAsync(ViewModelBase parent);
 }

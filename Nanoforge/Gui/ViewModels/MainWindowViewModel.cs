@@ -1,11 +1,19 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
+using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
 using Dock.Model.Core;
+using Microsoft.Extensions.DependencyInjection;
+using MsBox.Avalonia;
+using MsBox.Avalonia.Enums;
 using Nanoforge.Editor;
 using Nanoforge.Gui.Views;
 using Nanoforge.Gui.Views.Dialogs;
+using Nanoforge.Services;
+using Serilog;
 
 namespace Nanoforge.Gui.ViewModels;
 
@@ -87,15 +95,53 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    public void OpenProject()
+    public async void OpenProject()
     {
-        
+        try
+        {
+            IFileDialogService? fileDialog = App.Current.Services.GetService<IFileDialogService>();
+            if (fileDialog != null)
+            {
+                List<FilePickerFileType> filters = new()
+                {
+                    new FilePickerFileType("nanoproj")
+                    {
+                        Patterns = new[] { "*.nanoproj" }
+                    }
+                };
+                var result = await fileDialog.ShowOpenFileDialog(this, filters);
+                if (result != null)
+                {
+                    if (result.Count > 0)
+                    {
+                        string projectFilePath = result[0].Path.AbsolutePath;
+                        NanoDB.Load(projectFilePath); //TODO: Make async or threaded and disable UI interaction & keybinds using modal popup until done loading
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error while opening project");
+            var messageBox = MessageBoxManager.GetMessageBoxStandard("Load failed", "Error loading project. Check Log.txt.", ButtonEnum.Ok);
+            await messageBox.ShowWindowDialogAsync(MainWindow.Instance);
+        }
     }
 
     [RelayCommand]
-    public void SaveProject()
+    public async void SaveProject()
     {
-        
+        try
+        {
+            //TODO: Make async or threaded and disable UI interaction & keybinds with modal popup until its done saving
+            NanoDB.Save();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error while saving project");
+            var messageBox = MessageBoxManager.GetMessageBoxStandard("Save failed", "Error saving project. Check Log.txt.", ButtonEnum.Ok);
+            await messageBox.ShowWindowDialogAsync(MainWindow.Instance);
+        }
     }
 
     [RelayCommand]
