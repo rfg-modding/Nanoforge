@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using Avalonia;
 using Nanoforge.Editor;
-using Nanoforge.Math;
+using Rfg.Formats.Math;
 using Nanoforge.Misc;
 using Nanoforge.Render.Resources;
 

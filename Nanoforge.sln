@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nanoforge", "Nanoforge\Nanoforge.csproj", "{0BCBDFFF-431D-49B1-9A15-1C238BB280F9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rfg.Formats", "..\Rfg.Formats\Rfg.Formats\Rfg.Formats.csproj", "{5C8432F5-0184-40C7-B251-0EAF714FBBE9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{0BCBDFFF-431D-49B1-9A15-1C238BB280F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0BCBDFFF-431D-49B1-9A15-1C238BB280F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0BCBDFFF-431D-49B1-9A15-1C238BB280F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C8432F5-0184-40C7-B251-0EAF714FBBE9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C8432F5-0184-40C7-B251-0EAF714FBBE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C8432F5-0184-40C7-B251-0EAF714FBBE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C8432F5-0184-40C7-B251-0EAF714FBBE9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

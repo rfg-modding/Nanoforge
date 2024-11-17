@@ -47,4 +47,8 @@
       <AdditionalFiles Include="Gui\Views\Tools\InspectorView.axaml" />
       <AdditionalFiles Include="Gui\Views\Tools\OutlinerView.axaml" />
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\Rfg.Formats\Rfg.Formats\Rfg.Formats.csproj" />
+    </ItemGroup>
 </Project>
