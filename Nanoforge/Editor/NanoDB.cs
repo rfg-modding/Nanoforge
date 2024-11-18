@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Serilog;
@@ -14,30 +15,31 @@ public static class NanoDB
     //Not attached to a project. Loaded when Nanoforge opens. Used to store persistent settings like the data folder path and recent projects list.
     private static Dictionary<ulong, EditorObject> _globalObjects = new();
     public static object _objectCreationLock = new();
-    public static object _bufferCreationLock = new();
     
     //TODO: Make a more general system for separating objects into different files and selectively loading them. This will be needed to reduce save/load time bloat on projects with all the maps imported.
     public static bool LoadedGlobalObjects { get; private set; } = false;
     public static bool NewUnsavedGlobalObjects { get; private set; } = false; //Set to true when new global objects have been created but not yet saved
-    public const string GlobalObjectFilePath = "./Config.nanodata";
+    private const string GlobalObjectFilePath = "./Config.nanodata";
     
     private static ulong _nextObjectUID = 0;
-    private static ulong _nextBufferUID = 0;
-    private static Dictionary<ulong, ProjectBuffer> _buffers = new();
     
-    //TODO: Is this even needed anymore? C# serialization libraries are probably smart enough to handle references in a easier way
-    //Used to patch fields referencing objects and buffers after they've all been loaded.
-    //private static List<(ulong, ValueView)> _deserializationObjectReferences;
-    //private static List<(ulong, ValueView)> _deserializationBufferReferences;
-
     public static Project CurrentProject = new();
     
     public static bool Loading { get; private set; } = false;
     public static bool Saving { get; private set; } = false;
     public static bool Ready { get; private set; } = false;
 
-    public static string BuffersDirectory => $@"{NanoDB.CurrentProject.Directory}Buffers\";
+    public static string BuffersDirectory => $@"{CurrentProject.Directory}Buffers/";
 
+    private static JsonSerializerOptions ObjectJsonSerializerOptions => new()
+    {
+        WriteIndented = true,
+        IncludeFields = true,
+        IgnoreReadOnlyFields = true,
+        TypeInfoResolver = new NanoDBTypeResolver(),
+        ReferenceHandler = new NanoDBReferenceHandler(),
+    };
+    
     public class Project
     {
         [JsonInclude]
@@ -80,9 +82,9 @@ public static class NanoDB
 
     public static ProjectBuffer? CreateBuffer(Span<byte> bytes = default, string name = "")
     {
-        lock (_bufferCreationLock)
+        lock (_objectCreationLock)
         {
-            ulong uid = _nextBufferUID;
+            ulong uid = _nextObjectUID;
             ProjectBuffer buffer = new(uid, bytes.Length, name);
             if (!bytes.IsEmpty)
             {
@@ -93,8 +95,8 @@ public static class NanoDB
                 }
             }
             
-            _buffers[uid] = buffer;
-            _nextBufferUID++;
+            _objects[uid] = buffer;
+            _nextObjectUID++;
             return buffer;
         }
     }
@@ -117,6 +119,16 @@ public static class NanoDB
             _objects[uid] = obj;
         }
     }
+    
+    public static void AddGlobalObject(EditorObject obj)
+    {
+        lock (_objectCreationLock)
+        {
+            ulong uid = _nextObjectUID++;
+            obj.SetUID(uid);
+            _globalObjects[uid] = obj;
+        }
+    }
 
     public static EditorObject? Find(string name)
     {
@@ -130,10 +142,32 @@ public static class NanoDB
         
         return null;
     }
+    
+    public static EditorObject? Find(ulong uid)
+    {
+        foreach (var kv in _objects)
+            if (kv.Value.UID == uid)
+                return kv.Value;
+        
+        foreach (var kv in _globalObjects)
+            if (kv.Value.UID == uid)
+                return kv.Value;
+        
+        return null;
+    }
 
     public static T? Find<T>(string name) where T : EditorObject
     {
         EditorObject? obj = Find(name);
+        if (obj == null)
+            return null;
+        else
+            return (T)obj;
+    }
+    
+    public static T? Find<T>(ulong uid) where T : EditorObject
+    {
+        EditorObject? obj = Find(uid);
         if (obj == null)
             return null;
         else
@@ -155,14 +189,9 @@ public static class NanoDB
     {
         lock (_objectCreationLock)
         {
-            lock (_bufferCreationLock)
-            {
-                _objects.Clear();
-                _buffers.Clear();
-                _nextObjectUID = 0;
-                _nextBufferUID = 0;
-                CurrentProject = new();
-            }
+            _objects.Clear();
+            _nextObjectUID = 0;
+            CurrentProject = new();
         }
     }
 
@@ -196,20 +225,29 @@ public static class NanoDB
         }
     }
 
+    private static string GetObjectsFilePath()
+    {
+        return $"{CurrentProject.Directory}objects.nanodata";
+    }
+
     //TODO: Stick this in a separate thread and/or make it async. Once objects are added save time will increase significantly
     public static void Save()
     {
         try
         {
-            Saving = true;
-            Directory.CreateDirectory(CurrentProject.Directory);
+            lock (_objectCreationLock)
+            {
+                Saving = true;
+                Directory.CreateDirectory(CurrentProject.Directory);
 
-            string nanoprojText = JsonSerializer.Serialize<Project>(CurrentProject);
-            File.WriteAllText(CurrentProject.FilePath, nanoprojText);
-
-            Log.Information($"Saved project '{CurrentProject.FilePath}'");
+                string nanoprojText = JsonSerializer.Serialize<Project>(CurrentProject);
+                File.WriteAllText(CurrentProject.FilePath, nanoprojText);
             
-            //TODO: Port the code for saving objects and buffers.
+                using var objectStream = new FileStream(GetObjectsFilePath(), FileMode.Create, FileAccess.Write, FileShare.None);
+                JsonSerializer.Serialize(objectStream, _objects, ObjectJsonSerializerOptions);
+            
+                Log.Information($"Saved project '{CurrentProject.FilePath}'");      
+            }
         }
         catch (Exception ex)
         {
@@ -227,34 +265,46 @@ public static class NanoDB
     {
         try
         {
-            Loading = true;
-            string nanoprojText = File.ReadAllText(projectFilePath);
-            string? projectDirectory = Directory.GetParent(projectFilePath)?.FullName;
-            if (projectDirectory == null)
+            lock (_objectCreationLock)
             {
-                throw new Exception($"Failed to get project directory for '{projectFilePath}' while loading project");
-            }
-            
-            Project? project = JsonSerializer.Deserialize<Project>(nanoprojText);
-            if (project == null)
-            {
-                throw new Exception($"Failed to deserialize project file {projectFilePath}");
-            }
-            
-            project.Directory = projectDirectory;
-            project.FilePath = projectFilePath;
-            project.Loaded = true;
-            CurrentProject = project;
+                    Reset();
+                    Loading = true;
+                    string nanoprojText = File.ReadAllText(projectFilePath);
+                    string? projectDirectory = Directory.GetParent(projectFilePath)?.FullName;
+                    if (projectDirectory == null)
+                    {
+                        throw new Exception($"Failed to get project directory for '{projectFilePath}' while loading project");
+                    }
 
-            if (!Config.RecentProjects.Contains(project.FilePath))
-            {
-                Config.RecentProjects.Add(project.FilePath);
-                Config.Save();
+                    Project? project = JsonSerializer.Deserialize<Project>(nanoprojText);
+                    if (project == null)
+                    {
+                        throw new Exception($"Failed to deserialize project file {projectFilePath}");
+                    }
+
+                    project.Directory = projectDirectory;
+                    if (!project.Directory.EndsWith("\\") && !project.Directory.EndsWith("/"))
+                    {
+                        project.Directory += "/";
+                    }
+
+                    project.FilePath = projectFilePath;
+                    project.Loaded = true;
+                    CurrentProject = project;
+
+                    if (!Config.RecentProjects.Contains(project.FilePath))
+                    {
+                        Config.RecentProjects.Add(project.FilePath);
+                        Config.Save();
+                    }
+            
+                    using var objectStream = new FileStream(GetObjectsFilePath(), FileMode.Open, FileAccess.Read, FileShare.None);
+                    _objects.Clear();
+                    _objects = JsonSerializer.Deserialize<Dictionary<ulong, EditorObject>>(objectStream, ObjectJsonSerializerOptions) ?? new();
+                    _nextObjectUID = Math.Max(_objects.Keys.DefaultIfEmpty().Max(), _globalObjects.Keys.DefaultIfEmpty().Max()) + 1;
+
+                    Log.Information($"Opened project '{projectFilePath}'");      
             }
-            
-            Log.Information($"Opened project '{projectFilePath}'");
-            
-            //TODO: Port code for loading objects and buffer metadata. Make sure to clear any object/buffer collections and UID counters first
         }
         catch (Exception ex)
         {
@@ -267,6 +317,60 @@ public static class NanoDB
         }
     }
     
-    //TODO: Port the rest of this class
+    public static void SaveGlobals()
+    {
+        try
+        {
+            lock (_objectCreationLock)
+            {
+                Saving = true;
+                using var globalObjectsStream = new FileStream(GlobalObjectFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+                JsonSerializer.Serialize(globalObjectsStream, _globalObjects, ObjectJsonSerializerOptions);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error saving global NanoDB objects");
+            throw;
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
     
+    public static void LoadGlobals()
+    {
+        try
+        {
+            lock (_objectCreationLock)
+            {
+                if (!File.Exists(GlobalObjectFilePath))
+                {
+                    return;
+                }
+            
+                Saving = true;
+                using var globalObjectStream = new FileStream(GlobalObjectFilePath, FileMode.Open, FileAccess.Read, FileShare.None);
+                _globalObjects.Clear();
+                _globalObjects = JsonSerializer.Deserialize<Dictionary<ulong, EditorObject>>(globalObjectStream, ObjectJsonSerializerOptions) ?? new();
+                _nextObjectUID = Math.Max(_objects.Keys.DefaultIfEmpty().Max(), _globalObjects.Keys.DefaultIfEmpty().Max()) + 1;
+                LoadedGlobalObjects = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error saving global NanoDB objects");
+            throw;
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
+
+    public static void ClearGlobals()
+    {
+        _globalObjects.Clear();
+    }
 }

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Nanoforge.Editor;
 
 public class EditorObject
@@ -5,8 +7,20 @@ public class EditorObject
     // ReSharper disable once InconsistentNaming
     public const ulong NullUID = ulong.MaxValue;
 
+    [JsonInclude]
+    private ulong _uid = NullUID;
+    
     // ReSharper disable once InconsistentNaming
-    public ulong UID { get; private set; } = NullUID;
+    [JsonIgnore]
+    public ulong UID
+    {
+        get => _uid;
+        private set
+        {
+            _uid = value;    
+        }
+        
+    }
 
     public string Name = "";
 

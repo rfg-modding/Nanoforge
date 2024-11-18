@@ -5,20 +5,14 @@ using System.Threading;
 namespace Nanoforge.Editor;
 
 //Binary blob of data attached to the project. Useful for bulk binary data such as textures and meshes.
-public class ProjectBuffer
+public class ProjectBuffer : EditorObject
 {
-    // ReSharper disable once InconsistentNaming
-    public const ulong NullUID = ulong.MaxValue;
-    
-    // ReSharper disable once InconsistentNaming
-    public ulong UID = NullUID;
     public int Size { get; private set; } = 0;
-    public string Name = "";
     private object _lock = new Mutex();
 
     public ProjectBuffer(ulong uid, int size = 0, string name = "")
-    {
-        UID = uid;
+    { 
+        SetUID(uid);
         Size = size;
         Name = name;
     }

@@ -92,6 +92,15 @@ public class ZoneObject : EditorObject
 
         return clone;
     }
+
+    public void AddChild(ZoneObject child)
+    {
+        if (!Children.Contains(child))
+        {
+            Children.Add(child);
+        }
+        child.Parent = this;
+    }
 }
 
 public class ObjZone : ZoneObject

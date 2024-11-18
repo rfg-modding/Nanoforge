@@ -7,6 +7,14 @@ using Serilog;
 
 namespace Nanoforge.Editor;
 
+//Note: Not in use yet. Added so there's something to test global object serialization on. Will be in use by real code soon when the CVar system is ported
+public class GeneralSettings : EditorObject
+{
+    public string DataPath = "";
+    public List<string> RecentProjects = new List<string>();
+    public string NewProjectDirectory = ""; //So you don't have to keep picking the folder every time you make a project
+}
+
 //TODO: Add a more advanced config system that requires less boilerplate. Maybe do something like the old versions CVar system. All you have to is define a static field with the CVar<T> type
 public static class Config
 {
