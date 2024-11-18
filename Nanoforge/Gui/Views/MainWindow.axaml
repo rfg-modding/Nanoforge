@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Nanoforge.Gui.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ids="using:Dock.Settings"
+        xmlns:nanoforge="clr-namespace:Nanoforge"
+        xmlns:viewModels="clr-namespace:Nanoforge.Gui.ViewModels"
+        xmlns:views="clr-namespace:Nanoforge.Gui.Views"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="Nanoforge.Gui.Views.MainWindow"
+        x:DataType="viewModels:MainWindowViewModel"
+        Title="Nanoforge"
+        x:Name="MainWindowView"
+        UseLayoutRounding="True" RenderOptions.BitmapInterpolationMode="HighQuality"
+        WindowState="Normal" WindowStartupLocation="CenterScreen"
+        Background="{x:Null}"
+        TransparencyLevelHint="AcrylicBlur"
+        Foreground="{DynamicResource DockThemeForegroundBrush}"
+        BorderThickness="1" BorderBrush="{DynamicResource DockThemeBorderLowBrush}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        Width="1280" Height="720"
+        ids:DockProperties.IsDragEnabled="True" ids:DockProperties.IsDropEnabled="True">
+
+    <Design.DataContext>
+        <viewModels:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Window.Resources>
+        <ExperimentalAcrylicMaterial BackgroundSource="Digger"
+                                     TintColor="{DynamicResource SystemAltHighColor}"
+                                     TintOpacity="1"
+                                     FallbackColor="{DynamicResource AcrylicFallbackColor}"
+                                     MaterialOpacity="0.55"
+                                     x:Key="AcrylicMaterial" />
+    </Window.Resources>
+
+    <Panel>
+        <ExperimentalAcrylicBorder IsHitTestVisible="False" Material="{StaticResource AcrylicMaterial}" />
+        <Panel Margin="{Binding #MainWindowView.OffScreenMargin}">
+            <Panel Margin="{Binding #MainWindowView.WindowDecorationMargin}">
+                <views:MainView>
+                    <views:MainView.Styles>
+                        <Style Selector="GridSplitter">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <Border Background="Transparent">
+                                            <ExperimentalAcrylicBorder Material="{StaticResource AcrylicMaterial}" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </views:MainView.Styles>
+                </views:MainView>
+            </Panel>
+        </Panel>
+    </Panel>
+    
+</Window>

@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels.Dialogs"
+        mc:Ignorable="d" d:DesignWidth="450" d:DesignHeight="450"
+        Width="450" Height="450"
+        x:Class="Nanoforge.Gui.Views.Dialogs.NewProjectDialog"
+        Title="Create a new project"
+        Name="NewProject"
+        x:DataType="vm:NewProjectDialogViewModel" x:CompileBindings="True"
+        SizeToContent="WidthAndHeight" CanResize="False">
+
+    <Design.DataContext>
+        <vm:NewProjectDialogViewModel />
+    </Design.DataContext>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" MinHeight="40"/>
+            <RowDefinition Height="Auto" MinHeight="40"/>
+            <RowDefinition Height="Auto" MinHeight="40"/>
+            <RowDefinition Height="Auto" MinHeight="40"/>
+            <RowDefinition Height="Auto" MinHeight="40"/>
+            <RowDefinition Height="Auto" MinHeight="40"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        
+        <Label Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">Name *</Label>
+        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" Height="20" Width="300" VerticalAlignment="Center" HorizontalAlignment="Left"></TextBox>
+        
+        <Label Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">Author *</Label>
+        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Author}" Height="20" Width="300" VerticalAlignment="Center" HorizontalAlignment="Left"></TextBox>
+        
+        <Label Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">Description</Label>
+        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Description}" Height="80" Width="300" VerticalAlignment="Center" MinLines="2"></TextBox>
+        
+        <Label Grid.Row="3" Grid.Column="0" VerticalAlignment="Center">Path *</Label>
+        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Path}" Height="20" Width="300" VerticalAlignment="Center" HorizontalAlignment="Left"></TextBox>
+        <Button Grid.Row="3" Grid.Column="2" Margin="4 0 0 0" Content="..." Command="{Binding BrowseToDirectoryCommand}"/>
+        
+        <CheckBox Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Content="Create project folder" IsChecked="{Binding CreateProjectFolder}"/>
+        
+        <Button Grid.Row="5" Grid.Column="0" Content="Create" Command="{Binding CreateProjectCommand}"
+                CommandParameter="{Binding ElementName=NewProject}"/>
+    </Grid>
+</Window>

@@ -14,9 +14,7 @@
 Nanoforge is a modding tool for the game Red Faction Guerilla. Its goals are to make RFG modding easier and less error prone, and to provide tooling for all of its file formats. See [releases](https://github.com/Moneyl/Nanoforge/releases) to download the most recent version. See the [RF wiki](https://www.redfactionwiki.com/wiki/RF:G_Editing_Main_Page#Tutorials) for Nanoforge and RFG modding tutorials.
 
 ## Important note
-The master branch is a WIP rewrite of Nanoforge in the [Beef](https://www.beeflang.org/) programming language. It currently doesn't have all the features described in the readme. The old C++ version can be found in `CppBranch`. It has more features but is no longer under development. It's being rewritten because I got tired of dealing with C++. Beef is a less mature language but the development experience is significantly better. I can focus on the development instead of fighting the language and looking out for footguns.
-
-This is also a good chance to rewrite some old code. Much of the old code hasn't scaled well as the goals of the project have grown. It started off being a simple map data visualizer and now the goal is to be a modding tool for any of RFGs file formats. The rewrite will only be a Multiplayer and Wrecking Crew map editor to start. Those maps are much simpler than the single player maps so they're a good place to start and build a solid foundation.
+The master branch is a WIP rewrite of Nanoforge in the C#. The previous versions are still available and will be preserved in other branches. This branch may not have all the features of the other versions ported over just yet.
 
 ## Features
 - Map viewing. Loads terrain and object data for a map. Draws object bounding boxes.
