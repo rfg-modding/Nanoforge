@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Nanoforge.Editor;
-using Rfg.Formats.Math;
+using RFGM.Formats.Math;
 using Nanoforge.Misc;
 using Nanoforge.Render.Resources;
 
