@@ -14,7 +14,7 @@ public static class NanoDB
     private static Dictionary<ulong, EditorObject> _objects = new();
     //Not attached to a project. Loaded when Nanoforge opens. Used to store persistent settings like the data folder path and recent projects list.
     private static Dictionary<ulong, EditorObject> _globalObjects = new();
-    public static object _objectCreationLock = new();
+    private static object _objectCreationLock = new();
     
     //TODO: Make a more general system for separating objects into different files and selectively loading them. This will be needed to reduce save/load time bloat on projects with all the maps imported.
     public static bool LoadedGlobalObjects { get; private set; } = false;

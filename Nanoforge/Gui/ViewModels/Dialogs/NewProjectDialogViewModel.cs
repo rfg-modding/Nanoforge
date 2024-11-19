@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -9,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 using Nanoforge.Editor;
-using Nanoforge.Misc;
 using Nanoforge.Services;
 
 namespace Nanoforge.Gui.ViewModels.Dialogs;

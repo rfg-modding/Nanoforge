@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -9,7 +8,6 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Nanoforge.Editor;
 using Nanoforge.FileSystem;
-using Nanoforge.Misc;
 using Nanoforge.Services;
 
 namespace Nanoforge.Gui.ViewModels.Dialogs;
