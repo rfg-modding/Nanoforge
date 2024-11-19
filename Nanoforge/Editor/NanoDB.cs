@@ -211,10 +211,10 @@ public static class NanoDB
         {
             Save();
             
-            if (!Config.RecentProjects.Contains(CurrentProject.FilePath))
+            if (!GeneralSettings.CVar.Value.RecentProjects.Contains(CurrentProject.FilePath))
             {
-                Config.RecentProjects.Add(CurrentProject.FilePath);
-                Config.Save();
+                GeneralSettings.CVar.Value.RecentProjects.Add(CurrentProject.FilePath);
+                GeneralSettings.CVar.Save();
             }
             
             CurrentProject.Loaded = true;
@@ -292,10 +292,10 @@ public static class NanoDB
                     project.Loaded = true;
                     CurrentProject = project;
 
-                    if (!Config.RecentProjects.Contains(project.FilePath))
+                    if (!GeneralSettings.CVar.Value.RecentProjects.Contains(project.FilePath))
                     {
-                        Config.RecentProjects.Add(project.FilePath);
-                        Config.Save();
+                        GeneralSettings.CVar.Value.RecentProjects.Add(project.FilePath);
+                        GeneralSettings.CVar.Save();
                     }
             
                     using var objectStream = new FileStream(GetObjectsFilePath(), FileMode.Open, FileAccess.Read, FileShare.None);

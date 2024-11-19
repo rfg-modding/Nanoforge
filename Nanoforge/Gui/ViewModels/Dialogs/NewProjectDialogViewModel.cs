@@ -31,7 +31,7 @@ public partial class NewProjectDialogViewModel : ViewModelBase
 
     public NewProjectDialogViewModel()
     {
-        Path = Config.NewProjectDirectory;
+        Path = GeneralSettings.CVar.Value.NewProjectDirectory;
         Author = Environment.UserName;
     }
     
@@ -93,8 +93,8 @@ public partial class NewProjectDialogViewModel : ViewModelBase
         }
         
         NanoDB.NewProject(finalProjectDirectory, Name, Author, Description);
-        Config.NewProjectDirectory = Path;
-        Config.Save();
+        GeneralSettings.CVar.Value.NewProjectDirectory = Path;
+        GeneralSettings.CVar.Save();
         window.Close();
     }
 }

@@ -18,8 +18,6 @@ sealed class Program
             .WriteTo.File("Log.txt")
             .CreateLogger();
         
-        Config.Init();
-        
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }

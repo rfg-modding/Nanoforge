@@ -50,7 +50,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task MakeSureDataFolderIsSelectedAsync()
     {
-        if (Config.DataPath.Length == 0)
+        if (GeneralSettings.CVar.Value.DataPath.Length == 0)
         {
             DataFolderSelectorDialog dataFolderSelector = new();
             await dataFolderSelector.ShowDialog(MainWindow.Instance);

@@ -1,92 +1,39 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Serilog;
 
 namespace Nanoforge.Editor;
 
-//Note: Not in use yet. Added so there's something to test global object serialization on. Will be in use by real code soon when the CVar system is ported
-public class GeneralSettings : EditorObject
+/// <summary>
+/// CVars are an easy way to define global EditorObjects without needing to manually add & retrieve them from NanoDB.
+/// Just define a field/property of the type CVar<T> where T is an EditorObject you want to persist across NanoDB sessions and projects.
+/// When the instance is it'll handle loading its value from NanoDB and creating a global EditorObject for the data if it doesn't already exist.    
+/// </summary>
+public class CVar<T> where T : EditorObject, new()
 {
-    public string DataPath = "";
-    public List<string> RecentProjects = new List<string>();
-    public string NewProjectDirectory = ""; //So you don't have to keep picking the folder every time you make a project
-}
+    public T Value { get; private set; }
+    public readonly string Name;
 
-//TODO: Add a more advanced config system that requires less boilerplate. Maybe do something like the old versions CVar system. All you have to is define a static field with the CVar<T> type
-public static class Config
-{
-    public static string DataPath = "";
-
-    public static List<string> RecentProjects = new();
-
-    public static string NewProjectDirectory = "";
-
-    public static string ConfigPath => $"{BuildConfig.AssetsBasePath}config.json";
-    
-    private class ConfigData
+    public CVar(string name)
     {
-        [JsonInclude]
-        public string DataPath = "";
-        
-        [JsonInclude]
-        public List<string> RecentProjects = new();
-        
-        [JsonInclude]
-        public string NewProjectDirectory = "";
-    }
-    
-    public static void Init()
-    {
-        if (File.Exists(ConfigPath))
+        Name = name;
+        if (!NanoDB.LoadedGlobalObjects)
         {
-            Load();
+            NanoDB.LoadGlobals();
+        }
+
+        T? value = NanoDB.Find<T>(Name);
+        if (value == null)
+        {
+            Value = NanoDB.CreateGlobalObject<T>(Name);
+            NanoDB.SaveGlobals();   
         }
         else
         {
-            Save(); //Generate config file with default values
+            Value = value;
         }
     }
-
-    public static void Load()
+    
+    //Save the variable to Settings.nanodata. Note: Really saves all the CVars since ProjectDB doesn't support selective saves. So don't spam this.
+    public void Save()
     {
-        try
-        {
-            ConfigData? data = JsonSerializer.Deserialize<ConfigData>(File.ReadAllText(ConfigPath));
-            if (data == null)
-            {
-                throw new Exception($"Failed to load config file: {ConfigPath}");
-            }
-            
-            DataPath = data.DataPath;
-            RecentProjects = data.RecentProjects;
-            NewProjectDirectory = data.NewProjectDirectory;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to load config file");
-        }
-    }
-
-    public static void Save()
-    {
-        try
-        {
-            ConfigData data = new()
-            {
-                DataPath = Config.DataPath,
-                RecentProjects = RecentProjects,
-                NewProjectDirectory = NewProjectDirectory
-            };
-            
-            string json = JsonSerializer.Serialize<ConfigData>(data);
-            File.WriteAllText(ConfigPath, json);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to save config file");
-        }
+        NanoDB.SaveGlobals();
     }
 }

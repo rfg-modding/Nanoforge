@@ -40,9 +40,9 @@ public partial class DataFolderSelectorDialogViewModel : ViewModelBase
         //Auto search for RFG installs and populate list of results
         AutoDetectRfg();
 
-        if (Config.DataPath.Length > 0)
+        if (GeneralSettings.CVar.Value.DataPath.Length > 0)
         {
-            _dataFolder = Config.DataPath;
+            _dataFolder = GeneralSettings.CVar.Value.DataPath;
         }
         else
         {
@@ -90,9 +90,9 @@ public partial class DataFolderSelectorDialogViewModel : ViewModelBase
     [RelayCommand]
     public void ConfirmSelection(Window window)
     {
-        Config.DataPath = DataFolder;
-        Config.Save();
-        PackfileVFS.MountDataFolderAsync("//data/", Config.DataPath);
+        GeneralSettings.CVar.Value.DataPath = DataFolder;
+        GeneralSettings.CVar.Save();
+        PackfileVFS.MountDataFolderAsync("//data/", GeneralSettings.CVar.Value.DataPath);
         window.Close();
     }
 
