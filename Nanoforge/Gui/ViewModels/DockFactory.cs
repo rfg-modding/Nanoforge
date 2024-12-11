@@ -5,7 +5,10 @@ using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
+using Nanoforge.Gui.Models.Documents;
 using Nanoforge.Gui.Models.Tools;
+using Nanoforge.Gui.ViewModels.Docks;
+using Nanoforge.Gui.ViewModels.Documents;
 using Nanoforge.Gui.ViewModels.Pages;
 using Nanoforge.Gui.ViewModels.Tools;
 
@@ -20,11 +23,11 @@ public class DockFactory : Factory
     {
     }
 
-    public override IDocumentDock CreateDocumentDock() => new DocumentDock();
+    public override IDocumentDock CreateDocumentDock() => new CustomDocumentDock();
 
     public override IRootDock CreateLayout()
     {
-        //var document1 = new DocumentViewModel { Id = "Document1", Title = "Document1" };
+        var document1 = new DocumentViewModel { Id = "RendererTestDoc", Title = "Renderer test" };
         //var fileExplorer = new FileExplorerViewModel { Id = "FileExplorer", Title = "File explorer" };
         var outliner = new OutlinerViewModel { Id = "Outliner", Title = "Outliner" };
         var inspector = new InspectorViewModel { Id = "Inspector", Title = "Inspector" };
@@ -68,11 +71,11 @@ public class DockFactory : Factory
             )
         };
 
-        var documentDock = new DocumentDock()
+        var documentDock = new CustomDocumentDock()
         {
             IsCollapsable = false,
-            ActiveDockable = null, //document1,
-            VisibleDockables = CreateList<IDockable>(), //(document1),
+            ActiveDockable = document1,
+            VisibleDockables = CreateList<IDockable>(document1),
             CanCreateDocument = false
         };
 
@@ -128,7 +131,7 @@ public class DockFactory : Factory
     {
         ContextLocator = new Dictionary<string, Func<object?>>
         {
-            //["Document1"] = () => new DemoDocument(),
+            ["RendererTestDoc"] = () => new DemoDocument(),
             //["FileExplorer"] = () => new FileExplorer(),
             ["Outliner"] = () => new Outliner(),
             ["Inspector"] = () => new Inspector(),
