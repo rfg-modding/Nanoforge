@@ -1,6 +1,10 @@
+using System;
 using System.Linq;
 using System.Numerics;
-using Silk.NET.Input;
+using Avalonia.Input;
+using Nanoforge.Gui;
+using Nanoforge.Gui.Views;
+using Nanoforge.Gui.Views.Controls;
 
 namespace Nanoforge.Render;
 
@@ -15,13 +19,17 @@ public class Camera
     public float FovRadians = 60.0f;
     public float PitchRadians;
     public float YawRadians;
+    public float TargetPitchRadians;
+    public float TargetYawRadians;
+    
     private float _aspectRatio;
     private float _nearPlane;
     private float _farPlane;
 
     public float Speed = 25.0f;
-    public float Smoothing = 0.125f;
-    public float LookSensitivity = 0.01f;
+    public float MovementSmoothing = 0.125f;
+    public float LookSensitivity = 0.03f;
+    public float LookSmoothing = 0.4f;
 
     public Vector3 Forward;
     public Vector3 Up;
@@ -40,70 +48,68 @@ public class Camera
         Up = Vector3.UnitY;
         Right = Vector3.Cross(Up, Forward);
 
-        PitchRadians = 0.66f;
-        YawRadians = 0.72f;
+        TargetPitchRadians = PitchRadians = 0.66f;
+        TargetYawRadians = YawRadians = 0.72f;
         UpdateViewMatrix();
         UpdateProjectionMatrix();
     }
 
-    public void Update(float deltaTime, IInputContext input)
+    public void Update(SceneFrameUpdateParams updateParams)
     {
-        Position = Vector3.Lerp(Position, TargetPosition, Smoothing);
+        Position = Vector3.Lerp(Position, TargetPosition, MovementSmoothing);
 
-        //TODO: Update the camera to use the avalonia input system. This code still has the Silk.NET input handling from when the vulkan renderer was a standalone app.
-        var keyboard = input.Keyboards.First();
-        if (keyboard.IsKeyPressed(Key.W))
+        Input input = (MainWindow.Instance as MainWindow)!.Input;
+        if (input.IsKeyDown(Key.W))
         {
-            TargetPosition += deltaTime * Speed * Forward;
+            TargetPosition += updateParams.DeltaTime * Speed * Forward;
         }
-        else if (keyboard.IsKeyPressed(Key.S))
+        else if (input.IsKeyDown(Key.S))
         {
-            TargetPosition += deltaTime * Speed * -Forward;
-        }
-
-        if (keyboard.IsKeyPressed(Key.A))
-        {
-            TargetPosition += deltaTime * Speed * Right;
-        }
-        else if (keyboard.IsKeyPressed(Key.D))
-        {
-            TargetPosition += deltaTime * Speed * -Right;
+            TargetPosition += updateParams.DeltaTime * Speed * -Forward;
         }
 
-        if (keyboard.IsKeyPressed(Key.Q))
+        if (input.IsKeyDown(Key.A))
         {
-            TargetPosition.Y -= deltaTime * Speed;
+            TargetPosition += updateParams.DeltaTime * Speed * Right;
         }
-        else if (keyboard.IsKeyPressed(Key.E))
+        else if (input.IsKeyDown(Key.D))
         {
-            TargetPosition.Y += deltaTime * Speed;
+            TargetPosition += updateParams.DeltaTime * Speed * -Right;
         }
 
+        if (input.IsKeyDown(Key.Q))
+        {
+            TargetPosition.Y -= updateParams.DeltaTime * Speed;
+        }
+        else if (input.IsKeyDown(Key.E))
+        {
+            TargetPosition.Y += updateParams.DeltaTime * Speed;
+        }
+
+        
+        UpdateRotationFromMouse(updateParams);
+        YawRadians = MathHelpers.Lerp(YawRadians, TargetYawRadians, LookSmoothing); 
+        PitchRadians = MathHelpers.Lerp(PitchRadians, TargetPitchRadians, LookSmoothing);
+        
         UpdateViewMatrix();
-        UpdateRotationFromMouse(input);
     }
 
-    private Vector2? _lastMousePos = null;
-    private void UpdateRotationFromMouse(IInputContext input)
+    private void UpdateRotationFromMouse(SceneFrameUpdateParams updateParams)
     {
-        IMouse mouse = input.Mice.First();
-        if (mouse.IsButtonPressed(MouseButton.Right) && _lastMousePos.HasValue)
+        MouseState mouse = updateParams.Mouse;
+        if (mouse.RightMouseButtonDown)
         {
-            Vector2 mouseDelta = mouse.Position - _lastMousePos.Value;
-
-            YawRadians += -mouseDelta.X * LookSensitivity;
-            PitchRadians += mouseDelta.Y * LookSensitivity;
+            TargetYawRadians += -mouse.PositionDelta.X * LookSensitivity;
+            TargetPitchRadians += mouse.PositionDelta.Y * LookSensitivity;
 
             float maxPitch = MathHelpers.DegreesToRadians(89.0f);
             float minPitch = MathHelpers.DegreesToRadians(-89.0f);
             
-            if (PitchRadians > maxPitch)
-                PitchRadians = maxPitch;
-            if (PitchRadians < minPitch)
-                PitchRadians = minPitch;
+            if (TargetPitchRadians > maxPitch)
+                TargetPitchRadians = maxPitch;
+            if (TargetPitchRadians < minPitch)
+                TargetPitchRadians = minPitch;
         }
-        
-        _lastMousePos = mouse.Position;
     }
 
     public void UpdateViewMatrix()

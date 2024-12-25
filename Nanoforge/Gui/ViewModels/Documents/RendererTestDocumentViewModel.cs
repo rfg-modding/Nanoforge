@@ -6,6 +6,7 @@ using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
+using Nanoforge.Gui.Views;
 using Nanoforge.Gui.Views.Controls;
 using Nanoforge.Render;
 using Nanoforge.Render.Resources;
@@ -111,7 +112,7 @@ public partial class RendererTestDocumentViewModel : Document
     }
 
     [RelayCommand]
-    private void Update(FrameUpdateParams updateParams)
+    private void Update(SceneFrameUpdateParams updateParams)
     {
         foreach (RenderObject renderObject in Scene.RenderObjects)
         {
@@ -121,6 +122,8 @@ public partial class RendererTestDocumentViewModel : Document
             float angle = updateParams.TotalTime * 50.0f;
             renderObject.Orient = Matrix4x4.CreateRotationY(MathHelpers.DegreesToRadians(angle));   
         }
+
+        Scene.Update(updateParams);
     }
     
     private MeshInstanceData LoadRfgStaticMesh(string cpuFilePath)

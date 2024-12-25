@@ -21,7 +21,8 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="PreferSystemChrome"
         Width="1280" Height="720"
-        ids:DockProperties.IsDragEnabled="True" ids:DockProperties.IsDropEnabled="True">
+        ids:DockProperties.IsDragEnabled="True" ids:DockProperties.IsDropEnabled="True"
+        Closing="Window_OnClosing">
 
     <Design.DataContext>
         <viewModels:MainWindowViewModel/>

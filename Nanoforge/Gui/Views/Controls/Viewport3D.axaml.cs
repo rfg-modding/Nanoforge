@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.OpenGL;
@@ -44,6 +45,14 @@ public partial class Viewport3D : UserControl
         set => SetValue(UpdateCommandProperty, value);
     }
     
+    private bool _leftMouseButtonDown = false;
+    private bool _rightMouseButtonDown = false;
+    private Vector2 _lastMousePosition = Vector2.Zero;
+    private Vector2 _mousePosition = Vector2.Zero;
+    private Vector2 _mousePositionDelta = Vector2.Zero;
+    private bool _mouseOverViewport = false;
+    private bool _mouseMovedThisFrame = false;
+    
     public Viewport3D()
     {
         InitializeComponent();
@@ -74,11 +83,21 @@ public partial class Viewport3D : UserControl
 
     private void RenderFrame()
     {
+        if (_mouseMovedThisFrame)
+        {
+            _mouseMovedThisFrame = false;
+        }
+        else
+        {
+            _lastMousePosition = _mousePosition;
+            _mousePositionDelta = Vector2.Zero;
+        }
+        
         TimeSpan deltaTime = DateTime.Now - _lastUpdate;
         TimeSpan totalTime = DateTime.Now - _startTime;
-
+        
         //Give the ViewModel an opportunity to update the scene
-        FrameUpdateParams updateParams = new((float)deltaTime.TotalSeconds, (float)totalTime.TotalSeconds);
+        SceneFrameUpdateParams updateParams = new((float)deltaTime.TotalSeconds, (float)totalTime.TotalSeconds, _leftMouseButtonDown, _rightMouseButtonDown, _mousePosition, _mousePositionDelta, _mouseOverViewport);
         UpdateCommand.Execute(updateParams);
         
         _renderer.RenderFrame(Scene!);
@@ -88,10 +107,39 @@ public partial class Viewport3D : UserControl
 
         _lastUpdate = DateTime.Now;
     }
-}
+    
+    private void InputElement_OnPointerMoved(object? sender, PointerEventArgs e)
+    {
+        Point position = e.GetPosition(sender as Control);
+        _lastMousePosition = _mousePosition;
+        _mousePosition = new Vector2((float)position.X, (float)position.Y);
+        _mousePositionDelta = _mousePosition - _lastMousePosition;
+        _mouseMovedThisFrame = true;
+    }
 
-public struct FrameUpdateParams(float deltaTime, float totalTime)
-{
-    public readonly float DeltaTime = deltaTime;
-    public readonly float TotalTime = totalTime;
+    private void InputElement_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        PointerPoint point = e.GetCurrentPoint(sender as Control);
+        _leftMouseButtonDown = point.Properties.IsLeftButtonPressed;
+        _rightMouseButtonDown = point.Properties.IsRightButtonPressed;
+    }
+
+    private void InputElement_OnPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        PointerPoint point = e.GetCurrentPoint(sender as Control);
+        _leftMouseButtonDown = point.Properties.IsLeftButtonPressed;
+        _rightMouseButtonDown = point.Properties.IsRightButtonPressed;
+    }
+
+    private void InputElement_OnPointerEntered(object? sender, PointerEventArgs e)
+    {
+        Console.WriteLine("OnPointerEntered()");
+        _mouseOverViewport = true;
+    }
+
+    private void InputElement_OnPointerExited(object? sender, PointerEventArgs e)
+    {
+        Console.WriteLine("OnPointerExited()");
+        _mouseOverViewport = false;
+    }
 }

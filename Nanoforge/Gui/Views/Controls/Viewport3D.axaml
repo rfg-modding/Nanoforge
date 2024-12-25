@@ -6,7 +6,9 @@
                 xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels"
                 mc:Ignorable="d"
                 d:DesignWidth="300" d:DesignHeight="400"
-                x:CompileBindings="True" Loaded="Control_OnLoaded">
+                x:CompileBindings="True" 
+                Loaded="Control_OnLoaded" PointerMoved="InputElement_OnPointerMoved" PointerPressed="InputElement_OnPointerPressed" PointerReleased="InputElement_OnPointerReleased"
+                PointerEntered="InputElement_OnPointerEntered" PointerExited="InputElement_OnPointerExited">
 
     <Image Name="ViewportImage">
         

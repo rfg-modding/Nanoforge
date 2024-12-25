@@ -13,4 +13,9 @@ public static class MathHelpers
     {
         return (180.0f / MathF.PI) * pitchRadians;
     }
+
+    public static float Lerp(float current, float target, float interpolant)
+    {
+        return current * (1.0f - interpolant) + (target * interpolant);
+    }
 }
