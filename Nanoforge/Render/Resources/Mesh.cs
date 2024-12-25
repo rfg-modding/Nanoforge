@@ -1,61 +1,60 @@
 using System;
-using System.Collections.Generic;
-using RFGM.Formats.Meshes.Shared;
-using Serilog;
-using Silk.NET.OpenGL;
+using Silk.NET.Vulkan;
+using Buffer = Silk.NET.Vulkan.Buffer;
 
-namespace Nanoforge.Render.Resources
+namespace Nanoforge.Render.Resources;
+
+public class Mesh
 {
-    public class Mesh : IDisposable
+    private readonly RenderContext _context;
+    private readonly VkBuffer _vertexBuffer;
+    private readonly VkBuffer _indexBuffer;
+    public readonly uint VertexCount;
+    public readonly uint IndexCount;
+    private readonly IndexType _indexType;
+    
+    public Buffer VertexBufferHandle => _vertexBuffer.VkHandle;
+    public Buffer IndexBufferHandle => _indexBuffer.VkHandle;
+
+    public Mesh(RenderContext context, Span<byte> vertices, Span<byte> indices, uint vertexCount, uint indexCount, uint indexSize)
     {
-        public Material Material;
-        private uint _vao;
-        public Buffer VertexBuffer;
-        public Buffer IndexBuffer;
-        public MeshConfig Config;
-        public GL GL { get; }
+        _context = context;
+        VertexCount = vertexCount;
+        IndexCount = indexCount;
         
-        public Mesh(GL gl, MeshInstanceData meshData, Material material)
-        {
-            GL = gl;
-            VertexBuffer = new(gl, meshData.Vertices, BufferTargetARB.ArrayBuffer);
-            IndexBuffer = new(gl, meshData.Indices, BufferTargetARB.ElementArrayBuffer);
-            Config = meshData.Config;
-            Material = material;
-            _vao = material.MakeVAO(gl, VertexBuffer.Handle, IndexBuffer.Handle);
-        }
+        _vertexBuffer = new VkBuffer(_context, (ulong)vertices.Length, BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit, MemoryPropertyFlags.DeviceLocalBit);
+        _context.StagingBuffer.SetData(vertices);
+        _context.StagingBuffer.CopyTo(_vertexBuffer, (ulong)vertices.Length);
         
-        public unsafe void Draw()
-        {
-            DrawElementsType elementType = Config.IndexSize switch
-            {
-                1 => DrawElementsType.UnsignedByte,
-                2 => DrawElementsType.UnsignedShort,
-                4 => DrawElementsType.UnsignedInt,
-                _ => throw new ArgumentOutOfRangeException()
-            };
+        _indexBuffer = new VkBuffer(_context, (ulong)indices.Length, BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit, MemoryPropertyFlags.DeviceLocalBit);
+        _context.StagingBuffer.SetData(indices);
+        _context.StagingBuffer.CopyTo(_indexBuffer, (ulong)indices.Length);
 
-            foreach (var submesh in Config.Submeshes)
-            {
-                int firstBlock = (int)submesh.RenderBlocksOffset;
-                for (int i = 0; i < submesh.NumRenderBlocks; i++)
-                {
-                    var block = Config.RenderBlocks[firstBlock + i];
-                    GL.DrawElements(PrimitiveType.TriangleStrip, block.NumIndices, elementType, (void*)(block.StartIndex));
-                }
-            }
+        _indexType = indexSize switch
+        {
+            2 => IndexType.Uint16,
+            4 => IndexType.Uint32,
+            _ => throw new Exception($"Mesh created with unsupported index size of {indexSize} bytes")
+        };
+    }
+    
+    public unsafe void Bind(RenderContext context, CommandBuffer commandBuffer)
+    {
+        var vertexBuffers = new Buffer[] { VertexBufferHandle };
+        var offsets = new ulong[] { 0 };
+
+        fixed (ulong* offsetsPtr = offsets)
+        fixed (Buffer* vertexBuffersPtr = vertexBuffers)
+        {
+            context.Vk.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersPtr, offsetsPtr);
         }
 
-        public void Bind()
-        {
-            GL.BindVertexArray(_vao);
-        }
+        context.Vk.CmdBindIndexBuffer(commandBuffer, IndexBufferHandle, 0, _indexType);
+    }
 
-        public void Dispose()
-        {
-            GL.DeleteVertexArray(_vao);
-            VertexBuffer.Dispose();
-            IndexBuffer.Dispose();
-        }
+    public void Destroy()
+    {
+        _vertexBuffer.Destroy();
+        _indexBuffer.Destroy();
     }
 }

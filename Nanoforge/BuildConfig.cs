@@ -1,11 +1,14 @@
 
+using System;
+using System.IO;
+
 namespace Nanoforge;
 
 public static class BuildConfig
 {
     public static readonly string ProjectName;
-    public static readonly string AssetsBasePath;
-    public static readonly string ShadersPath;
+    public static readonly string AssetsDirectory;
+    public static readonly string ShadersDirectory;
     public static readonly string Version;
     public static readonly bool EnableGraphicsDebugFeatures = false;
 
@@ -13,13 +16,14 @@ public static class BuildConfig
     {
         ProjectName = "Nanoforge";
 #if DEBUG
-        //TODO: Porting fix: Figure out what the equivalent of this is for Dotnet. I want it to load the assets from the dev project directory for convenience when editing shaders.
-        AssetsBasePath = "/home/moneyl/projects/Nanoforge/Nanoforge/Assets/";
-        //AssetsBasePath.Set(scope $@"{Workspace.Directory}\Assets\");
+        string workingDirectory = Environment.CurrentDirectory;
+        string? projectDir = Directory.GetParent(workingDirectory)?.Parent?.Parent?.FullName;
+        
+        AssetsDirectory = $"{projectDir}/assets/";
 #else
         AssetsBasePath = "./assets/";
 #endif
-        ShadersPath = $@"{AssetsBasePath}shaders/";
+        ShadersDirectory = $@"{AssetsDirectory}shaders/";
         Version = "v1.1.0";
     }
 }

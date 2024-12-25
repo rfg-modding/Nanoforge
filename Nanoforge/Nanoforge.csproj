@@ -35,7 +35,10 @@
         <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
         <PackageReference Include="Silk.NET" Version="2.22.0" />
-        <PackageReference Include="Silk.NET.OpenGL" Version="2.22.0" />
+        <PackageReference Include="Silk.NET.Shaderc" Version="2.22.0" />
+        <PackageReference Include="Silk.NET.Vulkan" Version="2.22.0" />
+        <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.22.0" />
+        <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.22.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -43,7 +46,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <AdditionalFiles Include="Gui\Views\Documents\DocumentView.axaml" />
       <AdditionalFiles Include="Gui\Views\MainView.axaml" />
       <AdditionalFiles Include="Gui\Views\MainWindow.axaml" />
       <AdditionalFiles Include="Gui\Views\Tools\FileExplorerView.axaml" />

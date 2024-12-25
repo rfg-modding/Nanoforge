@@ -10,6 +10,7 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Nanoforge.Gui.Themes;
 using Nanoforge.Gui.Views;
+using Nanoforge.Render;
 using Nanoforge.Services;
 using MainWindowViewModel = Nanoforge.Gui.ViewModels.MainWindowViewModel;
 
@@ -17,6 +18,8 @@ namespace Nanoforge;
 
 public partial class App : Application
 {
+    public readonly Renderer Renderer;
+    
     public static IThemeManager? ThemeManager;
 
     public new static App Current => (App)Application.Current!;
@@ -27,6 +30,7 @@ public partial class App : Application
     
     public App()
     {
+        Renderer = new Renderer(1920, 1080);
         Services = ConfigureServices();
     }
     

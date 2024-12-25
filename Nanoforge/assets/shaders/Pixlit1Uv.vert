@@ -12,17 +12,14 @@ layout(push_constant) uniform ObjectPushConstants {
 } objectData;
 
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec4 inNormal;
-layout(location = 2) in vec4 inTangent;
-layout(location = 3) in ivec2 inTexCoord;
+layout(location = 1) in vec4 inTangent;
+layout(location = 2) in ivec2 inTexCoord;
 
 layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out vec4 fragTangent;
-layout(location = 2) out vec4 fragNormal;
 
 void main() {
     gl_Position = ubo.proj * ubo.view * objectData.model * vec4(inPosition, 1.0);
     fragTexCoord = vec2(float(inTexCoord.x), float(inTexCoord.y)) / 1024.0f;
     fragTangent = inTangent;
-    fragNormal = inNormal;
 }

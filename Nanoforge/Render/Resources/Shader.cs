@@ -1,95 +1,168 @@
 using System;
 using System.IO;
-using System.Numerics;
-using Silk.NET.OpenGL;
+using System.Text;
+using Serilog;
+using Silk.NET.Core.Native;
+using Silk.NET.Shaderc;
+using Silk.NET.Vulkan;
 
-namespace Nanoforge.Render.Resources
+namespace Nanoforge.Render.Resources;
+
+public class Shader
 {
-    public class Shader : IDisposable
+    private RenderContext _context;
+    private readonly string _shaderFilePath;
+    private bool _optimize;
+    public string EntryPoint { get; private set; }
+    public string Name => Path.GetFileName(_shaderFilePath);
+    public ShaderKind Kind { get; }
+
+    public ShaderModule Module { get; private set; }
+
+
+    public Shader(RenderContext context, string shaderFilePath, ShaderKind shaderKind, bool optimize = true, string entryPoint = "main")
     {
-        private uint _handle;
-        private GL _gl;
+        _context = context;
+        _shaderFilePath = shaderFilePath;
+        Kind = shaderKind;
+        _optimize = optimize;
+        EntryPoint = entryPoint;
 
-        public Shader(GL gl, string vertexPath, string fragmentPath)
+        LoadShader();
+    }
+
+    private unsafe void LoadShader()
+    {
+        if (Module.Handle != 0)
         {
-            _gl = gl;
+            _context.Vk.DestroyShaderModule(_context.Device, Module, null);
+        }
 
-            uint vertex = LoadShader(ShaderType.VertexShader, vertexPath);
-            uint fragment = LoadShader(ShaderType.FragmentShader, fragmentPath);
-            _handle = _gl.CreateProgram();
-            _gl.AttachShader(_handle, vertex);
-            _gl.AttachShader(_handle, fragment);
-            _gl.LinkProgram(_handle);
-            _gl.GetProgram(_handle, GLEnum.LinkStatus, out var status);
-            if (status == 0)
+        Module = LoadAndCompileShaderFile(_shaderFilePath, EntryPoint, Kind, _optimize);
+    }
+
+    private unsafe ShaderModule CreateShaderModule(byte[] code)
+    {
+        ShaderModuleCreateInfo createInfo = new()
+        {
+            SType = StructureType.ShaderModuleCreateInfo,
+            CodeSize = (nuint)code.Length,
+        };
+
+        ShaderModule shaderModule;
+
+        fixed (byte* codePtr = code)
+        {
+            createInfo.PCode = (uint*)codePtr;
+
+            if (_context.Vk.CreateShaderModule(_context.Device, in createInfo, null, out shaderModule) != Result.Success)
             {
-                throw new Exception($"Program failed to link with error: {_gl.GetProgramInfoLog(_handle)}");
+                throw new Exception();
             }
-            _gl.DetachShader(_handle, vertex);
-            _gl.DetachShader(_handle, fragment);
-            _gl.DeleteShader(vertex);
-            _gl.DeleteShader(fragment);
         }
 
-        public void Use()
-        {
-            _gl.UseProgram(_handle);
-        }
+        return shaderModule;
+    }
 
-        public void SetUniform(string name, int value)
+    private unsafe byte[] CompileShaderFile(string shaderPath, string entryPoint, ShaderKind shaderKind, bool optimize = true)
+    {
+        Shaderc? shaderc = null;
+        Compiler* compiler = null;
+        CompileOptions* compileOptions = null;
+        CompilationResult* compilationResult = null;
+        try
         {
-            int location = _gl.GetUniformLocation(_handle, name);
-            if (location == -1)
+            string shaderText = File.ReadAllText(shaderPath);
+            byte[] inputFileNameBytes = Encoding.ASCII.GetBytes(Path.GetFileName(shaderPath));
+            byte[] entryPointNameBytes = Encoding.ASCII.GetBytes(entryPoint);
+
+            shaderc = Shaderc.GetApi();
+            compiler = shaderc.CompilerInitialize();
+            compileOptions = shaderc.CompileOptionsInitialize();
+            if (optimize)
             {
-                throw new Exception($"{name} uniform not found on shader.");
-            }
-            _gl.Uniform1(location, value);
-        }
-
-        public unsafe void SetUniform(string name, Matrix4x4 value)
-        {
-            //A new overload has been created for setting a uniform so we can use the transform in our shader.
-            int location = _gl.GetUniformLocation(_handle, name);
-            if (location == -1)
-            {
-                throw new Exception($"{name} uniform not found on shader.");
-            }
-            _gl.UniformMatrix4(location, 1, false, (float*) &value);
-        }
-
-        public void SetUniform(string name, float value)
-        {
-            int location = _gl.GetUniformLocation(_handle, name);
-            if (location == -1)
-            {
-                throw new Exception($"{name} uniform not found on shader.");
-            }
-            _gl.Uniform1(location, value);
-        }
-
-        public void Dispose()
-        {
-            _gl.DeleteProgram(_handle);
-        }
-
-        private uint LoadShader(ShaderType type, string path)
-        {
-            string src = File.ReadAllText(path);
-            uint handle = _gl.CreateShader(type);
-            _gl.ShaderSource(handle, src);
-            _gl.CompileShader(handle);
-            string infoLog = _gl.GetShaderInfoLog(handle);
-            if (!string.IsNullOrWhiteSpace(infoLog))
-            {
-                throw new Exception($"Error compiling shader of type {type}, failed with error {infoLog}");
+                shaderc.CompileOptionsSetOptimizationLevel(compileOptions, OptimizationLevel.Performance);
             }
 
-            return handle;
-        }
+            fixed (byte* inputFileName = inputFileNameBytes)
+            {
+                fixed (byte* entryPointName = entryPointNameBytes)
+                {
+                    compilationResult = shaderc.CompileIntoSpv(compiler, shaderText, (UIntPtr)shaderText.Length, shaderKind, inputFileName, entryPointName, compileOptions);
+                    CompilationStatus compilationStatus = shaderc.ResultGetCompilationStatus(compilationResult);
+                    if (compilationStatus != CompilationStatus.Success)
+                    {
+                        string errorMessage = shaderc.ResultGetErrorMessageS(compilationResult);
+                        throw new Exception($"Failed to compile shader: {errorMessage}");
+                    }
 
-        public void TryReloadShaders()
-        {
-            //TODO: IMPLEMENT
+                    byte* resultBytesPtr = shaderc.ResultGetBytes(compilationResult);
+                    UIntPtr resultLength = shaderc.ResultGetLength(compilationResult);
+                    Span<byte> bytesSpan = new Span<byte>(resultBytesPtr, (int)resultLength);
+                    byte[] resultBytesCopy = bytesSpan.ToArray();
+
+                    return resultBytesCopy;
+                }
+            }
         }
+        catch (Exception ex)
+        {
+            Log.Error($"Shader compilation error: `{ex.Message}`");
+            throw;
+        }
+        finally
+        {
+            if (shaderc != null)
+            {
+                if (compiler != null)
+                {
+                    shaderc.CompilerRelease(compiler);
+                }
+
+                if (compileOptions != null)
+                {
+                    shaderc.CompileOptionsRelease(compileOptions);
+                }
+
+                if (compilationResult != null)
+                {
+                    shaderc.ResultRelease(compilationResult);
+                }
+
+                shaderc.Dispose();
+            }
+        }
+    }
+
+    private ShaderModule LoadAndCompileShaderFile(string shaderPath, string entryPoint, ShaderKind shaderKind, bool optimize = true)
+    {
+        byte[] compiledShader = CompileShaderFile(shaderPath, entryPoint, shaderKind, optimize);
+        ShaderModule shaderModule = CreateShaderModule(compiledShader);
+        return shaderModule;
+    }
+
+    public unsafe PipelineShaderStageCreateInfo GetPipelineStageInfo()
+    {
+        ShaderStageFlags shaderStageFlags = Kind switch
+        {
+            ShaderKind.VertexShader => ShaderStageFlags.VertexBit,
+            ShaderKind.FragmentShader => ShaderStageFlags.FragmentBit,
+            _ => throw new Exception($"Unsupported shader kind {Kind}")
+        };
+
+        PipelineShaderStageCreateInfo shaderStageCreateInfo = new()
+        {
+            SType = StructureType.PipelineShaderStageCreateInfo,
+            Stage = shaderStageFlags,
+            Module = Module,
+            PName = (byte*)SilkMarshal.StringToPtr(EntryPoint)
+        };
+        
+        return shaderStageCreateInfo;
+    }
+
+    public unsafe void Destroy()
+    {
+        _context.Vk.DestroyShaderModule(_context.Device, Module, null);
     }
 }

@@ -27,7 +27,8 @@ public class DockFactory : Factory
 
     public override IRootDock CreateLayout()
     {
-        var document1 = new DocumentViewModel { Id = "RendererTestDoc", Title = "Renderer test" };
+        var document1 = new RendererTestDocumentViewModel { Id = "RendererTestDoc", Title = "Renderer test" };
+        //var document2 = new DocumentViewModel { Id = "RendererTestDoc2", Title = "Renderer test 2" };
         //var fileExplorer = new FileExplorerViewModel { Id = "FileExplorer", Title = "File explorer" };
         var outliner = new OutlinerViewModel { Id = "Outliner", Title = "Outliner" };
         var inspector = new InspectorViewModel { Id = "Inspector", Title = "Inspector" };
@@ -75,7 +76,7 @@ public class DockFactory : Factory
         {
             IsCollapsable = false,
             ActiveDockable = document1,
-            VisibleDockables = CreateList<IDockable>(document1),
+            VisibleDockables = CreateList<IDockable>(document1),//, document2),
             CanCreateDocument = false
         };
 
@@ -132,6 +133,7 @@ public class DockFactory : Factory
         ContextLocator = new Dictionary<string, Func<object?>>
         {
             ["RendererTestDoc"] = () => new DemoDocument(),
+            //["RendererTestDoc2"] = () => new DemoDocument(),
             //["FileExplorer"] = () => new FileExplorer(),
             ["Outliner"] = () => new Outliner(),
             ["Inspector"] = () => new Inspector(),
