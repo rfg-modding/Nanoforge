@@ -82,7 +82,10 @@ public static class PackfileVFS
             {
                 VppReader containerReader = new();
                 LogicalArchive containerArchive = containerReader.Read(file.Content, filename, new CancellationToken(), onlyReadMetadata: true);
-                DirectoryEntry containerEntry = new(filename, containerArchive);
+                DirectoryEntry containerEntry = new(filename, containerArchive)
+                {
+                    Parent = packfileEntry,
+                };
                 packfileEntry.Entries.Add(containerEntry);
 
                 //TODO: DO NOT COMMIT - FOR TESTING
@@ -93,13 +96,19 @@ public static class PackfileVFS
                 
                 foreach (var containerFile in containerArchive.LogicalFiles)
                 {
-                    FileEntry containerFileEntry = new(containerFile.Name, containerFile);
+                    FileEntry containerFileEntry = new(containerFile.Name, containerFile)
+                    {
+                        Parent = containerEntry,
+                    };
                     containerEntry.Entries.Add(containerFileEntry);
                 }
             }
             else //Plain file. Make a FileEntry for it
             {
-                FileEntry fileEntry = new(filename, file);
+                FileEntry fileEntry = new(filename, file)
+                {
+                    Parent = packfileEntry,
+                };
                 packfileEntry.Entries.Add(fileEntry);
             }   
         }
