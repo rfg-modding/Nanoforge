@@ -42,19 +42,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 root.Navigate.Execute("Editor");
             }
         }
-
-        //TODO: Make the data folder selector auto open when the app opens if you don't have one selected. This code is disabled since calling it immediately was causing weird
-        //TODO: and inconsistent behavior like the main window not maximizing correctly, or the data selector dialog not opening at all.
-        //MakeSureDataFolderIsSelectedAsync();
-    }
-
-    private async Task MakeSureDataFolderIsSelectedAsync()
-    {
-        if (GeneralSettings.CVar.Value.DataPath.Length == 0)
-        {
-            DataFolderSelectorDialog dataFolderSelector = new();
-            await dataFolderSelector.ShowDialog(MainWindow.Instance);
-        }
     }
     
     public void CloseLayout()

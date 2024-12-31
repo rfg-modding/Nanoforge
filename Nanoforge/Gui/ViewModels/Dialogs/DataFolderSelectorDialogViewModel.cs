@@ -92,7 +92,7 @@ public partial class DataFolderSelectorDialogViewModel : ViewModelBase
     {
         GeneralSettings.CVar.Value.DataPath = DataFolder;
         GeneralSettings.CVar.Save();
-        PackfileVFS.MountDataFolderAsync("//data/", GeneralSettings.CVar.Value.DataPath);
+        PackfileVFS.MountDataFolderInBackground("//data/", GeneralSettings.CVar.Value.DataPath);
         window.Close();
     }
 

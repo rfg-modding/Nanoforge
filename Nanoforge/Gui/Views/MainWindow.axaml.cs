@@ -1,6 +1,14 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Nanoforge.Editor;
+using Nanoforge.FileSystem;
+using Nanoforge.Gui.Views.Dialogs;
 using Nanoforge.Render;
 
 namespace Nanoforge.Gui.Views;
@@ -12,6 +20,8 @@ public partial class MainWindow : Window
 
     public Input Input = new();
     
+    private DispatcherTimer _timer = new(new TimeSpan(days: 0, hours: 0, minutes: 0, seconds: 0, milliseconds: 2000), DispatcherPriority.Normal, OpenDataFolderSelector);
+
     public MainWindow()
     {
         InitializeComponent();
@@ -35,5 +45,23 @@ public partial class MainWindow : Window
     {
         Renderer renderer = (Application.Current as App)!.Renderer;
         renderer.Shutdown();
+    }
+    
+    //Note: Very convoluted way to auto open the data folder selector. On Linux if I try to open the dialog immediately in the constructor or the Loaded event, then the main window does not maximize correctly for some reason.
+    //      Better ways of handling this are welcome!
+    private static async void OpenDataFolderSelector(object? sender, EventArgs args)
+    {
+        DispatcherTimer timer = (DispatcherTimer)sender!;
+        timer.Stop();
+
+        if (GeneralSettings.CVar.Value.DataPath.Length == 0)
+        {
+            DataFolderSelectorDialog dataFolderSelector = new();
+            await dataFolderSelector.ShowDialog(MainWindow.Instance); 
+        }
+        else
+        {
+            PackfileVFS.MountDataFolderInBackground("//data/", GeneralSettings.CVar.Value.DataPath);
+        }
     }
 }

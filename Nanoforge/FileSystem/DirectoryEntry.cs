@@ -1,23 +1,20 @@
 using System.Collections;
 using System.Collections.Generic;
+using RFGM.Formats.Vpp.Models;
 
 namespace Nanoforge.FileSystem;
 
 //Packfile or container (vpp_pc/str2_pc)
-public class DirectoryEntry : EntryBase, IEnumerable<EntryBase>
+public class DirectoryEntry(string name, LogicalArchive? archive = null) : EntryBase(name), IEnumerable<EntryBase>
 {
     public List<EntryBase> Entries = new();
     public override bool IsDirectory => true;
     public override bool IsFile => false;
-    public bool Compressed { get; private set; } = false;
-    public bool Condensed  { get; private set; } = false;
+    public bool Compressed => Archive != null && Archive.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Compressed);
+    public bool Condensed => Archive != null && Archive.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Condensed);
 
-    public DirectoryEntry(string name, bool compressed = false, bool condensed = false) : base(name)
-    {
-        Compressed = compressed;
-        Condensed = condensed;
-    }
-    
+    public LogicalArchive? Archive { get; set; } = archive;
+
     //Write @streams.xml file that lists all the files in a packfile. Used during packfile repacking to ensure that file order is preserved on str2_pc files
     //The order must be preserved or the str2_pc file will be out of sync with the asm_pc files and break the game.
     public void WriteStreamsFile(string outputFolderPath)
@@ -40,13 +37,42 @@ public class DirectoryEntry : EntryBase, IEnumerable<EntryBase>
 
     public IEnumerator<EntryBase> GetEnumerator()
     {
-        //TODO: IMPLEMENT
-        throw new System.NotImplementedException();
+        return new DirectoryEnumerator(Entries.GetEnumerator());
     }
 
     IEnumerator IEnumerable.GetEnumerator()
     {
-        //TODO: IMPLEMENT
-        return GetEnumerator();
+        return new DirectoryEnumerator(Entries.GetEnumerator());
     }
 }
+
+public class DirectoryEnumerator : IEnumerator<EntryBase>
+{
+    private List<EntryBase>.Enumerator _enumerator;
+    public EntryBase Current { get; private set; }
+    object? IEnumerator.Current => _enumerator.Current;
+    
+    public DirectoryEnumerator(List<EntryBase>.Enumerator enumerator)
+    {
+        _enumerator = enumerator;
+        Current = _enumerator.Current;
+    }
+
+    public bool MoveNext()
+    {
+        bool result = _enumerator.MoveNext();
+        Current = _enumerator.Current;
+        return result;
+    }
+
+    public void Reset()
+    {
+        throw new System.NotImplementedException();
+    }
+    
+    public void Dispose()
+    {
+        _enumerator.Dispose();
+    }
+}
+
