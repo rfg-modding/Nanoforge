@@ -283,9 +283,9 @@ public static class NanoDB
                     }
 
                     project.Directory = projectDirectory;
-                    if (!project.Directory.EndsWith("\\") && !project.Directory.EndsWith("/"))
+                    if (!Path.EndsInDirectorySeparator(project.Directory))
                     {
-                        project.Directory += "/";
+                        project.Directory += Path.DirectorySeparatorChar;
                     }
 
                     project.FilePath = projectFilePath;
