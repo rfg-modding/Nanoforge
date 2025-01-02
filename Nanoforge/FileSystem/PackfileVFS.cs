@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using Kaitai;
+using Nanoforge.Rfg;
+using RFGM.Formats.Streams;
 using RFGM.Formats.Vpp;
 using RFGM.Formats.Vpp.Models;
 using Serilog;
@@ -18,7 +21,7 @@ public static class PackfileVFS
     public static string Mount { get; private set; } = "";
     public static bool Loading { get; private set; } = false;
     public static bool Ready => Root != null && !Loading;
-    
+
     public static void MountDataFolderInBackground(string mount, string directoryPath)
     {
         ThreadPool.QueueUserWorkItem(_ => MountDataFolder(mount, directoryPath));
@@ -31,8 +34,12 @@ public static class PackfileVFS
             Loading = true;
             Mount = mount;
             DirectoryPath = directoryPath;
+            if (!Path.EndsInDirectorySeparator(DirectoryPath))
+            {
+                DirectoryPath += Path.DirectorySeparatorChar;
+            }
             Root = new DirectoryEntry(mount);
-            
+
 
             int errorCount = 0;
             string[] packfilePaths = Directory.GetFiles(directoryPath, "*.vpp_pc", SearchOption.TopDirectoryOnly);
@@ -48,6 +55,14 @@ public static class PackfileVFS
                 
             }
 
+            Root.Entries.Sort((a, b) => String.Compare(a.Name, b.Name, StringComparison.Ordinal));
+            foreach (EntryBase entry in Root)
+            {
+                if (entry is DirectoryEntry directoryEntry)
+                {
+                    directoryEntry.Entries.Sort((a, b) => String.Compare(a.Name, b.Name, StringComparison.Ordinal));
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -63,57 +78,134 @@ public static class PackfileVFS
     private static bool MountPackfile(string path, bool loadIntoMemory = false)
     {
         string packfileName = Path.GetFileName(path);
-        
-        VppReader reader = new VppReader();
-        using var filestream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        LogicalArchive packfile = reader.Read(filestream, packfileName, new CancellationToken());
+        using var packfileStream = new KaitaiStream(path);
+        RfgVpp packfile = new RfgVpp(packfileStream);
+        long[] packfileEntryOffsets = GetPatchedEntryOffsets(packfile);
 
-        DirectoryEntry packfileEntry = new(packfileName, packfile)
+        DirectoryEntry vfsPackfile = new(
+            name: packfileName,
+            compressed: packfile.Header.Flags.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Compressed),
+            condensed: packfile.Header.Flags.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Condensed),
+            dataBlockOffset: packfile.BlockOffset,
+            dataBlockSize: packfile.Header.LenData,
+            dataBlockSizeCompressed: packfile.Header.LenCompressedData)
         {
             Parent = Root,
         };
-        Root!.Entries.Add(packfileEntry);
+        Root!.Entries.Add(vfsPackfile);
 
-        foreach (LogicalFile file in packfile.LogicalFiles)
+        for (int i = 0; i < packfile.Entries.Count; i++)
         {
-            string filename = file.Name;
-            string extension = Path.GetExtension(filename);
+            RfgVpp.Entry? entry = packfile.Entries[i];
+            string? entryName = packfile.EntryNames.Values[i].Value;
+            if (entry == null || entryName == null)
+            {
+                Log.Error($"Failed to index entry {i} from {packfileName}");
+                throw new Exception($"Failed to index entry {i} from {packfileName}");
+            }
+
+            string extension = Path.GetExtension(entryName);
             if (extension == ".str2_pc") //Container. Create a directory entry with the name of the str2 and add its subfiles as FileEntry's
             {
-                VppReader containerReader = new();
-                LogicalArchive containerArchive = containerReader.Read(file.Content, filename, new CancellationToken(), onlyReadMetadata: true);
-                DirectoryEntry containerEntry = new(filename, containerArchive)
+                if (vfsPackfile.Compressed)
                 {
-                    Parent = packfileEntry,
-                };
-                packfileEntry.Entries.Add(containerEntry);
-
-                //TODO: DO NOT COMMIT - FOR TESTING
-                // Stream str = file.Content;
-                // str.Seek(1, SeekOrigin.Begin);
-                // str.Seek(2, SeekOrigin.Begin);
-                // str.Seek(0, SeekOrigin.Begin);
-                
-                foreach (var containerFile in containerArchive.LogicalFiles)
-                {
-                    FileEntry containerFileEntry = new(containerFile.Name, containerFile)
-                    {
-                        Parent = containerEntry,
-                    };
-                    containerEntry.Entries.Add(containerFileEntry);
+                    //Packfile is compressed, so we need to extract the whole str2 (much slower). Not supported since these don't exist in the vanilla game.
+                    Log.Error($"{packfileName} is compressed and contains str2_pc files. Can't parse the str2_pc. Please repack that vpp_pc without compression and restart Nanoforge or it won't work properly.");
+                    return false;
                 }
+
+                //Packfile isn't compressed. Instead of extracting the whole str2 just open a filestream in the vpp and seek to the str2 header
+                using FileStream containerFileStream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                StreamView containerStreamView = new(containerFileStream, packfile.BlockOffset + packfileEntryOffsets[i], entry.LenData);
+                using KaitaiStream containerKaitaiStream = new(containerStreamView);
+                RfgVpp container = new(containerKaitaiStream);
+
+                long[] containerEntryOffsets = GetPatchedEntryOffsets(container);
+                DirectoryEntry vfsContainer = new(
+                    name: entryName,
+                    compressed: container.Header.Flags.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Compressed),
+                    condensed: container.Header.Flags.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Condensed),
+                    dataBlockSize: container.Header.LenData,
+                    dataBlockSizeCompressed: container.Header.LenCompressedData,
+                    dataBlockOffset: container.BlockOffset,
+                    dataOffset: packfileEntryOffsets[i],
+                    size: entry.LenData,
+                    compressedSize: entry.LenCompressedData)
+                {
+                    Parent = vfsPackfile,
+                };
+
+                for (int j = 0; j < container.Entries.Count; j++)
+                {
+                    RfgVpp.Entry? containerEntry = container.Entries[j];
+                    string? containerEntryName = container.EntryNames.Values[j].Value;
+                    if (containerEntry == null || containerEntryName == null)
+                    {
+                        Log.Error($"Failed to index entry {j} from container {entryName}");
+                        throw new Exception($"Failed to index entry {j} from container {entryName}");
+                    }
+
+                    FileEntry vfsFile = new(containerEntryName, dataOffset: containerEntryOffsets[j], size: containerEntry.LenData,
+                        compressedSize: containerEntry.LenCompressedData)
+                    {
+                        Parent = vfsContainer
+                    };
+                    vfsContainer.Entries.Add(vfsFile);
+                }
+
+                vfsPackfile.Entries.Add(vfsContainer);
             }
             else //Plain file. Make a FileEntry for it
             {
-                FileEntry fileEntry = new(filename, file)
+                FileEntry vfsFile = new(entryName, dataOffset: packfileEntryOffsets[i], size: entry.LenData, compressedSize: entry.LenCompressedData)
                 {
-                    Parent = packfileEntry,
+                    Parent = vfsPackfile
                 };
-                packfileEntry.Entries.Add(fileEntry);
-            }   
+                vfsPackfile.Entries.Add(vfsFile);
+            }
         }
 
         return true;
+    }
+
+    //Note: Based on RfgVpp.FixOffsetOverflow() in RFGM.Formats
+    //      The entry offsets need to be patched since they are stored in 32 bit unsigned integers, but RFG has packfiles that with a data block thats larger than that.
+    //      This is temporary. Once LogicalArchive/LogicalFile have been upgraded to allow lazy stream creation then PackfileVFS can go back to using those instead of manually using RfgVpp and opening streams.
+    private static long[] GetPatchedEntryOffsets(RfgVpp packfile)
+    {
+        bool compressed = packfile.Header.Flags.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Compressed);
+        bool condensed = packfile.Header.Flags.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Condensed);
+        bool compacted = compressed && condensed;
+        if (compacted)
+            return packfile.Entries.Select(entry => (long)entry.DataOffset).ToArray(); //If compacted we can ignore the offsets and calculate them on demand since we need to decompress the whole data block anyway & there's no padding bytes
+        
+        const long alignmentSize = 2048;
+        
+        long[] entryOffsets = new long[packfile.Entries.Count];
+        long runningDataOffset = 0; //Track relative offset from data section start
+        for (int i = 0; i < packfile.Entries.Count; i++)
+        {
+            RfgVpp.Entry entryData = packfile.Entries[i];
+            entryOffsets[i] = runningDataOffset;
+            
+            if (compressed)
+            {
+                runningDataOffset += entryData.LenCompressedData;
+                long alignmentPad = StreamHelpers.CalcAlignment(runningDataOffset, alignmentSize);
+                runningDataOffset += alignmentPad;
+            }
+            else
+            {
+                runningDataOffset += entryData.LenData;
+                if (!condensed)
+                {
+                    long alignmentPad = StreamHelpers.CalcAlignment(runningDataOffset, alignmentSize);
+                    runningDataOffset += alignmentPad;
+                }
+            }
+        }
+
+        return entryOffsets;
     }
 
     public static EntryBase? GetEntry(string path)
@@ -130,6 +222,7 @@ public static class PackfileVFS
             Log.Error($"Invalid path '{path}' passed to VFS. Path must start with the mount point '{Mount}'");
             return null;
         }
+
         path = path.Remove(0, Mount.Length);
         if (path.Length == 0)
             return null;
@@ -189,63 +282,34 @@ public static class PackfileVFS
 
     public static Stream? OpenFile(string path)
     {
-        EntryBase? entry = GetEntry(path);
-        if (entry == null)
-        {
-            return null;
-        }
-        
-        return OpenFile(entry);
-    }
-
-    public static Stream? OpenFile(EntryBase entry)
-    {
-        if (!entry.IsFile)
-            return null;
-        
-        return (entry as FileEntry)?.LogicalFile.Content;
+        return GetEntry(path)?.OpenStream();
     }
 
     public static byte[]? ReadAllBytes(string path)
     {
-        EntryBase? entry = GetEntry(path);
-        if (entry == null)
-        {
-            return null;
-        }
-
-        return ReadAllBytes(entry);
-    }
-    
-    public static byte[]? ReadAllBytes(EntryBase entry)
-    {
-        if (!entry.IsFile)
-            return null;
-        
-        FileEntry fileEntry = (FileEntry)entry;
-        using MemoryStream ms = new();        
-        fileEntry.LogicalFile.Content.CopyTo(ms);
-        return ms.ToArray();
+        return GetEntry(path)?.ReadAllBytes();
     }
 
     public static string? ReadAllText(string path)
     {
-        EntryBase? entry = GetEntry(path);
-        if (entry == null)
-        {
-            return null;
-        }
+        return GetEntry(path)?.ReadAllText();
+    }
 
-        return ReadAllText(entry);
+    public static void PreloadDirectory(string path, bool recursive = true)
+    {
+        EntryBase? entry = GetEntry(path);
+        if (entry is DirectoryEntry directoryEntry)
+        {
+            directoryEntry.Preload(recursive);
+        }
     }
     
-    public static string? ReadAllText(EntryBase entry)
+    public static void UnloadDirectory(string path, bool recursive = true)
     {
-        if (!entry.IsFile)
-            return null;
-        
-        FileEntry fileEntry = (FileEntry)entry;
-        using StreamReader reader = new(fileEntry.LogicalFile.Content);
-        return reader.ReadToEnd();
+        EntryBase? entry = GetEntry(path);
+        if (entry is DirectoryEntry directoryEntry)
+        {
+            directoryEntry.Unload(recursive);
+        }
     }
 }
