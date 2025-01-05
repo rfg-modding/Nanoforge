@@ -41,7 +41,10 @@ public partial class RendererTestDocumentViewModel : Document
         //const string meshPath = "/mnt/StorageC/_RFGR_Unpack/GOG_Terraform/Unpack/dlcp01_items/Unpack/toolbox/amb_toolbox.csmesh_pc";
         const string meshPath = "/mnt/StorageC/_RFGR_Unpack/GOG_Terraform/Unpack/dlcp01_items/Unpack/rpg_launcher/rpg.csmesh_pc";
 
-        Renderer renderer = (Application.Current as App)!.Renderer;
+        Renderer? renderer = (Application.Current as App)!.Renderer;
+        if (renderer == null)
+            return;
+        
         RenderContext context = renderer.Context;
         
         Mesh mesh = LoadRfgStaticMeshFromFile(context, meshPath);

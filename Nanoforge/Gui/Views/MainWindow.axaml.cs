@@ -43,8 +43,8 @@ public partial class MainWindow : Window
 
     private void Window_OnClosing(object? sender, WindowClosingEventArgs e)
     {
-        Renderer renderer = (Application.Current as App)!.Renderer;
-        renderer.Shutdown();
+        Renderer? renderer = (Application.Current as App)!.Renderer;
+        renderer?.Shutdown();
     }
     
     //Note: Very convoluted way to auto open the data folder selector. On Linux if I try to open the dialog immediately in the constructor or the Loaded event, then the main window does not maximize correctly for some reason.

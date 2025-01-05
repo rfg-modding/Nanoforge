@@ -22,7 +22,7 @@ namespace Nanoforge.Gui.Views.Controls;
 
 public partial class Viewport3D : UserControl
 {
-    private Renderer _renderer;
+    private Renderer? _renderer;
     private WriteableBitmap _rendererOutput;
     private Compositor? _compositor;
     
@@ -59,13 +59,20 @@ public partial class Viewport3D : UserControl
 
         _renderer = (Application.Current as App)!.Renderer;
         _rendererOutput = new WriteableBitmap(new PixelSize(1920, 1080), new Vector(96, 96), PixelFormat.Bgra8888);
+
+        if (_renderer != null)
+        {
+            var mainWindow = MainWindow.Instance;
+            var selfVisual = ElementComposition.GetElementVisual(mainWindow)!;
+            _compositor = selfVisual.Compositor;
         
-        var mainWindow = MainWindow.Instance;
-        var selfVisual = ElementComposition.GetElementVisual(mainWindow)!;
-        _compositor = selfVisual.Compositor;
-        
-        ViewportImage.Source = _rendererOutput;
-        _lastUpdate = DateTime.Now;
+            ViewportImage.Source = _rendererOutput;
+            _lastUpdate = DateTime.Now;
+        }
+        else
+        {
+            Log.Error("Renderer is null. If you're not in the xaml designer and you see this then there's a big problem.");
+        }
     }
     
     private void Control_OnLoaded(object? sender, RoutedEventArgs e)
@@ -83,6 +90,9 @@ public partial class Viewport3D : UserControl
 
     private void RenderFrame()
     {
+        if (_renderer == null)
+            return;
+        
         if (_mouseMovedThisFrame)
         {
             _mouseMovedThisFrame = false;

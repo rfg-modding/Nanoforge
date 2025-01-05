@@ -18,7 +18,7 @@ namespace Nanoforge;
 
 public partial class App : Application
 {
-    public readonly Renderer Renderer;
+    public readonly Renderer? Renderer;
     
     public static IThemeManager? ThemeManager;
 
@@ -30,7 +30,11 @@ public partial class App : Application
     
     public App()
     {
-        Renderer = new Renderer(1920, 1080);
+        //Don't try starting the renderer if we're in the designer. Breaks the preview.
+        if (!Design.IsDesignMode)
+        {
+            Renderer = new Renderer(1920, 1080);
+        }
         Services = ConfigureServices();
     }
     

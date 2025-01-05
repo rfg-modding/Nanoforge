@@ -69,6 +69,7 @@ public unsafe class Renderer
     public void Shutdown()
     {
         Context.Vk.DeviceWaitIdle(Context.Device);
+        Cleanup();
     }
 
     public void RenderFrame(Scene scene)
