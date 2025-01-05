@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
 using Dock.Model.Core;
@@ -20,6 +21,9 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IFactory? _factory;
     private IRootDock? _layout;
+
+    [ObservableProperty]
+    private string _projectStatus = "No project loaded";
 
     //TODO: Add feature to save/load layouts. The dock library git repo has example code for this in the xaml sample.
     public IRootDock? Layout
@@ -74,10 +78,11 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    public void NewProject()
+    public async Task NewProject()
     {
         NewProjectDialog newProjectDialog = new();
-        newProjectDialog.ShowDialog(MainWindow.Instance);
+        await newProjectDialog.ShowDialog(MainWindow.Instance);
+        ProjectStatus = NanoDB.CurrentProject.Name;
     }
 
     [RelayCommand]
@@ -102,6 +107,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     {
                         string projectFilePath = result[0].Path.AbsolutePath;
                         NanoDB.Load(projectFilePath); //TODO: Make async or threaded and disable UI interaction & keybinds using modal popup until done loading
+                        ProjectStatus = NanoDB.CurrentProject.Name;
                     }
                 }
             }
@@ -133,7 +139,35 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void CloseProject()
     {
-        
+        NanoDB.CloseProject();
+        ProjectStatus = "No project loaded";
+    }
+
+    [RelayCommand]
+    public async Task OpenRecentProject(string path)
+    {
+        try
+        {
+            //TODO: Make this show unsaved changes popup and require user to take action before it continues
+            NanoDB.Load(path); //TODO: Make async or threaded and disable UI interaction & keybinds using modal popup until done loading
+            ProjectStatus = NanoDB.CurrentProject.Name;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error while opening recent project at '{0}'", path);
+            var messageBox = MessageBoxManager.GetMessageBoxStandard("Failed to open project", "Error opening project. Check Log.txt.", ButtonEnum.Ok);
+            await messageBox.ShowWindowDialogAsync(MainWindow.Instance);
+        }
+    }
+
+    [RelayCommand]
+    public async Task RemoveFromRecentProjectsList(string path)
+    {
+        if (GeneralSettings.CVar.Value.RecentProjects.Contains(path))
+        {
+            GeneralSettings.CVar.Value.RecentProjects.Remove(path);
+            GeneralSettings.CVar.Save();
+        }
     }
 
     [RelayCommand]
@@ -154,5 +188,17 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         //TODO: Make this trigger popups that warn about unsaved changes and delay closing the app until the user makes a choice 
         Environment.Exit(0);
+    }
+
+    [RelayCommand]
+    public void SetDarkTheme()
+    {
+        App.ThemeManager?.Switch(1);
+    }
+
+    [RelayCommand]
+    public void SetLightTheme()
+    {
+        App.ThemeManager?.Switch(0);
     }
 }

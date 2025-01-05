@@ -7,6 +7,8 @@
              xmlns:dm="using:Dock.Model.Core"
              xmlns:dmc="using:Dock.Model.Controls"
              xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels"
+             xmlns:nf="clr-namespace:Nanoforge"
+             xmlns:editor="clr-namespace:Nanoforge.Editor"
              xmlns:viewModels="clr-namespace:Nanoforge.Gui.ViewModels"
              mc:Ignorable="d"
              d:DesignWidth="1000" d:DesignHeight="550"
@@ -22,14 +24,28 @@
     </UserControl.Resources>
 
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*" Background="Transparent">
-        <Menu Grid.Row="0" Grid.Column="0" VerticalAlignment="Top">
+        <Menu Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" Name="MainMenuBar">
             <MenuItem Header="File">
                 <MenuItem Name="MenuItemNewProject" Header="New project..." Command="{Binding NewProjectCommand}" />
                 <MenuItem Name="MenuItemOpenProject" Header="Open project..." Command="{Binding OpenProjectCommand}" />
                 <MenuItem Name="MenuItemSaveProject" Header="Save project" Command="{Binding SaveProjectCommand}" />
                 <MenuItem Name="MenuItemCloseProject" Header="Close project" Command="{Binding CloseProjectCommand}" />
-                <MenuItem Name="MenuItemRecentProjects" Header="Recent projects">
-                    <!-- TODO: Porting: Fill with list of recent projects -->
+                <!-- Note: Had to disable compiled bindings on this control to compile. It was trying to find the RecentProjects property on MainWindowViewModel even with the data context specified -->
+                <MenuItem Name="MenuItemRecentProjects" Header="Recent projects" DataContext="{Binding Source={x:Static editor:GeneralSettings.CVar}}" 
+                          ItemsSource="{Binding Value.RecentProjects}"
+                          x:CompileBindings="False">
+                    <MenuItem.ItemTemplate>
+                        <DataTemplate>
+                            <MenuItem Header="{Binding}" FontSize="12" Width="500" HorizontalAlignment="Left" 
+                                      Command="{Binding #MainMenuBar.DataContext.OpenRecentProjectCommand}" CommandParameter="{Binding}">
+                                <MenuItem.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Remove from list" Command="{Binding #MainMenuBar.DataContext.RemoveFromRecentProjectsListCommand}" CommandParameter="{Binding}"/>
+                                    </ContextMenu>
+                                </MenuItem.ContextMenu>
+                            </MenuItem>
+                        </DataTemplate>
+                    </MenuItem.ItemTemplate>
                 </MenuItem>
                 <Separator />
 
@@ -41,6 +57,10 @@
             </MenuItem>
 
             <MenuItem Header="View">
+                <MenuItem Header="Theme...">
+                    <MenuItem Header="Dark" Command="{Binding SetDarkThemeCommand}"/>    
+                    <MenuItem Header="Light" Command="{Binding SetLightThemeCommand}"/>    
+                </MenuItem>
                 <!-- TODO: Porting: add toggle for different panels like Outliner and Inspector so they can be re-opened if closed -->
             </MenuItem>
 
@@ -48,8 +68,8 @@
             <MenuItem Header="Maps" IsEnabled="False">
 
             </MenuItem>
-
-            <!-- TODO: Porting: Add version string to right edge of the menu bar - or make an about option with a popup that has the version and other info like a like to the github page -->
+            
+            <Label Content="{Binding ProjectStatus}" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12"/>
         </Menu>
         <Panel x:Name="ToolBar" DataContext="{Binding Layout}" Grid.Row="0" Grid.Column="1">
             <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,200,Auto,Auto"
@@ -77,11 +97,11 @@
                     </Style>
                 </Grid.Styles>
                 
-                <!-- TODO: Make the searchbox useful -->
+                <Label Content="{Binding Source={x:Static nf:BuildConfig.Version}}" Grid.Column="5"
+                       VerticalAlignment="Center" FontSize="12"/>
+                
+                <!-- TODO: Re-enable searchbox and make it useful -->
                 <!-- <TextBox x:Name="SearchBox" Text="" Watermark="Search" UseFloatingWatermark="False" Grid.Column="4" /> -->
-                <Button x:Name="ThemeButton" Grid.Column="6" Background="Transparent">
-                    <PathIcon Width="24" Height="24" Opacity="0.6" Data="{StaticResource DarkTheme}" />
-                </Button>
             </Grid>
         </Panel>
 
