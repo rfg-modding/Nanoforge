@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels.Dialogs"
+        x:Class="Nanoforge.Gui.Views.Dialogs.TaskDialog"
+        mc:Ignorable="d"
+        Width="500"
+        Title="Task dialog"
+        x:DataType="vm:TaskDialogViewModel" x:CompileBindings="True"
+        SizeToContent="Height" CanResize="False" WindowStartupLocation="CenterOwner" SystemDecorations="None">
+    
+    <Design.DataContext>
+        <vm:TaskDialogViewModel/>
+    </Design.DataContext>
+    
+    <Border BorderThickness="1" BorderBrush="SteelBlue">
+        <StackPanel Margin="8">
+            <TextBlock Text="{Binding Status}" TextWrapping="WrapWithOverflow" Margin="0 0 0 8"/>
+            <ProgressBar Minimum="0" Maximum="1" Value="{Binding TaskPercentage}" ProgressTextFormat="{}{0}/{3} ({1:0}%)" Height="25" Margin="0 0 0 8"/>
+            <ListBox ItemsSource="{Binding StatusLog, UpdateSourceTrigger=PropertyChanged}" Height="150" Margin="0">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Height" Value="25"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Padding" Value="4 0 4 0"/>
+                    </Style>
+                </ListBox.Styles>
+            </ListBox>
+        
+            <Button Name="CloseButton" IsVisible="{Binding CanClose}" Content="Close" Margin="0 8 0 0" Click="CloseButton_OnClick"/>
+        </StackPanel>
+    </Border>
+</Window>

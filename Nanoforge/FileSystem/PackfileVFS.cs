@@ -4,9 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Kaitai;
-using Nanoforge.Rfg;
+using Nanoforge.Gui.ViewModels.Dialogs;
+using Nanoforge.Gui.Views;
+using Nanoforge.Gui.Views.Dialogs;
 using RFGM.Formats.Streams;
-using RFGM.Formats.Vpp;
 using RFGM.Formats.Vpp.Models;
 using Serilog;
 
@@ -24,10 +25,12 @@ public static class PackfileVFS
 
     public static void MountDataFolderInBackground(string mount, string directoryPath)
     {
-        ThreadPool.QueueUserWorkItem(_ => MountDataFolder(mount, directoryPath));
+        TaskDialog dialog = new TaskDialog();
+        dialog.ShowDialog(MainWindow.Instance);
+        ThreadPool.QueueUserWorkItem(_ => MountDataFolder(mount, directoryPath, dialog.ViewModel));
     }
     
-    private static void MountDataFolder(string mount, string directoryPath)
+    private static void MountDataFolder(string mount, string directoryPath, TaskDialogViewModel? status = null)
     {
         try
         {
@@ -43,16 +46,21 @@ public static class PackfileVFS
 
             int errorCount = 0;
             string[] packfilePaths = Directory.GetFiles(directoryPath, "*.vpp_pc", SearchOption.TopDirectoryOnly);
+            status?.Setup(packfilePaths.Length);
             foreach (string packfilePath in packfilePaths)
             {
                 string packfileName = Path.GetFileName(packfilePath);
+                status?.SetStatus($"Loading {packfileName}...");
                 if (!MountPackfile(packfilePath))
                 {
-                    Log.Error("PackfileVFS failed to mount {packfilePath} in the VFS.");
+                    Log.Error($"PackfileVFS failed to mount {packfilePath} in the VFS.");
+                    status?.Log($"Failed to mount {packfilePath}. Check the log.");
+                    status?.NextStep();
                     errorCount++;
                     continue;
                 }
-                
+
+                status?.NextStep();
             }
 
             Root.Entries.Sort((a, b) => String.Compare(a.Name, b.Name, StringComparison.Ordinal));
@@ -62,6 +70,21 @@ public static class PackfileVFS
                 {
                     directoryEntry.Entries.Sort((a, b) => String.Compare(a.Name, b.Name, StringComparison.Ordinal));
                 }
+            }
+
+            status?.SetStatus("Done!");
+            if (status != null)
+            {
+                if (errorCount == 0)
+                {
+                    status.CanClose = true;
+                    status.CloseDialog();
+                }
+                else
+                {
+                    status.SetStatus("An error occurred while mounting the data folder. Check the log.");
+                    status.CanClose = true;
+                }   
             }
         }
         catch (Exception ex)

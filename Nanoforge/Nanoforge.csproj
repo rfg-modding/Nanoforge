@@ -43,6 +43,7 @@
 
     <ItemGroup>
       <Folder Include="Gui\" />
+      <Folder Include="Gui\Models\Dialogs\" />
     </ItemGroup>
 
     <ItemGroup>
