@@ -133,13 +133,11 @@ public partial class Viewport3D : UserControl
 
     private void InputElement_OnPointerEntered(object? sender, PointerEventArgs e)
     {
-        Console.WriteLine("OnPointerEntered()");
         _mouseOverViewport = true;
     }
 
     private void InputElement_OnPointerExited(object? sender, PointerEventArgs e)
     {
-        Console.WriteLine("OnPointerExited()");
         _mouseOverViewport = false;
     }
 }
