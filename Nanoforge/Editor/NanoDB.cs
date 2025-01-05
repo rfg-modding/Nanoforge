@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Serilog;
 
 namespace Nanoforge.Editor;
@@ -12,19 +11,20 @@ public static class NanoDB
 {
     //Attached to a project. Loaded/saved whenever a project is.
     private static Dictionary<ulong, EditorObject> _objects = new();
+
     //Not attached to a project. Loaded when Nanoforge opens. Used to store persistent settings like the data folder path and recent projects list.
     private static Dictionary<ulong, EditorObject> _globalObjects = new();
     private static object _objectCreationLock = new();
-    
+
     //TODO: Make a more general system for separating objects into different files and selectively loading them. This will be needed to reduce save/load time bloat on projects with all the maps imported.
     public static bool LoadedGlobalObjects { get; private set; } = false;
     public static bool NewUnsavedGlobalObjects { get; private set; } = false; //Set to true when new global objects have been created but not yet saved
     private const string GlobalObjectFilePath = "./Config.nanodata";
-    
+
     private static ulong _nextObjectUID = 0;
-    
+
     public static Project CurrentProject = new();
-    
+
     public static bool Loading { get; private set; } = false;
     public static bool Saving { get; private set; } = false;
     public static bool Ready { get; private set; } = false;
@@ -39,20 +39,7 @@ public static class NanoDB
         TypeInfoResolver = new NanoDBTypeResolver(),
         ReferenceHandler = new NanoDBReferenceHandler(),
     };
-    
-    public class Project
-    {
-        [JsonInclude]
-        public string Name = "No project loaded";
-        [JsonInclude]
-        public string Description = "";
-        [JsonInclude]
-        public string Author = "";
-        public string Directory = "";
-        public string FilePath = "";
-        public bool Loaded = false;
-    }
-    
+
     public static T CreateObject<T>(string name = "") where T : EditorObject, new()
     {
         lock (_objectCreationLock)
@@ -65,7 +52,7 @@ public static class NanoDB
             return obj;
         }
     }
-    
+
     public static T CreateGlobalObject<T>(string name = "") where T : EditorObject, new()
     {
         lock (_objectCreationLock)
@@ -94,7 +81,7 @@ public static class NanoDB
                     return null;
                 }
             }
-            
+
             _objects[uid] = buffer;
             _nextObjectUID++;
             return buffer;
@@ -108,7 +95,7 @@ public static class NanoDB
             _objects.Remove(obj.UID);
         }
     }
-    
+
     //Used to add objects created outside of NanoDB. Like when cloning objects.
     public static void AddObject(EditorObject obj)
     {
@@ -119,7 +106,7 @@ public static class NanoDB
             _objects[uid] = obj;
         }
     }
-    
+
     public static void AddGlobalObject(EditorObject obj)
     {
         lock (_objectCreationLock)
@@ -135,24 +122,24 @@ public static class NanoDB
         foreach (var kv in _objects)
             if (kv.Value.Name.Equals(name))
                 return kv.Value;
-        
+
         foreach (var kv in _globalObjects)
             if (kv.Value.Name.Equals(name))
                 return kv.Value;
-        
+
         return null;
     }
-    
+
     public static EditorObject? Find(ulong uid)
     {
         foreach (var kv in _objects)
             if (kv.Value.UID == uid)
                 return kv.Value;
-        
+
         foreach (var kv in _globalObjects)
             if (kv.Value.UID == uid)
                 return kv.Value;
-        
+
         return null;
     }
 
@@ -164,7 +151,7 @@ public static class NanoDB
         else
             return (T)obj;
     }
-    
+
     public static T? Find<T>(ulong uid) where T : EditorObject
     {
         EditorObject? obj = Find(uid);
@@ -173,7 +160,7 @@ public static class NanoDB
         else
             return (T)obj;
     }
-    
+
     public static T FindOrCreate<T>(string name) where T : EditorObject, new()
     {
         T? find = Find<T>(name);
@@ -181,7 +168,7 @@ public static class NanoDB
         {
             find = CreateObject<T>(name);
         }
-        
+
         return find;
     }
 
@@ -210,13 +197,13 @@ public static class NanoDB
         try
         {
             Save();
-            
+
             if (!GeneralSettings.CVar.Value.RecentProjects.Contains(CurrentProject.FilePath))
             {
-                GeneralSettings.CVar.Value.RecentProjects.Add(CurrentProject.FilePath);
+                GeneralSettings.CVar.Value.RecentProjects.Insert(0, CurrentProject.FilePath);
                 GeneralSettings.CVar.Save();
             }
-            
+
             CurrentProject.Loaded = true;
         }
         catch (Exception ex)
@@ -242,11 +229,11 @@ public static class NanoDB
 
                 string nanoprojText = JsonSerializer.Serialize<Project>(CurrentProject);
                 File.WriteAllText(CurrentProject.FilePath, nanoprojText);
-            
+
                 using var objectStream = new FileStream(GetObjectsFilePath(), FileMode.Create, FileAccess.Write, FileShare.None);
                 JsonSerializer.Serialize(objectStream, _objects, ObjectJsonSerializerOptions);
-            
-                Log.Information($"Saved project '{CurrentProject.FilePath}'");      
+
+                Log.Information($"Saved project '{CurrentProject.FilePath}'");
             }
         }
         catch (Exception ex)
@@ -267,43 +254,43 @@ public static class NanoDB
         {
             lock (_objectCreationLock)
             {
-                    Reset();
-                    Loading = true;
-                    string nanoprojText = File.ReadAllText(projectFilePath);
-                    string? projectDirectory = Directory.GetParent(projectFilePath)?.FullName;
-                    if (projectDirectory == null)
-                    {
-                        throw new Exception($"Failed to get project directory for '{projectFilePath}' while loading project");
-                    }
+                Reset();
+                Loading = true;
+                string nanoprojText = File.ReadAllText(projectFilePath);
+                string? projectDirectory = Directory.GetParent(projectFilePath)?.FullName;
+                if (projectDirectory == null)
+                {
+                    throw new Exception($"Failed to get project directory for '{projectFilePath}' while loading project");
+                }
 
-                    Project? project = JsonSerializer.Deserialize<Project>(nanoprojText);
-                    if (project == null)
-                    {
-                        throw new Exception($"Failed to deserialize project file {projectFilePath}");
-                    }
+                Project? project = JsonSerializer.Deserialize<Project>(nanoprojText);
+                if (project == null)
+                {
+                    throw new Exception($"Failed to deserialize project file {projectFilePath}");
+                }
 
-                    project.Directory = projectDirectory;
-                    if (!Path.EndsInDirectorySeparator(project.Directory))
-                    {
-                        project.Directory += Path.DirectorySeparatorChar;
-                    }
+                project.Directory = projectDirectory;
+                if (!Path.EndsInDirectorySeparator(project.Directory))
+                {
+                    project.Directory += Path.DirectorySeparatorChar;
+                }
 
-                    project.FilePath = projectFilePath;
-                    project.Loaded = true;
-                    CurrentProject = project;
+                project.FilePath = projectFilePath;
+                project.Loaded = true;
+                CurrentProject = project;
 
-                    if (!GeneralSettings.CVar.Value.RecentProjects.Contains(project.FilePath))
-                    {
-                        GeneralSettings.CVar.Value.RecentProjects.Add(project.FilePath);
-                        GeneralSettings.CVar.Save();
-                    }
-            
-                    using var objectStream = new FileStream(GetObjectsFilePath(), FileMode.Open, FileAccess.Read, FileShare.None);
-                    _objects.Clear();
-                    _objects = JsonSerializer.Deserialize<Dictionary<ulong, EditorObject>>(objectStream, ObjectJsonSerializerOptions) ?? new();
-                    _nextObjectUID = Math.Max(_objects.Keys.DefaultIfEmpty().Max(), _globalObjects.Keys.DefaultIfEmpty().Max()) + 1;
+                if (!GeneralSettings.CVar.Value.RecentProjects.Contains(project.FilePath))
+                {
+                    GeneralSettings.CVar.Value.RecentProjects.Insert(0, project.FilePath);
+                    GeneralSettings.CVar.Save();
+                }
 
-                    Log.Information($"Opened project '{projectFilePath}'");      
+                using var objectStream = new FileStream(GetObjectsFilePath(), FileMode.Open, FileAccess.Read, FileShare.None);
+                _objects.Clear();
+                _objects = JsonSerializer.Deserialize<Dictionary<ulong, EditorObject>>(objectStream, ObjectJsonSerializerOptions) ?? new();
+                _nextObjectUID = Math.Max(_objects.Keys.DefaultIfEmpty().Max(), _globalObjects.Keys.DefaultIfEmpty().Max()) + 1;
+
+                Log.Information($"Opened project '{projectFilePath}'. Project name: {CurrentProject.Name}");
             }
         }
         catch (Exception ex)
@@ -316,7 +303,7 @@ public static class NanoDB
             Loading = false;
         }
     }
-    
+
     public static void SaveGlobals()
     {
         try
@@ -338,7 +325,7 @@ public static class NanoDB
             Saving = false;
         }
     }
-    
+
     public static void LoadGlobals()
     {
         try
@@ -349,7 +336,7 @@ public static class NanoDB
                 {
                     return;
                 }
-            
+
                 Saving = true;
                 using var globalObjectStream = new FileStream(GlobalObjectFilePath, FileMode.Open, FileAccess.Read, FileShare.None);
                 _globalObjects.Clear();
@@ -372,5 +359,14 @@ public static class NanoDB
     public static void ClearGlobals()
     {
         _globalObjects.Clear();
+    }
+
+    public static void CloseProject()
+    {
+        Reset();
+        CurrentProject = new()
+        {
+            Loaded = false
+        };
     }
 }
