@@ -116,6 +116,13 @@ public class DirectoryEntry(string name, bool compressed = false, bool condensed
         try
         {
             Log.Information($"Preloading {Name}{(recursive ? " (recursive)" : "")}...");
+            if (Size <= 2048)
+            {
+                //There are blank str2_pc files like Landmark_LODs.str2_pc in the MP/WC maps. They just have the header block (2048 bytes) and nothing else.
+                Log.Information($"Skipping VFS preload for {Name}. Size <= 2048");
+                return;
+            }
+            
             using Stream? stream = OpenStream();
             if (stream is null)
             {

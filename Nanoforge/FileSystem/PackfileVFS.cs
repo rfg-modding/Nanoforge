@@ -86,9 +86,12 @@ public static class PackfileVFS
             name: packfileName,
             compressed: packfile.Header.Flags.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Compressed),
             condensed: packfile.Header.Flags.Mode.HasFlag(RfgVpp.HeaderBlock.Mode.Condensed),
-            dataBlockOffset: packfile.BlockOffset,
             dataBlockSize: packfile.Header.LenData,
-            dataBlockSizeCompressed: packfile.Header.LenCompressedData)
+            dataBlockSizeCompressed: packfile.Header.LenCompressedData,
+            dataBlockOffset: packfile.BlockOffset,
+            dataOffset: 0,
+            size: (uint)packfileStream.Size,
+            compressedSize: 0)
         {
             Parent = Root,
         };
