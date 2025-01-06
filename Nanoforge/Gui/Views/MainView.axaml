@@ -64,9 +64,51 @@
                 <!-- TODO: Porting: add toggle for different panels like Outliner and Inspector so they can be re-opened if closed -->
             </MenuItem>
 
-            <!-- TODO: Porting: Bind to list of maps found in the current data folder. When none are selected just show an item that says "Open a project to edit maps"  -->
-            <MenuItem Header="Maps" IsEnabled="False">
+            <MenuItem Header="Maps">
+                <MenuItem.IsEnabled>
+                    <!-- TODO: Change this to use BoolConverters.And. Temporarily using .Or during development until the the importers begin to get ported. -->
+                    <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                        <Binding Path="MapListLoaded"/>
+                        <Binding Path="ProjectOpen"/>
+                    </MultiBinding>
+                </MenuItem.IsEnabled>
+                
+                <MenuItem Header="Single player map (Not supported yet)" IsEnabled="False"/>
+                <MenuItem Header="Single player DLC map (Not supported yet)" IsEnabled="False"/>
 
+                <!-- TODO: Fix clickable area not taking up the entire menu item. Annoyingly if you click outside that area it closes the menu but doesn't run the command -->
+                <!-- TODO: Change to show the filename inline in lighter text. Tried doing this previously but had issues getting the data binding to work on the nested template items -->
+                <MenuItem Header="Multiplayer" ItemsSource="{Binding MpMaps}" Classes="ParentMenu" x:CompileBindings="False">
+                    <MenuItem.Styles>
+                        <Style Selector="MenuItem.ParentMenu > MenuItem">
+                            <Setter Property="Padding" Value="8 4 0 4"/>
+                            <Setter Property="Margin" Value="0 0 0 0"/>
+                        </Style>
+                    </MenuItem.Styles>
+                    <MenuItem.ItemTemplate>
+                        <DataTemplate DataType="vm:MapOption">
+                            <MenuItem Command="{Binding #MainMenuBar.DataContext.OpenMapCommand}" CommandParameter="{Binding}"
+                                      Header="{Binding DisplayName}" Padding="0" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                      ToolTip.Tip="{Binding FileName}" ToolTip.ShowDelay="100"/>
+                        </DataTemplate>
+                    </MenuItem.ItemTemplate>
+                </MenuItem>
+                
+                <MenuItem Header="Wrecking Crew" ItemsSource="{Binding WcMaps}" Classes="ParentMenu" x:CompileBindings="False">
+                    <MenuItem.Styles>
+                        <Style Selector="MenuItem.ParentMenu > MenuItem">
+                            <Setter Property="Padding" Value="8 4 0 4"/>
+                            <Setter Property="Margin" Value="0 0 0 0"/>
+                        </Style>
+                    </MenuItem.Styles>
+                    <MenuItem.ItemTemplate>
+                        <DataTemplate DataType="vm:MapOption">
+                            <MenuItem Command="{Binding #MainMenuBar.DataContext.OpenMapCommand}" CommandParameter="{Binding}"
+                                      Header="{Binding DisplayName}" Padding="0" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                      ToolTip.Tip="{Binding FileName}" ToolTip.ShowDelay="100"/>
+                        </DataTemplate>
+                    </MenuItem.ItemTemplate>
+                </MenuItem>
             </MenuItem>
             
             <Label Content="{Binding ProjectStatus}" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12"/>

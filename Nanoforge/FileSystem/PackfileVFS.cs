@@ -23,6 +23,9 @@ public static class PackfileVFS
     public static bool Loading { get; private set; } = false;
     public static bool Ready => Root != null && !Loading;
 
+    public delegate void DataFolderChangedHandler();
+    public static event DataFolderChangedHandler? DataFolderChanged;
+
     public static void MountDataFolderInBackground(string mount, string directoryPath)
     {
         TaskDialog dialog = new TaskDialog();
@@ -86,6 +89,8 @@ public static class PackfileVFS
                     status.CanClose = true;
                 }   
             }
+            
+            DataFolderChanged?.Invoke();
         }
         catch (Exception ex)
         {
