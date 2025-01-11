@@ -5,12 +5,15 @@
                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                 xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels"
                 mc:Ignorable="d"
-                d:DesignWidth="300" d:DesignHeight="400"
+                d:DesignWidth="1920" d:DesignHeight="1080"
                 x:CompileBindings="True" 
+                x:Name="Viewport"
                 Loaded="Control_OnLoaded" PointerMoved="InputElement_OnPointerMoved" PointerPressed="InputElement_OnPointerPressed" PointerReleased="InputElement_OnPointerReleased"
                 PointerEntered="InputElement_OnPointerEntered" PointerExited="InputElement_OnPointerExited">
 
-    <Image Name="ViewportImage">
-        
-    </Image>
+    <Panel>
+        <Image Name="ViewportImage" IsVisible="{Binding #Viewport.SceneInitialized}"/>
+        <TextBlock IsVisible="{Binding !#Viewport.SceneInitialized}" 
+                   Text="{Binding #Viewport.LoadingStatus}" FontSize="32" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+    </Panel>
 </UserControl>

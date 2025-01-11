@@ -1,20 +1,18 @@
 using System;
-using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
-using Avalonia.OpenGL;
-using Avalonia.OpenGL.Controls;
 using Avalonia.Platform;
 using Avalonia.Rendering.Composition;
 using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Nanoforge.FileSystem;
 using Nanoforge.Render;
-using Nanoforge.Render.Resources;
 using Serilog;
 using Vector = Avalonia.Vector;
 
@@ -44,7 +42,31 @@ public partial class Viewport3D : UserControl
         get => GetValue(UpdateCommandProperty);
         set => SetValue(UpdateCommandProperty, value);
     }
-    
+
+    public static readonly StyledProperty<IAsyncRelayCommand> SceneInitCommandProperty = AvaloniaProperty.Register<Viewport3D, IAsyncRelayCommand>(nameof(SceneInitCommand));
+
+    public IAsyncRelayCommand SceneInitCommand
+    {
+        get => GetValue(SceneInitCommandProperty);
+        set => SetValue(SceneInitCommandProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> SceneInitializedProperty = AvaloniaProperty.Register<Viewport3D, bool>(nameof(SceneInitialized));
+
+    public bool SceneInitialized
+    {
+        get => GetValue(SceneInitializedProperty);
+        set => SetValue(SceneInitializedProperty, value);
+    }
+
+    public static readonly StyledProperty<string> LoadingStatusProperty = AvaloniaProperty.Register<Viewport3D, string>(nameof(LoadingStatus));
+
+    public string LoadingStatus
+    {
+        get => GetValue(LoadingStatusProperty);
+        set => SetValue(LoadingStatusProperty, value);
+    }
+
     private bool _leftMouseButtonDown = false;
     private bool _rightMouseButtonDown = false;
     private Vector2 _lastMousePosition = Vector2.Zero;
@@ -52,10 +74,17 @@ public partial class Viewport3D : UserControl
     private Vector2 _mousePositionDelta = Vector2.Zero;
     private bool _mouseOverViewport = false;
     private bool _mouseMovedThisFrame = false;
-    
+    private bool _sceneInitStarted = false;
+    private Task? _sceneInitTask;
+
     public Viewport3D()
     {
         InitializeComponent();
+
+        if (Design.IsDesignMode)
+        {
+            LoadingStatus = "Loading scene...";
+        }
 
         _renderer = (Application.Current as App)!.Renderer;
         _rendererOutput = new WriteableBitmap(new PixelSize(1920, 1080), new Vector(96, 96), PixelFormat.Bgra8888);
@@ -92,7 +121,32 @@ public partial class Viewport3D : UserControl
     {
         if (_renderer == null)
             return;
-        
+        if (!PackfileVFS.Ready)
+        {
+            LoadingStatus = "Waiting for data folder to be mounted...";
+            return;
+        }
+
+        if (!_sceneInitStarted)
+        {
+            LoadingStatus = "Loading scene...";
+            _sceneInitTask = SceneInitCommand.ExecuteAsync(null);
+            _sceneInitStarted = true;
+            return;
+        }
+        if (_sceneInitStarted)
+        {
+            if (_sceneInitTask is { IsCompleted: true })
+            {
+                SceneInitialized = true;
+                LoadingStatus = "Done loading.";
+            }
+            else
+            {
+                return;
+            }
+        }
+
         if (_mouseMovedThisFrame)
         {
             _mouseMovedThisFrame = false;

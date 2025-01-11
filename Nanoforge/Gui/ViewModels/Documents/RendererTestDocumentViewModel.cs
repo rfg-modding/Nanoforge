@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using System.Threading.Tasks;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
-using Nanoforge.Gui.Views;
-using Nanoforge.Gui.Views.Controls;
 using Nanoforge.Render;
 using Nanoforge.Render.Resources;
 using RFGM.Formats.Meshes;
@@ -27,10 +26,11 @@ public partial class RendererTestDocumentViewModel : Document
 
     public RendererTestDocumentViewModel()
     {
-        SceneInit();
+        
     }
     
-    public void SceneInit()
+    [RelayCommand]
+    public async Task SceneInit()                     
     {
         //TODO: Replace these hardcoded paths with packfile paths and load from the game files using PackfileVFS once its ported.
         const string texturePath = "/home/moneyl/projects/CSVulkanRenderer/CSVulkanRenderer/assets/viking_room.png";
