@@ -14,7 +14,7 @@ public unsafe class Texture2D : VkMemory
     private readonly ImageUsageFlags _usage;
     private readonly MemoryPropertyFlags _properties;
     private readonly ImageAspectFlags _imageAspectFlags;
-    
+
     private Image _textureImage;
     private ImageView _textureImageView;
     private Sampler _textureSampler;
@@ -26,7 +26,7 @@ public unsafe class Texture2D : VkMemory
     public ImageView ImageViewHandle => _textureImageView;
     public Sampler SamplerHandle => _textureSampler;
     
-    public Texture2D(RenderContext context, uint width, uint height, uint mipLevels, Format format, ImageTiling tiling, ImageUsageFlags usage, MemoryPropertyFlags properties, ImageAspectFlags imageAspectFlags) : base(context)
+    public Texture2D(RenderContext context, uint width, uint height, uint mipLevels, Format format, ImageTiling tiling, ImageUsageFlags usage, MemoryPropertyFlags properties, ImageAspectFlags imageAspectFlags): base(context)
     {
         _width = width;
         _height = height;
@@ -37,7 +37,7 @@ public unsafe class Texture2D : VkMemory
         _properties = properties;
         _imageAspectFlags = imageAspectFlags;
         _currentLayout = ImageLayout.Undefined;
-        
+
         CreateImage();
     }
     
@@ -93,8 +93,10 @@ public unsafe class Texture2D : VkMemory
     
     public void SetPixels(byte[] pixels, bool generateMipMaps = false)
     {
+        TransitionLayoutImmediate(ImageLayout.TransferDstOptimal);
         Context.StagingBuffer.SetData(pixels);
-        Context.StagingBuffer.CopyToImage(_textureImage, _width, _height);   
+        Context.StagingBuffer.CopyToImage(_textureImage, _width, _height); 
+        TransitionLayoutImmediate(ImageLayout.ShaderReadOnlyOptimal);
 
         if (generateMipMaps)
         {
