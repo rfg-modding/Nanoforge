@@ -1,7 +1,9 @@
+using System.Reflection;
 using AutoFixture;
 using AutoFixture.Kernel;
 using FluentAssertions;
 using Nanoforge.Editor;
+using Nanoforge.Render.Resources;
 using Nanoforge.Rfg;
 
 namespace Nanoforge.Tests;
@@ -21,6 +23,8 @@ public class NanoDBTests
         //Make it so the fixture doesn't complain about circular references on objects. All ZoneObjects can have this issue due to the Parent and Children fields
         fixture.Behaviors.OfType<ThrowingRecursionBehavior>().ToList().ForEach(b => fixture.Behaviors.Remove(b));
         fixture.Behaviors.Add(new OmitOnRecursionBehavior());
+        //Don't set RenderObject fields. AutoFixture throws exceptions on some unsafe types. For the moment its fine to exclude that type from the tests.
+        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObject)));
         
         TestEditorObjects = _editorObjectTypes.Select(type => new object[] { new SpecimenContext(fixture).Resolve(type) });
         var list = TestEditorObjects.ToList();
@@ -60,6 +64,7 @@ public class NanoDBTests
         Fixture fixture = new();
         fixture.Behaviors.OfType<ThrowingRecursionBehavior>().ToList().ForEach(b => fixture.Behaviors.Remove(b));
         fixture.Behaviors.Add(new OmitOnRecursionBehavior());
+        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObject)));
 
         //Note: The object types were picked at random to have some variety. This is not representative of a typical RFG map.
         var objectA = fixture.Create<RfgMover>();
@@ -128,6 +133,7 @@ public class NanoDBTests
     public void GlobalObjectSaveLoad()
     {
         Fixture fixture = new();
+        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObject)));
         GeneralSettings objA = fixture.Create<GeneralSettings>();
         objA.Name = "objA-Global";
         

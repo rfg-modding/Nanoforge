@@ -52,7 +52,7 @@ public class ZoneObject : EditorObject
     public Toggleable<string> Description = new("");
 
     //Reference to renderer data. Only set for objects which have visible mesh in the editor
-    public RenderObject? RenderObject = null;
+    public RenderObject? RenderObject { get; set; } = null;
 
     [Flags]
     public enum ZoneObjectFlags : ushort
