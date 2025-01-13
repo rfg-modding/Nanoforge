@@ -32,7 +32,7 @@
                 <MenuItem Name="MenuItemCloseProject" Header="Close project" Command="{Binding CloseProjectCommand}" />
                 <!-- Note: Had to disable compiled bindings on this control to compile. It was trying to find the RecentProjects property on MainWindowViewModel even with the data context specified -->
                 <MenuItem Name="MenuItemRecentProjects" Header="Recent projects" DataContext="{Binding Source={x:Static editor:GeneralSettings.CVar}}" 
-                          ItemsSource="{Binding Value.RecentProjects}"
+                          ItemsSource="{Binding Value.RecentProjects}" IsEnabled="{Binding Value.RecentProjects.Count}"
                           x:CompileBindings="False">
                     <MenuItem.ItemTemplate>
                         <DataTemplate>
@@ -67,7 +67,7 @@
             <MenuItem Header="Maps">
                 <MenuItem.IsEnabled>
                     <!-- TODO: Change this to use BoolConverters.And. Temporarily using .Or during development until the the importers begin to get ported. -->
-                    <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                    <MultiBinding Converter="{x:Static BoolConverters.And}">
                         <Binding Path="MapListLoaded"/>
                         <Binding Path="ProjectOpen"/>
                     </MultiBinding>
