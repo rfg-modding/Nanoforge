@@ -20,6 +20,7 @@ using Nanoforge.Services;
 using Serilog;
 using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Threading;
 
 namespace Nanoforge.Gui.ViewModels;
 
@@ -151,10 +152,19 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     if (result.Count > 0)
                     {
+                        //TODO: Make this show unsaved changes popup and require user to take action before it continues
                         string projectFilePath = result[0].Path.AbsolutePath;
-                        NanoDB.Load(projectFilePath); //TODO: Make async or threaded and disable UI interaction & keybinds using modal popup until done loading
-                        ProjectStatus = NanoDB.CurrentProject.Name;
-                        ProjectOpen = true;
+                        NanoDB.LoadInBackground(projectFilePath, success =>
+                        {
+                            if (!success)
+                                return;
+                
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                ProjectStatus = NanoDB.CurrentProject.Name;
+                                ProjectOpen = true;
+                            });
+                        });
                     }
                 }
             }
@@ -172,8 +182,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         try
         {
-            //TODO: Make async or threaded and disable UI interaction & keybinds with modal popup until its done saving
-            NanoDB.Save();
+            NanoDB.SaveInBackground();
         }
         catch (Exception ex)
         {
@@ -197,7 +206,17 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             //TODO: Make this show unsaved changes popup and require user to take action before it continues
-            NanoDB.Load(path); //TODO: Make async or threaded and disable UI interaction & keybinds using modal popup until done loading
+            NanoDB.LoadInBackground(path, success =>
+            {
+                if (!success)
+                    return;
+                
+                Dispatcher.UIThread.Post(() =>
+                {
+                    ProjectStatus = NanoDB.CurrentProject.Name;
+                    ProjectOpen = true;
+                });
+            });
             ProjectStatus = NanoDB.CurrentProject.Name;
             ProjectOpen = true;
         }

@@ -25,6 +25,9 @@ public partial class TaskDialogViewModel : ObservableObject
     [ObservableProperty]
     private float _taskPercentage = 0.0f;
     
+    [ObservableProperty]
+    private string _title = string.Empty;
+    
     private object _lock = new();
 
     public delegate void CloseDelegate();
@@ -34,6 +37,7 @@ public partial class TaskDialogViewModel : ObservableObject
     {
         if (Design.IsDesignMode)
         {
+            Title = "Task dialog title";
             Status = "Status";
             StatusLog.Add("Status 0...");
             StatusLog.Add("Status 1...");
@@ -49,9 +53,10 @@ public partial class TaskDialogViewModel : ObservableObject
         }
     }
     
-    public void Setup(int numSteps)
+    public void Setup(int numSteps, string title)
     {
         NumSteps = numSteps;
+        Title = title;
         Status = "";
         StatusLog.Clear();
         Step = 0;

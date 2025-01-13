@@ -49,7 +49,7 @@ public static class PackfileVFS
 
             int errorCount = 0;
             string[] packfilePaths = Directory.GetFiles(directoryPath, "*.vpp_pc", SearchOption.TopDirectoryOnly);
-            status?.Setup(packfilePaths.Length);
+            status?.Setup(packfilePaths.Length, "Mounting data folder");
             foreach (string packfilePath in packfilePaths)
             {
                 string packfileName = Path.GetFileName(packfilePath);

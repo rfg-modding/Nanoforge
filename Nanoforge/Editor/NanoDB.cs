@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using Nanoforge.Gui.ViewModels.Dialogs;
+using Nanoforge.Gui.Views;
+using Nanoforge.Gui.Views.Dialogs;
 using Serilog;
 
 namespace Nanoforge.Editor;
@@ -30,6 +34,9 @@ public static class NanoDB
     public static bool Ready { get; private set; } = false;
 
     public static string BuffersDirectory => $@"{CurrentProject.Directory}Buffers/";
+    
+    public delegate void ProjectDoneLoadingHandler(bool success);
+    public delegate void ProjectDoneSavingHandler(bool success);
 
     private static JsonSerializerOptions ObjectJsonSerializerOptions => new()
     {
@@ -196,7 +203,9 @@ public static class NanoDB
 
         try
         {
-            Save();
+            TaskDialog dialog = new TaskDialog();
+            dialog.ShowDialog(MainWindow.Instance);
+            Save(dialog.ViewModel);
 
             if (!GeneralSettings.CVar.Value.RecentProjects.Contains(CurrentProject.FilePath))
             {
@@ -216,12 +225,20 @@ public static class NanoDB
     {
         return $"{CurrentProject.Directory}objects.nanodata";
     }
-
-    //TODO: Stick this in a separate thread and/or make it async. Once objects are added save time will increase significantly
-    public static void Save()
+    
+    public static void SaveInBackground(ProjectDoneSavingHandler? doneSavingHandler = null)
+    {
+        TaskDialog dialog = new TaskDialog();
+        dialog.ShowDialog(MainWindow.Instance);
+        ThreadPool.QueueUserWorkItem(_ => Save(dialog.ViewModel, doneSavingHandler));
+    }
+    
+    public static void Save(TaskDialogViewModel? status = null, ProjectDoneSavingHandler? doneSavingHandler = null)
     {
         try
         {
+            status?.Setup(1, $"Saving {CurrentProject.Name}");
+            status?.SetStatus("Saving...");
             lock (_objectCreationLock)
             {
                 Saving = true;
@@ -235,23 +252,41 @@ public static class NanoDB
 
                 Log.Information($"Saved project '{CurrentProject.FilePath}'");
             }
+            status?.NextStep();
+            status?.SetStatus($"Done!");
+            status?.CloseDialog();
+            
+            doneSavingHandler?.Invoke(true);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error saving NanoDB");
-            throw;
+            if (status != null)
+            {
+                status.SetStatus("Error saving project. Check the log for more details.");
+                status.CanClose = true;
+            }
+            doneSavingHandler?.Invoke(false);
         }
         finally
         {
             Saving = false;
         }
     }
+    
+    public static void LoadInBackground(string projectFilePath, ProjectDoneLoadingHandler? doneLoadingHandler)
+    {
+        TaskDialog dialog = new TaskDialog();
+        dialog.ShowDialog(MainWindow.Instance);
+        ThreadPool.QueueUserWorkItem(_ => Load(projectFilePath, dialog.ViewModel, doneLoadingHandler));
+    }
 
-    //TODO: Stick this in a separate thread and/or make it async. Once objects are added load time will increase significantly
-    public static void Load(string projectFilePath)
+    public static void Load(string projectFilePath, TaskDialogViewModel? status = null, ProjectDoneLoadingHandler? doneLoadingHandler = null)
     {
         try
         {
+            status?.Setup(2, $"Loading {CurrentProject.Name}");
+            status?.SetStatus("Loading...");
             lock (_objectCreationLock)
             {
                 Reset();
@@ -263,11 +298,13 @@ public static class NanoDB
                     throw new Exception($"Failed to get project directory for '{projectFilePath}' while loading project");
                 }
 
+                status?.SetStatus($"Loading .nanoproj file...");
                 Project? project = JsonSerializer.Deserialize<Project>(nanoprojText);
                 if (project == null)
                 {
                     throw new Exception($"Failed to deserialize project file {projectFilePath}");
                 }
+                status?.NextStep();
 
                 project.Directory = projectDirectory;
                 if (!Path.EndsInDirectorySeparator(project.Directory))
@@ -285,6 +322,7 @@ public static class NanoDB
                     GeneralSettings.CVar.Save();
                 }
 
+                status?.SetStatus($"Loading editor objects...");
                 using var objectStream = new FileStream(GetObjectsFilePath(), FileMode.Open, FileAccess.Read, FileShare.None);
                 _objects.Clear();
                 _objects = JsonSerializer.Deserialize<Dictionary<ulong, EditorObject>>(objectStream, ObjectJsonSerializerOptions) ?? new();
@@ -292,11 +330,21 @@ public static class NanoDB
 
                 Log.Information($"Opened project '{projectFilePath}'. Project name: {CurrentProject.Name}");
             }
+            status?.NextStep();
+            status?.SetStatus($"Done!");
+            status?.CloseDialog();
+
+            doneLoadingHandler?.Invoke(true);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error loading NanoDB");
-            throw;
+            if (status != null)
+            {
+                status.SetStatus("Error loading project. Check the log for more details.");
+                status.CanClose = true;
+            }
+            doneLoadingHandler?.Invoke(false);
         }
         finally
         {

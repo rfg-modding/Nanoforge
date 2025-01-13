@@ -16,6 +16,8 @@
     
     <Border BorderThickness="1" BorderBrush="SteelBlue">
         <StackPanel Margin="8">
+            <TextBlock Text="{Binding Title}" FontWeight="Light" FontSize="12" HorizontalAlignment="Center"/>
+            <Separator HorizontalAlignment="Stretch" Margin="0 8 0 8" Padding="0"/>
             <TextBlock Text="{Binding Status}" TextWrapping="WrapWithOverflow" Margin="0 0 0 8"/>
             <ProgressBar Minimum="0" Maximum="1" Value="{Binding TaskPercentage}" ProgressTextFormat="{}{0}/{3} ({1:0}%)" Height="25" Margin="0 0 0 8"/>
             <ListBox ItemsSource="{Binding StatusLog, UpdateSourceTrigger=PropertyChanged}" Height="150" Margin="0">
