@@ -189,7 +189,7 @@ public static class NanoDB
         }
     }
 
-    public static void NewProject(string directory, string name, string author, string description)
+    public static void NewProject(string directory, string name, string author, string description, bool showTaskDialog = true)
     {
         Reset();
         CurrentProject = new()
@@ -203,9 +203,13 @@ public static class NanoDB
 
         try
         {
-            TaskDialog dialog = new TaskDialog();
-            dialog.ShowDialog(MainWindow.Instance);
-            Save(dialog.ViewModel);
+            TaskDialogViewModel? status = null;
+            if (showTaskDialog)
+            {
+                TaskDialog dialog = new TaskDialog();
+                dialog.ShowDialog(MainWindow.Instance);
+            }
+            Save(status);
 
             if (!GeneralSettings.CVar.Value.RecentProjects.Contains(CurrentProject.FilePath))
             {

@@ -40,7 +40,7 @@ public class NanoDBTests
         //TODO: Change to write to temporary directory in project dir that gets git ignored
         string projectDirectory = "./AllEditorObjectSaveLoadTest/";
         string projectFilePath = "";
-        NanoDB.NewProject(projectDirectory, "AllEditorObjectSaveLoadTest", "UnitTestRunner", "");
+        NanoDB.NewProject(projectDirectory, "AllEditorObjectSaveLoadTest", "UnitTestRunner", "", false);
         projectFilePath = NanoDB.CurrentProject.FilePath;
 
         NanoDB.AddObject(originalObject);
@@ -58,7 +58,7 @@ public class NanoDBTests
     {
         string projectDirectory = "./ObjectSaveLoadWithHierarchyTest/";
         string projectFilePath = "";
-        NanoDB.NewProject(projectDirectory, "ObjectSaveLoadWithHierarchyTest", "UnitTestRunner", "");
+        NanoDB.NewProject(projectDirectory, "ObjectSaveLoadWithHierarchyTest", "UnitTestRunner", "", false);
         projectFilePath = NanoDB.CurrentProject.FilePath;
 
         Fixture fixture = new();
@@ -157,7 +157,7 @@ public class NanoDBTests
     public void BufferSaveLoad()
     {
         string projectDirectory = "./BufferSaveLoadTest/";
-        NanoDB.NewProject(projectDirectory, "BufferSaveLoadTest", "UnitTestRunner", "");
+        NanoDB.NewProject(projectDirectory, "BufferSaveLoadTest", "UnitTestRunner", "", false);
         
         Fixture fixture = new();
         byte[] bufferBytes = fixture.CreateMany<byte>(1024).ToArray();
@@ -177,7 +177,7 @@ public class NanoDBTests
     {
         string projectDirectory = "./BufferProjectSaveLoadTest/";
         string projectFilePath = "";
-        NanoDB.NewProject(projectDirectory, "BufferProjectSaveLoadTest", "UnitTestRunner", "");
+        NanoDB.NewProject(projectDirectory, "BufferProjectSaveLoadTest", "UnitTestRunner", "", false);
         projectFilePath = NanoDB.CurrentProject.FilePath;
         
         Fixture fixture = new();
@@ -204,7 +204,7 @@ public class NanoDBTests
     public void BufferShrink()
     {
         string projectDirectory = "./BufferShrinkTest/";
-        NanoDB.NewProject(projectDirectory, "BufferShrinkTest", "UnitTestRunner", "");
+        NanoDB.NewProject(projectDirectory, "BufferShrinkTest", "UnitTestRunner", "", false);
         
         Fixture fixture = new();
         byte[] bufferBytes = fixture.CreateMany<byte>(1024).ToArray();
@@ -228,7 +228,7 @@ public class NanoDBTests
     public void BufferGrow()
     {
         string projectDirectory = "./BufferGrowTest/";
-        NanoDB.NewProject(projectDirectory, "BufferGrowTest", "UnitTestRunner", "");
+        NanoDB.NewProject(projectDirectory, "BufferGrowTest", "UnitTestRunner", "", false);
         
         Fixture fixture = new();
         byte[] bufferBytes = fixture.CreateMany<byte>(1024).ToArray();
@@ -252,7 +252,7 @@ public class NanoDBTests
     {
         string projectDirectory = "./ReferencedBufferSaveLoad/";
         string projectFilePath = "";
-        NanoDB.NewProject(projectDirectory, "ReferencedBufferSaveLoad", "UnitTestRunner", "");
+        NanoDB.NewProject(projectDirectory, "ReferencedBufferSaveLoad", "UnitTestRunner", "", false);
         projectFilePath = NanoDB.CurrentProject.FilePath;
         
         Fixture fixture = new();
