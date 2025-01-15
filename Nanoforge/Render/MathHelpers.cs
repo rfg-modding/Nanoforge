@@ -4,12 +4,12 @@ namespace Nanoforge.Render;
 
 public static class MathHelpers
 {
-    public static float DegreesToRadians(float degrees)
+    public static float ToRadians(float degrees)
     {
         return MathF.PI / 180f * degrees;
     }
 
-    public static float RadiansToDegrees(float pitchRadians)
+    public static float ToDegrees(float pitchRadians)
     {
         return (180.0f / MathF.PI) * pitchRadians;
     }

@@ -75,7 +75,7 @@ public partial class RendererTestDocumentViewModel : Document
                 continue;
             
             float angle = updateParams.TotalTime * 50.0f;
-            renderObject.Orient = Matrix4x4.CreateRotationY(MathHelpers.DegreesToRadians(angle));   
+            renderObject.Orient = Matrix4x4.CreateRotationY(MathHelpers.ToRadians(angle));   
         }
 
         Scene.Update(updateParams);

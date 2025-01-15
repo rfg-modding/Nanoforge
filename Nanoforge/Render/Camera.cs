@@ -39,7 +39,7 @@ public class Camera
     {
         Position = position;
         TargetPosition = position;
-        FovRadians = MathHelpers.DegreesToRadians(fovDegrees);
+        FovRadians = MathHelpers.ToRadians(fovDegrees);
         _aspectRatio = viewportSize.X / viewportSize.Y;
         _nearPlane = nearPlane;
         _farPlane = farPlane;
@@ -102,8 +102,8 @@ public class Camera
             TargetYawRadians += -mouse.PositionDelta.X * LookSensitivity;
             TargetPitchRadians += mouse.PositionDelta.Y * LookSensitivity;
 
-            float maxPitch = MathHelpers.DegreesToRadians(89.0f);
-            float minPitch = MathHelpers.DegreesToRadians(-89.0f);
+            float maxPitch = MathHelpers.ToRadians(89.0f);
+            float minPitch = MathHelpers.ToRadians(-89.0f);
             
             if (TargetPitchRadians > maxPitch)
                 TargetPitchRadians = maxPitch;
