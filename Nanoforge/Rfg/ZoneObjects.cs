@@ -132,9 +132,11 @@ public class ObjectBoundingBox : ZoneObject
 
     public enum BoundingBoxType
     {
-        [RfgName("None")] None,
+        [RfgName("None")]
+        None,
 
-        [RfgName("GPS Target")] GpsTarget
+        [RfgName("GPS Target")]
+        GpsTarget
     }
 
     public override ObjectBoundingBox Clone()

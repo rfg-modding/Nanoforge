@@ -21,6 +21,7 @@ using Serilog;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Nanoforge.Rfg.Import;
 
 namespace Nanoforge.Gui.ViewModels;
 
@@ -371,5 +372,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         Console.WriteLine($"Opening {map.DisplayName}...");
         //TODO: IMPLEMENT
+        MapImporter importer = new MapImporter();
+        importer.ImportMapInBackground(map.FileName);
     }
 }
