@@ -28,6 +28,9 @@ public partial class TaskDialogViewModel : ObservableObject
     [ObservableProperty]
     private string _title = string.Empty;
     
+    [ObservableProperty]
+    private string _latestStatus = string.Empty;
+    
     private object _lock = new();
 
     public delegate void CloseDelegate();
@@ -72,7 +75,8 @@ public partial class TaskDialogViewModel : ObservableObject
         
         lock (_lock)
         {
-            StatusLog.Insert(0, status);
+            StatusLog.Add(status);
+            LatestStatus = status;
         }
     }
 
@@ -82,6 +86,7 @@ public partial class TaskDialogViewModel : ObservableObject
         lock (_lock)
         {
             StatusLog.Add(message);
+            LatestStatus = message;
         }
     }
     
