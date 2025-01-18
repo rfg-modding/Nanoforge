@@ -44,9 +44,13 @@ public partial class DataFolderSelectorDialogViewModel : ViewModelBase
         {
             _dataFolder = GeneralSettings.CVar.Value.DataPath;
         }
-        else
+        else if (_searchResults.Count > 0)
         {
             _dataFolder = _searchResults[0];
+        }
+        else
+        {
+            _dataFolder = "";
         }
         ValidateDataFolder();
     }
@@ -82,6 +86,11 @@ public partial class DataFolderSelectorDialogViewModel : ViewModelBase
                 if (result.Count > 0)
                 {
                     DataFolder = result[0].Path.AbsolutePath;
+                    if (DataFolder.Contains("%20"))
+                    {
+                        DataFolder = DataFolder.Replace("%20", " ");
+                    }
+                    ValidateDataFolder();
                 }
             }
         }
