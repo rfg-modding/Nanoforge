@@ -17,37 +17,14 @@ namespace Nanoforge.Gui.ViewModels;
 public class DockFactory : Factory
 {
     private IRootDock? _rootDock;
-    private IDocumentDock? _documentDock;
-
-    public DockFactory()
-    {
-    }
+    public CustomDocumentDock? DocumentDock;
 
     public override IDocumentDock CreateDocumentDock() => new CustomDocumentDock();
 
     public override IRootDock CreateLayout()
     {
-        //var document1 = new RendererTestDocumentViewModel { Id = "RendererTestDoc", Title = "Renderer test" };
-        //var document2 = new DocumentViewModel { Id = "RendererTestDoc2", Title = "Renderer test 2" };
-        //var fileExplorer = new FileExplorerViewModel { Id = "FileExplorer", Title = "File explorer" };
         var outliner = new OutlinerViewModel { Id = "Outliner", Title = "Outliner" };
         var inspector = new InspectorViewModel { Id = "Inspector", Title = "Inspector" };
-
-        // var leftDock = new ProportionalDock
-        // {
-        //     Proportion = 0.20,
-        //     Orientation = Orientation.Vertical,
-        //     ActiveDockable = null,
-        //     VisibleDockables = CreateList<IDockable>
-        //     (
-        //         new ToolDock
-        //         {
-        //             ActiveDockable = fileExplorer,
-        //             VisibleDockables = CreateList<IDockable>(fileExplorer),
-        //             Alignment = Alignment.Left
-        //         }
-        //     )
-        // };
 
         var rightDock = new ProportionalDock
         {
@@ -75,8 +52,8 @@ public class DockFactory : Factory
         var documentDock = new CustomDocumentDock()
         {
             IsCollapsable = false,
-            ActiveDockable = null,//document1,
-            VisibleDockables = CreateList<IDockable>(), //(document1),//, document2),
+            ActiveDockable = null,
+            VisibleDockables = CreateList<IDockable>(),
             CanCreateDocument = false
         };
 
@@ -110,7 +87,7 @@ public class DockFactory : Factory
         rootDock.DefaultDockable = editorView;
         rootDock.VisibleDockables = CreateList<IDockable>(editorView);
 
-        _documentDock = documentDock;
+        DocumentDock = documentDock;
         _rootDock = rootDock;
         
         return rootDock;
@@ -132,9 +109,6 @@ public class DockFactory : Factory
     {
         ContextLocator = new Dictionary<string, Func<object?>>
         {
-            ["RendererTestDoc"] = () => new DemoDocument(),
-            //["RendererTestDoc2"] = () => new DemoDocument(),
-            //["FileExplorer"] = () => new FileExplorer(),
             ["Outliner"] = () => new Outliner(),
             ["Inspector"] = () => new Inspector(),
             ["Editor"] = () => layout,
@@ -143,7 +117,7 @@ public class DockFactory : Factory
         DockableLocator = new Dictionary<string, Func<IDockable?>>()
         {
             ["Root"] = () => _rootDock,
-            ["Documents"] = () => _documentDock
+            ["Documents"] = () => DocumentDock
         };
 
         HostWindowLocator = new Dictionary<string, Func<IHostWindow?>>

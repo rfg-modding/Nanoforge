@@ -10,6 +10,7 @@
              xmlns:nf="clr-namespace:Nanoforge"
              xmlns:editor="clr-namespace:Nanoforge.Editor"
              xmlns:viewModels="clr-namespace:Nanoforge.Gui.ViewModels"
+             xmlns:diagnostics="clr-namespace:System.Diagnostics;assembly=System.Runtime"
              mc:Ignorable="d"
              d:DesignWidth="1000" d:DesignHeight="550"
              x:DataType="viewModels:MainWindowViewModel" x:CompileBindings="True"
@@ -109,6 +110,10 @@
                         </DataTemplate>
                     </MenuItem.ItemTemplate>
                 </MenuItem>
+            </MenuItem>
+            
+            <MenuItem Header="Debug" IsVisible="{Binding Source={x:Static diagnostics:Debugger.IsAttached}}">
+                <MenuItem Header="Renderer test" Command="{Binding OpenRendererTestDocumentCommand}"/>
             </MenuItem>
             
             <Label Content="{Binding ProjectStatus}" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12"/>

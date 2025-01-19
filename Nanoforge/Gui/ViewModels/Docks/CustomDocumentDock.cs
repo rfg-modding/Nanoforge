@@ -1,6 +1,10 @@
-﻿using CommunityToolkit.Mvvm.Input;
+﻿using System;
+using System.Diagnostics;
+using CommunityToolkit.Mvvm.Input;
+using Dock.Model.Controls;
 using Dock.Model.Mvvm.Controls;
 using Nanoforge.Gui.ViewModels.Documents;
+using Serilog;
 
 namespace Nanoforge.Gui.ViewModels.Docks;
 
@@ -8,19 +12,14 @@ public class CustomDocumentDock : DocumentDock
 {
     public CustomDocumentDock()
     {
-        CreateDocument = new RelayCommand(CreateNewDocument);
+        CanCreateDocument = true;
     }
 
-    private void CreateNewDocument()
+    public void AddNewDocument<T>(T document) where T : IDocument
     {
-        if (!CanCreateDocument)
-        {
-            return;
-        }
-
         var index = VisibleDockables?.Count + 1;
-        var document = new RendererTestDocumentViewModel {Id = $"Document{index}", Title = $"Document{index}"};
-
+        document.Id = $"{document.Title}-{index}";
+        
         Factory?.AddDockable(this, document);
         Factory?.SetActiveDockable(document);
         Factory?.SetFocusedDockable(this, document);

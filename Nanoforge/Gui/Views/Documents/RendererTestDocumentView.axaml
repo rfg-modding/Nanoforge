@@ -16,7 +16,7 @@
     
   <Grid Focusable="True">
     <controls:Viewport3D Name="Viewport" Scene="{Binding Scene}" UpdateCommand="{Binding UpdateCommand}"
-                         SceneInitCommand="{Binding SceneInitCommand}"
+                         SceneInitialized="{Binding SceneInitialized}"
                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
   </Grid>
 </UserControl>

@@ -43,14 +43,6 @@ public partial class Viewport3D : UserControl
         set => SetValue(UpdateCommandProperty, value);
     }
 
-    public static readonly StyledProperty<IAsyncRelayCommand> SceneInitCommandProperty = AvaloniaProperty.Register<Viewport3D, IAsyncRelayCommand>(nameof(SceneInitCommand));
-
-    public IAsyncRelayCommand SceneInitCommand
-    {
-        get => GetValue(SceneInitCommandProperty);
-        set => SetValue(SceneInitCommandProperty, value);
-    }
-
     public static readonly StyledProperty<bool> SceneInitializedProperty = AvaloniaProperty.Register<Viewport3D, bool>(nameof(SceneInitialized));
 
     public bool SceneInitialized
@@ -126,25 +118,10 @@ public partial class Viewport3D : UserControl
             LoadingStatus = "Waiting for data folder to be mounted...";
             return;
         }
-
-        if (!_sceneInitStarted)
+        if (!SceneInitialized)
         {
-            LoadingStatus = "Loading scene...";
-            _sceneInitTask = SceneInitCommand.ExecuteAsync(null);
-            _sceneInitStarted = true;
+            LoadingStatus = "Waiting for scene to load...";
             return;
-        }
-        if (_sceneInitStarted)
-        {
-            if (_sceneInitTask is { IsCompleted: true })
-            {
-                SceneInitialized = true;
-                LoadingStatus = "Done loading.";
-            }
-            else
-            {
-                return;
-            }
         }
 
         if (_mouseMovedThisFrame)

@@ -21,6 +21,8 @@ using Serilog;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Nanoforge.Gui.ViewModels.Documents;
+using Nanoforge.Gui.Views.Documents;
 using Nanoforge.Rfg.Import;
 
 namespace Nanoforge.Gui.ViewModels;
@@ -67,6 +69,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         //TODO: When implementing the outliner & inspector try using the IFactory events to detect when the currently selected document changes and switch the views.
         _factory = new DockFactory();
+        MainWindow.DockFactory = (DockFactory)_factory;
 
         Layout = _factory?.CreateLayout();
         if (Layout is { })
@@ -365,6 +368,23 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         tempMapsList.Sort((a, b) => String.Compare(a.DisplayName, b.DisplayName, StringComparison.Ordinal));
         maps = new ObservableCollection<MapOption>(tempMapsList);
+    }
+
+    [RelayCommand]
+    private void OpenRendererTestDocument()
+    {
+        
+        DockFactory? dockFactory = MainWindow.DockFactory;
+        if (dockFactory is null)
+        {
+            Log.Error("DockFactory not set when MainWindowViewModel.OpenMap() was called. Something went wrong.");
+            throw new Exception("DockFactory not set when MainWindowViewModel.OpenMap() was called. Something went wrong.");
+        }
+        
+        RendererTestDocumentViewModel document = new();
+        document.Title = "Renderer test document";
+        dockFactory.DocumentDock?.AddNewDocument(document);
+
     }
 
     [RelayCommand]

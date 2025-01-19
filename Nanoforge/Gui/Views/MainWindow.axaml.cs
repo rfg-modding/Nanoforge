@@ -19,6 +19,8 @@ public partial class MainWindow : Window
     //TODO: Getting the current window will need to be done differently if the app starts having multiple windows
     public static MainWindow Instance { get; private set; } = null!;
 
+    public static DockFactory? DockFactory = null;
+    
     public Input Input = new();
     
     public bool WindowLoaded = false; 

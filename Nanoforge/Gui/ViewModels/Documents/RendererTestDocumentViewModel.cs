@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
 using Nanoforge.FileSystem;
+using Nanoforge.Gui.ViewModels.Dialogs;
+using Nanoforge.Gui.Views;
+using Nanoforge.Gui.Views.Dialogs;
 using Nanoforge.Render;
 using Nanoforge.Render.Resources;
 using RFGM.Formats.Meshes;
@@ -23,50 +25,71 @@ namespace Nanoforge.Gui.ViewModels.Documents;
 
 public partial class RendererTestDocumentViewModel : Document
 {
-    [ObservableProperty] private Scene _scene = new();
+    [ObservableProperty]
+    private Scene _scene = new();
 
-    private List<VertexFormat> _allStaticMeshVertexFormats = new();
+    [ObservableProperty]
+    private bool _sceneInitialized = false;
+
     private RenderObject? _skybox = null;
 
-    [RelayCommand]
-    public async Task SceneInit()
+    public RendererTestDocumentViewModel()
     {
-        await Task.Run(() =>
+        TaskDialog dialog = new TaskDialog();
+        dialog.ShowDialog(MainWindow.Instance);
+        ThreadPool.QueueUserWorkItem(_ => SceneInit(dialog.ViewModel!));
+    }
+
+    public void SceneInit(TaskDialogViewModel status)
+    {
+        Renderer? renderer = (Application.Current as App)!.Renderer;
+        if (renderer == null)
+            return;
+
+        status.Setup(2, "Waiting for data folder to be mounted...");
+        status.Title = "Loading renderer test scene";
+        
+        while (!PackfileVFS.Ready)
         {
-            Renderer? renderer = (Application.Current as App)!.Renderer;
-            if (renderer == null)
-                return;
+            Thread.Sleep(200);
+        }
 
-            RenderContext context = renderer.Context;
+        status.NextStep("Loading assets...");
+        RenderContext context = renderer.Context;
 
-            //TODO: Use TextureIndex + textures list in static meshes to find and load specific pegs for each mesh
-            //string texturePath = "//data/items.vpp_pc/rpg_high.str2_pc/rpg_high.cpeg_pc";
-            string texturePath = "//data/skybox.vpp_pc/rfg_skybox.csmesh_pc.str2_pc/rfg_skybox.cpeg_pc";
-            Mesh mesh = LoadRfgStaticMeshFromPackfile(context, "//data/dlcp01_items.vpp_pc/rpg_launcher.str2_pc/rpg.csmesh_pc");
-            Texture2D texture = LoadTextureFromPackfile(context, texturePath);
-            Scene.CreateRenderObject("Pixlit1UvNmap", new Vector3(0.0f, 0.0f, 0.0f), Matrix4x4.Identity, mesh, texture);
+        //TODO: Need to investigate if there needs to be locks on parts of the renderer code to avoid threading issues if one doc is rendering while another is loading (separate thread)
+        //TODO: Use TextureIndex + textures list in static meshes to find and load specific pegs for each mesh
+        //string texturePath = "//data/items.vpp_pc/rpg_high.str2_pc/rpg_high.cpeg_pc";
+        string texturePath = "//data/skybox.vpp_pc/rfg_skybox.csmesh_pc.str2_pc/rfg_skybox.cpeg_pc";
+        Mesh mesh = LoadRfgStaticMeshFromPackfile(context, "//data/dlcp01_items.vpp_pc/rpg_launcher.str2_pc/rpg.csmesh_pc");
+        Texture2D texture = LoadTextureFromPackfile(context, texturePath);
+        Scene.CreateRenderObject("Pixlit1UvNmap", new Vector3(0.0f, 0.0f, 0.0f), Matrix4x4.Identity, mesh, texture);
 
-            Mesh mesh2 = LoadRfgStaticMeshFromPackfile(context, "//data/items.vpp_pc/multi_object_backpack_thrust.str2_pc/thrust.csmesh_pc");
-            Texture2D texture2 = LoadTextureFromPackfile(context, texturePath);
-            Scene.CreateRenderObject("Pixlit1UvNmap", new Vector3(-2.0f, 0.0f, 0.0f), Matrix4x4.Identity, mesh2, texture2);
+        Mesh mesh2 = LoadRfgStaticMeshFromPackfile(context, "//data/items.vpp_pc/multi_object_backpack_thrust.str2_pc/thrust.csmesh_pc");
+        Texture2D texture2 = LoadTextureFromPackfile(context, texturePath);
+        Scene.CreateRenderObject("Pixlit1UvNmap", new Vector3(-2.0f, 0.0f, 0.0f), Matrix4x4.Identity, mesh2, texture2);
 
-            Mesh mesh3 = LoadRfgStaticMeshFromPackfile(context, "//data/items.vpp_pc/EDF_Super_Gauss.str2_pc/super_gauss_rifle.csmesh_pc");
-            Texture2D texture3 = LoadTextureFromPackfile(context, texturePath);
-            Scene.CreateRenderObject("Pixlit1UvNmap", new Vector3(2.0f, 0.0f, -1.0f), Matrix4x4.Identity, mesh3, texture3);
+        Mesh mesh3 = LoadRfgStaticMeshFromPackfile(context, "//data/items.vpp_pc/EDF_Super_Gauss.str2_pc/super_gauss_rifle.csmesh_pc");
+        Texture2D texture3 = LoadTextureFromPackfile(context, texturePath);
+        Scene.CreateRenderObject("Pixlit1UvNmap", new Vector3(2.0f, 0.0f, -1.0f), Matrix4x4.Identity, mesh3, texture3);
 
-            Mesh mesh4 = LoadRfgStaticMeshFromPackfile(context, "//data/items.vpp_pc/missilepod.str2_pc/dlc_rocket_pod.csmesh_pc");
-            Texture2D texture4 = LoadTextureFromPackfile(context, texturePath);
-            Scene.CreateRenderObject("Pixlit1UvNmap", new Vector3(-2.0f, 0.0f, 2.0f), Matrix4x4.Identity, mesh4, texture4);
+        Mesh mesh4 = LoadRfgStaticMeshFromPackfile(context, "//data/items.vpp_pc/missilepod.str2_pc/dlc_rocket_pod.csmesh_pc");
+        Texture2D texture4 = LoadTextureFromPackfile(context, texturePath);
+        Scene.CreateRenderObject("Pixlit1UvNmap", new Vector3(-2.0f, 0.0f, 2.0f), Matrix4x4.Identity, mesh4, texture4);
 
-            Mesh mesh5 = LoadRfgStaticMeshFromPackfile(context, "//data/skybox.vpp_pc/rfg_skybox.csmesh_pc.str2_pc/rfg_skybox.csmesh_pc");
-            Texture2D texture5 = LoadTextureFromPackfile(context, texturePath);
-            _skybox = Scene.CreateRenderObject("Pixlit1Uv", new Vector3(-2.0f, 0.0f, 2.0f), Matrix4x4.Identity, mesh5, texture5);
-            _skybox.Position = Vector3.Zero;
-            _skybox.Scale = new Vector3(25000.0f);
+        Mesh mesh5 = LoadRfgStaticMeshFromPackfile(context, "//data/skybox.vpp_pc/rfg_skybox.csmesh_pc.str2_pc/rfg_skybox.csmesh_pc");
+        Texture2D texture5 = LoadTextureFromPackfile(context, texturePath);
+        _skybox = Scene.CreateRenderObject("Pixlit1Uv", new Vector3(-2.0f, 0.0f, 2.0f), Matrix4x4.Identity, mesh5, texture5);
+        _skybox.Position = Vector3.Zero;
+        _skybox.Scale = new Vector3(25000.0f);
 
-            Scene.Init(new Vector2(1920, 1080));
-            renderer.ActiveScenes.Add(Scene);
-        });
+        Scene.Init(new Vector2(1920, 1080));
+        renderer.ActiveScenes.Add(Scene);
+        SceneInitialized = true;
+
+        status.NextStep("Done!");
+        status.CanClose = true;
+        status.CloseDialog();
     }
 
     [RelayCommand]
@@ -93,7 +116,7 @@ public partial class RendererTestDocumentViewModel : Document
         string gpuFilePath = $"{directory}/{fileNameWithoutExtension}{gpuFileExtension}";
         return gpuFilePath;
     }
-    
+
     private MeshInstanceData LoadRfgStaticMesh(string cpuFilePath)
     {
         try
@@ -137,8 +160,7 @@ public partial class RendererTestDocumentViewModel : Document
     private Mesh LoadRfgStaticMeshFromPackfile(RenderContext context, string cpuFilePath)
     {
         MeshInstanceData meshData = LoadRfgStaticMesh(cpuFilePath);
-        Mesh mesh = new Mesh(context, meshData.Vertices, meshData.Indices, meshData.Config.NumVertices, meshData.Config.NumIndices,
-            (uint)meshData.Config.IndexSize);
+        Mesh mesh = new Mesh(context, meshData.Vertices, meshData.Indices, meshData.Config.NumVertices, meshData.Config.NumIndices, (uint)meshData.Config.IndexSize);
         return mesh;
     }
 
