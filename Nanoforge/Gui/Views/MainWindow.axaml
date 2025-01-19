@@ -22,7 +22,7 @@
         ExtendClientAreaChromeHints="PreferSystemChrome"
         Width="1280" Height="720"
         ids:DockProperties.IsDragEnabled="True" ids:DockProperties.IsDropEnabled="True"
-        Closing="Window_OnClosing">
+        Closing="Window_OnClosing" Loaded="MainWindow_OnLoaded">
 
     <Design.DataContext>
         <viewModels:MainWindowViewModel/>
