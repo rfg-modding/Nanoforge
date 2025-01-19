@@ -106,7 +106,7 @@ public class ZoneImporter
             //TODO: Implement the remaining object class importers used by multiplayer and wrecking crew maps.
 
             //Mark persistent objects by finding matching objects in the persistent zone file
-            foreach (RfgZoneObject rfgObj in zoneFile.Objects)
+            foreach (RfgZoneObject rfgObj in persistentZoneFile.Objects)
             {
                 foreach (ZoneObject obj in zone.Objects)
                 {
