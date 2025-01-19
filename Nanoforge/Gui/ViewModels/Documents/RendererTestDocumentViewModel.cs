@@ -65,6 +65,7 @@ public partial class RendererTestDocumentViewModel : Document
             _skybox.Scale = new Vector3(25000.0f);
 
             Scene.Init(new Vector2(1920, 1080));
+            renderer.ActiveScenes.Add(Scene);
         });
     }
 

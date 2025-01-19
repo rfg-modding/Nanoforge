@@ -48,6 +48,7 @@ public unsafe class Renderer
     private Fence[]? _inFlightFences;
     private int _lastFrame = -1;
     private int _currentFrame = 0;
+    public List<Scene> ActiveScenes = new();
 
     public Renderer(uint viewportWidth, uint viewportHeight)
     {
@@ -136,6 +137,11 @@ public unsafe class Renderer
 
     public void Cleanup()
     {
+        foreach (Scene scene in ActiveScenes)
+        {
+            scene.Destroy();
+        }
+        
         CleanupRenderTextures();
 
         MaterialHelper.Destroy();
