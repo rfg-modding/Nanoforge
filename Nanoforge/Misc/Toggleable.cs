@@ -31,4 +31,6 @@ public class Toggleable<T>
         Value = value;
         Enabled = true;
     }
+    
+    public static implicit operator T(Toggleable<T> toggleable) => toggleable.Value;
 }
