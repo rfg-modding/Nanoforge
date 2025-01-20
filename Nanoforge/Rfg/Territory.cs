@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Numerics;
 using Nanoforge.Editor;
+using Nanoforge.Render;
 
 namespace Nanoforge.Rfg;
 
@@ -14,7 +15,13 @@ public class Territory : EditorObject
 
     public List<Zone> Zones = new();
 
-    //TODO: Port
+    public bool Load(Renderer renderer, Scene scene)
+    {
+        //TODO: Implement loading map data such as meshes, textures, and objects from project files
+        return true;
+    }
+    
+    //TODO: Port the rest of this classes functions and fields
 }
 
 public class Chunk : EditorObject

@@ -390,9 +390,15 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void OpenMap(MapOption map)
     {
-        Console.WriteLine($"Opening {map.DisplayName}...");
-        //TODO: IMPLEMENT
-        MapImporter importer = new MapImporter();
-        importer.ImportMapInBackground(map.FileName);
+        DockFactory? dockFactory = MainWindow.DockFactory;
+        if (dockFactory is null)
+        {
+            Log.Error("DockFactory not set when MainWindowViewModel.OpenMap() was called. Something went wrong.");
+            throw new Exception("DockFactory not set when MainWindowViewModel.OpenMap() was called. Something went wrong.");
+        }
+        
+        MapEditorDocumentViewModel document = new(map.FileName, map.DisplayName);
+        document.Title = map.DisplayName;
+        dockFactory.DocumentDock?.AddNewDocument<MapEditorDocumentViewModel>(document);
     }
 }

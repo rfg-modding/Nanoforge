@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
+using Nanoforge.Editor;
 using Nanoforge.Misc;
 using Nanoforge.Render;
 using RFGM.Formats.Math;
@@ -43,7 +45,7 @@ public class ZoneImporter
         _zoneObjectReaders["object_action_node"] = (typeof(ActionNode), ActionNodeReader);
     }
 
-    public Zone? ImportZone(Stream zoneFileStream, Stream persistentZoneFileStream, string zoneFilename)
+    public Zone? ImportZone(Stream zoneFileStream, Stream persistentZoneFileStream, string zoneFilename, List<EditorObject> createdObjects)
     {
         try
         {
@@ -212,6 +214,12 @@ public class ZoneImporter
                         Log.Warning("Couldn't find sibling with handle {} for object [{}, {}] in {}", siblingHandle, kv.Key.Handle, kv.Key.Num, zone.Name);
                     }
                 }
+            }
+            
+            createdObjects.Add(zone);
+            foreach (ZoneObject zoneObject in zone.Objects)
+            {
+                createdObjects.Add(zoneObject);
             }
             
             return zone;

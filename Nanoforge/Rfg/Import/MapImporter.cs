@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using Nanoforge.Editor;
 using Nanoforge.FileSystem;
 using Nanoforge.Gui.ViewModels.Dialogs;
 using Nanoforge.Gui.Views;
@@ -14,15 +16,17 @@ public class MapImporter
     public bool Loading = false;
     public bool Success = false;
     
-    public void ImportMapInBackground(string name)
+    public delegate void MapDoneImportingHandler(bool success);
+    
+    public void ImportMapInBackground(string name, MapDoneImportingHandler? importDoneHandler = null)
     {
         TaskDialog dialog = new TaskDialog();
         dialog.ShowDialog(MainWindow.Instance);
-        ThreadPool.QueueUserWorkItem(_ => ImportMap(name, dialog.ViewModel));
+        ThreadPool.QueueUserWorkItem(_ => ImportMap(name, dialog.ViewModel, importDoneHandler));
     }
     
     //Import all assets used by an RFG territory into the current project
-    private void ImportMap(string name, TaskDialogViewModel? status = null)
+    public Territory? ImportMap(string name, TaskDialogViewModel? status = null, MapDoneImportingHandler? importDoneHandler = null)
     {
         string packfilePath = $"//data/{name}/";
         try
@@ -31,10 +35,12 @@ public class MapImporter
             Success = false;
             status?.Setup(6, $"Importing map {name}...");
             Log.Information($"Importing map {name}...");
+            List<EditorObject> createdObjects = new();
 
             //EditorObject is created, but it is not added to NanoDB until the map has been successfully imported.
             Territory map = new() { Name = name };
             map.PackfileName = $"{name}";
+            createdObjects.Add(map);
 
             //Get packfile data format so it can be preserved on export
             EntryBase? mapPackfile = PackfileVFS.GetEntry($"//data/{map.PackfileName}/");
@@ -61,11 +67,11 @@ public class MapImporter
                 if (Path.GetExtension(entry.Name) != ".rfgzone_pc" || entry.Name.StartsWith("p_", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                if (!ImportZone(map.PackfileName, entry.Name, out Zone? zone) || zone is null)
+                if (!ImportZone(map.PackfileName, entry.Name, createdObjects, out Zone? zone) || zone is null)
                 {
                     Log.Error($"Failed to import zone '{entry.Name}'. Cancelling map import.");
                     status?.SetStatus($"Failed to import zone '{entry.Name}'. Check the log.");
-                    return;
+                    return null;
                 }
 
                 map.Zones.Add(zone);
@@ -97,16 +103,29 @@ public class MapImporter
             status?.NextStep();
             status?.CloseDialog();
             
-            //TODO: Pass a delegate that gets called when the import is complete (whether it fails or not). Use that to open a new document for the freshly imported map.
-            //TODO: Load all the created objects into NanoDB. Likely will want to create changes/diff helper class like in the old version to track all new objects and help create them
+            foreach (EditorObject createdObject in createdObjects)
+            {
+                NanoDB.AddObject(createdObject);
+            }
+
+            if (importDoneHandler != null)
+            {
+                importDoneHandler(true);
+            }
             
             Success = true;
+            return map;
         }
         catch (Exception ex)
         {
             Log.Error(ex, $"Error importing map: {name}");
             status?.SetStatus("Import failed. Check the log");
+            if (importDoneHandler != null)
+            {
+                importDoneHandler(false);
+            }
             Success = false;
+            return null;
         }
         finally
         {
@@ -119,7 +138,7 @@ public class MapImporter
         }
     }
 
-    private bool ImportZone(string packfileName, string zoneFileName, out Zone? zone)
+    private bool ImportZone(string packfileName, string zoneFileName, List<EditorObject> createdObjects, out Zone? zone)
     {
         zone = null;
         try
@@ -141,7 +160,7 @@ public class MapImporter
             }
 
             ZoneImporter importer = new();
-            zone = importer.ImportZone(zoneFile, persistentZoneFile, zoneFileName);
+            zone = importer.ImportZone(zoneFile, persistentZoneFile, zoneFileName, createdObjects);
             return zone is not null;
         }
         catch (Exception ex)

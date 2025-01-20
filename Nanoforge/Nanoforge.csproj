@@ -53,4 +53,12 @@
       <AdditionalFiles Include="Gui\Views\Tools\InspectorView.axaml" />
       <AdditionalFiles Include="Gui\Views\Tools\OutlinerView.axaml" />
     </ItemGroup>
+
+
+    <ItemGroup>
+      <Compile Update="Gui\Views\Documents\MapEditorDocumentView.axaml.cs">
+        <DependentUpon>MapEditorDocument.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+    </ItemGroup>
 </Project>
