@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
 using Avalonia;
@@ -195,7 +196,8 @@ public partial class RendererTestDocumentViewModel : Document
 
         PegReader reader = new();
         LogicalTextureArchive result = reader.Read(cpuFile, gpuFile, filename, CancellationToken.None);
-        LogicalTexture logicalTexture = result.LogicalTextures[logicalTextureIndex];
+        List<LogicalTexture> textures = result.LogicalTextures.ToList();
+        LogicalTexture logicalTexture = textures[logicalTextureIndex];
 
         using var memoryStream = new MemoryStream();
         logicalTexture.Data.CopyTo(memoryStream);
