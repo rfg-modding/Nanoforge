@@ -208,6 +208,7 @@ public static class NanoDB
             {
                 TaskDialog dialog = new TaskDialog();
                 dialog.ShowDialog(MainWindow.Instance);
+                status = dialog.ViewModel;
             }
             Save(status);
 
@@ -256,8 +257,7 @@ public static class NanoDB
 
                 Log.Information($"Saved project '{CurrentProject.FilePath}'");
             }
-            status?.NextStep();
-            status?.SetStatus($"Done!");
+            status?.NextStep("Done!");
             status?.CloseDialog();
             
             doneSavingHandler?.Invoke(true);
