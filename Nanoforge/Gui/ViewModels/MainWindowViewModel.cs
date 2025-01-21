@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Threading.Tasks;
-using System.Xml;
 using System.Xml.Linq;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -18,23 +18,11 @@ using Nanoforge.Gui.Views;
 using Nanoforge.Gui.Views.Dialogs;
 using Nanoforge.Services;
 using Serilog;
-using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Nanoforge.Gui.ViewModels.Documents;
-using Nanoforge.Gui.Views.Documents;
-using Nanoforge.Rfg.Import;
 
 namespace Nanoforge.Gui.ViewModels;
-
-public partial class MapOption(string displayName, string fileName) : ObservableObject
-{
-    [ObservableProperty]
-    private string _displayName = displayName;
-        
-    [ObservableProperty]
-    private string _fileName = fileName;
-}
 
 public partial class MainWindowViewModel : ViewModelBase
 {
@@ -45,16 +33,19 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _projectStatus = "No project loaded";
 
     [ObservableProperty]
-    private ObservableCollection<MapOption> _mpMaps = new();
+    private ObservableCollection<MapOptionViewModel> _mpMaps = new();
     
     [ObservableProperty]
-    private ObservableCollection<MapOption> _wcMaps = new();
+    private ObservableCollection<MapOptionViewModel> _wcMaps = new();
 
     [ObservableProperty]
     private bool _mapListLoaded = false;
     
     [ObservableProperty]
     private bool _projectOpen = false;
+
+    [ObservableProperty]
+    private ObservableCollection<MenuItemViewModel> _recentProjectMenuItems = new();
 
     private object _mapListLock = new();
     
@@ -96,6 +87,32 @@ public partial class MainWindowViewModel : ViewModelBase
             ProjectOpen = true;
             MapListLoaded = true;
         }
+        
+        UpdateRecentProjectsMenu();
+        GeneralSettings.CVar.Value.RecentProjects.CollectionChanged += RecentProjectsListChanged;
+    }
+
+    private void RecentProjectsListChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        Console.WriteLine("In MainWindowViewModel.RecentProjectsListChanged()");
+        UpdateRecentProjectsMenu();
+    }
+
+    private void UpdateRecentProjectsMenu()
+    {
+        List<MenuItemViewModel> menuItems = new();
+        foreach (string recentProject in GeneralSettings.CVar.Value.RecentProjects)
+        {
+            menuItems.Add(new MenuItemViewModel
+            {
+                Header = recentProject,
+                Command = OpenRecentProjectCommand,
+                CommandParameter = recentProject
+            });
+        }
+        
+        //Note: Initially tried adding the items to this collection one by one. Oddly that caused all the items to get duplicated when a project was opened that wasn't on the list.
+        RecentProjectMenuItems = new ObservableCollection<MenuItemViewModel>(menuItems);
     }
     
     public void CloseLayout()
@@ -233,8 +250,9 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    public async Task RemoveFromRecentProjectsList(string path)
+    public void RemoveFromRecentProjectsList(string path)
     {
+        Console.WriteLine($"Remove project command: {path}");
         if (GeneralSettings.CVar.Value.RecentProjects.Contains(path))
         {
             GeneralSettings.CVar.Value.RecentProjects.Remove(path);
@@ -326,7 +344,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             string displayName = levelElement.Element("Name")?.Value ?? "Unknown";
             string fileName = levelElement.Element("Filename")?.Value ?? "Unknown";
-            MpMaps.Add(new MapOption(displayName, fileName + ".vpp_pc"));
+            MpMaps.Add(new MapOptionViewModel(displayName, fileName + ".vpp_pc"));
         }
     }
     
@@ -355,50 +373,34 @@ public partial class MainWindowViewModel : ViewModelBase
             //TODO: Use display_name and localize once localization support is added (display_name is a localization placeholder in this xtbl)
             string displayName = levelElement.Element("file_name")?.Value ?? "Unknown";
             string fileName = levelElement.Element("file_name")?.Value ?? "Unknown";
-            WcMaps.Add(new MapOption(displayName, fileName + ".vpp_pc"));
+            WcMaps.Add(new MapOptionViewModel(displayName, fileName + ".vpp_pc"));
         }
     }
     
-    private void SortMapList(ref ObservableCollection<MapOption> maps)
+    private void SortMapList(ref ObservableCollection<MapOptionViewModel> maps)
     {
-        List<MapOption> tempMapsList = new(); //Use temporary list since you can't use LINQ on ObservableCollection
-        foreach (MapOption map in maps)
+        List<MapOptionViewModel> tempMapsList = new(); //Use temporary list since you can't use LINQ on ObservableCollection
+        foreach (MapOptionViewModel map in maps)
         {
             tempMapsList.Add(map);
         }
         tempMapsList.Sort((a, b) => String.Compare(a.DisplayName, b.DisplayName, StringComparison.Ordinal));
-        maps = new ObservableCollection<MapOption>(tempMapsList);
+        maps = new ObservableCollection<MapOptionViewModel>(tempMapsList);
     }
 
     [RelayCommand]
     private void OpenRendererTestDocument()
     {
-        
         DockFactory? dockFactory = MainWindow.DockFactory;
         if (dockFactory is null)
         {
-            Log.Error("DockFactory not set when MainWindowViewModel.OpenMap() was called. Something went wrong.");
-            throw new Exception("DockFactory not set when MainWindowViewModel.OpenMap() was called. Something went wrong.");
+            Log.Error("DockFactory not set when MainWindowViewModel.OpenRendererTestDocument() was called. Something went wrong.");
+            throw new Exception("DockFactory not set when MainWindowViewModel.OpenRendererTestDocument() was called. Something went wrong.");
         }
         
         RendererTestDocumentViewModel document = new();
         document.Title = "Renderer test document";
         dockFactory.DocumentDock?.AddNewDocument(document);
 
-    }
-
-    [RelayCommand]
-    private void OpenMap(MapOption map)
-    {
-        DockFactory? dockFactory = MainWindow.DockFactory;
-        if (dockFactory is null)
-        {
-            Log.Error("DockFactory not set when MainWindowViewModel.OpenMap() was called. Something went wrong.");
-            throw new Exception("DockFactory not set when MainWindowViewModel.OpenMap() was called. Something went wrong.");
-        }
-        
-        MapEditorDocumentViewModel document = new(map.FileName, map.DisplayName);
-        document.Title = map.DisplayName;
-        dockFactory.DocumentDock?.AddNewDocument<MapEditorDocumentViewModel>(document);
     }
 }

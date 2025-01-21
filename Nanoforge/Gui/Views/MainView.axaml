@@ -25,99 +25,127 @@
     </UserControl.Resources>
 
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*" Background="Transparent">
-        <Menu Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" Name="MainMenuBar">
-            <MenuItem Header="File">
-                <MenuItem Name="MenuItemNewProject" Header="New project..." Command="{Binding NewProjectCommand}" />
-                <MenuItem Name="MenuItemOpenProject" Header="Open project..." Command="{Binding OpenProjectCommand}" />
-                <MenuItem Name="MenuItemSaveProject" Header="Save project" Command="{Binding SaveProjectCommand}" />
-                <MenuItem Name="MenuItemCloseProject" Header="Close project" Command="{Binding CloseProjectCommand}" />
-                <!-- Note: Had to disable compiled bindings on this control to compile. It was trying to find the RecentProjects property on MainWindowViewModel even with the data context specified -->
-                <MenuItem Name="MenuItemRecentProjects" Header="Recent projects" DataContext="{Binding Source={x:Static editor:GeneralSettings.CVar}}" 
-                          ItemsSource="{Binding Value.RecentProjects}" IsEnabled="{Binding Value.RecentProjects.Count}"
-                          x:CompileBindings="False">
-                    <MenuItem.ItemTemplate>
-                        <DataTemplate>
-                            <MenuItem Header="{Binding}" FontSize="12" Width="500" HorizontalAlignment="Left" 
-                                      Command="{Binding #MainMenuBar.DataContext.OpenRecentProjectCommand}" CommandParameter="{Binding}">
-                                <MenuItem.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Remove from list" Command="{Binding #MainMenuBar.DataContext.RemoveFromRecentProjectsListCommand}" CommandParameter="{Binding}"/>
-                                    </ContextMenu>
-                                </MenuItem.ContextMenu>
-                            </MenuItem>
-                        </DataTemplate>
-                    </MenuItem.ItemTemplate>
+        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0">
+            <Menu VerticalAlignment="Top" Name="MainMenuBar">
+                <MenuItem Header="File">
+                    <MenuItem Name="MenuItemNewProject" Header="New project..." Command="{Binding NewProjectCommand}" />
+                    <MenuItem Name="MenuItemOpenProject" Header="Open project..." Command="{Binding OpenProjectCommand}" />
+                    <MenuItem Name="MenuItemSaveProject" Header="Save project" Command="{Binding SaveProjectCommand}" />
+                    <MenuItem Name="MenuItemCloseProject" Header="Close project" Command="{Binding CloseProjectCommand}" />
+                    <MenuItem Name="MenuItemRecentProjects" Header="Recent projects"
+                              ItemsSource="{Binding RecentProjectMenuItems, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding RecentProjectMenuItems.Count}">
+                        <MenuItem.Styles>
+                            <Style Selector="#MenuItemRecentProjects > MenuItem" x:DataType="vm:MenuItemViewModel">
+                                <Setter Property="Header" Value="{Binding Header}" />
+                                <Setter Property="ItemsSource" Value="{Binding Items}" />
+                                <Setter Property="Command" Value="{Binding Command}" />
+                                <Setter Property="CommandParameter" Value="{Binding CommandParameter}" />
+                                <Setter Property="ContextMenu">
+                                    <Setter.Value>
+                                        <Template>
+                                            <ContextMenu>
+                                                <MenuItem Header="Remove from list"
+                                                          Command="{Binding #MainMenuBar.((vm:MainWindowViewModel)DataContext).RemoveFromRecentProjectsListCommand}"
+                                                          CommandParameter="{Binding CommandParameter}" />
+                                            </ContextMenu>
+                                        </Template>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </MenuItem.Styles>
+                    </MenuItem>
+                    <Separator />
+
+                    <MenuItem Name="MenuItemSettings" Header="Settings..." Command="{Binding OpenSettingsCommand}" IsEnabled="False" />
+                    <MenuItem Name="MenuItemSelectDataFolder" Header="Select data folder.." Command="{Binding SelectDataFolderCommand}" />
+                    <Separator />
+
+                    <MenuItem Name="MenuItemExitApp" Header="Exit" Command="{Binding ExitAppCommand}" />
                 </MenuItem>
-                <Separator />
 
-                <MenuItem Name="MenuItemSettings" Header="Settings..." Command="{Binding OpenSettingsCommand}" IsEnabled="False" />
-                <MenuItem Name="MenuItemSelectDataFolder" Header="Select data folder.." Command="{Binding SelectDataFolderCommand}" />
-                <Separator />
-
-                <MenuItem Name="MenuItemExitApp" Header="Exit" Command="{Binding ExitAppCommand}" />
-            </MenuItem>
-
-            <MenuItem Header="View">
-                <MenuItem Header="Theme...">
-                    <MenuItem Header="Dark" Command="{Binding SetDarkThemeCommand}"/>    
-                    <MenuItem Header="Light" Command="{Binding SetLightThemeCommand}"/>    
+                <MenuItem Header="View">
+                    <MenuItem Header="Theme...">
+                        <MenuItem Header="Dark" Command="{Binding SetDarkThemeCommand}" />
+                        <MenuItem Header="Light" Command="{Binding SetLightThemeCommand}" />
+                    </MenuItem>
+                    <!-- TODO: Porting: add toggle for different panels like Outliner and Inspector so they can be re-opened if closed -->
                 </MenuItem>
-                <!-- TODO: Porting: add toggle for different panels like Outliner and Inspector so they can be re-opened if closed -->
-            </MenuItem>
 
-            <MenuItem Header="Maps">
-                <MenuItem.IsEnabled>
-                    <!-- TODO: Change this to use BoolConverters.And. Temporarily using .Or during development until the the importers begin to get ported. -->
-                    <MultiBinding Converter="{x:Static BoolConverters.And}">
-                        <Binding Path="MapListLoaded"/>
-                        <Binding Path="ProjectOpen"/>
-                    </MultiBinding>
-                </MenuItem.IsEnabled>
-                
-                <MenuItem Header="Single player map (Not supported yet)" IsEnabled="False"/>
-                <MenuItem Header="Single player DLC map (Not supported yet)" IsEnabled="False"/>
+                <MenuItem Header="Maps">
+                    <MenuItem.IsEnabled>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="MapListLoaded" />
+                            <Binding Path="ProjectOpen" />
+                        </MultiBinding>
+                    </MenuItem.IsEnabled>
 
-                <!-- TODO: Fix clickable area not taking up the entire menu item. Annoyingly if you click outside that area it closes the menu but doesn't run the command -->
-                <!-- TODO: Change to show the filename inline in lighter text. Tried doing this previously but had issues getting the data binding to work on the nested template items -->
-                <MenuItem Header="Multiplayer" ItemsSource="{Binding MpMaps}" Classes="ParentMenu" x:CompileBindings="False">
-                    <MenuItem.Styles>
-                        <Style Selector="MenuItem.ParentMenu > MenuItem">
-                            <Setter Property="Padding" Value="8 4 0 4"/>
-                            <Setter Property="Margin" Value="0 0 0 0"/>
-                        </Style>
-                    </MenuItem.Styles>
-                    <MenuItem.ItemTemplate>
-                        <DataTemplate DataType="vm:MapOption">
-                            <MenuItem Command="{Binding #MainMenuBar.DataContext.OpenMapCommand}" CommandParameter="{Binding}"
-                                      Header="{Binding DisplayName}" Padding="0" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                      ToolTip.Tip="{Binding FileName}" ToolTip.ShowDelay="100"/>
-                        </DataTemplate>
-                    </MenuItem.ItemTemplate>
+                    <MenuItem Header="Single player map (Not supported yet)" IsEnabled="False" />
+                    <MenuItem Header="Single player DLC map (Not supported yet)" IsEnabled="False" />
+
+                    <MenuItem Name="MenuItemMultiplayerMaps" Header="Multiplayer" ItemsSource="{Binding MpMaps}">
+                        <MenuItem.Styles>
+                            <!-- Only apply to MenuItems that are direct children of MenuItemMultiplayerMaps -->
+                            <Style Selector="#MenuItemMultiplayerMaps > MenuItem" x:DataType="vm:MapOptionViewModel">
+                                <Setter Property="Command" Value="{Binding OpenMapCommand}" />
+                                <Setter Property="CommandParameter" Value="{Binding}" />
+                                <Setter Property="HeaderTemplate">
+                                    <Setter.Value>
+                                        <DataTemplate x:DataType="vm:MapOptionViewModel">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <!-- 
+                                                         SharedSizeGroups used so columns of every item auto size to fit the widest item.
+                                                         Needed since we aren't defining a single grid for the whole list.
+                                                    -->
+                                                    <ColumnDefinition Width="Auto" SharedSizeGroup="MpMapListSSG0" />
+                                                    <ColumnDefinition Width="Auto" SharedSizeGroup="MpMapListSSG1" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" Text="{Binding DisplayName}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding FileName}" FontWeight="Thin" Margin="8 0 0 0" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </MenuItem.Styles>
+                    </MenuItem>
+
+                    <MenuItem Name="MenuItemWcMaps" Header="Wrecking Crew" ItemsSource="{Binding WcMaps}">
+                        <MenuItem.Styles>
+                            <Style Selector="#MenuItemWcMaps > MenuItem" x:DataType="vm:MapOptionViewModel">
+                                <Setter Property="Command" Value="{Binding OpenMapCommand}" />
+                                <Setter Property="CommandParameter" Value="{Binding}" />
+                                <Setter Property="HeaderTemplate">
+                                    <Setter.Value>
+                                        <DataTemplate x:DataType="vm:MapOptionViewModel">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" SharedSizeGroup="MpMapListSSG2" />
+                                                    <ColumnDefinition Width="Auto" SharedSizeGroup="MpMapListSSG3" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" Text="{Binding DisplayName}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding FileName}" FontWeight="Thin" Margin="8 0 0 0" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </MenuItem.Styles>
+                    </MenuItem>
                 </MenuItem>
-                
-                <MenuItem Header="Wrecking Crew" ItemsSource="{Binding WcMaps}" Classes="ParentMenu" x:CompileBindings="False">
-                    <MenuItem.Styles>
-                        <Style Selector="MenuItem.ParentMenu > MenuItem">
-                            <Setter Property="Padding" Value="8 4 0 4"/>
-                            <Setter Property="Margin" Value="0 0 0 0"/>
-                        </Style>
-                    </MenuItem.Styles>
-                    <MenuItem.ItemTemplate>
-                        <DataTemplate DataType="vm:MapOption">
-                            <MenuItem Command="{Binding #MainMenuBar.DataContext.OpenMapCommand}" CommandParameter="{Binding}"
-                                      Header="{Binding DisplayName}" Padding="0" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                      ToolTip.Tip="{Binding FileName}" ToolTip.ShowDelay="100"/>
-                        </DataTemplate>
-                    </MenuItem.ItemTemplate>
+
+                <MenuItem Header="Debug" IsVisible="{Binding Source={x:Static diagnostics:Debugger.IsAttached}}">
+                    <MenuItem Header="Renderer test" Command="{Binding OpenRendererTestDocumentCommand}" />
                 </MenuItem>
-            </MenuItem>
-            
-            <MenuItem Header="Debug" IsVisible="{Binding Source={x:Static diagnostics:Debugger.IsAttached}}">
-                <MenuItem Header="Renderer test" Command="{Binding OpenRendererTestDocumentCommand}"/>
-            </MenuItem>
-            
-            <Label Content="{Binding ProjectStatus}" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12"/>
-        </Menu>
+            </Menu>
+
+            <Label Content="{Binding ProjectStatus}" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12"
+                   Background="Transparent" Margin="0 3 0 0 " />
+        </StackPanel>
+
         <Panel x:Name="ToolBar" DataContext="{Binding Layout}" Grid.Row="0" Grid.Column="1">
             <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,200,Auto,Auto"
                   HorizontalAlignment="Right"
@@ -143,10 +171,10 @@
                         <Setter Property="Padding" Value="4" />
                     </Style>
                 </Grid.Styles>
-                
+
                 <Label Content="{Binding Source={x:Static nf:BuildConfig.Version}}" Grid.Column="5"
-                       VerticalAlignment="Center" FontSize="12"/>
-                
+                       VerticalAlignment="Center" FontSize="12" />
+
                 <!-- TODO: Re-enable searchbox and make it useful -->
                 <!-- <TextBox x:Name="SearchBox" Text="" Watermark="Search" UseFloatingWatermark="False" Grid.Column="4" /> -->
             </Grid>
