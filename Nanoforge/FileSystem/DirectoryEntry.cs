@@ -45,9 +45,9 @@ public class DirectoryEntry(string name, bool compressed = false, bool condensed
                         return null;
                     }
 
-                    StreamView compressedStream = new(parentStream, parentEntry.DataBlockOffset + DataOffset, CompressedSize);
+                    StreamView compressedStream = new(parentStream, parentEntry.DataBlockOffset + DataOffset, CompressedSize, Name);
                     using InflaterInputStream inflaterStream = new(compressedStream);
-                    var inflateView = new StreamView(inflaterStream, 0, Size);
+                    var inflateView = new StreamView(inflaterStream, 0, Size, $"{Name} inflater stream view");
                     var decompressedStream = new MemoryStream();
                     //Note: This ends up loading the entire container into memory. Acceptable for the time being
                     inflateView.CopyTo(decompressedStream);
@@ -135,7 +135,7 @@ public class DirectoryEntry(string name, bool compressed = false, bool condensed
                 byte[] inflateBuffer = new byte[DataBlockSize];
 
                 //For compacted files we must decompress the entire block
-                StreamView compressedView = new(stream, DataBlockOffset, DataBlockSizeCompressed);
+                StreamView compressedView = new(stream, DataBlockOffset, DataBlockSizeCompressed, Name);
                 using InflaterInputStream inflaterStream = new(compressedView);
                 int bytesRead = inflaterStream.Read(inflateBuffer);
                 if (bytesRead != inflateBuffer.Length)
@@ -166,7 +166,7 @@ public class DirectoryEntry(string name, bool compressed = false, bool condensed
                         byte[] inflateBuffer = new byte[fileEntry.Size];
 
                         stream.Seek(0, SeekOrigin.Begin);
-                        StreamView view = new(stream, 0, stream.Length);
+                        StreamView view = new(stream, 0, stream.Length, Name);
                         using InflaterInputStream inflaterStream = new(view); //Give the inflater stream a view so it doesn't close the main stream before we're done with it
                         inflaterStream.Skip(DataBlockOffset + fileEntry.DataOffset); //InflaterInputStream cannot seek
                 

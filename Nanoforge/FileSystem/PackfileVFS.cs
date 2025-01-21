@@ -147,7 +147,7 @@ public static class PackfileVFS
 
                 //Packfile isn't compressed. Instead of extracting the whole str2 just open a filestream in the vpp and seek to the str2 header
                 using FileStream containerFileStream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                StreamView containerStreamView = new(containerFileStream, packfile.BlockOffset + packfileEntryOffsets[i], entry.LenData);
+                StreamView containerStreamView = new(containerFileStream, packfile.BlockOffset + packfileEntryOffsets[i], entry.LenData, Path.GetFileName(path));
                 using KaitaiStream containerKaitaiStream = new(containerStreamView);
                 RfgVpp container = new(containerKaitaiStream);
 

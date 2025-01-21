@@ -49,7 +49,7 @@ public class FileEntry(string name, long dataOffset = 0, uint size = 0, uint com
                 byte[] inflateBuffer = new byte[parent.DataBlockSize];
 
                 //For compacted files we must decompress the entire block
-                StreamView compressedView = new(parentStream, parent.DataBlockOffset, parent.DataBlockSizeCompressed);
+                StreamView compressedView = new(parentStream, parent.DataBlockOffset, parent.DataBlockSizeCompressed, Name);
                 using InflaterInputStream inflaterStream = new(compressedView);
                 int bytesRead = inflaterStream.Read(inflateBuffer);
                 if (bytesRead != inflateBuffer.Length)
