@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Numerics;
 using Nanoforge.Editor;
 using RFGM.Formats.Zones;
 
@@ -13,10 +14,5 @@ public class Zone : EditorObject
     public bool ActivityLayer = false;
     public bool MissionLayer = false;
     public List<ZoneObject> Objects = new();
-    public ZoneTerrain Terrain = new();
-}
-
-public class ZoneTerrain : EditorObject
-{
-    //TODO: Port
+    public ZoneTerrain? Terrain;
 }

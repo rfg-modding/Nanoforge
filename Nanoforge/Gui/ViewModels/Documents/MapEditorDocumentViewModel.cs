@@ -115,6 +115,7 @@ public partial class MapEditorDocumentViewModel : Document
             //TODO: Initialize inspectors if necessary in this port. In the previous version it caused a hitch when loading xml files. May not be necessary in avalonia with async.
 
             Scene.Init(new Vector2(1920, 1080));
+            Scene.Camera!.TargetPosition = new Vector3(65.97262f, 296.2423f, -592.8933f);
             renderer.ActiveScenes.Add(Scene);
             ImportAndLoadTime = DateTime.Now - loadingStart;
             Loaded = true;

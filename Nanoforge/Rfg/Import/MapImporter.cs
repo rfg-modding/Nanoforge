@@ -29,6 +29,7 @@ public class MapImporter
     public Territory? ImportMap(string name, TaskDialogViewModel? status = null, MapDoneImportingHandler? importDoneHandler = null)
     {
         string packfilePath = $"//data/{name}/";
+        string nameNoExtension = Path.GetFileNameWithoutExtension(name);
         try
         {
             Loading = true;
@@ -82,7 +83,20 @@ public class MapImporter
             //Import terrain, roads, and rocks
             Log.Information("Importing terrain...");
             status?.SetStatus("Importing terrain...");
-            //TODO: Port
+            TerrainImporter terrainImporter = new();
+            foreach (Zone zone in map.Zones)
+            {
+                if (terrainImporter.ImportTerrain(map.PackfileName, nameNoExtension, map, zone, createdObjects) is {} terrain)
+                {
+                    zone.Terrain = terrain;
+                }
+                else
+                {
+                    Log.Error($"Failed to import terrain for '{zone.Name}'. Cancelling map import.");
+                    status?.SetStatus($"Failed to import terrain for '{zone.Name}'. Check the log.");
+                    return null;
+                }
+            }
             status?.NextStep();
             Log.Information("Done importing terrain");
             
@@ -107,11 +121,6 @@ public class MapImporter
             {
                 NanoDB.AddObject(createdObject);
             }
-
-            if (importDoneHandler != null)
-            {
-                importDoneHandler(true);
-            }
             
             Success = true;
             return map;
@@ -120,10 +129,6 @@ public class MapImporter
         {
             Log.Error(ex, $"Error importing map: {name}");
             status?.SetStatus("Import failed. Check the log");
-            if (importDoneHandler != null)
-            {
-                importDoneHandler(false);
-            }
             Success = false;
             return null;
         }
@@ -135,6 +140,10 @@ public class MapImporter
                 status.CanClose = true;
             }
             PackfileVFS.UnloadDirectory(packfilePath, recursive: true);
+            if (importDoneHandler != null)
+            {
+                importDoneHandler(Success);
+            }
         }
     }
 

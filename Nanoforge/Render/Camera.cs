@@ -26,7 +26,7 @@ public class Camera
     private float _nearPlane;
     private float _farPlane;
 
-    public float Speed = 25.0f;
+    public float Speed = 200.0f;
     public float MovementSmoothing = 0.125f;
     public float LookSensitivity = 0.03f;
     public float LookSmoothing = 0.4f;
@@ -57,7 +57,7 @@ public class Camera
     public void Update(SceneFrameUpdateParams updateParams)
     {
         Position = Vector3.Lerp(Position, TargetPosition, MovementSmoothing);
-
+        
         Input input = (MainWindow.Instance as MainWindow)!.Input;
         if (input.IsKeyDown(Key.W))
         {
@@ -85,7 +85,6 @@ public class Camera
         {
             TargetPosition.Y += updateParams.DeltaTime * Speed;
         }
-
         
         UpdateRotationFromMouse(updateParams);
         YawRadians = MathHelpers.Lerp(YawRadians, TargetYawRadians, LookSmoothing); 

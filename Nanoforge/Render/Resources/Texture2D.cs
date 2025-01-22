@@ -1,4 +1,5 @@
 using System;
+using System.Net.Mime;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -358,5 +359,27 @@ public unsafe class Texture2D : VkMemory
         var layers = new ImageSubresourceLayers(ImageAspectFlags.ColorBit, 0, 0, 1);
         var copyRegion = new BufferImageCopy(0, 0, 0, layers, default, ImageSize);
         Vk.CmdCopyImageToBuffer(cmd, _textureImage, _currentLayout, buffer, 1, copyRegion);
+    }
+
+    public static Texture2D FromFile(RenderContext context, string path)
+    {
+        using var img = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(path);
+        ulong imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
+        uint mipLevels = (uint)(Math.Floor(Math.Log2(Math.Max(img.Width, img.Height))) + 1);
+
+        byte[] pixelData = new byte[imageSize];
+        img.CopyPixelDataTo(pixelData);
+
+        //TODO: Support more texture formats. Actually check what format ImageSharp returns instead of hardcoding it.
+        Format vulkanFormat = Format.R8G8B8A8Srgb;
+        
+        Texture2D texture = new Texture2D(context, (uint)img.Width, (uint)img.Height, mipLevels, vulkanFormat,
+            ImageTiling.Optimal, ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit, MemoryPropertyFlags.DeviceLocalBit,
+            ImageAspectFlags.ColorBit);
+        texture.SetPixels(pixelData, generateMipMaps: false);
+        texture.CreateTextureSampler();
+        texture.CreateImageView();
+
+        return texture;
     }
 }

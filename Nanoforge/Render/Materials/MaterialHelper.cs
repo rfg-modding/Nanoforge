@@ -42,6 +42,12 @@ public static class MaterialHelper
             _descriptorAllocator = new DescriptorAllocator(_context, 10, poolSizeRatios);
 
             //TODO: Port the rest of the vertex formats and shaders from the Beeflang version of NF and DX11
+            CreateMaterial("TerrainLowLod", VkPrimitiveTopology.TriangleStrip, stride: 8,
+                attributes:
+                [
+                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R16G16B16A16Sint, Offset = 0  }, //Position
+                ]
+            );
             CreateMaterial("Pixlit1Uv", VkPrimitiveTopology.TriangleStrip, stride: 20,
                 attributes:
                 [
