@@ -11,8 +11,9 @@
                 Loaded="Control_OnLoaded" PointerMoved="InputElement_OnPointerMoved" PointerPressed="InputElement_OnPointerPressed" PointerReleased="InputElement_OnPointerReleased"
                 PointerEntered="InputElement_OnPointerEntered" PointerExited="InputElement_OnPointerExited">
 
-    <Panel>
-        <Image Name="ViewportImage" IsVisible="{Binding #Viewport.SceneInitialized}"/>
+    <Panel VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+        <Image Name="ViewportImage" IsVisible="{Binding #Viewport.SceneInitialized}" SizeChanged="ViewportImage_OnSizeChanged"
+               HorizontalAlignment="Stretch" VerticalAlignment="Stretch" StretchDirection="Both" Stretch="UniformToFill"/>
         <TextBlock IsVisible="{Binding !#Viewport.SceneInitialized}" 
                    Text="{Binding #Viewport.LoadingStatus}" FontSize="32" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
     </Panel>

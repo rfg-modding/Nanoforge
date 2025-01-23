@@ -34,6 +34,8 @@ public unsafe class RenderContext : IDisposable
 #else
     public const bool EnableValidationLayers = false;
 #endif
+
+    public RenderPass PrimaryRenderPass;
     
     private readonly string[] _validationLayers = new[]
     {

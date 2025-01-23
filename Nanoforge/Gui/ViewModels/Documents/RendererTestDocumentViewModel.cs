@@ -84,7 +84,7 @@ public partial class RendererTestDocumentViewModel : Document
         _skybox.Position = Vector3.Zero;
         _skybox.Scale = new Vector3(25000.0f);
 
-        Scene.Init(new Vector2(1920, 1080));
+        Scene.Init(renderer.Context);
         renderer.ActiveScenes.Add(Scene);
         SceneInitialized = true;
 

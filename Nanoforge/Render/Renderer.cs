@@ -6,9 +6,7 @@ using System.Runtime.CompilerServices;
 using Nanoforge.Render.Materials;
 using Nanoforge.Render.Misc;
 using Nanoforge.Render.Resources;
-using Silk.NET.Maths;
 using Silk.NET.Vulkan;
-using Framebuffer = Silk.NET.Vulkan.Framebuffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 //Note: Parts of this renderer were originally based on this repo and these sites:
@@ -25,45 +23,26 @@ public unsafe class Renderer
 
     public const int MaxFramesInFlight = 2;
 
-    private Framebuffer[]? _swapChainFramebuffers;
-    private Texture2D[]? _renderTextures;
-    private Format _renderTextureImageFormat;
-    private VkBuffer? _renderTextureBuffer;
-    private CommandBuffer _renderImageCopyCmdBuffer;
-    private Fence _renderImageCopyFence;
+    public RenderPass _renderPass;
     
-    public uint ViewportWidth;
-    public uint ViewportHeight;
-
-    private RenderPass _renderPass;
-
-    private Texture2D? _depthTexture;
-
     private VkBuffer[]? _perFrameUniformBuffers;
-
-    private CommandBuffer[]? _commandBuffers;
-
+    
     private Semaphore[]? _imageAvailableSemaphores;
     private Semaphore[]? _renderFinishedSemaphores;
     private Fence[]? _inFlightFences;
-    private int _lastFrame = -1;
     private int _currentFrame = 0;
     public List<Scene> ActiveScenes = new();
+    
+    public static readonly Format RenderTextureImageFormat = Format.B8G8R8A8Srgb;
+    public static Format DepthTextureFormat { get; private set; }
 
     public Renderer(uint viewportWidth, uint viewportHeight)
     {
-        ViewportWidth = viewportWidth;
-        ViewportHeight = viewportHeight;
-        
         Context = new RenderContext();
-
-        CreateRenderTextures();
+        DepthTextureFormat = FindDepthFormat();
         CreateRenderPass();
         CreateUniformBuffers();
         MaterialHelper.Init(Context, _renderPass, _perFrameUniformBuffers!);
-        CreateDepthResources();
-        CreateFramebuffers();
-        CreateCommandBuffers();
         CreateSyncObjects();
     }
 
@@ -86,7 +65,7 @@ public unsafe class Renderer
 
         var waitStages = stackalloc[] { PipelineStageFlags.ColorAttachmentOutputBit };
 
-        var buffer = _commandBuffers![_currentFrame];
+        var buffer = scene.CommandBuffers![_currentFrame];
 
         submitInfo = submitInfo with
         {
@@ -107,32 +86,8 @@ public unsafe class Renderer
             throw new Exception("failed to submit draw command buffer!");
         }
 
-        _lastFrame = _currentFrame;
+        scene.LastFrame = _currentFrame;
         _currentFrame = (_currentFrame + 1) % MaxFramesInFlight;
-    }
-
-    private void CleanupRenderTextures()
-    {
-        _depthTexture!.Destroy();
-
-        foreach (var framebuffer in _swapChainFramebuffers!)
-        {
-            Context.Vk.DestroyFramebuffer(Context.Device, framebuffer, null);
-        }
-
-        fixed (CommandBuffer* commandBuffersPtr = _commandBuffers)
-        {
-            Context.Vk.FreeCommandBuffers(Context.Device, Context.CommandPool, (uint)_commandBuffers!.Length, commandBuffersPtr);
-        }
-
-        foreach (Texture2D texture in _renderTextures!)
-        {
-            texture.Destroy();
-        }
-        
-        _renderTextureBuffer!.Destroy();
-        Context.Vk.FreeCommandBuffers(Context.Device, Context.CommandPool, 1, _renderImageCopyCmdBuffer);
-        Context.Vk.DestroyFence(Context.Device, _renderImageCopyFence, null);
     }
 
     public void Cleanup()
@@ -141,12 +96,9 @@ public unsafe class Renderer
         {
             scene.Destroy();
         }
-        
-        CleanupRenderTextures();
 
+        Context.Vk.DestroyRenderPass(Context.Device, Context.PrimaryRenderPass, null);
         MaterialHelper.Destroy();
-
-        Context.Vk.DestroyRenderPass(Context.Device, _renderPass, null);
 
         for (int i = 0; i < MaxFramesInFlight; i++)
         {
@@ -157,46 +109,12 @@ public unsafe class Renderer
 
         Context.Dispose();
     }
-
-    public void ResizeViewport(Vector2D<int> newSize)
-    {
-        ViewportWidth = (uint)newSize.X;
-        ViewportHeight = (uint)newSize.Y;
-        Context.Vk.DeviceWaitIdle(Context.Device);
-        CleanupRenderTextures();
-        CreateRenderTextures();
-        CreateDepthResources();
-        CreateFramebuffers();
-        CreateCommandBuffers();
-    }
-
-    private void CreateRenderTextures()
-    {
-        _renderTextureImageFormat = Format.B8G8R8A8Srgb;
-        _renderTextures = new Texture2D[MaxFramesInFlight];
-        for (int i = 0; i < MaxFramesInFlight; i++)
-        {
-            Texture2D renderTexture = new Texture2D(Context, ViewportWidth, ViewportHeight, 1, _renderTextureImageFormat, ImageTiling.Optimal,
-                ImageUsageFlags.TransferSrcBit | ImageUsageFlags.ColorAttachmentBit, MemoryPropertyFlags.DeviceLocalBit,
-                ImageAspectFlags.ColorBit);
-            renderTexture.TransitionLayoutImmediate(ImageLayout.General);
-            renderTexture.CreateImageView();
-
-            _renderTextures![i] = renderTexture;
-        }
-
-        _renderTextureBuffer = new VkBuffer(Context, ViewportWidth * ViewportHeight * 4, BufferUsageFlags.TransferDstBit,
-            MemoryPropertyFlags.HostCachedBit | MemoryPropertyFlags.HostCoherentBit | MemoryPropertyFlags.HostVisibleBit);
-
-        _renderImageCopyCmdBuffer = Context.AllocateCommandBuffer();
-        _renderImageCopyFence = Context.CreateFence();
-    }
-
+    
     private void CreateRenderPass()
     {
         AttachmentDescription colorAttachment = new()
         {
-            Format = _renderTextureImageFormat,
+            Format = RenderTextureImageFormat,
             Samples = SampleCountFlags.Count1Bit,
             LoadOp = AttachmentLoadOp.Clear,
             StoreOp = AttachmentStoreOp.Store,
@@ -267,68 +185,8 @@ public unsafe class Renderer
                 throw new Exception("Failed to create render pass!");
             }
         }
-    }
-
-    private void CreateFramebuffers()
-    {
-        _swapChainFramebuffers = new Framebuffer[MaxFramesInFlight];
-
-        for (int i = 0; i < MaxFramesInFlight; i++)
-        {
-            ImageView[] attachments = [_renderTextures![i].ImageViewHandle, _depthTexture!.ImageViewHandle];
-
-            fixed (ImageView* attachmentsPtr = attachments)
-            {
-                FramebufferCreateInfo framebufferInfo = new()
-                {
-                    SType = StructureType.FramebufferCreateInfo,
-                    RenderPass = _renderPass,
-                    AttachmentCount = (uint)attachments.Length,
-                    PAttachments = attachmentsPtr,
-                    Width = ViewportWidth,
-                    Height = ViewportHeight,
-                    Layers = 1,
-                };
-
-                if (Context.Vk.CreateFramebuffer(Context.Device, in framebufferInfo, null, out _swapChainFramebuffers[i]) != Result.Success)
-                {
-                    throw new Exception("failed to create framebuffer!");
-                }
-            }
-        }
-    }
-
-    private void CreateDepthResources()
-    {
-        Format depthFormat = FindDepthFormat();
-
-        _depthTexture = new Texture2D(Context, ViewportWidth, ViewportHeight, 1, depthFormat, ImageTiling.Optimal, ImageUsageFlags.DepthStencilAttachmentBit,
-            MemoryPropertyFlags.DeviceLocalBit, ImageAspectFlags.DepthBit);
-        _depthTexture.CreateImageView();
-    }
-
-    private Format FindSupportedFormat(IEnumerable<Format> candidates, ImageTiling tiling, FormatFeatureFlags features)
-    {
-        foreach (var format in candidates)
-        {
-            Context.Vk.GetPhysicalDeviceFormatProperties(Context.PhysicalDevice, format, out var props);
-
-            if (tiling == ImageTiling.Linear && (props.LinearTilingFeatures & features) == features)
-            {
-                return format;
-            }
-            else if (tiling == ImageTiling.Optimal && (props.OptimalTilingFeatures & features) == features)
-            {
-                return format;
-            }
-        }
-
-        throw new Exception("Failed to find supported format!");
-    }
-
-    private Format FindDepthFormat()
-    {
-        return FindSupportedFormat(new[] { Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint }, ImageTiling.Optimal, FormatFeatureFlags.DepthStencilAttachmentBit);
+        
+        Context.PrimaryRenderPass = _renderPass;
     }
 
     private void CreateUniformBuffers()
@@ -353,30 +211,9 @@ public unsafe class Renderer
         _perFrameUniformBuffers![currentImage].SetData(ref perFrame);
     }
 
-    private void CreateCommandBuffers()
-    {
-        _commandBuffers = new CommandBuffer[_swapChainFramebuffers!.Length];
-
-        CommandBufferAllocateInfo allocInfo = new()
-        {
-            SType = StructureType.CommandBufferAllocateInfo,
-            CommandPool = Context.CommandPool,
-            Level = CommandBufferLevel.Primary,
-            CommandBufferCount = (uint)_commandBuffers.Length,
-        };
-
-        fixed (CommandBuffer* commandBuffersPtr = _commandBuffers)
-        {
-            if (Context.Vk.AllocateCommandBuffers(Context.Device, in allocInfo, commandBuffersPtr) != Result.Success)
-            {
-                throw new Exception("Failed to allocate command buffers!");
-            }
-        }
-    }
-
     private void RecordCommands(Scene scene, uint index)
     {
-        CommandBuffer commandBuffer = _commandBuffers![index];
+        CommandBuffer commandBuffer = scene.CommandBuffers![index];
 
         CommandBufferBeginInfo beginInfo = new()
         {
@@ -397,8 +234,8 @@ public unsafe class Renderer
         {
             X = 0,
             Y = 0,
-            Width = ViewportWidth,
-            Height = ViewportHeight,
+            Width = scene.ViewportWidth,
+            Height = scene.ViewportHeight,
             MinDepth = 0,
             MaxDepth = 1,
         };
@@ -407,7 +244,7 @@ public unsafe class Renderer
         Rect2D scissor = new()
         {
             Offset = { X = 0, Y = 0 },
-            Extent = new Extent2D(ViewportWidth, ViewportHeight),
+            Extent = new Extent2D(scene.ViewportWidth, scene.ViewportHeight),
         };
         Context.Vk.CmdSetScissor(commandBuffer, 0, 1, &scissor);
 
@@ -415,11 +252,11 @@ public unsafe class Renderer
         {
             SType = StructureType.RenderPassBeginInfo,
             RenderPass = _renderPass,
-            Framebuffer = _swapChainFramebuffers![index],
+            Framebuffer = scene.SwapChainFramebuffers![index],
             RenderArea =
             {
                 Offset = { X = 0, Y = 0 },
-                Extent = new Extent2D(ViewportWidth, ViewportHeight),
+                Extent = new Extent2D(scene.ViewportWidth, scene.ViewportHeight),
             }
         };
 
@@ -515,65 +352,28 @@ public unsafe class Renderer
             }
         }
     }
-
-    //TODO: Remove before commit if not used
-    public void GetRenderImageOld(byte[] pixelBuffer)
-    {
-        if (_lastFrame == -1)
-            return;
-        
-        Context.BeginCommandBuffer(_renderImageCopyCmdBuffer);
-        
-        _renderTextures![_lastFrame].TransitionLayout(_renderImageCopyCmdBuffer, ImageLayout.TransferSrcOptimal);
-        _renderTextures![_lastFrame].CopyToBuffer(_renderImageCopyCmdBuffer, _renderTextureBuffer!.VkHandle);
-        _renderTextures![_lastFrame].TransitionLayout(_renderImageCopyCmdBuffer, ImageLayout.General);
-
-        Context.EndCommandBuffer(_renderImageCopyCmdBuffer, _renderImageCopyFence);
-        Context.Vk.WaitForFences(Context.Device, 1, _renderImageCopyFence, true, ulong.MaxValue);
-        Context.Vk.ResetFences(Context.Device, 1, _renderImageCopyFence);
-        
-        void* mappedData = null;
-        _renderTextureBuffer!.MapMemory(ref mappedData);
-        
-        fixed (void* pixelBufferPtr = pixelBuffer)
-        {
-            System.Buffer.MemoryCopy(mappedData, pixelBufferPtr, pixelBuffer.Length, pixelBuffer.Length);
-        }
-        
-        _renderTextureBuffer!.UnmapMemory();
-
-        // for (int i = 0; i < pixelBuffer.Length; i++)
-        // {
-        //     pixelBuffer[i] = (byte)(i % 255);
-        // }
-    }
     
-    public void GetRenderImage(IntPtr address)
+    private Format FindSupportedFormat(IEnumerable<Format> candidates, ImageTiling tiling, FormatFeatureFlags features)
     {
-        if (_lastFrame == -1)
-            return;
-        
-        Context.BeginCommandBuffer(_renderImageCopyCmdBuffer);
-        
-        _renderTextures![_lastFrame].TransitionLayout(_renderImageCopyCmdBuffer, ImageLayout.TransferSrcOptimal);
-        _renderTextures![_lastFrame].CopyToBuffer(_renderImageCopyCmdBuffer, _renderTextureBuffer!.VkHandle);
-        _renderTextures![_lastFrame].TransitionLayout(_renderImageCopyCmdBuffer, ImageLayout.General);
+        foreach (var format in candidates)
+        {
+            Context!.Vk.GetPhysicalDeviceFormatProperties(Context.PhysicalDevice, format, out var props);
 
-        Context.EndCommandBuffer(_renderImageCopyCmdBuffer, _renderImageCopyFence);
-        Context.Vk.WaitForFences(Context.Device, 1, _renderImageCopyFence, true, ulong.MaxValue);
-        Context.Vk.ResetFences(Context.Device, 1, _renderImageCopyFence);
-        
-        void* mappedData = null;
-        _renderTextureBuffer!.MapMemory(ref mappedData);
-        
-        ulong numBytes = ViewportWidth * ViewportHeight * 4;
-        System.Buffer.MemoryCopy(mappedData, address.ToPointer(), numBytes, numBytes);
-        
-        _renderTextureBuffer!.UnmapMemory();
+            if (tiling == ImageTiling.Linear && (props.LinearTilingFeatures & features) == features)
+            {
+                return format;
+            }
+            else if (tiling == ImageTiling.Optimal && (props.OptimalTilingFeatures & features) == features)
+            {
+                return format;
+            }
+        }
 
-        // for (int i = 0; i < pixelBuffer.Length; i++)
-        // {
-        //     pixelBuffer[i] = (byte)(i % 255);
-        // }
+        throw new Exception("Failed to find supported format!");
+    }
+
+    private Format FindDepthFormat()
+    {
+        return FindSupportedFormat(new[] { Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint }, ImageTiling.Optimal, FormatFeatureFlags.DepthStencilAttachmentBit);
     }
 }

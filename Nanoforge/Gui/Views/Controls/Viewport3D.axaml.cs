@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -10,7 +11,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Rendering.Composition;
 using Avalonia.Threading;
-using CommunityToolkit.Mvvm.Input;
 using Nanoforge.FileSystem;
 using Nanoforge.Render;
 using Serilog;
@@ -66,8 +66,6 @@ public partial class Viewport3D : UserControl
     private Vector2 _mousePositionDelta = Vector2.Zero;
     private bool _mouseOverViewport = false;
     private bool _mouseMovedThisFrame = false;
-    private bool _sceneInitStarted = false;
-    private Task? _sceneInitTask;
 
     public Viewport3D()
     {
@@ -79,8 +77,8 @@ public partial class Viewport3D : UserControl
         }
 
         _renderer = (Application.Current as App)!.Renderer;
-        _rendererOutput = new WriteableBitmap(new PixelSize(1920, 1080), new Vector(96, 96), PixelFormat.Bgra8888);
-
+        CreateRendererOutputTexture((int)ViewportImage.Width, (int)ViewportImage.Height);
+        
         if (_renderer != null)
         {
             var mainWindow = MainWindow.Instance;
@@ -95,7 +93,16 @@ public partial class Viewport3D : UserControl
             Log.Error("Renderer is null. If you're not in the xaml designer and you see this then there's a big problem.");
         }
     }
-    
+
+    [MemberNotNull(nameof(_rendererOutput))]
+    private void CreateRendererOutputTexture(int width, int height)
+    {
+        width = Math.Max(1, width);
+        height = Math.Max(1, height);
+        _rendererOutput = new WriteableBitmap(new PixelSize(width, height), new Vector(96, 96), PixelFormat.Bgra8888);
+        ViewportImage.Source = _rendererOutput;
+    }
+
     private void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
         Update();
@@ -144,7 +151,7 @@ public partial class Viewport3D : UserControl
         _renderer.RenderFrame(Scene!);
 
         using var buffer = _rendererOutput!.Lock();
-        _renderer.GetRenderImage(buffer.Address);
+        Scene!.GetRenderImage(buffer.Address);
 
         _lastUpdate = DateTime.Now;
     }
@@ -180,5 +187,11 @@ public partial class Viewport3D : UserControl
     private void InputElement_OnPointerExited(object? sender, PointerEventArgs e)
     {
         _mouseOverViewport = false;
+    }
+
+    private void ViewportImage_OnSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        CreateRendererOutputTexture((int)e.NewSize.Width, (int)e.NewSize.Height);
+        Scene?.ViewportResize(new Vector2((float)e.NewSize.Width, (float)e.NewSize.Height));
     }
 }
