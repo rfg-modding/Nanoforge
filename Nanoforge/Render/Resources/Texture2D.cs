@@ -26,6 +26,8 @@ public unsafe class Texture2D : VkMemory
     public Image Handle => _textureImage;
     public ImageView ImageViewHandle => _textureImageView;
     public Sampler SamplerHandle => _textureSampler;
+
+    public bool Destroyed { get; private set; } = false;
     
     public Texture2D(RenderContext context, uint width, uint height, uint mipLevels, Format format, ImageTiling tiling, ImageUsageFlags usage, MemoryPropertyFlags properties, ImageAspectFlags imageAspectFlags): base(context)
     {
@@ -348,10 +350,14 @@ public unsafe class Texture2D : VkMemory
     
     public void Destroy()
     {
+        if (Destroyed)
+            return;
+        
         Vk.DestroySampler(Device, _textureSampler, null);
         Vk.DestroyImageView(Device, _textureImageView, null);
         Vk.DestroyImage(Device, _textureImage, null);
         Vk.FreeMemory(Device, Memory, null);
+        Destroyed = true;
     }
 
     public void CopyToBuffer(CommandBuffer cmd, Buffer buffer)

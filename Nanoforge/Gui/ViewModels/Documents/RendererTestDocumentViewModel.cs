@@ -93,6 +93,14 @@ public partial class RendererTestDocumentViewModel : Document
         status.CloseDialog();
     }
 
+    public override bool OnClose()
+    {
+        Renderer renderer = App.Current.Renderer!;
+        Scene.Destroy();
+        renderer.ActiveScenes.Remove(Scene);
+        return base.OnClose();
+    }
+
     [RelayCommand]
     private void Update(SceneFrameUpdateParams updateParams)
     {

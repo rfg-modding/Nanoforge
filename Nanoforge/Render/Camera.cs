@@ -146,5 +146,6 @@ public class Camera
     public void ViewportResize(Vector2 viewportSize)
     {
         _aspectRatio = viewportSize.X / viewportSize.Y;
+        UpdateProjectionMatrix();
     }
 }

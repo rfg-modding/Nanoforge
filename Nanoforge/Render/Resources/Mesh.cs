@@ -16,6 +16,8 @@ public class Mesh
     public Buffer VertexBufferHandle => _vertexBuffer.VkHandle;
     public Buffer IndexBufferHandle => _indexBuffer.VkHandle;
 
+    public bool Destroyed { get; private set; } = false;
+
     public Mesh(RenderContext context, Span<byte> vertices, Span<byte> indices, uint vertexCount, uint indexCount, uint indexSize)
     {
         _context = context;
@@ -54,7 +56,13 @@ public class Mesh
 
     public void Destroy()
     {
+        //Easiest way to prevent objects shared by multiple RenderObjects from being destroyed multiple times
+        //Ideally you'd have ref-counting so they'd only be destroyed when no objects reference them anymore, but currently NF doesn't require that.
+        if (Destroyed)
+            return;
+        
         _vertexBuffer.Destroy();
         _indexBuffer.Destroy();
+        Destroyed = true;
     }
 }

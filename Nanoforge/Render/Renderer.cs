@@ -97,6 +97,14 @@ public unsafe class Renderer
             scene.Destroy();
         }
 
+        if (_perFrameUniformBuffers != null)
+        {
+            foreach (VkBuffer buffer in _perFrameUniformBuffers)
+            {
+                buffer.Destroy();
+            }
+        }
+
         Context.Vk.DestroyRenderPass(Context.Device, Context.PrimaryRenderPass, null);
         MaterialHelper.Destroy();
 

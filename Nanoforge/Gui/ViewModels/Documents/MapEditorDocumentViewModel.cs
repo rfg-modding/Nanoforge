@@ -130,6 +130,14 @@ public partial class MapEditorDocumentViewModel : Document
             LoadFailureReason = ex.Message;
         }
     }
+    
+    public override bool OnClose()
+    {
+        Renderer renderer = App.Current.Renderer!;
+        Scene.Destroy();
+        renderer.ActiveScenes.Remove(Scene);
+        return base.OnClose();
+    }
 
     [RelayCommand]
     private void Update(SceneFrameUpdateParams updateParams)
