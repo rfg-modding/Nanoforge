@@ -83,6 +83,7 @@ namespace Nanoforge.Gui.Documents
             public String MapExportPath = new .() ~delete _;
             public bool HighlightSelectedObject = true;
 			public bool RotateBoundingBoxes = false;
+			public bool DrawOrientationLines = true;
         }
 
 		[BonTarget, ReflectAll]
@@ -565,6 +566,22 @@ namespace Nanoforge.Gui.Documents
 						}
                     }
 
+					//Draw lines indicating object orientation (red = right, green = up, blue = forward) on selected object
+					if (SelectedObject == obj && CVar_MapEditorSettings.Value.DrawOrientationLines && obj.Orient.Enabled)
+					{
+						Vec3 right = obj.Orient.Value.Vectors[0];
+						Vec3 up = obj.Orient.Value.Vectors[1];
+						Vec3 forward = obj.Orient.Value.Vectors[2];
+						Vec3 size = obj.BBox.Max - obj.BBox.Min;
+						f32 orientLineScale = 2.0f; //How many times larger than the object orient lines should be
+						f32 lineLength = orientLineScale * Math.Max(Math.Max(size.x, size.y), size.z); //Make lines equal length, as long as the widest side of the bbox
+
+						Mat3 orient = obj.Orient.Value;
+						Vec3 center = obj.Position;
+						Scene.DrawLine(center, center + (obj.Orient.Value.Vectors[0] * lineLength), Vec4(1.0f, 0.0f, 0.0f, 1.0f), 10.0f); //Right
+						Scene.DrawLine(center, center + (obj.Orient.Value.Vectors[1] * lineLength), Vec4(0.0f, 1.0f, 0.0f, 1.0f), 10.0f); //Up
+						Scene.DrawLine(center, center + (obj.Orient.Value.Vectors[2] * lineLength), Vec4(0.0f, 0.0f, 1.0f, 1.0f), 10.0f); //Forward
+					}
                 }
             }
 
@@ -654,6 +671,12 @@ namespace Nanoforge.Gui.Documents
 
 						}
 						ImGui.TooltipOnPrevious("Rotate bounding boxes when drawing them. They get rotated to whatever the 'Orient' value gets set to. Requires the object to have the orient field enabled. Useful for objects that don't have a mesh.");
+
+						if (ImGui.MenuItem("Draw orientation lines", null, &CVar_MapEditorSettings.Value.DrawOrientationLines))
+						{
+
+						}
+						ImGui.TooltipOnPrevious("Draw lines indicating which direction an object is rotated in");
 
                         ImGui.EndMenu();
                     }
