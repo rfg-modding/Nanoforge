@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Nanoforge.Render.Misc;
 using Nanoforge.Render.Resources;
 using Serilog;
@@ -23,7 +25,9 @@ public unsafe class RenderContext : IDisposable
     public Instance Instance;
     public DebugUtilsMessengerEXT DebugUtilsMessenger;
     public CommandPool CommandPool;
+    public CommandPool TransferCommandPool;
     public Queue GraphicsQueue;
+    public Queue TransferQueue;
     private ExtDebugUtils? _debugUtils;
 
     public VkBuffer StagingBuffer = null!;
@@ -47,8 +51,6 @@ public unsafe class RenderContext : IDisposable
         
     };
     
-    //TODO: Will have to change this to not use IWindow when porting this to Avalonia
-    //TODO: Should some of this init code be stuck in a bootstrap class or something?
     public RenderContext()
     {
 #region Create Instance
@@ -148,24 +150,52 @@ public unsafe class RenderContext : IDisposable
 #endregion
         
 #region Create logical device
-        var indices = FindQueueFamilies(PhysicalDevice);
+        QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(PhysicalDevice);
+        Debug.Assert(queueFamilyIndices.GraphicsFamily != null, "queueFamilyIndices.GraphicsFamily != null");
+        Debug.Assert(queueFamilyIndices.TransferFamily != null, "queueFamilyIndices.TransferFamily != null");
+        Log.Information($"Selected vulkan queues. Graphics queue: {queueFamilyIndices.GraphicsFamily.Value}, Transfer queue: {queueFamilyIndices.TransferFamily.Value}");
 
-        var uniqueQueueFamilies = new[] { indices.GraphicsFamily!.Value };
+        uint[] uniqueQueueFamilies = [queueFamilyIndices.GraphicsFamily!.Value, queueFamilyIndices.TransferFamily!.Value];
         uniqueQueueFamilies = uniqueQueueFamilies.Distinct().ToArray();
 
         using var mem = GlobalMemory.Allocate(uniqueQueueFamilies.Length * sizeof(DeviceQueueCreateInfo));
         var queueCreateInfos = (DeviceQueueCreateInfo*)Unsafe.AsPointer(ref mem.GetPinnableReference());
 
         float queuePriority = 1.0f;
-        for (int i = 0; i < uniqueQueueFamilies.Length; i++)
+        uint graphicsQueueIndex;
+        uint trafficsQueueIndex;
+        if (uniqueQueueFamilies.Length == 1)
         {
-            queueCreateInfos[i] = new()
+            //The graphics and transfer queue are in the same family, so we want two of this queue type with each queue having a different index.
+            graphicsQueueIndex = 0;
+            trafficsQueueIndex = 1;
+            queueCreateInfos[0] = new()
             {
                 SType = StructureType.DeviceQueueCreateInfo,
-                QueueFamilyIndex = uniqueQueueFamilies[i],
-                QueueCount = 1,
+                QueueFamilyIndex = uniqueQueueFamilies[0],
+                QueueCount = 2,
                 PQueuePriorities = &queuePriority
             };
+        }
+        else if (uniqueQueueFamilies.Length >= 2)
+        {
+            //The graphics and transfer queue are in different families. So we want 1 of each with each being at index 0.
+            graphicsQueueIndex = 0;
+            trafficsQueueIndex = 0;
+            for (int i = 0; i < uniqueQueueFamilies.Length; i++)
+            {
+                queueCreateInfos[i] = new()
+                {
+                    SType = StructureType.DeviceQueueCreateInfo,
+                    QueueFamilyIndex = uniqueQueueFamilies[i],
+                    QueueCount = 1,
+                    PQueuePriorities = &queuePriority
+                };
+            }
+        }
+        else
+        {
+            throw new Exception($"Unexpected unique vulkan queue family count. Expected either 1 or 2. Found {uniqueQueueFamilies.Length}.");
         }
 
         PhysicalDeviceFeatures deviceFeatures = new()
@@ -200,7 +230,8 @@ public unsafe class RenderContext : IDisposable
             throw new Exception("failed to create logical device!");
         }
 
-        Vk.GetDeviceQueue(Device, indices.GraphicsFamily!.Value, 0, out GraphicsQueue);
+        Vk.GetDeviceQueue(Device, queueFamilyIndices.GraphicsFamily!.Value, graphicsQueueIndex, out GraphicsQueue);
+        Vk.GetDeviceQueue(Device, queueFamilyIndices.TransferFamily!.Value, trafficsQueueIndex, out TransferQueue);
 
         if (EnableValidationLayers)
         {
@@ -211,7 +242,6 @@ public unsafe class RenderContext : IDisposable
 #endregion
 
 #region Create main command pool
-        var queueFamilyIndices = FindQueueFamilies(PhysicalDevice);
 
         CommandPoolCreateInfo poolInfo = new()
         {
@@ -222,7 +252,21 @@ public unsafe class RenderContext : IDisposable
 
         if (Vk.CreateCommandPool(Device, in poolInfo, null, out CommandPool) != Result.Success)
         {
-            throw new Exception("failed to create command pool!");
+            throw new Exception("Failed to create primary command pool!");
+        }
+#endregion
+
+#region Create command pool for background thread data transfers
+        CommandPoolCreateInfo transferPoolInfo = new()
+        {
+            SType = StructureType.CommandPoolCreateInfo,
+            QueueFamilyIndex = queueFamilyIndices.TransferFamily!.Value,
+            Flags = CommandPoolCreateFlags.ResetCommandBufferBit
+        };
+
+        if (Vk.CreateCommandPool(Device, in transferPoolInfo, null, out TransferCommandPool) != Result.Success)
+        {
+            throw new Exception("Failed to create transfer command pool!");
         }
 #endregion
 
@@ -272,21 +316,62 @@ public unsafe class RenderContext : IDisposable
             Vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilityCount, queueFamiliesPtr);
         }
 
-
-        uint i = 0;
-        foreach (var queueFamily in queueFamilies)
+        //First find any graphics capable queue
+        for (uint i = 0; i < queueFamilies.Length; i++)
         {
+            QueueFamilyProperties queueFamily = queueFamilies[i];
             if (queueFamily.QueueFlags.HasFlag(QueueFlags.GraphicsBit))
             {
                 indices.GraphicsFamily = i;
-            }
-
-            if (indices.IsComplete())
-            {
+                indices.GraphicsFamilyQueueCount = queueFamily.QueueCount;
                 break;
             }
+        }
 
-            i++;
+        //TODO: Figure out how to do this. The transfer only queue on my device apparently couldn't support the pipeline barrier in the Texture2D layout transition code
+        //Next try to find a queue that only has transfer and not graphics
+        // for (uint i = 0; i < queueFamilies.Length; i++)
+        // {
+        //     QueueFamilyProperties queueFamily = queueFamilies[i];
+        //     if (queueFamily.QueueFlags.HasFlag(QueueFlags.TransferBit) && !queueFamily.QueueFlags.HasFlag(QueueFlags.GraphicsBit))
+        //     {
+        //         indices.TransferFamily = i;
+        //         indices.TransferFamilyQueueCount = queueFamily.QueueCount;
+        //         break;
+        //     }
+        // }
+        
+        //If we failed to find a transfer only queue then just use whatever queue that's available for transfer
+        if (!indices.TransferFamily.HasValue)
+        {
+            for (uint i = 0; i < queueFamilies.Length; i++)
+            {
+                QueueFamilyProperties queueFamily = queueFamilies[i];
+                if (queueFamily.QueueFlags.HasFlag(QueueFlags.TransferBit))
+                {
+                    indices.TransferFamily = i;
+                    indices.TransferFamilyQueueCount = queueFamily.QueueCount;
+                    break;
+                }
+            }
+        }
+        
+        //Make sure there's enough queues available if the graphics and transfer queue are in the same family
+        if (indices is { GraphicsFamily: not null, TransferFamily: not null } && indices.GraphicsFamily.Value == indices.TransferFamily.Value)
+        {
+            if (indices.GraphicsFamilyQueueCount < 2)
+            {
+                string err = $"Graphics and transfer queue families are the same and there isn't enough queues available. Require 2, only {indices.GraphicsFamilyQueueCount} are available.";
+                Log.Error(err);
+                throw new Exception(err);
+            }
+        }
+        
+        if (!indices.IsComplete())
+        {
+            string err = "Failed to find valid vulkan queue families for graphics and transfer.";
+            Log.Error(err);
+            throw new Exception(err);
         }
 
         return indices;
@@ -354,13 +439,13 @@ public unsafe class RenderContext : IDisposable
         throw new Exception("failed to find suitable memory type!");
     }
     
-    public CommandBuffer BeginSingleTimeCommands()
+    public CommandBuffer BeginSingleTimeCommands(CommandPool pool)
     {
         CommandBufferAllocateInfo allocateInfo = new()
         {
             SType = StructureType.CommandBufferAllocateInfo,
             Level = CommandBufferLevel.Primary,
-            CommandPool = CommandPool,
+            CommandPool = pool,
             CommandBufferCount = 1,
         };
 
@@ -377,7 +462,7 @@ public unsafe class RenderContext : IDisposable
         return commandBuffer;
     }
 
-    public void EndSingleTimeCommands(CommandBuffer commandBuffer)
+    public void EndSingleTimeCommands(CommandBuffer commandBuffer, CommandPool pool, Queue queue)
     {
         Vk.EndCommandBuffer(commandBuffer);
 
@@ -388,10 +473,10 @@ public unsafe class RenderContext : IDisposable
             PCommandBuffers = &commandBuffer,
         };
 
-        Vk.QueueSubmit(GraphicsQueue, 1, in submitInfo, default);
-        Vk.QueueWaitIdle(GraphicsQueue);
+        Vk.QueueSubmit(queue, 1, in submitInfo, default);
+        Vk.QueueWaitIdle(queue);
 
-        Vk.FreeCommandBuffers(Device, CommandPool, 1, in commandBuffer);
+        Vk.FreeCommandBuffers(Device, pool, 1, in commandBuffer);
     }
     
     private void CreateStagingBuffer()
@@ -399,12 +484,12 @@ public unsafe class RenderContext : IDisposable
         StagingBuffer = new VkBuffer(this, StagingBufferSize, BufferUsageFlags.TransferSrcBit, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit, canGrow: true);
     }
     
-    public CommandBuffer AllocateCommandBuffer()
+    public CommandBuffer AllocateCommandBuffer(CommandPool pool)
     {
         var allocInfo = new CommandBufferAllocateInfo
         {
             SType = StructureType.CommandBufferAllocateInfo,
-            CommandPool = CommandPool,
+            CommandPool = pool,
             CommandBufferCount = 1,
             Level = CommandBufferLevel.Primary
         };
@@ -416,6 +501,7 @@ public unsafe class RenderContext : IDisposable
     {
         StagingBuffer.Destroy();
         Vk.DestroyCommandPool(Device, CommandPool, null);
+        Vk.DestroyCommandPool(Device, TransferCommandPool, null);
         Vk.DestroyDevice(Device, null);
         _debugUtils?.DestroyDebugUtilsMessenger(Instance, DebugUtilsMessenger, null);
         Vk.DestroyInstance(Instance, null);

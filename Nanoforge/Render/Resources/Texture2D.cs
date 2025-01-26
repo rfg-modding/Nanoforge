@@ -94,24 +94,24 @@ public unsafe class Texture2D : VkMemory
         Context.Vk.BindImageMemory(Context.Device, _textureImage, Memory, 0);
     }
     
-    public void SetPixels(byte[] pixels, bool generateMipMaps = false)
+    public void SetPixels(byte[] pixels, CommandPool pool, Queue queue, bool generateMipMaps = false)
     {
-        TransitionLayoutImmediate(ImageLayout.TransferDstOptimal);
+        TransitionLayoutImmediate(ImageLayout.TransferDstOptimal, pool, queue);
         Context.StagingBuffer.SetData(pixels);
-        Context.StagingBuffer.CopyToImage(_textureImage, _width, _height); 
-        TransitionLayoutImmediate(ImageLayout.ShaderReadOnlyOptimal);
+        Context.StagingBuffer.CopyToImage(_textureImage, _width, _height, pool, queue); 
+        TransitionLayoutImmediate(ImageLayout.ShaderReadOnlyOptimal, pool, queue);
 
         if (generateMipMaps)
         {
-            GenerateMipMaps(Context, _textureImage, _format, _width, _height, _mipLevels);
+            GenerateMipMaps(Context, _textureImage, _format, _width, _height, _mipLevels, pool, queue);
         }
     }
 
-    public void TransitionLayoutImmediate(ImageLayout newLayout)
+    public void TransitionLayoutImmediate(ImageLayout newLayout, CommandPool pool, Queue queue)
     {
-        CommandBuffer cmd = Context.BeginSingleTimeCommands();
+        CommandBuffer cmd = Context.BeginSingleTimeCommands(pool);
         TransitionLayout(cmd, newLayout);
-        Context.EndSingleTimeCommands(cmd);
+        Context.EndSingleTimeCommands(cmd, pool, queue);
     }
     
     public void TransitionLayout(CommandBuffer cmd, ImageLayout newLayout)
@@ -185,7 +185,7 @@ public unsafe class Texture2D : VkMemory
         _currentLayout = newLayout;
     }
     
-    private static void GenerateMipMaps(RenderContext context, Image image, Format imageFormat, uint width, uint height, uint mipLevels)
+    private static void GenerateMipMaps(RenderContext context, Image image, Format imageFormat, uint width, uint height, uint mipLevels, CommandPool pool, Queue queue)
     {
         context.Vk.GetPhysicalDeviceFormatProperties(context.PhysicalDevice, imageFormat, out var formatProperties);
 
@@ -194,7 +194,7 @@ public unsafe class Texture2D : VkMemory
             throw new Exception("texture image format does not support linear blitting!");
         }
 
-        var commandBuffer = context.BeginSingleTimeCommands();
+        var commandBuffer = context.BeginSingleTimeCommands(pool);
 
         ImageMemoryBarrier barrier = new()
         {
@@ -287,7 +287,7 @@ public unsafe class Texture2D : VkMemory
             0, null,
             1, in barrier);
 
-        context.EndSingleTimeCommands(commandBuffer);
+        context.EndSingleTimeCommands(commandBuffer, pool, queue);
     }
 
     public void CreateImageView()
@@ -367,7 +367,7 @@ public unsafe class Texture2D : VkMemory
         Vk.CmdCopyImageToBuffer(cmd, _textureImage, _currentLayout, buffer, 1, copyRegion);
     }
 
-    public static Texture2D FromFile(RenderContext context, string path)
+    public static Texture2D FromFile(RenderContext context, CommandPool pool, Queue queue, string path)
     {
         using var img = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(path);
         ulong imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
@@ -382,7 +382,7 @@ public unsafe class Texture2D : VkMemory
         Texture2D texture = new Texture2D(context, (uint)img.Width, (uint)img.Height, mipLevels, vulkanFormat,
             ImageTiling.Optimal, ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit, MemoryPropertyFlags.DeviceLocalBit,
             ImageAspectFlags.ColorBit);
-        texture.SetPixels(pixelData, generateMipMaps: false);
+        texture.SetPixels(pixelData, pool, queue, generateMipMaps: false);
         texture.CreateTextureSampler();
         texture.CreateImageView();
 

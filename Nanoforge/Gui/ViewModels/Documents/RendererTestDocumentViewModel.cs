@@ -169,7 +169,7 @@ public partial class RendererTestDocumentViewModel : Document
     private Mesh LoadRfgStaticMeshFromPackfile(RenderContext context, string cpuFilePath)
     {
         MeshInstanceData meshData = LoadRfgStaticMesh(cpuFilePath);
-        Mesh mesh = new Mesh(context, meshData.Vertices, meshData.Indices, meshData.Config.NumVertices, meshData.Config.NumIndices, (uint)meshData.Config.IndexSize);
+        Mesh mesh = new Mesh(context, meshData.Vertices, meshData.Indices, meshData.Config.NumVertices, meshData.Config.NumIndices, (uint)meshData.Config.IndexSize, context.TransferCommandPool, context.TransferQueue);
         return mesh;
     }
 
@@ -227,7 +227,7 @@ public partial class RendererTestDocumentViewModel : Document
             ImageTiling.Optimal, ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
             MemoryPropertyFlags.DeviceLocalBit,
             ImageAspectFlags.ColorBit);
-        texture.SetPixels(pixels, generateMipMaps: false);
+        texture.SetPixels(pixels, context.TransferCommandPool, context.TransferQueue, generateMipMaps: false);
         texture.CreateTextureSampler();
         texture.CreateImageView();
 

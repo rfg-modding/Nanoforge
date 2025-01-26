@@ -18,7 +18,7 @@ public class Mesh
 
     public bool Destroyed { get; private set; } = false;
 
-    public Mesh(RenderContext context, Span<byte> vertices, Span<byte> indices, uint vertexCount, uint indexCount, uint indexSize)
+    public Mesh(RenderContext context, Span<byte> vertices, Span<byte> indices, uint vertexCount, uint indexCount, uint indexSize, CommandPool pool, Queue queue)
     {
         _context = context;
         VertexCount = vertexCount;
@@ -26,11 +26,11 @@ public class Mesh
         
         _vertexBuffer = new VkBuffer(_context, (ulong)vertices.Length, BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit, MemoryPropertyFlags.DeviceLocalBit);
         _context.StagingBuffer.SetData(vertices);
-        _context.StagingBuffer.CopyTo(_vertexBuffer, (ulong)vertices.Length);
+        _context.StagingBuffer.CopyTo(_vertexBuffer, (ulong)vertices.Length, pool, queue);
         
         _indexBuffer = new VkBuffer(_context, (ulong)indices.Length, BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit, MemoryPropertyFlags.DeviceLocalBit);
         _context.StagingBuffer.SetData(indices);
-        _context.StagingBuffer.CopyTo(_indexBuffer, (ulong)indices.Length);
+        _context.StagingBuffer.CopyTo(_indexBuffer, (ulong)indices.Length, pool, queue);
 
         _indexType = indexSize switch
         {

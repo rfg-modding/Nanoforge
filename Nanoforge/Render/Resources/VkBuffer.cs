@@ -109,9 +109,9 @@ public unsafe class VkBuffer : VkMemory
         Vk.FreeMemory(Device, Memory, null);
     }
 
-    public void CopyTo(VkBuffer destination, ulong copySize)
+    public void CopyTo(VkBuffer destination, ulong copySize, CommandPool pool, Queue queue)
     {
-        CommandBuffer commandBuffer = Context.BeginSingleTimeCommands();
+        CommandBuffer commandBuffer = Context.BeginSingleTimeCommands(pool);
         BufferCopy copyRegion = new()
         {
             Size = copySize,
@@ -119,12 +119,12 @@ public unsafe class VkBuffer : VkMemory
 
         Vk.CmdCopyBuffer(commandBuffer, srcBuffer: this.VkHandle, dstBuffer: destination.VkHandle, 1, in copyRegion);
 
-        Context.EndSingleTimeCommands(commandBuffer);
+        Context.EndSingleTimeCommands(commandBuffer, pool, queue);
     }
     
-    public void CopyToImage(Image image, uint width, uint height)
+    public void CopyToImage(Image image, uint width, uint height, CommandPool pool, Queue queue)
     {
-        CommandBuffer commandBuffer = Context.BeginSingleTimeCommands();
+        CommandBuffer commandBuffer = Context.BeginSingleTimeCommands(pool);
 
         BufferImageCopy region = new()
         {
@@ -145,6 +145,6 @@ public unsafe class VkBuffer : VkMemory
 
         Context.Vk.CmdCopyBufferToImage(commandBuffer, _vkHandle, image, ImageLayout.TransferDstOptimal, 1, in region);
 
-        Context.EndSingleTimeCommands(commandBuffer);
+        Context.EndSingleTimeCommands(commandBuffer, pool, queue);
     }
 }

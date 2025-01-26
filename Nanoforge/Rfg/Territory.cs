@@ -22,8 +22,12 @@ public class Territory : EditorObject
     {
         try
         {
+            //TODO: Come up with a smarter way to give each thread a command pool or queue not used by another thread.
+            //TODO: Right now we're assuming that this function is only called by one thread at a time, and that its a separate thread from the render thread. If thats the case its fine to use the transfer command pool
+            //TODO: Maybe make a wrapper class for command pools / command buffers that knows which pool and queue it belongs to so less params need to get passed around.
+            //TODO: Maybe even have a separate "ThreadRenderContext" that gets passed around
             Dictionary<ProjectMesh, Mesh> meshCache = new();
-            Texture2D whiteTexture = Texture2D.FromFile(renderer.Context, $"{BuildConfig.AssetsDirectory}White.png");
+            Texture2D whiteTexture = Texture2D.FromFile(renderer.Context, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue, $"{BuildConfig.AssetsDirectory}White.png");
             
             //Load low lod terrain meshes
             foreach (Zone zone in Zones)
@@ -67,7 +71,7 @@ public class Territory : EditorObject
 
             byte[] vertices = projectMesh.VertexBuffer?.Load() ?? throw new Exception("Failed to load vertex buffer");
             byte[] indices = projectMesh.IndexBuffer?.Load() ?? throw new Exception("Failed to load index buffer");
-            Mesh mesh = new(renderer.Context, vertices, indices, projectMesh.NumVertices, projectMesh.NumIndices, projectMesh.IndexSize);
+            Mesh mesh = new(renderer.Context, vertices, indices, projectMesh.NumVertices, projectMesh.NumIndices, projectMesh.IndexSize, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue);
             meshCache[projectMesh] = mesh;
             return mesh;
         }

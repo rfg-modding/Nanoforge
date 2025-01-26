@@ -78,7 +78,7 @@ public class Scene
             Texture2D renderTexture = new Texture2D(_context!, ViewportWidth, ViewportHeight, 1, Renderer.RenderTextureImageFormat, ImageTiling.Optimal,
                 ImageUsageFlags.TransferSrcBit | ImageUsageFlags.ColorAttachmentBit, MemoryPropertyFlags.DeviceLocalBit,
                 ImageAspectFlags.ColorBit);
-            renderTexture.TransitionLayoutImmediate(ImageLayout.General);
+            renderTexture.TransitionLayoutImmediate(ImageLayout.General, _context!.CommandPool, _context.GraphicsQueue);
             renderTexture.CreateImageView();
 
             _renderTextures![i] = renderTexture;
@@ -87,7 +87,7 @@ public class Scene
         _renderTextureBuffer = new VkBuffer(_context!, ViewportWidth * ViewportHeight * 4, BufferUsageFlags.TransferDstBit,
             MemoryPropertyFlags.HostCachedBit | MemoryPropertyFlags.HostCoherentBit | MemoryPropertyFlags.HostVisibleBit);
 
-        _renderImageCopyCmdBuffer = _context!.AllocateCommandBuffer();
+        _renderImageCopyCmdBuffer = _context!.AllocateCommandBuffer(_context.CommandPool);
         _renderImageCopyFence = _context.CreateFence();
     }
 
