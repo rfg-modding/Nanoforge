@@ -14,6 +14,8 @@ namespace Nanoforge.Render
         public Mat4 View = .Identity;
         public Mat4 Projection = .Identity;
         public f32 Speed = 3.0f;
+		public f32 MinSpeed = 0.1f;
+		public f32 MaxSpeed = 100.0f;
         public f32 SprintMultiplier = 2.0f;
         public f32 MovementSmoothing = 0.125f;
         public f32 LookSensitivity = 0.01f;
@@ -30,6 +32,19 @@ namespace Nanoforge.Render
         private Vec3 _camUp = .Zero;
         private Vec3 _camRight = .Zero;
         private Vec3 _camForward = .Zero;
+
+		public f32 FovDegrees
+		{
+			get
+			{
+				return Math.RadiansToDegrees(_fovRadians);
+			}
+			set
+			{
+				_fovRadians = Math.DegreesToRadians(value);
+				UpdateProjectionMatrix();
+			}
+		}
 
         public void Init(Vec3 initialPos, f32 initialFovDegrees, Vec2 viewportDimensions, f32 nearPlane, f32 farPlane)
         {
@@ -72,6 +87,17 @@ namespace Nanoforge.Render
                     TargetPosition += Up() * speed;
                 else if (input.KeyDown(.X))
                     TargetPosition += Down() * speed;
+
+				if (input.MouseScrollY != 0.0f)
+				{
+					f32 scrollDelta = (f32)input.MouseScrollY / 1000.0f;
+					System.Diagnostics.Debug.WriteLine(scope $"{scrollDelta}");
+					Speed += scrollDelta;
+					if (Speed < MinSpeed)
+					    Speed = MinSpeed;
+					if (Speed > MaxSpeed)
+					    Speed = MaxSpeed;
+				}
             }
 
             Position = Math.Lerp(Position, TargetPosition, MovementSmoothing);
@@ -85,7 +111,7 @@ namespace Nanoforge.Render
             UpdateProjectionMatrix();
         }
 
-        private void UpdateViewMatrix()
+        public void UpdateViewMatrix()
         {
             Vec3 defaultForward = .(0.0f, 0.0f, 1.0f);
             Vec3 defaultRight = .(1.0f, 0.0f, 0.0f);

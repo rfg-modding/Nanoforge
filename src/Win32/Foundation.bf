@@ -10000,6 +10000,11 @@ namespace Win32
             ((uint16)((((uint64)(value)) >> 16) & 0xffff))
         }
 
+		public static mixin GET_WHEEL_DELTA_WPARAM(uint64 wParam)
+		{
+			(int16)Win32.HIWORD!(wParam)
+		}
+
         public static mixin GET_X_LPARAM(int lParam)
         {
             ((int)(int16)((uint16)(((uint64)(lParam)) & 0xffff)))

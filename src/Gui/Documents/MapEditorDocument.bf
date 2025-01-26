@@ -84,7 +84,14 @@ namespace Nanoforge.Gui.Documents
             public bool HighlightSelectedObject = true;
         }
 
-        public static append CVar<MapEditorSettings> CVar_MapEditorSettings = .("Map Editor Settings");
+		[BonTarget, ReflectAll]
+		public class CameraSettings : EditorObject
+		{
+			public f32 Speed = 5.0f;
+		}
+
+		public static append CVar<MapEditorSettings> CVar_MapEditorSettings = .("Map Editor Settings");
+        public static append CVar<CameraSettings> CVar_CameraSettings = .("Camera Settings");
 
         private bool _showMapExportFolderSelectorError = false;
         private append String _mapExportFolderSelectorError;
@@ -258,6 +265,7 @@ namespace Nanoforge.Gui.Documents
             Scene.Camera.TargetPosition.x += 125.0f;
             Scene.Camera.TargetPosition.y = 250.0f;
             Scene.Camera.TargetPosition.z -= 250.0f;
+			Scene.Camera.Speed = CVar_CameraSettings.Value.Speed;
 
             CountObjectClassInstances();
 
@@ -839,76 +847,71 @@ namespace Nanoforge.Gui.Documents
             }*/
 
             //Camera settings popup
-            /*if (ImGui.BeginPopup("##CameraPopup"))
+            if (ImGui.BeginPopup("##CameraPopup"))
             {
-                state->FontManager->FontL.Push();
-                ImGui.Text(ICON_FA_CAMERA " Camera");
-                state->FontManager->FontL.Pop();
+				Fonts.FontL.Push();
+				ImGui.Text(scope String(Icons.ICON_FA_CAMERA)..Append(" Camera")..EnsureNullTerminator());
+				Fonts.FontL.Pop();
 
-                //Sync cvar with camera speed in case it was changed with the scrollbar
-                if (CVar_CameraSpeed.Get<f32>() != Scene->Cam.Speed)
+				//Sync cvar with camera speed in case it was changed with the scrollbar
+				if (CVar_CameraSettings.Value.Speed != Scene.Camera.Speed)
+				{
+					CVar_CameraSettings.Value.Speed = Scene.Camera.Speed;
+					CVar_CameraSettings.Save();
+				}
+
+                f32 fov = Scene.Camera.FovDegrees;
+                /*f32 nearPlane = Scene.Camera.GetNearPlane();*/
+                /*f32 farPlane = Scene.Camera.GetFarPlane();*/
+
+                if (ImGui.Button("0.1")) CVar_CameraSettings.Value.Speed = 0.1f;
+                ImGui.SameLine();
+                if (ImGui.Button("1.0")) CVar_CameraSettings.Value.Speed = 1.0f;
+                ImGui.SameLine();
+                if (ImGui.Button("10.0")) CVar_CameraSettings.Value.Speed = 10.0f;
+                ImGui.SameLine();
+                if (ImGui.Button("25.0")) CVar_CameraSettings.Value.Speed = 25.0f;
+                ImGui.SameLine();
+                if (ImGui.Button("50.0")) CVar_CameraSettings.Value.Speed = 50.0f;
+                ImGui.SameLine();
+                if (ImGui.Button("100.0")) CVar_CameraSettings.Value.Speed = 100.0f;
+
+                if (ImGui.InputFloat("Speed", &CVar_CameraSettings.Value.Speed))
                 {
-                    CVar_CameraSpeed.Get<f32>() = Scene->Cam.Speed;
-                    Config::Get()->Save();
+                    CVar_CameraSettings.Save();
                 }
-
-                //If popup is visible then redraw scene each frame. Simpler than trying to add checks for each option changing
-                Scene->NeedsRedraw = true;
-
-                f32 fov = Scene->Cam.GetFovDegrees();
-                f32 nearPlane = Scene->Cam.GetNearPlane();
-                f32 farPlane = Scene->Cam.GetFarPlane();
-                f32 lookSensitivity = Scene->Cam.GetLookSensitivity();
-
-                if (ImGui.Button("0.1")) CVar_CameraSpeed.Get<f32>() = 0.1f;
-                ImGui.SameLine();
-                if (ImGui.Button("1.0")) CVar_CameraSpeed.Get<f32>() = 1.0f;
-                ImGui.SameLine();
-                if (ImGui.Button("10.0")) CVar_CameraSpeed.Get<f32>() = 10.0f;
-                ImGui.SameLine();
-                if (ImGui.Button("25.0")) CVar_CameraSpeed.Get<f32>() = 25.0f;
-                ImGui.SameLine();
-                if (ImGui.Button("50.0")) CVar_CameraSpeed.Get<f32>() = 50.0f;
-                ImGui.SameLine();
-                if (ImGui.Button("100.0")) CVar_CameraSpeed.Get<f32>() = 100.0f;
-
-                if (ImGui.InputFloat("Speed", &CVar_CameraSpeed.Get<f32>()))
-                {
-                    Config::Get()->Save();
-                }
-                ImGui.InputFloat("Sprint speed", &Scene->Cam.SprintSpeed);
+                ImGui.InputFloat("Sprint multiplier", &Scene.Camera.SprintMultiplier);
 
                 if (ImGui.SliderFloat("Fov", &fov, 40.0f, 120.0f))
-                    Scene->Cam.SetFovDegrees(fov);
-                if (ImGui.InputFloat("Near plane", &nearPlane))
-                    Scene->Cam.SetNearPlane(nearPlane);
+                    Scene.Camera.FovDegrees = fov;
+                /*if (ImGui.InputFloat("Near plane", &nearPlane))
+                    Scene.Camera.SetNearPlane(nearPlane);
                 if (ImGui.InputFloat("Far plane", &farPlane))
-                    Scene->Cam.SetFarPlane(farPlane);
-                if (ImGui.InputFloat("Look sensitivity", &lookSensitivity))
-                    Scene->Cam.SetLookSensitivity(lookSensitivity);
+                    Scene.Camera.SetFarPlane(farPlane);*/
+                ImGui.InputFloat("Look sensitivity", &Scene.Camera.LookSensitivity);
 
-                if (ImGui.InputFloat3("Position", (float*)&Scene->Cam.camPosition))
+                if (ImGui.InputVec3("Position", ref Scene.Camera.Position))
                 {
-                    Scene->Cam.UpdateViewMatrix();
+                    Scene.Camera.UpdateViewMatrix();
                 }
 
                 //Sync camera speed with cvar
-                if (Scene->Cam.Speed != CVar_CameraSpeed.Get<f32>())
+                if (Scene.Camera.Speed != CVar_CameraSettings.Value.Speed)
                 {
-                    Scene->Cam.Speed = CVar_CameraSpeed.Get<f32>();
-                    Config::Get()->Save();
+                    Scene.Camera.Speed = CVar_CameraSettings.Value.Speed;
+                	CVar_CameraSettings.Save();
                 }
 
-                gui::LabelAndValue("Pitch:", std::to_string(Scene->Cam.GetPitchDegrees()));
-                gui::LabelAndValue("Yaw:", std::to_string(Scene->Cam.GetYawDegrees()));
+                /*gui::LabelAndValue("Pitch:", std::to_string(Scene.Camera.GetPitchDegrees()));
+                gui::LabelAndValue("Yaw:", std::to_string(Scene.Camera.GetYawDegrees()));
                 if (ImGui.Button("Zero"))
                 {
-                    Scene->Cam.yawRadians_ = ToRadians(180.0f);
-                    Scene->Cam.UpdateProjectionMatrix();
-                    Scene->Cam.UpdateViewMatrix();
-                }
+                    Scene.Camera.yawRadians_ = ToRadians(180.0f);
+                    Scene.Camera.UpdateProjectionMatrix();
+                    Scene.Camera.UpdateViewMatrix();
+                }*/
                 ImGui.EndPopup();
-            }*/
+            }
 
             //Map export popup
             if (ImGui.BeginPopup("##MapExportPopup"))

@@ -159,8 +159,7 @@ namespace Nanoforge.Misc
 
 
                 case Win32.WM_MOUSEWHEEL:
-                    int distance = Win32.HIWORD!(wParam); //Multiples of Win32.WHEEL_DELTA: https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-mousewheel
-                    MouseScrollY = distance * Win32.WHEEL_DELTA;
+                    MouseScrollY = Win32.GET_WHEEL_DELTA_WPARAM!(wParam);
                 default:
             }
         }
