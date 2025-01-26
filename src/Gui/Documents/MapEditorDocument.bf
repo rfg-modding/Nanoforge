@@ -82,6 +82,7 @@ namespace Nanoforge.Gui.Documents
         {
             public String MapExportPath = new .() ~delete _;
             public bool HighlightSelectedObject = true;
+			public bool RotateBoundingBoxes = false;
         }
 
 		[BonTarget, ReflectAll]
@@ -533,7 +534,14 @@ namespace Nanoforge.Gui.Documents
                         }
 
                         //Draw bbox
-                        Scene.DrawBox(bbox.Min, bbox.Max, Vec4(color.x, color.y, color.z, 1.0f));
+						if (CVar_MapEditorSettings.Value.RotateBoundingBoxes && obj.Orient.Enabled)
+						{
+							Scene.DrawBoxRotated(bbox.Min, bbox.Max, obj.Orient.Value, obj.Position, Vec4(color.x, color.y, color.z, 1.0f));
+						}
+						else
+						{
+							Scene.DrawBox(bbox.Min, bbox.Max, Vec4(color.x, color.y, color.z, 1.0f));
+						}
 
                         //Calculate bottom center of box so we can draw a line from the bottom of the box into the sky
                         /*Vec3 lineStart;
@@ -547,7 +555,14 @@ namespace Nanoforge.Gui.Documents
                     else
                     {
                         Vec4 color = .(objectClass.Color.x, objectClass.Color.y, objectClass.Color.z, 1.0f);
-                        Scene.DrawBox(bbox.Min, bbox.Max, color);
+						if (CVar_MapEditorSettings.Value.RotateBoundingBoxes && obj.Orient.Enabled)
+						{
+							Scene.DrawBoxRotated(bbox.Min, bbox.Max, obj.Orient.Value, obj.Position, color);
+						}
+						else
+						{
+							Scene.DrawBox(bbox.Min, bbox.Max, color);
+						}
                     }
 
                 }
@@ -633,6 +648,12 @@ namespace Nanoforge.Gui.Documents
 
                         }
                         ImGui.TooltipOnPrevious("Vary the color of the selected object to make it more clear");
+
+						if (ImGui.MenuItem("Rotate bounding boxes", null, &CVar_MapEditorSettings.Value.RotateBoundingBoxes))
+						{
+
+						}
+						ImGui.TooltipOnPrevious("Rotate bounding boxes when drawing them. They get rotated to whatever the 'Orient' value gets set to. Requires the object to have the orient field enabled. Useful for objects that don't have a mesh.");
 
                         ImGui.EndMenu();
                     }

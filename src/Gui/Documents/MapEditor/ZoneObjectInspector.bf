@@ -155,21 +155,20 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
         {
             editor.UnsavedChanges = true;
         }
-        //Disabled in favor of pitch/yaw/roll sliders. Would be willing to re-enable as a opt-in feature so people can intentionally screw up the matrix and make cursed maps
-        /*if (ImGui.InputOptionalMat3("Orientation", ref obj.Orient))
-        {
-            editor.UnsavedChanges = true;
-            if (obj.RenderObject != null && obj.Orient.Enabled)
-            {
-                obj.RenderObject.Rotation = obj.Orient.Value;
-            }
-        }*/
         ImGui.Checkbox("##AnglesEnabled", &obj.Orient.Enabled);
         ImGui.SameLine();
         using (ImGui.DisabledBlock(!obj.Orient.Enabled))
         {
             if (ImGui.TreeNodeEx("Orientation", .FramePadding))
             {
+				if (ImGui.Button("Reset"))
+				{
+					obj.Orient.Value = Mat3.Identity;
+					obj.Pitch = 0.0f;
+					obj.Yaw = 0.0f;
+					obj.Roll = 0.0f;
+				}
+
                 f32 initialPitch = obj.Pitch;
                 f32 initialYaw = obj.Yaw;
                 f32 initialRoll = obj.Roll;
@@ -206,6 +205,14 @@ public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
                     obj.RenderObject.Rotation = obj.Orient.Value;
                 }
 
+				if (ImGui.InputMat3("Matrix", ref obj.Orient.Value))
+				{
+				    editor.UnsavedChanges = true;
+				    if (obj.RenderObject != null && obj.Orient.Enabled)
+				    {
+				        obj.RenderObject.Rotation = obj.Orient.Value;
+				    }
+				}
                 ImGui.TreePop();
             }
         }
