@@ -26,7 +26,7 @@ public class Camera
     private float _nearPlane;
     private float _farPlane;
 
-    public float Speed = 200.0f;
+    public float Speed = 400.0f;
     public float MovementSmoothing = 0.125f;
     public float LookSensitivity = 0.03f;
     public float LookSmoothing = 0.4f;
