@@ -28,6 +28,8 @@ public unsafe class Texture2D : VkMemory
     public Sampler SamplerHandle => _textureSampler;
 
     public bool Destroyed { get; private set; } = false;
+
+    public static Texture2D DefaultTexture { get; private set; } = null!;
     
     public Texture2D(RenderContext context, uint width, uint height, uint mipLevels, Format format, ImageTiling tiling, ImageUsageFlags usage, MemoryPropertyFlags properties, ImageAspectFlags imageAspectFlags): base(context)
     {
@@ -387,5 +389,10 @@ public unsafe class Texture2D : VkMemory
         texture.CreateImageView();
 
         return texture;
+    }
+
+    public static void LoadDefaultTexture(RenderContext context, CommandPool pool, Queue queue)
+    {
+        DefaultTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}White.png");
     }
 }

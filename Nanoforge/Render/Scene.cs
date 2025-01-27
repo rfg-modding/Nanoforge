@@ -55,9 +55,9 @@ public class Scene
         InitRenderTextures();
     }
 
-    public RenderObject CreateRenderObject(string materialName, Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D texture)
+    public RenderObject CreateRenderObject(string materialName, Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures)
     {
-        RenderObject renderObject = new(position, orient, mesh, texture, materialName);
+        RenderObject renderObject = new(position, orient, mesh, textures, materialName);
         RenderObjects.Add(renderObject);
         return renderObject;
     }

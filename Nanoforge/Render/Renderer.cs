@@ -44,6 +44,9 @@ public unsafe class Renderer
         CreateUniformBuffers();
         MaterialHelper.Init(Context, _renderPass, _perFrameUniformBuffers!);
         CreateSyncObjects();
+        
+        //Load 1x1 white texture to use when the maximum number of textures aren't provided to a RenderObject
+        Texture2D.LoadDefaultTexture(Context, Context.CommandPool, Context.GraphicsQueue);
     }
 
     public void Shutdown()
@@ -104,6 +107,8 @@ public unsafe class Renderer
                 buffer.Destroy();
             }
         }
+        
+        Texture2D.DefaultTexture.Destroy();
 
         Context.Vk.DestroyRenderPass(Context.Device, Context.PrimaryRenderPass, null);
         MaterialHelper.Destroy();

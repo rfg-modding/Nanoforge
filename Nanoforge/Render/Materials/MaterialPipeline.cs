@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -79,33 +80,42 @@ public class MaterialPipeline
 
     private unsafe void CreateDescriptorSetLayout()
     {
-        DescriptorSetLayoutBinding uboLayoutBinding = new()
+        List<DescriptorSetLayoutBinding> bindings = new List<DescriptorSetLayoutBinding>();
+        
+        //Per frame uniform buffer
+        bindings.Add(new()
         {
             Binding = 0,
             DescriptorCount = 1,
             DescriptorType = DescriptorType.UniformBuffer,
             PImmutableSamplers = null,
             StageFlags = ShaderStageFlags.VertexBit,
-        };
+        });
 
-        DescriptorSetLayoutBinding samplerLayoutBinding = new()
+        //Samplers for the maximum of 10 textures that can be bound to a RenderObject
+        uint firstSamplerBinding = 1;
+        for (uint i = 0; i < 10; i++)
         {
-            Binding = 1,
-            DescriptorCount = 1,
-            DescriptorType = DescriptorType.CombinedImageSampler,
-            PImmutableSamplers = null,
-            StageFlags = ShaderStageFlags.FragmentBit,
-        };
+            bindings.Add(new()
+            {
+                Binding = firstSamplerBinding + i,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.CombinedImageSampler,
+                PImmutableSamplers = null,
+                StageFlags = ShaderStageFlags.FragmentBit,
+            });
+        }
 
-        DescriptorSetLayoutBinding[] bindings = [uboLayoutBinding, samplerLayoutBinding];
+        //DescriptorSetLayoutBinding[] bindingsArray = [uboLayoutBinding, samplerLayoutBinding];
+        DescriptorSetLayoutBinding[] bindingsArray = bindings.ToArray();
 
-        fixed (DescriptorSetLayoutBinding* bindingsPtr = bindings)
+        fixed (DescriptorSetLayoutBinding* bindingsPtr = bindingsArray)
         fixed (DescriptorSetLayout* descriptorSetLayoutPtr = &DescriptorSetLayout)
         {
             DescriptorSetLayoutCreateInfo layoutInfo = new()
             {
                 SType = StructureType.DescriptorSetLayoutCreateInfo,
-                BindingCount = (uint)bindings.Length,
+                BindingCount = (uint)bindingsArray.Length,
                 PBindings = bindingsPtr,
             };
 

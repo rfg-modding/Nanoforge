@@ -135,7 +135,7 @@ public static class MaterialHelper
     {
         var layouts = new DescriptorSetLayout[Renderer.MaxFramesInFlight];
         Array.Fill(layouts, material.DescriptorSetLayout);
-        
+
         DescriptorSet[] descriptorSets = new DescriptorSet[Renderer.MaxFramesInFlight];
         for (int i = 0; i < descriptorSets.Length; i++)
         {
@@ -151,16 +151,24 @@ public static class MaterialHelper
                 Range = (ulong)Unsafe.SizeOf<PerFrameBuffer>(),
             };
 
-            DescriptorImageInfo imageInfo = new()
+            DescriptorImageInfo[] imageInfos = new DescriptorImageInfo[renderObject.Textures.Length];
+            for (var j = 0; j < renderObject.Textures.Length; j++)
             {
-                ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
-                ImageView = renderObject.Texture.ImageViewHandle,
-                Sampler = renderObject.Texture.SamplerHandle
-            };
+                var texture = renderObject.Textures[j];
+                imageInfos[j] = new DescriptorImageInfo
+                {
+                    ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
+                    ImageView = texture.ImageViewHandle,
+                    Sampler = texture.SamplerHandle
+                };
+            }
 
-            var descriptorWrites = new WriteDescriptorSet[]
+            fixed (DescriptorImageInfo* imageInfoPtr = imageInfos)
             {
-                new()
+                List<WriteDescriptorSet> descriptorWrites = new();
+
+                //Per frame uniform buffer
+                descriptorWrites.Add(new()
                 {
                     SType = StructureType.WriteDescriptorSet,
                     DstSet = descriptorSets[i],
@@ -169,22 +177,28 @@ public static class MaterialHelper
                     DescriptorType = DescriptorType.UniformBuffer,
                     DescriptorCount = 1,
                     PBufferInfo = &bufferInfo,
-                },
-                new()
-                {
-                    SType = StructureType.WriteDescriptorSet,
-                    DstSet = descriptorSets[i],
-                    DstBinding = 1,
-                    DstArrayElement = 0,
-                    DescriptorType = DescriptorType.CombinedImageSampler,
-                    DescriptorCount = 1,
-                    PImageInfo = &imageInfo,
-                }
-            };
+                });
 
-            fixed (WriteDescriptorSet* descriptorWritesPtr = descriptorWrites)
-            {
-                _context!.Vk.UpdateDescriptorSets(_context.Device, (uint)descriptorWrites.Length, descriptorWritesPtr, 0, null);
+                uint firstSamplerBinding = 1;
+                for (uint j = 0; j < renderObject.Textures.Length; j++)
+                {
+                    descriptorWrites.Add(new()
+                    {
+                        SType = StructureType.WriteDescriptorSet,
+                        DstSet = descriptorSets[i],
+                        DstBinding = firstSamplerBinding + j,
+                        DstArrayElement = 0,
+                        DescriptorType = DescriptorType.CombinedImageSampler,
+                        DescriptorCount = 1,
+                        PImageInfo = imageInfoPtr + j,
+                    });
+                }
+
+                var descriptorWritesArray = descriptorWrites.ToArray();
+                fixed (WriteDescriptorSet* descriptorWritesPtr = descriptorWritesArray)
+                {
+                    _context!.Vk.UpdateDescriptorSets(_context.Device, (uint)descriptorWritesArray.Length, descriptorWritesPtr, 0, null);
+                }
             }
         }
 

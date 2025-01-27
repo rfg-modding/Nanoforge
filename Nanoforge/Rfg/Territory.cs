@@ -27,7 +27,6 @@ public class Territory : EditorObject
             //TODO: Maybe make a wrapper class for command pools / command buffers that knows which pool and queue it belongs to so less params need to get passed around.
             //TODO: Maybe even have a separate "ThreadRenderContext" that gets passed around
             Dictionary<ProjectMesh, Mesh> meshCache = new();
-            Texture2D whiteTexture = Texture2D.FromFile(renderer.Context, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue, $"{BuildConfig.AssetsDirectory}White.png");
             
             //Load low lod terrain meshes
             foreach (Zone zone in Zones)
@@ -45,7 +44,7 @@ public class Territory : EditorObject
                         continue;
                     }
                     
-                    scene.CreateRenderObject("TerrainLowLod", terrain.Position, Matrix4x4.Identity, lowLodMesh, whiteTexture);
+                    scene.CreateRenderObject("TerrainLowLod", terrain.Position, Matrix4x4.Identity, lowLodMesh, []);
                 }
             }
             
