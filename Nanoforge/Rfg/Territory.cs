@@ -27,13 +27,31 @@ public class Territory : EditorObject
             //TODO: Maybe make a wrapper class for command pools / command buffers that knows which pool and queue it belongs to so less params need to get passed around.
             //TODO: Maybe even have a separate "ThreadRenderContext" that gets passed around
             Dictionary<ProjectMesh, Mesh> meshCache = new();
+            Dictionary<ProjectTexture, Texture2D> textureCache = new();
             
             //Load low lod terrain meshes
             foreach (Zone zone in Zones)
             {
                 ZoneTerrain terrain = zone.Terrain ?? throw new Exception("Zone.Terrain is null");
-                //TODO: Port code to load low lod terrain textures
-                
+                List<Texture2D> lowLodTextures = new List<Texture2D>();
+                Texture2D? combTexture = LoadTexture(terrain.CombTexture, textureCache, renderer, scene);
+                if (combTexture != null)
+                    lowLodTextures.Add(combTexture);
+                else
+                    Log.Warning("Failed to load comb texture for {}. Terrain may look wrong.", Name);
+
+                Texture2D? ovlTexture = LoadTexture(terrain.OvlTexture, textureCache, renderer, scene);
+                if (ovlTexture != null)
+                    lowLodTextures.Add(ovlTexture);
+                else
+                    Log.Warning("Failed to load ovl texture for {}. Terrain may look wrong.", Name);
+
+                Texture2D? splatmap = LoadTexture(terrain.Splatmap, textureCache, renderer, scene);
+                if (splatmap != null)
+                    lowLodTextures.Add(splatmap);
+                else
+                    Log.Warning("Failed to load splatmap texture for {}. Terrain may look wrong.", Name);
+
                 //One low lod mesh per subzone
                 for (int i = 0; i < 9; i++)
                 {
@@ -44,7 +62,7 @@ public class Territory : EditorObject
                         continue;
                     }
                     
-                    scene.CreateRenderObject("TerrainLowLod", terrain.Position, Matrix4x4.Identity, lowLodMesh, []);
+                    scene.CreateRenderObject("TerrainLowLod", terrain.Position, Matrix4x4.Identity, lowLodMesh, lowLodTextures.ToArray());
                 }
             }
             
@@ -59,6 +77,32 @@ public class Territory : EditorObject
         }
     }
 
+    private Texture2D? LoadTexture(ProjectTexture? projectTexture, Dictionary<ProjectTexture, Texture2D> textureCache, Renderer renderer, Scene scene)
+    {
+        try
+        {
+            if (projectTexture == null)
+                return null;
+            if (textureCache.ContainsKey(projectTexture))
+                return textureCache[projectTexture];
+
+            Texture2D? texture = projectTexture.CreateRenderTexture(renderer, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue);
+            if (texture == null)
+            {
+                Log.Error("Failed to create render texture for project texture {}, UID: {}", projectTexture.Name, projectTexture.UID);
+                return null;
+            }
+            
+            textureCache[projectTexture] = texture;
+            return texture;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, $"Error loading project texture {projectTexture?.Name ?? "NULL"}");
+            return null;
+        }
+    }
+    
     private Mesh? LoadMesh(ProjectMesh? projectMesh, Dictionary<ProjectMesh, Mesh> meshCache, Renderer renderer, Scene scene)
     {
         try

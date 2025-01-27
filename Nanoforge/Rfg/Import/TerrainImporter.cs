@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Nanoforge.Editor;
 using Nanoforge.FileSystem;
 using RFGM.Formats.Meshes;
 using RFGM.Formats.Meshes.Shared;
+using RFGM.Formats.Peg;
+using RFGM.Formats.Peg.Models;
 using Serilog;
 
 namespace Nanoforge.Rfg.Import;
@@ -32,8 +35,29 @@ public class TerrainImporter
             LoadPrimaryTerrain(packfileName, name, terrain, createdObjects);
             Log.Information("Done importing primary terrain files.");
 
+            //Index textures in this maps packfile + common file so they can be found
+            TextureIndex.IndexVpp(packfileName);
+            TextureIndex.IndexVpp("mp_common.vpp_pc"); //TODO: Do this based on precache file name instead of hardcoding it
+
+            //Load zone-wide textures
+            {
+                ProjectTexture? combTexture = GetOrLoadTerrainTexture($"{name}comb.tga", createdObjects);
+                ProjectTexture? ovlTexture = GetOrLoadTerrainTexture($"{name}_ovl.tga", createdObjects);
+                ProjectTexture? splatmap = GetOrLoadTerrainTexture($"{name}_alpha00.tga", createdObjects);
+                if (combTexture == null)
+                    Log.Warning("Failed to load comb texture for {}", name);
+                if (ovlTexture == null)
+                    Log.Warning("Failed to load ovl texture for {}", name);
+                if (splatmap == null)
+                    Log.Warning("Failed to load splatmap texture for {}", name);
+
+                terrain.CombTexture = combTexture;
+                terrain.OvlTexture = ovlTexture;
+                terrain.Splatmap = splatmap;
+            }
+
             //TODO: Port code to load high lods meshes, rock meshes, road meshes, and their textures. This time split each into it's own function.
-            //TODO: Start at line 75 of TerrainImporter.bf
+            //TODO: Start at line 96 of TerrainImporter.bf
 
             return terrain;
         }
@@ -70,6 +94,68 @@ public class TerrainImporter
             mesh.VertexBuffer = vertexBuffer;
             terrain.LowLodTerrainMeshes[i] = mesh;
             createdObjects.Add(mesh);
+        }
+    }
+
+    private ProjectTexture? GetOrLoadTerrainTexture(string tgaName, List<EditorObject> createdObjects)
+    {
+        try
+        {
+            ImportedTextures importedTextures = NanoDB.FindOrCreate<ImportedTextures>("Global::ImportedTextures");
+            if (importedTextures.GetTexture(tgaName) is { } cachedTexture)
+                return cachedTexture;
+
+            //Get file paths
+            string pegCpuFilePath = TextureIndex.GetTexturePegPath(tgaName) ?? throw new Exception($"Importer failed to find peg path for texture {tgaName} during terrain import");
+            string pegGpuFilePath = new string(pegCpuFilePath);
+            if (pegGpuFilePath.EndsWith(".cpeg_pc"))
+                pegGpuFilePath = pegGpuFilePath.Replace(".cpeg_pc", ".gpeg_pc");
+            if (pegGpuFilePath.EndsWith(".cvbm_pc"))
+                pegGpuFilePath = pegGpuFilePath.Replace(".cvbm_pc", ".gvbm_pc");
+
+            //Extract cpu file & gpu file
+            Stream cpuFile = PackfileVFS.OpenFile(pegCpuFilePath) ?? throw new Exception($"Importer failed to open peg cpu file at {pegCpuFilePath}");
+            Stream gpuFile = PackfileVFS.OpenFile(pegGpuFilePath) ?? throw new Exception($"Importer failed to open peg gpu file at {pegGpuFilePath}");
+
+            PegReader reader = new();
+            ProjectTexture? result = null;
+            LogicalTextureArchive peg = reader.Read(cpuFile, gpuFile, tgaName, CancellationToken.None);
+            foreach (LogicalTexture logicalTexture in peg.LogicalTextures)
+            {
+                using var memoryStream = new MemoryStream();
+                logicalTexture.Data.CopyTo(memoryStream);
+                byte[] pixels = memoryStream.ToArray();
+
+                Silk.NET.Vulkan.Format pixelFormat = ProjectTexture.PegFormatToVulkanFormat(logicalTexture.Format, logicalTexture.Flags);
+                ProjectBuffer pixelBuffer = NanoDB.CreateBuffer(pixels, logicalTexture.Name) ?? throw new Exception($"Importer failed to create buffer for {logicalTexture.Name}");
+                ProjectTexture texture = new(pixelBuffer)
+                {
+                    Format = pixelFormat,
+                    Width = logicalTexture.Size.Width,
+                    Height = logicalTexture.Size.Height,
+                    NumMipLevels = logicalTexture.MipLevels,
+                };
+
+                if (string.Equals(logicalTexture.Name, tgaName, StringComparison.OrdinalIgnoreCase))
+                {
+                    result = texture;
+                }
+
+                //Track imported textures so we don't import multiple times
+                importedTextures.AddTexture(texture);
+            }
+
+            if (result == null)
+            {
+                Log.Error($"TerrainImporter.GetOrLoadTerrainTexture() failed to find '{tgaName}'");
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, $"Failed to load terrain texture {tgaName}");
+            return null;
         }
     }
 }
