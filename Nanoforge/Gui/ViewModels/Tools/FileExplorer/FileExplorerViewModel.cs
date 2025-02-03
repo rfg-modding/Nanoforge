@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
+using Microsoft.Extensions.FileSystemGlobbing;
 using Nanoforge.FileSystem;
 using Nanoforge.Gui.Views.Tools.FileExplorer;
 using Serilog;
@@ -251,6 +252,15 @@ public partial class FileExplorerViewModel : Tool
             if (RegexSearchMode)
             {
                 node.MatchesSearch = _searchRegex!.IsMatch(node.Text);
+            }
+            else if (Search.Contains('*'))
+            {
+                //Uses FileSystemGlobbing library to match filename with wildcards. A bit easier to use than regex.
+                //See here for more info: https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.filesystemglobbing.matcher?view=net-9.0-pp#remarks
+                //Note: This doesn't support any of the directory related searches like styles/*.xtbl yet. Couldn't get it to work.
+                Matcher matcher = new();
+                matcher.AddInclude(Search);
+                node.MatchesSearch = matcher.Match(node.Text).HasMatches;
             }
             else
             {
