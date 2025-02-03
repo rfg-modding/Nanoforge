@@ -1,0 +1,88 @@
+﻿<UserControl x:Class="Nanoforge.Gui.Views.Tools.FileExplorer.FileExplorerView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels.Tools.FileExplorer"
+             mc:Ignorable="d"
+             d:DesignWidth="300" d:DesignHeight="700"
+             x:DataType="vm:FileExplorerViewModel" x:CompileBindings="True">
+
+    <Design.DataContext>
+        <vm:FileExplorerViewModel />
+    </Design.DataContext>
+
+    <Grid Focusable="True" Margin="4">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="{Binding StatusText}" IsVisible="{Binding StatusTextVisible}" />
+        <Grid Grid.Row="0" HorizontalAlignment="Stretch" IsVisible="{Binding !StatusTextVisible}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBox Grid.Column="0" Grid.Row="0" Watermark="Search" Text="{Binding Search}" IsVisible="{Binding !StatusTextVisible}"
+                     HorizontalAlignment="Stretch" Height="30"/>
+            <Button Grid.Column="0" Grid.Row="0" Content="x" HorizontalAlignment="Right" Height="20" Width="20" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Top"
+                    Margin="0 0 4 0" Command="{Binding ResetSearchCommand}">
+                <Button.Styles>
+                    <Style Selector="Button">
+                        <Setter Property="CornerRadius" Value="20"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+            <ToggleButton Grid.Column="1" Grid.Row="0" Content="Cc" IsChecked="{Binding CaseSensitiveSearch}" Margin="4 0 0 0" Height="32" Width="32" 
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                          ToolTip.Tip="Match case" ToolTip.ShowDelay="200" Padding="0" IsEnabled="{Binding !RegexSearchMode}"/>
+            <ToggleButton Grid.Column="2" Grid.Row="0" Content="*." IsChecked="{Binding RegexSearchMode}" Margin="4 0 0 0" Height="32" Width="32" 
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                          ToolTip.Tip="Regex" ToolTip.ShowDelay="200" Padding="0"/>
+            <ToggleButton Grid.Column="3" Grid.Row="0" Content="X" IsChecked="{Binding HideUnsupportedFormats}" Margin="4 0 0 0" Height="32" Width="32" 
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                          ToolTip.Tip="Hide file formats that can't be opened from the file explorer" ToolTip.ShowDelay="200" Padding="0"/>
+            
+            <ProgressBar Grid.Column="0" Grid.Row="1" IsIndeterminate="True" IsVisible="{Binding SearchInProgress}" Height="8"/>
+            
+            <TextBlock Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="4" Text="{Binding SearchError}" Foreground="Yellow" FontWeight="SemiBold"
+                       TextWrapping="WrapWithOverflow" VerticalAlignment="Bottom" Margin="0 4 0 0"
+                       IsVisible="{Binding SearchError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        </Grid>
+        
+        <TreeView Grid.Row="1" x:Name="FileTreeView" ItemsSource="{Binding Entries}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                  IsVisible="{Binding !StatusTextVisible}" Margin="0 4 0 0" DoubleTapped="FileTreeView_OnDoubleTapped">
+            <TreeView.Styles>
+                <Style Selector="TreeViewItem" x:DataType="vm:FileExplorerNodeViewModel">
+                    <Setter Property="Tag" Value="{Binding}"/>
+                    <Setter Property="IsVisible">
+                        <Setter.Value>
+                            <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                                <Binding Path="MatchesSearch"/>
+                                <Binding Path="AnyChildMatchesSearch"/>
+                            </MultiBinding>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="ItemsSource" Value="{Binding Children}" />
+                    <Setter Property="HeaderTemplate">
+                        <Setter.Value>
+                            <DataTemplate x:DataType="vm:FileExplorerNodeViewModel">
+                                <Grid>
+                                    <TextBlock Text="{Binding Text}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TreeView.Styles>
+        </TreeView>
+    </Grid>
+</UserControl>

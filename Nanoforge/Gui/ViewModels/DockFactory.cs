@@ -11,6 +11,7 @@ using Nanoforge.Gui.ViewModels.Docks;
 using Nanoforge.Gui.ViewModels.Documents;
 using Nanoforge.Gui.ViewModels.Pages;
 using Nanoforge.Gui.ViewModels.Tools;
+using Nanoforge.Gui.ViewModels.Tools.FileExplorer;
 
 namespace Nanoforge.Gui.ViewModels;
 
@@ -23,9 +24,26 @@ public class DockFactory : Factory
 
     public override IRootDock CreateLayout()
     {
+        var fileExplorer = new FileExplorerViewModel { Id = "File explorer", Title = "File explorer" };
         var outliner = new OutlinerViewModel { Id = "Outliner", Title = "Outliner" };
         var inspector = new InspectorViewModel { Id = "Inspector", Title = "Inspector" };
 
+        var leftDock = new ProportionalDock
+        {
+            Proportion = 0.20,
+            Orientation = Orientation.Vertical,
+            ActiveDockable = null,
+            VisibleDockables = CreateList<IDockable>
+            (
+                new ToolDock
+                {
+                    ActiveDockable = fileExplorer,
+                    VisibleDockables = CreateList<IDockable>(fileExplorer),
+                    Alignment = Alignment.Left
+                }
+            )
+        };
+        
         var rightDock = new ProportionalDock
         {
             Proportion = 0.20,
@@ -62,7 +80,7 @@ public class DockFactory : Factory
             Orientation = Orientation.Horizontal,
             VisibleDockables = CreateList<IDockable>
             (
-                //leftDock,
+                leftDock,
                 new ProportionalDockSplitter(),
                 documentDock,
                 new ProportionalDockSplitter(),
@@ -109,6 +127,7 @@ public class DockFactory : Factory
     {
         ContextLocator = new Dictionary<string, Func<object?>>
         {
+            ["File explorer"] = () => new FileExplorer(),
             ["Outliner"] = () => new Outliner(),
             ["Inspector"] = () => new Inspector(),
             ["Editor"] = () => layout,

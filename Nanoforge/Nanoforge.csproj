@@ -20,11 +20,13 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="11.2.0" />
+        <PackageReference Include="Avalonia.Controls.TreeDataGrid" Version="11.1.1" />
         <PackageReference Include="Avalonia.Desktop" Version="11.2.0" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.0" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.0" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.2.0" />
+        <PackageReference Include="Avalonia.Xaml.Behaviors" Version="11.2.0.8" />
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
         <PackageReference Include="Dock.Avalonia" Version="11.2.0" />
         <PackageReference Include="Dock.Model.Mvvm" Version="11.2.0" />
@@ -40,6 +42,7 @@
         <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.22.0" />
         <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.22.0" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
+        <PackageReference Include="System.Reactive" Version="6.0.1" />
     </ItemGroup>
 
     <ItemGroup>
@@ -50,7 +53,6 @@
     <ItemGroup>
       <AdditionalFiles Include="Gui\Views\MainView.axaml" />
       <AdditionalFiles Include="Gui\Views\MainWindow.axaml" />
-      <AdditionalFiles Include="Gui\Views\Tools\FileExplorerView.axaml" />
       <AdditionalFiles Include="Gui\Views\Tools\InspectorView.axaml" />
       <AdditionalFiles Include="Gui\Views\Tools\OutlinerView.axaml" />
     </ItemGroup>
@@ -59,6 +61,10 @@
     <ItemGroup>
       <Compile Update="Gui\Views\Documents\MapEditorDocumentView.axaml.cs">
         <DependentUpon>MapEditorDocument.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Gui\Views\Tools\FileExplorer\FileExplorerView.axaml.cs">
+        <DependentUpon>FileExplorerView.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
     </ItemGroup>
