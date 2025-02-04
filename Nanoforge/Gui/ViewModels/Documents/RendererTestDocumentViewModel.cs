@@ -169,7 +169,7 @@ public partial class RendererTestDocumentViewModel : Document
     private Mesh LoadRfgStaticMeshFromPackfile(RenderContext context, string cpuFilePath)
     {
         MeshInstanceData meshData = LoadRfgStaticMesh(cpuFilePath);
-        Mesh mesh = new Mesh(context, meshData.Vertices, meshData.Indices, meshData.Config.NumVertices, meshData.Config.NumIndices, (uint)meshData.Config.IndexSize, context.TransferCommandPool, context.TransferQueue);
+        Mesh mesh = new Mesh(context, meshData, context.TransferCommandPool, context.TransferQueue);
         return mesh;
     }
 

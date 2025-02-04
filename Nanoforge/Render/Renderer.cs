@@ -316,17 +316,7 @@ public unsafe class Renderer
 
             foreach (RenderObject renderObject in materialGroup)
             {
-                Matrix4x4 translation = Matrix4x4.CreateTranslation(renderObject.Position);
-                Matrix4x4 rotation = renderObject.Orient;
-                Matrix4x4 scale = Matrix4x4.CreateScale(renderObject.Scale);
-                Matrix4x4 model = rotation * translation * scale;
-                PerObjectPushConstants pushConstants = new()
-                {
-                    Model = model
-                };
-                Context.Vk.CmdPushConstants(commandBuffer, pipeline.Layout, ShaderStageFlags.VertexBit, 0, (uint)Unsafe.SizeOf<PerObjectPushConstants>(), &model);
-
-                renderObject.Draw(Context, commandBuffer, index);
+                renderObject.Draw(Context, commandBuffer, pipeline, index);
             }
         }
 

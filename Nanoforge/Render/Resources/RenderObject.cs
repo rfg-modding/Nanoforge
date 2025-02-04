@@ -1,7 +1,10 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Nanoforge.Render.Materials;
+using Nanoforge.Render.Misc;
 using Serilog;
+using Silk.NET.OpenAL;
 using Silk.NET.Vulkan;
 
 namespace Nanoforge.Render.Resources;
@@ -43,14 +46,23 @@ public class RenderObject
         Material = MaterialHelper.CreateMaterialInstance(materialName, this);
     }
     
-    public unsafe void Draw(RenderContext context, CommandBuffer commandBuffer, uint swapchainImageIndex)
+    public virtual unsafe void Draw(RenderContext context, CommandBuffer commandBuffer, MaterialPipeline pipeline, uint swapchainImageIndex)
     {
+        Matrix4x4 translation = Matrix4x4.CreateTranslation(Position);
+        Matrix4x4 rotation = Orient;
+        Matrix4x4 scale = Matrix4x4.CreateScale(Scale);
+        Matrix4x4 model = rotation * translation * scale;
+        PerObjectPushConstants pushConstants = new()
+        {
+            Model = model
+        };
+        context.Vk.CmdPushConstants(commandBuffer, pipeline.Layout, ShaderStageFlags.VertexBit, 0, (uint)Unsafe.SizeOf<PerObjectPushConstants>(), &model);
+        
         Material.Bind(context, commandBuffer, swapchainImageIndex);
-        Mesh.Bind(context, commandBuffer);
-        context.Vk.CmdDrawIndexed(commandBuffer, Mesh.IndexCount, 1, 0, 0, 0);
+        Mesh.Draw(context, commandBuffer);
     }
 
-    public void Destroy()
+    public virtual void Destroy()
     {
         Mesh.Destroy();
         foreach (Texture2D texture in Textures)

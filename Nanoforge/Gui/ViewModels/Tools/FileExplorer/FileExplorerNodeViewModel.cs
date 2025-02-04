@@ -22,4 +22,21 @@ public partial class FileExplorerNodeViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _anyChildMatchesSearch = true;
+
+    public string Path
+    {
+        get
+        {
+            string path = Text;
+            FileExplorerNodeViewModel? parent = Parent;
+            while (parent != null)
+            {
+                path = $"{parent.Text}/{path}";
+                parent = parent.Parent;
+            }
+            path = $"//data/{path}";
+        
+            return path;
+        }
+    }
 }

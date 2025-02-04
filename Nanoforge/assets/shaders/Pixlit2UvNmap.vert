@@ -21,7 +21,7 @@ layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out vec4 fragTangent;
 layout(location = 2) out vec4 fragNormal;
 
-void main() {
+void main() { //TODO: Fix stupid brace style in shaders
     gl_Position = ubo.proj * ubo.view * objectData.model * vec4(inPosition, 1.0);
     fragTexCoord = vec2(float(inTexCoord.x), float(inTexCoord.y)) / 1024.0f;
     fragTangent = inTangent;

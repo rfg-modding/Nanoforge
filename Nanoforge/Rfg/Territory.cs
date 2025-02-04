@@ -4,6 +4,7 @@ using System.Numerics;
 using Nanoforge.Editor;
 using Nanoforge.Render;
 using Nanoforge.Render.Resources;
+using RFGM.Formats.Meshes.Shared;
 using Serilog;
 
 namespace Nanoforge.Rfg;
@@ -114,7 +115,18 @@ public class Territory : EditorObject
 
             byte[] vertices = projectMesh.VertexBuffer?.Load() ?? throw new Exception("Failed to load vertex buffer");
             byte[] indices = projectMesh.IndexBuffer?.Load() ?? throw new Exception("Failed to load index buffer");
-            Mesh mesh = new(renderer.Context, vertices, indices, projectMesh.NumVertices, projectMesh.NumIndices, projectMesh.IndexSize, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue);
+            
+            //TODO: TEMPORARY CHANGE - DO NOT COMMIT - MUST EDIT ALL CODE TO PASS ProjectMesh TO RENDERER ONCE CHUNK VIEWER IS WORKING WELL
+            MeshInstanceData meshInstance = new MeshInstanceData(new MeshConfig()
+            {
+                NumVertices = projectMesh.NumVertices,
+                NumIndices = projectMesh.NumIndices,
+                IndexSize = projectMesh.IndexSize,
+                Submeshes = projectMesh.Submeshes,
+                RenderBlocks = projectMesh.RenderBlocks,
+            }, vertices, indices);
+            
+            Mesh mesh = new(renderer.Context, meshInstance, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue);
             meshCache[projectMesh] = mesh;
             return mesh;
         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Nanoforge.Render.Resources;
+using RFGM.Formats.Meshes.Chunks;
 using Serilog;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
@@ -60,6 +61,14 @@ public class Scene
         RenderObject renderObject = new(position, orient, mesh, textures, materialName);
         RenderObjects.Add(renderObject);
         return renderObject;
+    }
+    
+    //TODO: Update to take EditorObject version of the ChunkFile/Destroyable
+    public RenderChunk CreateRenderChunk(string materialName, Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures, Destroyable destroyable)
+    {
+        RenderChunk chunk = new(position, orient, mesh, textures, materialName, destroyable);
+        RenderObjects.Add(chunk);
+        return chunk;
     }
 
     private void InitRenderTextures()
