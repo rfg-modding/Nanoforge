@@ -5,6 +5,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels.Tools"
              xmlns:documentVMs="clr-namespace:Nanoforge.Gui.ViewModels.Documents"
+             xmlns:chunkViewer="clr-namespace:Nanoforge.Gui.Views.Documents.ChunkViewer"
+             xmlns:chunkViewerVm="clr-namespace:Nanoforge.Gui.ViewModels.Documents.ChunkViewer"
              mc:Ignorable="d"
              d:DesignWidth="300" d:DesignHeight="400"
              x:DataType="vm:InspectorViewModel" x:CompileBindings="True">
@@ -12,17 +14,10 @@
     <ContentControl Content="{Binding FocusedDocument.InspectorTarget}" Margin="4">
         <ContentControl.DataTemplates>
             
-            <!-- TODO: The templates being inline is only for testing purposes. Once serious views are made for a document, move it into its own axaml file -->
-            <DataTemplate DataType="{x:Type documentVMs:ChunkViewerDocumentViewModel}">
-                <StackPanel>
-                    <TextBlock Text="Selected a chunk viewer document"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Label Content="Title:" VerticalAlignment="Center" Padding="0 3 3 3"/>
-                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                    </StackPanel>
-                </StackPanel>
+            <DataTemplate DataType="{x:Type chunkViewerVm:ChunkViewerDocumentViewModel}">
+                <chunkViewer:ChunkViewerInspector Document="{Binding}"/>
             </DataTemplate>
-            
+
             <DataTemplate DataType="{x:Type documentVMs:MapEditorDocumentViewModel}">
                 <StackPanel>
                     <TextBlock Text="Selected a map editor document"/>

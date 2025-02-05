@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:documentVMs="clr-namespace:Nanoforge.Gui.ViewModels.Documents"
+             xmlns:chunkViewer="clr-namespace:Nanoforge.Gui.ViewModels.Documents.ChunkViewer"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nanoforge.Gui.Views.Documents.ChunkViewer.ChunkViewerOutliner"
+             x:DataType="chunkViewer:ChunkViewerDocumentViewModel" x:CompileBindings="True">
+
+    <Design.DataContext>
+        <chunkViewer:ChunkViewerDocumentViewModel/>
+    </Design.DataContext>
+    
+    <Grid Margin="4">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Outliner"/>
+        <TextBlock Grid.Row="1" Text="{Binding ChunkFile.Name}"/>
+    </Grid>
+</UserControl>

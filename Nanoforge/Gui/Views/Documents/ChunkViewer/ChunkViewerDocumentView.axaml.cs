@@ -1,7 +1,7 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
-namespace Nanoforge.Gui.Views.Documents;
+namespace Nanoforge.Gui.Views.Documents.ChunkViewer;
 
 public partial class ChunkViewerDocumentView : UserControl
 {

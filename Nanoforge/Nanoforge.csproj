@@ -68,8 +68,16 @@
         <DependentUpon>FileExplorerView.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
-      <Compile Update="Gui\Views\Documents\ChunkViewerDocumentView.axaml.cs">
+      <Compile Update="Gui\Views\Documents\ChunkViewer\ChunkViewerInspector.axaml.cs">
+        <DependentUpon>ChunkViewerInspector.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Gui\Views\Documents\ChunkViewer\ChunkViewerDocumentView.axaml.cs">
         <DependentUpon>ChunkViewerDocumentView.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Gui\Views\Documents\ChunkViewer\ChunkViewerOutliner.axaml.cs">
+        <DependentUpon>ChunkViewerOutliner.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
     </ItemGroup>

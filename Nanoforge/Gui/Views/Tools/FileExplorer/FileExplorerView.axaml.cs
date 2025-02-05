@@ -7,7 +7,7 @@ using Avalonia.Markup.Xaml;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 using Nanoforge.Gui.ViewModels;
-using Nanoforge.Gui.ViewModels.Documents;
+using Nanoforge.Gui.ViewModels.Documents.ChunkViewer;
 using Nanoforge.Gui.ViewModels.Tools.FileExplorer;
 using Serilog;
 

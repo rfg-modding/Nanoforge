@@ -13,7 +13,8 @@ public class ViewLocator : IDataTemplate
     {
         if (data is null)
             return null;
-
+        
+        //TODO: Change this so it goes off the class name and ignores the namespace. I don't want to be forced to have the same folder structure for the View and ViewModel
         var name = data.GetType().FullName?.Replace("ViewModel", "View", StringComparison.Ordinal);
         if (name is null)
         {

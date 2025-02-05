@@ -9,7 +9,6 @@ using Avalonia;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Dock.Model.Mvvm.Controls;
 using Nanoforge.FileSystem;
 using Nanoforge.Gui.ViewModels.Dialogs;
 using Nanoforge.Gui.Views;
@@ -25,7 +24,7 @@ using Serilog;
 using Silk.NET.Vulkan;
 using PrimitiveTopology = RFGM.Formats.Meshes.Shared.PrimitiveTopology;
 
-namespace Nanoforge.Gui.ViewModels.Documents;
+namespace Nanoforge.Gui.ViewModels.Documents.ChunkViewer;
 
 public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
 {
@@ -141,6 +140,11 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
             
             //TODO: Update RenderChunk and RenderObject to only use ProjectMesh instead of MeshInstanceData
             //TODO: Update this to use ProjectMesh instead of MeshInstanceData
+
+            //TODO: Problems to investigate:
+            //TODO:     - Why do some of them have subpieces at weird angles? Look at terr01_l0.vpp_pc/0h_c1817.str2_pc/0101bridge_refinery_a.cchk_pc
+            //TODO:         - Maybe those are bent meshes for metal pieces that are supposed to be hidden until the piece is damaged
+            //TODO:         - I suspect it has something to do with the RenderSubpiece field on the Dlods & SubpieceDatas
             
             //TODO: Remove extra funcs from this class that aren't used
             //TODO: Make this class + the Mesh class use ProjectMesh as input instead of MeshInstanceData
