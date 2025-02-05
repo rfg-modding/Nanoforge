@@ -19,14 +19,16 @@ public class DockFactory : Factory
 {
     private IRootDock? _rootDock;
     public CustomDocumentDock? DocumentDock;
-
+    public OutlinerViewModel? Outliner;
+    public InspectorViewModel? Inspector;
+    
     public override IDocumentDock CreateDocumentDock() => new CustomDocumentDock();
 
     public override IRootDock CreateLayout()
     {
         var fileExplorer = new FileExplorerViewModel { Id = "File explorer", Title = "File explorer" };
-        var outliner = new OutlinerViewModel { Id = "Outliner", Title = "Outliner" };
-        var inspector = new InspectorViewModel { Id = "Inspector", Title = "Inspector" };
+        Outliner = new OutlinerViewModel { Id = "Outliner", Title = "Outliner" };
+        Inspector = new InspectorViewModel { Id = "Inspector", Title = "Inspector" };
 
         var leftDock = new ProportionalDock
         {
@@ -53,15 +55,15 @@ public class DockFactory : Factory
             (
                 new ToolDock
                 {
-                    ActiveDockable = outliner,
-                    VisibleDockables = CreateList<IDockable>(outliner),
+                    ActiveDockable = Outliner,
+                    VisibleDockables = CreateList<IDockable>(Outliner),
                     Alignment = Alignment.Right,
                 },
                 new ProportionalDockSplitter(),
                 new ToolDock
                 {
-                    ActiveDockable = inspector,
-                    VisibleDockables = CreateList<IDockable>(inspector),
+                    ActiveDockable = Inspector,
+                    VisibleDockables = CreateList<IDockable>(Inspector),
                     Alignment = Alignment.Right,
                 }
             )
@@ -145,5 +147,25 @@ public class DockFactory : Factory
         };
 
         base.InitLayout(layout);
+    }
+
+    public override void OnFocusedDockableChanged(IDockable? dockable)
+    {
+        base.OnFocusedDockableChanged(dockable);
+        
+        if (Inspector is null || Outliner is null)
+            return;
+        
+        //Inspector tracks currently selected NF document so it knows what data to bind to its view
+        if (dockable is NanoforgeDocument nfDoc)
+        {
+            Outliner.FocusedDocument = nfDoc;
+            Inspector.FocusedDocument = nfDoc;
+        }
+        else
+        {
+            Outliner.FocusedDocument = null;
+            Inspector.FocusedDocument = null;
+        }
     }
 }

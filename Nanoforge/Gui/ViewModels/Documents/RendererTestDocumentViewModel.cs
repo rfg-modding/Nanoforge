@@ -24,7 +24,7 @@ using PrimitiveTopology = RFGM.Formats.Meshes.Shared.PrimitiveTopology;
 
 namespace Nanoforge.Gui.ViewModels.Documents;
 
-public partial class RendererTestDocumentViewModel : Document
+public partial class RendererTestDocumentViewModel : NanoforgeDocument
 {
     [ObservableProperty]
     private Scene _scene = new();
@@ -39,6 +39,8 @@ public partial class RendererTestDocumentViewModel : Document
         TaskDialog dialog = new TaskDialog();
         dialog.ShowDialog(MainWindow.Instance);
         ThreadPool.QueueUserWorkItem(_ => SceneInit(dialog.ViewModel!));
+        InspectorTarget = this;
+        OutlinerTarget = this;
     }
 
     public void SceneInit(TaskDialogViewModel status)

@@ -4,11 +4,44 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:Nanoforge.Gui.ViewModels.Tools"
+             xmlns:documentVMs="clr-namespace:Nanoforge.Gui.ViewModels.Documents"
              mc:Ignorable="d"
              d:DesignWidth="300" d:DesignHeight="400"
              x:DataType="vm:InspectorViewModel" x:CompileBindings="True">
-  
-  <Grid Focusable="True">
 
-  </Grid>
+    <ContentControl Content="{Binding FocusedDocument.InspectorTarget}" Margin="4">
+        <ContentControl.DataTemplates>
+            
+            <!-- TODO: The templates being inline is only for testing purposes. Once serious views are made for a document, move it into its own axaml file -->
+            <DataTemplate DataType="{x:Type documentVMs:ChunkViewerDocumentViewModel}">
+                <StackPanel>
+                    <TextBlock Text="Selected a chunk viewer document"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Label Content="Title:" VerticalAlignment="Center" Padding="0 3 3 3"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+            
+            <DataTemplate DataType="{x:Type documentVMs:MapEditorDocumentViewModel}">
+                <StackPanel>
+                    <TextBlock Text="Selected a map editor document"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Label Content="Title:" VerticalAlignment="Center" Padding="0 3 3 3"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+            
+            <DataTemplate DataType="{x:Type documentVMs:RendererTestDocumentViewModel}">
+                <StackPanel>
+                    <TextBlock Text="Selected a renderer test document"/>
+                    <StackPanel Orientation="Horizontal" Margin="0">
+                        <Label Content="Title:" VerticalAlignment="Center" Padding="0 3 3 3"/>
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+        </ContentControl.DataTemplates>
+    </ContentControl>
 </UserControl>

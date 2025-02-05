@@ -27,7 +27,7 @@ using PrimitiveTopology = RFGM.Formats.Meshes.Shared.PrimitiveTopology;
 
 namespace Nanoforge.Gui.ViewModels.Documents;
 
-public partial class ChunkViewerDocumentViewModel : Document
+public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
 {
     [ObservableProperty]
     private string _chunkCpuFilePath;
@@ -104,6 +104,8 @@ public partial class ChunkViewerDocumentViewModel : Document
             ChunkFile = new ChunkFile(Path.GetFileName(ChunkCpuFilePath));
             ChunkFile.ReadHeader(cpuFile);
             RawMeshData = ChunkFile.ReadData(gpuFile);
+            InspectorTarget = this;
+            OutlinerTarget = this;
             
             Log.Information($"Opening '{ChunkCpuFilePath}' in chunk viewer. Vertex format: {ChunkFile.Config.VertexFormat}, Index size: {ChunkFile.Config.IndexSize}, Num destroyables: {ChunkFile.Destroyables.Count}");
             

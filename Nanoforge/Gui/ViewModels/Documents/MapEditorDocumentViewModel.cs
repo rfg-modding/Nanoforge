@@ -18,7 +18,7 @@ using Serilog;
 
 namespace Nanoforge.Gui.ViewModels.Documents;
 
-public partial class MapEditorDocumentViewModel : Document
+public partial class MapEditorDocumentViewModel : NanoforgeDocument
 {
     [ObservableProperty]
     private Scene _scene = new();
@@ -51,12 +51,19 @@ public partial class MapEditorDocumentViewModel : Document
         }
         Filename = "DebugFilename.vpp_pc";
         DisplayName = "Debug display name";
+        
+        //TODO: Change to be the currently selected zone object when the map editor is implemented
+        InspectorTarget = this;
+        OutlinerTarget = this;
     }
     
     public MapEditorDocumentViewModel(string filename, string displayName)
     {
         Filename = filename;
         DisplayName = displayName;
+        //TODO: Change to be the currently selected zone object when the map editor is implemented
+        InspectorTarget = this;
+        OutlinerTarget = this;
         TaskDialog dialog = new TaskDialog(); //Easier to create this here since it must be created on the avalonia thread
         dialog.ShowDialog(MainWindow.Instance);
         ThreadPool.QueueUserWorkItem(_ => LoadMap(dialog));

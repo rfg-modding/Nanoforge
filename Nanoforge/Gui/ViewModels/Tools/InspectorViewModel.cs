@@ -1,7 +1,10 @@
-﻿using Dock.Model.Mvvm.Controls;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using Dock.Model.Mvvm.Controls;
 
 namespace Nanoforge.Gui.ViewModels.Tools;
 
-public class InspectorViewModel : Tool
+public partial class InspectorViewModel : Tool
 {
+    [ObservableProperty]
+    private NanoforgeDocument? _focusedDocument = null;
 }
