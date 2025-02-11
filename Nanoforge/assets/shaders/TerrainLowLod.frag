@@ -9,7 +9,8 @@ layout(location = 1) in vec3 inZonePos;
 
 layout(location = 0) out vec4 outColor;
 
-void main() {
+void main()
+{
     outColor = texture(texSampler, fragTexCoord);
 
     //Get terrain color from _comb texture and adjust it's brightness
