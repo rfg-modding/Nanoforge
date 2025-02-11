@@ -20,6 +20,7 @@ The master branch is a WIP rewrite of Nanoforge in the C#. The previous versions
 
 ## Features
 - Map viewing. Loads terrain and object data for a map. Draws object bounding boxes.
+- Partial map editing for multiplayer and wrecking crew maps.
 - Mesh viewing and export for some RFG mesh formats. Auto locates textures.
 - Texture viewing, exporting, and re-importing.
 - Xtbl editing via a user interface with tooltips and data validation.
