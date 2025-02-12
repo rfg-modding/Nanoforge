@@ -115,6 +115,7 @@ public partial class RendererTestDocumentViewModel : NanoforgeDocument
             renderObject.Orient = Matrix4x4.CreateRotationY(MathHelpers.ToRadians(angle));
         }
 
+        updateParams.CameraControlsEnabled = Focused;
         Scene.Update(updateParams);
     }
 

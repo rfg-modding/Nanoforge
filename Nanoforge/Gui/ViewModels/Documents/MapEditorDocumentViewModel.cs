@@ -149,6 +149,7 @@ public partial class MapEditorDocumentViewModel : NanoforgeDocument
     [RelayCommand]
     private void Update(SceneFrameUpdateParams updateParams)
     {
+        updateParams.CameraControlsEnabled = Focused;
         Scene.Update(updateParams);
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
@@ -18,6 +19,7 @@ namespace Nanoforge.Gui.ViewModels;
 public class DockFactory : Factory
 {
     private IRootDock? _rootDock;
+    private ProportionalDock? _mainLayout;
     public CustomDocumentDock? DocumentDock;
     public OutlinerViewModel? Outliner;
     public InspectorViewModel? Inspector;
@@ -77,7 +79,7 @@ public class DockFactory : Factory
             CanCreateDocument = false
         };
 
-        var mainLayout = new ProportionalDock
+        _mainLayout = new ProportionalDock
         {
             Orientation = Orientation.Horizontal,
             VisibleDockables = CreateList<IDockable>
@@ -96,8 +98,8 @@ public class DockFactory : Factory
         {
             Id = "Editor",
             Title = "Editor",
-            ActiveDockable = mainLayout,
-            VisibleDockables = CreateList<IDockable>(mainLayout)
+            ActiveDockable = _mainLayout,
+            VisibleDockables = CreateList<IDockable>(_mainLayout)
         };
 
         var rootDock = CreateRootDock();
@@ -112,7 +114,7 @@ public class DockFactory : Factory
         
         return rootDock;
     }
-
+    
     public override IDockWindow? CreateWindowFrom(IDockable dockable)
     {
         var window = base.CreateWindowFrom(dockable);
@@ -149,15 +151,25 @@ public class DockFactory : Factory
         base.InitLayout(layout);
     }
 
-    public override void OnFocusedDockableChanged(IDockable? dockable)
+    public override void OnFocusedDockableChanged(IDockable? focusedDockable)
     {
-        base.OnFocusedDockableChanged(dockable);
+        base.OnFocusedDockableChanged(focusedDockable);
+
+        if (_mainLayout is not { VisibleDockables: not null })
+            return;
+        
+        //Update document focus state
+        var nanoforgeDocuments = _mainLayout.GetChildrenRecursive().OfType<NanoforgeDocument>().ToList();
+        foreach (NanoforgeDocument doc in nanoforgeDocuments)
+        {
+            doc.Focused = doc == focusedDockable;
+        }
         
         if (Inspector is null || Outliner is null)
             return;
         
         //Inspector tracks currently selected NF document so it knows what data to bind to its view
-        if (dockable is NanoforgeDocument nfDoc)
+        if (focusedDockable is NanoforgeDocument nfDoc)
         {
             Outliner.FocusedDocument = nfDoc;
             Inspector.FocusedDocument = nfDoc;

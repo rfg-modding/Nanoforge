@@ -186,6 +186,7 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
     [RelayCommand]
     private void Update(SceneFrameUpdateParams updateParams)
     {
+        updateParams.CameraControlsEnabled = this.Focused;
         Scene.Update(updateParams);
     }
 

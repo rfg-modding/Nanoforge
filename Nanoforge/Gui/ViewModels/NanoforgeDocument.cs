@@ -13,4 +13,7 @@ public partial class NanoforgeDocument : Document
     
     [ObservableProperty]
     private object? _outlinerTarget = null;
+
+    [ObservableProperty]
+    private bool _focused = false;
 }
