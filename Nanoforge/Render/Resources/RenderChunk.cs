@@ -1,25 +1,72 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Nanoforge.Render.Materials;
 using Nanoforge.Render.Misc;
 using RFGM.Formats.Meshes.Chunks;
+using RFGM.Formats.Meshes.Shared;
+using Serilog;
 using Silk.NET.Vulkan;
 
 namespace Nanoforge.Render.Resources;
 
-public class RenderChunk : RenderObject
+public class RenderChunk : RenderObjectBase
 {
+    public Mesh Mesh;
+    public List<Texture2D[]> TexturesByMaterial = [];
+    public List<MaterialInstance> Materials = [];
+    
     Destroyable _destroyable;
     
-    public RenderChunk(Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures, string materialName, Destroyable destroyable) : base(position, orient, mesh, textures, materialName)
+    public RenderChunk(Vector3 position, Matrix4x4 orient, Mesh mesh, List<Texture2D[]> texturesByMaterial, string materialName, Destroyable destroyable) : base(position, orient, Vector3.One)
     {
+        Position = position;
+        Orient = orient;
+        Mesh = mesh;
         _destroyable = destroyable;
+
+        const int maxTexturesPerMaterial = 10;
+        if (texturesByMaterial.Any(textures => textures.Length > maxTexturesPerMaterial))
+        {
+            string err = $"Attempted to create a RenderChunk with more than {maxTexturesPerMaterial} textures assigned to a material. They can have {maxTexturesPerMaterial} textures at most.";
+            Log.Error(err);
+            throw new Exception(err);
+        }
+        
+        foreach (Texture2D[] textures in texturesByMaterial)
+        {
+            Texture2D[] textureArray = new Texture2D[maxTexturesPerMaterial];
+            for (int i = 0; i < textures.Length; i++)
+            {
+                textureArray[i] = textures[i];
+            }
+            
+            //Use default white texture when one isn't provided. It simplifies the code to just give every RenderObject 10 textures
+            if (textures.Length < maxTexturesPerMaterial)
+            {
+                for (int i = textures.Length; i < maxTexturesPerMaterial; i++)
+                {
+                    textureArray[i] = Texture2D.DefaultTexture;
+                }
+            }
+            
+            TexturesByMaterial.Add(textureArray);
+        }
+        
+        foreach (Texture2D[] materialTextures in TexturesByMaterial)
+        {
+            MaterialInstance material = MaterialHelper.CreateMaterialInstance(materialName, materialTextures);
+            Materials.Add(material);
+        }
+        Debug.Assert(Materials.Count > 0);
+        Debug.Assert(Materials.Count == TexturesByMaterial.Count);
     }
 
-    public override unsafe void Draw(RenderContext context, CommandBuffer commandBuffer, MaterialPipeline pipeline, uint swapchainImageIndex)
+    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera)
     {
-        Material.Bind(context, commandBuffer, swapchainImageIndex);
-
         //Translation and rotation for the overall object
         Matrix4x4 objTranslation = Matrix4x4.CreateTranslation(Position);
         Matrix4x4 objRotation = Orient;
@@ -28,7 +75,6 @@ public class RenderChunk : RenderObject
         //Matrix4x4 objScale = Matrix4x4.CreateScale(Scale);
         
         //Render each chunk piece
-        int dlodIndex = 0;
         foreach (Dlod dlod in _destroyable.Dlods)
         {
             Matrix4x4 chunkRotation = new Matrix4x4
@@ -38,47 +84,48 @@ public class RenderChunk : RenderObject
                 dlod.Orient.M31, dlod.Orient.M32, dlod.Orient.M33, 0.0f,
                 0.0f           , 0.0f           , 0.0f           , 1.0f
             );
-            // Matrix4x4 chunkRotation = new Matrix4x4
-            // (
-            //     dlod.Orient.M11, dlod.Orient.M21, dlod.Orient.M31, 0.0f,
-            //     dlod.Orient.M12, dlod.Orient.M22, dlod.Orient.M32, 0.0f,
-            //     dlod.Orient.M13, dlod.Orient.M23, dlod.Orient.M33, 0.0f,
-            //     0.0f           , 0.0f           , 0.0f           , 1.0f
-            // );
-            Matrix4x4 chunkTranslation = Matrix4x4.CreateTranslation(dlod.Pos);
-
-            Matrix4x4 totalRotation = chunkRotation * objRotation;
-            Matrix4x4 model = chunkRotation * chunkTranslation * objRotation * objTranslation;
             
+            Matrix4x4 chunkTranslation = Matrix4x4.CreateTranslation(dlod.Pos);
+            Matrix4x4 model = chunkRotation * chunkTranslation * objRotation * objTranslation;
             PerObjectPushConstants pushConstants = new()
             {
-                Model = model
+                Model = model,
+                CameraPosition = new Vector4(camera.Position.X, camera.Position.Y, camera.Position.Z, 1.0f),
             };
-            context.Vk.CmdPushConstants(commandBuffer, pipeline.Layout, ShaderStageFlags.VertexBit, 0, (uint)Unsafe.SizeOf<PerObjectPushConstants>(), &model);
-
-            int numSubmeshOverrides = 0;
+        
             for (int subpieceIndex = dlod.FirstPiece; subpieceIndex < dlod.FirstPiece + dlod.MaxPieces; subpieceIndex++)
             {
                 ushort submeshIndex = _destroyable.SubpieceData[subpieceIndex].RenderSubpiece;
-                Mesh.SubmeshOverrideIndices[numSubmeshOverrides++] = submeshIndex;
+                SubmeshData submesh = Mesh.Config.Submeshes[submeshIndex];
+                uint firstBlock = submesh.RenderBlocksOffset;
+                for (int j = 0; j < submesh.NumRenderBlocks; j++)
+                {
+                    RenderBlock block = Mesh.Config.RenderBlocks[(int)(firstBlock + j)];
+                    MaterialInstance material = Materials[block.MaterialMapIndex];
+                    commands.Add(new RenderCommand
+                    {
+                        MaterialInstance = material,
+                        Mesh = Mesh,
+                        ObjectConstants = pushConstants,
+                        IndexCount = block.NumIndices,
+                        StartIndex = block.StartIndex,
+                    });
+                }
             }
-
-            //if (dlodIndex == 0)
-            {
-                Mesh.Draw(context, commandBuffer, numSubmeshOverrides);
-            }
-            dlodIndex++;
         }
     }
     
     public override void Destroy()
     {
         Mesh.Destroy();
-        foreach (Texture2D texture in Textures)
+        foreach (Texture2D[] textures in TexturesByMaterial)
         {
-            if (texture != Texture2D.DefaultTexture)
+            foreach (Texture2D texture in textures)
             {
-                texture.Destroy();
+                if (texture != Texture2D.DefaultTexture)
+                {
+                    texture.Destroy();
+                }
             }
         }
     }

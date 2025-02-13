@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -38,6 +39,9 @@ public unsafe class Renderer
 
     public Renderer(uint viewportWidth, uint viewportHeight)
     {
+        //The vulkan spec says that drivers must support push constants being at least 128 bytes. For the moment lets avoid going over that avoid GPU compatibility issues.
+        Debug.Assert(Unsafe.SizeOf<PerObjectPushConstants>() <= 128);
+        
         Context = new RenderContext();
         DepthTextureFormat = FindDepthFormat();
         CreateRenderPass();
@@ -293,30 +297,40 @@ public unsafe class Renderer
             Context.Vk.CmdBeginRenderPass(commandBuffer, &renderPassInfo, SubpassContents.Inline);
         }
 
-        //Sort render objects by material so each material pipeline is only bound once per frame at most
-        Dictionary<string, List<RenderObject>> renderObjectsByMaterial = new();
-        foreach (RenderObject renderObject in scene.RenderObjects)
+        UpdatePerFrameUniformBuffer(scene, index);
+        
+        List<RenderCommand> commands = new();
+        foreach (RenderObjectBase renderObject in scene.RenderObjects)
         {
-            if (!renderObjectsByMaterial.ContainsKey(renderObject.Material.Name))
-            {
-                renderObjectsByMaterial.Add(renderObject.Material.Name, new List<RenderObject>());
-            }
-
-            renderObjectsByMaterial[renderObject.Material.Name].Add(renderObject);
+            renderObject.WriteDrawCommands(commands, scene.Camera!);
         }
 
-        UpdatePerFrameUniformBuffer(scene, index);
-        foreach (List<RenderObject> materialGroup in renderObjectsByMaterial.Values)
+        var commandsByPipeline = commands.GroupBy(command => command.MaterialInstance.Pipeline).ToList();
+        foreach (var pipelineGrouping in commandsByPipeline)
         {
-            if (materialGroup.Count == 0)
-                continue;
-
-            MaterialPipeline pipeline = materialGroup.First().Material.Pipeline;
+            MaterialPipeline pipeline = pipelineGrouping.Key;
             pipeline.Bind(commandBuffer);
-
-            foreach (RenderObject renderObject in materialGroup)
+            
+            var commandsByMesh = pipelineGrouping.ToList().GroupBy(command => command.Mesh).ToList();
+            foreach (var meshGrouping in commandsByMesh)
             {
-                renderObject.Draw(Context, commandBuffer, pipeline, index);
+                Mesh mesh = meshGrouping.Key;
+                mesh.Bind(Context, commandBuffer);
+                
+                var commandsByMaterial = meshGrouping.ToList().GroupBy(command => command.MaterialInstance).ToList();
+                foreach (var materialGrouping in commandsByMaterial)
+                {
+                    MaterialInstance material = materialGrouping.Key;
+                    material.Bind(Context, commandBuffer, index);
+                    
+                    foreach (RenderCommand command in materialGrouping)
+                    {
+                        PerObjectPushConstants constants = command.ObjectConstants;
+                        Context.Vk.CmdPushConstants(commandBuffer, pipeline.Layout, ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit, 0, (uint)Unsafe.SizeOf<PerObjectPushConstants>(), &constants);
+                        Context.Vk.CmdDrawIndexed(commandBuffer, command.IndexCount, 1, command.StartIndex, 0, 0);
+                    }
+
+                }
             }
         }
 

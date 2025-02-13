@@ -21,7 +21,7 @@ public static class BuildConfig
         
         AssetsDirectory = $"{projectDir}/assets/";
 #else
-        AssetsBasePath = "./assets/";
+        AssetsDirectory = "./assets/";
 #endif
         ShadersDirectory = $@"{AssetsDirectory}shaders/";
         Version = "v2.0.0";

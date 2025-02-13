@@ -118,7 +118,7 @@ public static class MaterialHelper
         return null;
     }
 
-    public static MaterialInstance CreateMaterialInstance(string name, RenderObject renderObject)
+    public static MaterialInstance CreateMaterialInstance(string name, Texture2D[] textures)
     {
         MaterialPipeline? pipeline = GetMaterialPipeline(name);
         if (pipeline == null)
@@ -126,12 +126,12 @@ public static class MaterialHelper
             throw new Exception($"Material pipeline with name '{name}' does not exist!");
         }
 
-        DescriptorSet[] descriptorSets = CreateDescriptorSets(renderObject, pipeline);
+        DescriptorSet[] descriptorSets = CreateDescriptorSets(textures, pipeline);
         MaterialInstance material = new(pipeline, descriptorSets);
         return material;
     }
 
-    private static unsafe DescriptorSet[] CreateDescriptorSets(RenderObject renderObject, MaterialPipeline material)
+    private static unsafe DescriptorSet[] CreateDescriptorSets(Texture2D[] textures, MaterialPipeline material)
     {
         var layouts = new DescriptorSetLayout[Renderer.MaxFramesInFlight];
         Array.Fill(layouts, material.DescriptorSetLayout);
@@ -151,10 +151,10 @@ public static class MaterialHelper
                 Range = (ulong)Unsafe.SizeOf<PerFrameBuffer>(),
             };
 
-            DescriptorImageInfo[] imageInfos = new DescriptorImageInfo[renderObject.Textures.Length];
-            for (var j = 0; j < renderObject.Textures.Length; j++)
+            DescriptorImageInfo[] imageInfos = new DescriptorImageInfo[textures.Length];
+            for (var j = 0; j < textures.Length; j++)
             {
-                var texture = renderObject.Textures[j];
+                var texture = textures[j];
                 imageInfos[j] = new DescriptorImageInfo
                 {
                     ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
@@ -180,7 +180,7 @@ public static class MaterialHelper
                 });
 
                 uint firstSamplerBinding = 1;
-                for (uint j = 0; j < renderObject.Textures.Length; j++)
+                for (uint j = 0; j < textures.Length; j++)
                 {
                     descriptorWrites.Add(new()
                     {

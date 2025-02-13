@@ -24,7 +24,7 @@ public class NanoDBTests
         fixture.Behaviors.OfType<ThrowingRecursionBehavior>().ToList().ForEach(b => fixture.Behaviors.Remove(b));
         fixture.Behaviors.Add(new OmitOnRecursionBehavior());
         //Don't set RenderObject fields. AutoFixture throws exceptions on some unsafe types. For the moment its fine to exclude that type from the tests.
-        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObject)));
+        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObjectBase)));
         
         TestEditorObjects = _editorObjectTypes.Select(type => new object[] { new SpecimenContext(fixture).Resolve(type) });
         var list = TestEditorObjects.ToList();
@@ -64,7 +64,7 @@ public class NanoDBTests
         Fixture fixture = new();
         fixture.Behaviors.OfType<ThrowingRecursionBehavior>().ToList().ForEach(b => fixture.Behaviors.Remove(b));
         fixture.Behaviors.Add(new OmitOnRecursionBehavior());
-        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObject)));
+        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObjectBase)));
 
         //Note: The object types were picked at random to have some variety. This is not representative of a typical RFG map.
         var objectA = fixture.Create<RfgMover>();
@@ -133,7 +133,7 @@ public class NanoDBTests
     public void GlobalObjectSaveLoad()
     {
         Fixture fixture = new();
-        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObject)));
+        fixture.Customizations.Add(new PropertyTypeOmitter(typeof(RenderObjectBase)));
         GeneralSettings objA = fixture.Create<GeneralSettings>();
         objA.Name = "objA-Global";
         

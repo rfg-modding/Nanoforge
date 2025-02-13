@@ -230,7 +230,7 @@ public class MaterialPipeline
 
             PushConstantRange pushConstantRange = new()
             {
-                StageFlags = ShaderStageFlags.VertexBit,
+                StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
                 Offset = 0,
                 Size = (uint)Unsafe.SizeOf<PerObjectPushConstants>()
             };

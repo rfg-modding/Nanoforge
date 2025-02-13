@@ -38,13 +38,49 @@ public static class TextureIndex
     {
         try
         {
-            if (IsPackfileIndexed(vppName))
+            if (IsIndexed(vppName))
                 return true;
 
-            Log.Information($"Indexing textures in {vppName}...");
 
-            PackfileTextureIndex vppIndex = new(vppName);
-            foreach (var entry in PackfileVFS.Enumerate($"//data/{vppName}/")) //TODO: De-hardcode the data folder mount point
+            EntryBase? entry = PackfileVFS.GetEntry($"//data/{vppName}/"); //TODO: De-hardcode the data folder mount point
+            if (entry == null)
+            {
+                Log.Error($"Texture index could not find {vppName} for indexing.");
+                return false;
+            }
+            if (entry is not DirectoryEntry directoryEntry)
+            {
+                Log.Error($"Texture index tried index {vppName}. But the entry in PackfileVFS is not a directory.");
+                return false;                
+            }
+            
+            bool result = IndexDirectory(directoryEntry);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error in TextureIndex.IndexVpp(): {ex.Message}");
+            return false;
+        }
+    }
+
+    public static bool IndexDirectory(DirectoryEntry directory)
+    {
+        try
+        {
+            if (IsIndexed(directory))
+                return true;
+            
+            Log.Information($"Indexing textures in {directory.Name}...");
+            
+            string indexName;
+            if (directory.Name.EndsWith(".str2_pc") && directory.Parent is not null)
+                indexName = $"{directory.Parent.Name}/{directory.Name}";
+            else
+                indexName = directory.Name;
+            
+            PackfileTextureIndex index = new(indexName);
+            foreach (var entry in directory)
             {
                 string ext = Path.GetExtension(entry.Name).ToLower();
                 switch (ext)
@@ -52,50 +88,34 @@ public static class TextureIndex
                     //Index top level pegs
                     case ".cpeg_pc":
                     case ".cvbm_pc":
-                        IndexPeg((FileEntry)entry, vppIndex);
+                        IndexPeg((FileEntry)entry, index);
                         break;
 
                     //Index pegs in asset containers
                     case ".str2_pc":
                     {
                         DirectoryEntry container = (entry as DirectoryEntry)!;
-                        PackfileTextureIndex str2Index = new($"{vppName}/{entry.Name}");
-                        foreach (var subEntry in container)
-                        {
-                            if (!subEntry.IsFile)
-                                continue;
-
-                            string subfileExt = Path.GetExtension(subEntry.Name).ToLower();
-                            if (subfileExt == ".cpeg_pc" || subfileExt == ".cvbm_pc")
-                            {
-                                IndexPeg((FileEntry)subEntry, str2Index);
-                            }
-                        }
-
-                        if (str2Index.Pegs.Count > 0)
-                        {
-                            lock (_indexLock)
-                            {
-                                _packfileIndices.Add(str2Index);
-                            }
-                        }
-
+                        IndexDirectory(container);
                         break;
                     }
                 }
             }
 
-            lock (_indexLock)
+            if (index.Pegs.Count > 0)
             {
-                _packfileIndices.Add(vppIndex);
+                lock (_indexLock)
+                {
+                    _packfileIndices.Add(index);
+                }
             }
+            
+            Log.Information($"Done indexing textures in {directory.Name}!");
 
-            Log.Information($"Done indexing textures in {vppName}!");
             return true;
         }
         catch (Exception ex)
         {
-            Log.Error($"Error in TextureIndex.IndexVpp(): {ex.Message}");
+            Log.Error(ex, $"Failed to index textures in PackfileVFS directory '{directory.Name}'");
             return false;
         }
     }
@@ -154,12 +174,30 @@ public static class TextureIndex
         }
     }
 
-    public static bool IsPackfileIndexed(string packfileName)
+    public static bool IsIndexed(string packfileName)
     {
         lock (_indexLock)
         {
             foreach (PackfileTextureIndex index in _packfileIndices)
                 if (index.Path.Equals(packfileName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+        }
+
+        return false;
+    }
+
+    public static bool IsIndexed(DirectoryEntry directory)
+    {
+        string indexName;
+        if (directory.Name.EndsWith(".str2_pc") && directory.Parent is not null)
+            indexName = $"{directory.Parent.Name}/{directory.Name}";
+        else
+            indexName = directory.Name;
+        
+        lock (_indexLock)
+        {
+            foreach (PackfileTextureIndex index in _packfileIndices)
+                if (index.Path.Equals(indexName, StringComparison.OrdinalIgnoreCase))
                     return true;
         }
 

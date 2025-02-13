@@ -63,7 +63,7 @@ public class ProjectTexture : EditorObject
             ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
             MemoryPropertyFlags.DeviceLocalBit,
             ImageAspectFlags.ColorBit);
-        texture.SetPixels(pixels, pool, queue, generateMipMaps: false);
+        texture.SetPixels(pixels, pool, queue);
         texture.CreateTextureSampler();
         texture.CreateImageView();
         

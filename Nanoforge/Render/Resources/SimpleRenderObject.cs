@@ -1,25 +1,21 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Nanoforge.Render.Materials;
 using Nanoforge.Render.Misc;
 using Serilog;
-using Silk.NET.OpenAL;
 using Silk.NET.Vulkan;
 
 namespace Nanoforge.Render.Resources;
 
-public class RenderObject
+public class SimpleRenderObject : RenderObjectBase
 {
-    public Vector3 Position;
-    public Matrix4x4 Orient;
-    public Vector3 Scale = Vector3.One;
-
     public Mesh Mesh;
     public Texture2D[] Textures = new Texture2D[10];
     public MaterialInstance Material;
 
-    public RenderObject(Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures, string materialName)
+    public SimpleRenderObject(Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures, string materialName) : base(position, orient, Vector3.One)
     {
         if (textures.Length > 10)
         {
@@ -43,10 +39,10 @@ public class RenderObject
                 Textures[i] = Texture2D.DefaultTexture;
             }
         }
-        Material = MaterialHelper.CreateMaterialInstance(materialName, this);
+        Material = MaterialHelper.CreateMaterialInstance(materialName, Textures);
     }
     
-    public virtual unsafe void Draw(RenderContext context, CommandBuffer commandBuffer, MaterialPipeline pipeline, uint swapchainImageIndex)
+    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera)
     {
         Matrix4x4 translation = Matrix4x4.CreateTranslation(Position);
         Matrix4x4 rotation = Orient;
@@ -54,15 +50,21 @@ public class RenderObject
         Matrix4x4 model = rotation * translation * scale;
         PerObjectPushConstants pushConstants = new()
         {
-            Model = model
+            Model = model,
+            CameraPosition = new Vector4(camera.Position.X, camera.Position.Y, camera.Position.Z, 1.0f),
         };
-        context.Vk.CmdPushConstants(commandBuffer, pipeline.Layout, ShaderStageFlags.VertexBit, 0, (uint)Unsafe.SizeOf<PerObjectPushConstants>(), &model);
         
-        Material.Bind(context, commandBuffer, swapchainImageIndex);
-        Mesh.Draw(context, commandBuffer);
+        commands.Add(new RenderCommand()
+        {
+            MaterialInstance = Material,
+            Mesh = Mesh,
+            ObjectConstants = pushConstants,
+            IndexCount = Mesh.Config.NumIndices,
+            StartIndex = 0,
+        });
     }
 
-    public virtual void Destroy()
+    public override void Destroy()
     {
         Mesh.Destroy();
         foreach (Texture2D texture in Textures)

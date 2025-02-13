@@ -1,5 +1,6 @@
 using System;
 using System.Net.Mime;
+using Serilog;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -96,17 +97,50 @@ public unsafe class Texture2D : VkMemory
         Context.Vk.BindImageMemory(Context.Device, _textureImage, Memory, 0);
     }
     
-    public void SetPixels(byte[] pixels, CommandPool pool, Queue queue, bool generateMipMaps = false)
+    public void SetPixels(byte[] pixels, CommandPool pool, Queue queue)
     {
         TransitionLayoutImmediate(ImageLayout.TransferDstOptimal, pool, queue);
         Context.StagingBuffer.SetData(pixels);
-        Context.StagingBuffer.CopyToImage(_textureImage, _width, _height, pool, queue); 
-        TransitionLayoutImmediate(ImageLayout.ShaderReadOnlyOptimal, pool, queue);
-
-        if (generateMipMaps)
+        
+        uint mipWidth = _width;
+        uint mipHeight = _height;
+        ulong offset = 0;
+        for (uint i = 0; i < _mipLevels; i++)
         {
-            GenerateMipMaps(Context, _textureImage, _format, _width, _height, _mipLevels, pool, queue);
+            BufferImageCopy region = new BufferImageCopy();
+            region.BufferOffset = offset;
+            region.BufferRowLength = 0;
+            region.BufferImageHeight = 0;
+            region.ImageSubresource = new ImageSubresourceLayers()
+            {
+                AspectMask = _imageAspectFlags,
+                MipLevel = i,
+                BaseArrayLayer = 0,
+                LayerCount = 1,
+            };
+            region.ImageOffset = new Offset3D(0, 0, 0);
+            region.ImageExtent = new Extent3D(Math.Max(mipWidth, 1), Math.Max(mipHeight, 1), 1);
+            
+            //TODO: DO COPY
+
+            ulong mipSizeBytes = _format switch
+            {
+                Format.BC1RgbUnormBlock or Format.BC1RgbSrgbBlock => 8 * (mipWidth * mipHeight / (4 * 4)), //8 bytes per 4x4 pixel block,
+                Format.BC2UnormBlock or Format.BC2SrgbBlock => 16 * (mipWidth * mipHeight / (4 * 4)), //16 bytes per 4x4 pixel block
+                Format.BC3UnormBlock or Format.BC3SrgbBlock => 16 * (mipWidth * mipHeight / (4 * 4)), //16 bytes per 4x4 pixel block
+                Format.R8G8B8A8Unorm or Format.R8G8B8A8Srgb => 4 * mipWidth * mipHeight, //RGBA, 1 byte per component
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            offset += mipSizeBytes;
+
+            mipWidth = Math.Max(mipWidth / 2, 1);
+            mipHeight = Math.Max(mipHeight / 2, 1);
+            CommandBuffer commandBuffer = Context.BeginSingleTimeCommands(pool);
+            Context.Vk.CmdCopyBufferToImage(commandBuffer, Context.StagingBuffer.VkHandle, _textureImage, ImageLayout.TransferDstOptimal, 1, in region);
+            Context.EndSingleTimeCommands(commandBuffer, pool, queue);
         }
+        
+        TransitionLayoutImmediate(ImageLayout.ShaderReadOnlyOptimal, pool, queue);
     }
 
     public void TransitionLayoutImmediate(ImageLayout newLayout, CommandPool pool, Queue queue)
@@ -186,111 +220,6 @@ public unsafe class Texture2D : VkMemory
         Context.Vk.CmdPipelineBarrier(cmd, sourceStage, destinationStage, 0, 0, null, 0, null, 1, in barrier);
         _currentLayout = newLayout;
     }
-    
-    private static void GenerateMipMaps(RenderContext context, Image image, Format imageFormat, uint width, uint height, uint mipLevels, CommandPool pool, Queue queue)
-    {
-        context.Vk.GetPhysicalDeviceFormatProperties(context.PhysicalDevice, imageFormat, out var formatProperties);
-
-        if ((formatProperties.OptimalTilingFeatures & FormatFeatureFlags.SampledImageFilterLinearBit) == 0)
-        {
-            throw new Exception("texture image format does not support linear blitting!");
-        }
-
-        var commandBuffer = context.BeginSingleTimeCommands(pool);
-
-        ImageMemoryBarrier barrier = new()
-        {
-            SType = StructureType.ImageMemoryBarrier,
-            Image = image,
-            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
-            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
-            SubresourceRange =
-            {
-                AspectMask = ImageAspectFlags.ColorBit,
-                BaseArrayLayer = 0,
-                LayerCount = 1,
-                LevelCount = 1,
-            }
-        };
-
-        var mipWidth = width;
-        var mipHeight = height;
-
-        for (uint i = 1; i < mipLevels; i++)
-        {
-            barrier.SubresourceRange.BaseMipLevel = i - 1;
-            barrier.OldLayout = ImageLayout.TransferDstOptimal;
-            barrier.NewLayout = ImageLayout.TransferSrcOptimal;
-            barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
-            barrier.DstAccessMask = AccessFlags.TransferReadBit;
-
-            context.Vk.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.TransferBit, PipelineStageFlags.TransferBit, 0,
-                0, null,
-                0, null,
-                1, in barrier);
-
-            ImageBlit blit = new()
-            {
-                SrcOffsets =
-                {
-                    Element0 = new Offset3D(0,0,0),
-                    Element1 = new Offset3D((int)mipWidth, (int)mipHeight, 1),
-                },
-                SrcSubresource =
-                {
-                    AspectMask = ImageAspectFlags.ColorBit,
-                    MipLevel = i - 1,
-                    BaseArrayLayer = 0,
-                    LayerCount = 1,
-                },
-                DstOffsets =
-                {
-                    Element0 = new Offset3D(0,0,0),
-                    Element1 = new Offset3D((int)(mipWidth > 1 ? mipWidth / 2 : 1), (int)(mipHeight > 1 ? mipHeight / 2 : 1),1),
-                },
-                DstSubresource =
-                {
-                    AspectMask = ImageAspectFlags.ColorBit,
-                    MipLevel = i,
-                    BaseArrayLayer = 0,
-                    LayerCount = 1,
-                },
-
-            };
-
-            context.Vk.CmdBlitImage(commandBuffer,
-                image, ImageLayout.TransferSrcOptimal,
-                image, ImageLayout.TransferDstOptimal,
-                1, in blit,
-                Filter.Linear);
-
-            barrier.OldLayout = ImageLayout.TransferSrcOptimal;
-            barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
-            barrier.SrcAccessMask = AccessFlags.TransferReadBit;
-            barrier.DstAccessMask = AccessFlags.ShaderReadBit;
-
-            context.Vk.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.TransferBit, PipelineStageFlags.FragmentShaderBit, 0,
-                0, null,
-                0, null,
-                1, in barrier);
-
-            if (mipWidth > 1) mipWidth /= 2;
-            if (mipHeight > 1) mipHeight /= 2;
-        }
-
-        barrier.SubresourceRange.BaseMipLevel = mipLevels - 1;
-        barrier.OldLayout = ImageLayout.TransferDstOptimal;
-        barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
-        barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
-        barrier.DstAccessMask = AccessFlags.ShaderReadBit;
-
-        context.Vk.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.TransferBit, PipelineStageFlags.FragmentShaderBit, 0,
-            0, null,
-            0, null,
-            1, in barrier);
-
-        context.EndSingleTimeCommands(commandBuffer, pool, queue);
-    }
 
     public void CreateImageView()
     {
@@ -369,30 +298,39 @@ public unsafe class Texture2D : VkMemory
         Vk.CmdCopyImageToBuffer(cmd, _textureImage, _currentLayout, buffer, 1, copyRegion);
     }
 
-    public static Texture2D FromFile(RenderContext context, CommandPool pool, Queue queue, string path)
+    public static Texture2D? FromFile(RenderContext context, CommandPool pool, Queue queue, string path)
     {
-        using var img = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(path);
-        ulong imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
-        uint mipLevels = (uint)(Math.Floor(Math.Log2(Math.Max(img.Width, img.Height))) + 1);
+        try
+        {
+            using var img = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(path);
+            ulong imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
+            uint mipLevels = 1;//(uint)(Math.Floor(Math.Log2(Math.Max(img.Width, img.Height))) + 1);
 
-        byte[] pixelData = new byte[imageSize];
-        img.CopyPixelDataTo(pixelData);
+            byte[] pixelData = new byte[imageSize];
+            img.CopyPixelDataTo(pixelData);
 
-        //TODO: Support more texture formats. Actually check what format ImageSharp returns instead of hardcoding it.
-        Format vulkanFormat = Format.R8G8B8A8Srgb;
+            //TODO: Support more texture formats. Actually check what format ImageSharp returns instead of hardcoding it.
+            Format vulkanFormat = Format.R8G8B8A8Srgb;
         
-        Texture2D texture = new Texture2D(context, (uint)img.Width, (uint)img.Height, mipLevels, vulkanFormat,
-            ImageTiling.Optimal, ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit, MemoryPropertyFlags.DeviceLocalBit,
-            ImageAspectFlags.ColorBit);
-        texture.SetPixels(pixelData, pool, queue, generateMipMaps: false);
-        texture.CreateTextureSampler();
-        texture.CreateImageView();
+            //TODO: Add option to generate mip maps before passing data into the constructor
+            Texture2D texture = new Texture2D(context, (uint)img.Width, (uint)img.Height, mipLevels, vulkanFormat,
+                ImageTiling.Optimal, ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit, MemoryPropertyFlags.DeviceLocalBit,
+                ImageAspectFlags.ColorBit);
+            texture.SetPixels(pixelData, pool, queue);
+            texture.CreateTextureSampler();
+            texture.CreateImageView();
 
-        return texture;
+            return texture;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, $"Error creating Texture2D from file at {path}");
+            return null;
+        }
     }
 
     public static void LoadDefaultTexture(RenderContext context, CommandPool pool, Queue queue)
     {
-        DefaultTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}White.png");
+        DefaultTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/White.png") ?? throw new Exception("Failed to load default Texture2D");
     }
 }

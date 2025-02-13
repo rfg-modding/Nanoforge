@@ -46,7 +46,7 @@ public class Mesh
         };
     }
     
-    private unsafe void Bind(RenderContext context, CommandBuffer commandBuffer)
+    public unsafe void Bind(RenderContext context, CommandBuffer commandBuffer)
     {
         var vertexBuffers = new Buffer[] { VertexBufferHandle };
         var offsets = new ulong[] { 0 };
@@ -70,30 +70,5 @@ public class Mesh
         _vertexBuffer.Destroy();
         _indexBuffer.Destroy();
         Destroyed = true;
-    }
-
-    //TODO: Port logic to handle meshes with multiple LOD levels from older version of NF
-    public void Draw(RenderContext context, CommandBuffer commandBuffer, int numSubmeshOverrides = -1)
-    {
-        Bind(context, commandBuffer);
-        if (numSubmeshOverrides != -1)
-        {
-            //Special case used by RenderChunk to draw specific submeshes
-            for (int i = 0; i < numSubmeshOverrides; i++)
-            {
-                ushort submeshIndex = SubmeshOverrideIndices[i];
-                SubmeshData submesh = Config.Submeshes[submeshIndex];
-                uint firstBlock = submesh.RenderBlocksOffset;
-                for (int j = 0; j < submesh.NumRenderBlocks; j++)
-                {
-                    RenderBlock block = Config.RenderBlocks[(int)(firstBlock + j)];
-                    context.Vk.CmdDrawIndexed(commandBuffer, block.NumIndices, 1, block.StartIndex, 0, 0);
-                }
-            }
-        }
-        else
-        {
-            context.Vk.CmdDrawIndexed(commandBuffer, Config.NumIndices, 1, 0, 0, 0);
-        }
     }
 }

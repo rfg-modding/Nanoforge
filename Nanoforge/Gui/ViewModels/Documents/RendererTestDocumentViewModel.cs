@@ -32,7 +32,7 @@ public partial class RendererTestDocumentViewModel : NanoforgeDocument
     [ObservableProperty]
     private bool _sceneInitialized = false;
 
-    private RenderObject? _skybox = null;
+    private RenderObjectBase? _skybox = null;
 
     public RendererTestDocumentViewModel()
     {
@@ -106,7 +106,7 @@ public partial class RendererTestDocumentViewModel : NanoforgeDocument
     [RelayCommand]
     private void Update(SceneFrameUpdateParams updateParams)
     {
-        foreach (RenderObject renderObject in Scene.RenderObjects)
+        foreach (RenderObjectBase renderObject in Scene.RenderObjects)
         {
             if (renderObject == _skybox)
                 continue;
@@ -150,7 +150,7 @@ public partial class RendererTestDocumentViewModel : NanoforgeDocument
                 throw new Exception(error);
             }
 
-            StaticMesh staticMesh = new();
+            StaticMesh staticMesh = new(cpuFilePath);
             staticMesh.ReadHeader(cpuFile);
             MeshInstanceData meshData = staticMesh.ReadData(gpuFile);
 
@@ -230,7 +230,7 @@ public partial class RendererTestDocumentViewModel : NanoforgeDocument
             ImageTiling.Optimal, ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
             MemoryPropertyFlags.DeviceLocalBit,
             ImageAspectFlags.ColorBit);
-        texture.SetPixels(pixels, context.TransferCommandPool, context.TransferQueue, generateMipMaps: false);
+        texture.SetPixels(pixels, context.TransferCommandPool, context.TransferQueue);
         texture.CreateTextureSampler();
         texture.CreateImageView();
 
