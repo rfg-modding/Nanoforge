@@ -100,7 +100,7 @@ public class Territory : EditorObject
                     subzoneTextures[1] = combTexture;
                     for (int textureIndex = 2; textureIndex < 10; textureIndex++)
                     {
-                        ProjectTexture projectTexture = subzone.SplatMaterialTextures[textureIndex - 2];
+                        ProjectTexture? projectTexture = terrain.SplatmapTextures[textureIndex - 2];
                         Texture2D? texture = LoadTexture(projectTexture, textureCache, renderer, scene);
                         if (texture != null)
                         {
@@ -181,7 +181,7 @@ public class Territory : EditorObject
                 if (mover.ChunkData.Destroyables.Count == 0)
                 {
                     //RenderChunk only works with chunks with destroyables currently. So in this case we render the chunk as a normal mesh
-                    Log.Warning($"Mover ({mover.UID}, {mover.Handle}, {mover.Num}) has a chunk no destroyables. Rendering as simple render object.");
+                    Log.Warning($"Mover ({mover.UID}, {mover.Handle}, {mover.Num}) has a chunk no destroyables ({mover.ChunkData.Name}). Rendering as simple render object.");
                     LoadChunkAsSimpleMesh(mover, mover.ChunkData, renderer, scene, meshCache, textureCache);
                     continue;                    
                 }

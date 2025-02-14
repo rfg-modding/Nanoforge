@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using Nanoforge.Editor;
 using Nanoforge.FileSystem;
+using RFGM.Formats.Materials;
 using RFGM.Formats.Meshes;
 using RFGM.Formats.Meshes.Shared;
 using RFGM.Formats.Meshes.Terrain;
@@ -34,7 +36,7 @@ public class TerrainImporter
             }
 
             Log.Information($"Importing primary terrain files for {zone.Name}...");
-            LoadPrimaryTerrain(packfileName, name, terrain, createdObjects);
+            LoadPrimaryTerrain(packfileName, name, terrain, createdObjects, out TerrainFile terrainFile);
             Log.Information("Done importing primary terrain files.");
 
             //Index textures in this maps packfile + common file so they can be found
@@ -49,6 +51,7 @@ public class TerrainImporter
 
             //Load zone-wide textures
             {
+                //TODO: Drive these from the materials in the terrain files instead of hardcoding them
                 ProjectTexture? combTexture = GetOrLoadTerrainTexture($"{name}comb.tga", createdObjects);
                 ProjectTexture? ovlTexture = GetOrLoadTerrainTexture($"{name}_ovl.tga", createdObjects);
                 ProjectTexture? splatmap = GetOrLoadTerrainTexture($"{name}_alpha00.tga", createdObjects);
@@ -62,12 +65,29 @@ public class TerrainImporter
                 terrain.CombTexture = combTexture;
                 terrain.OvlTexture = ovlTexture;
                 terrain.Splatmap = splatmap;
+                
+                //Load subzone textures
+                RfgMaterial? blendMaterial = terrainFile.Materials.FirstOrDefault(mat => mat.ShaderName == "rl_terrain_height_mesh_blend");
+                if (blendMaterial != null)
+                {
+                    Debug.Assert(blendMaterial.Textures.Count == 10); //This is the case for all vanilla cterrain_pc files
+                    List<string> texturesNames = blendMaterial.Textures.Select(tex => tex.Name).ToList();
+                    for (int textureIndex = 0; textureIndex < 8; textureIndex++) //This ends with the alpha and comb texture which the map loader handles setting
+                    {
+                        ProjectTexture? texture = GetOrLoadTerrainTexture(texturesNames[textureIndex], createdObjects);
+                        terrain.SplatmapTextures[textureIndex] = texture;
+                    }
+                }
+                else
+                {
+                    Log.Error($"Failed to find rl_terrain_height_mesh_blend material in {packfileName}. Terrain won't have textures.");
+                }
             }
 
             //Load subzones (ctmesh_pc|gtmesh_pc files). These have the high lod terrain meshes and road meshes
             for (int subzoneIndex = 0; subzoneIndex < 9; subzoneIndex++)
             {
-                LoadSubzones(packfileName, name, territory, terrain, subzoneIndex, createdObjects);
+                LoadSubzones(packfileName, name, territory, terrain, subzoneIndex, createdObjects, terrainFile);
             }
 
             //TODO: Port code to load high lods meshes, rock meshes, road meshes, and their textures. This time split each into it's own function.
@@ -83,7 +103,7 @@ public class TerrainImporter
     }
 
     //Load .cterrain_pc and .gterrain_pc files. There's one of each per zone. They contain info about the overall zones terrain and the low lod terrain meshes.
-    private void LoadPrimaryTerrain(string packfileName, string name, ZoneTerrain terrain, List<EditorObject> createdObjects)
+    private void LoadPrimaryTerrain(string packfileName, string name, ZoneTerrain terrain, List<EditorObject> createdObjects, out TerrainFile terrainFile)
     {
         string cpuFilePath = $"//data/{packfileName}/ns_base.str2_pc/{name}.cterrain_pc";
         string gpuFilePath = $"//data/{packfileName}/ns_base.str2_pc/{name}.gterrain_pc";
@@ -91,7 +111,7 @@ public class TerrainImporter
         //Read header file (.cterrain_pc)
         Stream cpuFile = PackfileVFS.OpenFile(cpuFilePath) ?? throw new Exception($"Importer failed to load .cterrain_pc file from {cpuFilePath}");
         Stream gpuFile = PackfileVFS.OpenFile(gpuFilePath) ?? throw new Exception($"Importer failed to load .gterrain_pc file from {gpuFilePath}");
-        TerrainFile terrainFile = new(name);
+        terrainFile = new(name);
         terrainFile.ReadHeader(cpuFile);
 
         //Save low lod meshes to buffers
@@ -110,10 +130,11 @@ public class TerrainImporter
             createdObjects.Add(mesh);
         }
 
-        terrain.MaterialNames = terrainFile.TerrainMaterialNames;
+        terrain.MaterialNames = terrainFile.TerrainMaterialNames.Select(nameAndOffset => nameAndOffset.Item1).ToList();
     }
 
-    private void LoadSubzones(string packfileName, string name, Territory territory, ZoneTerrain terrain, int subzoneIndex, List<EditorObject> createdObjects)
+    private void LoadSubzones(string packfileName, string name, Territory territory, ZoneTerrain terrain, int subzoneIndex, List<EditorObject> createdObjects,
+        TerrainFile terrainFile)
     {
         string subzoneName = $"{name}_{subzoneIndex}";
         using Stream subzoneCpuFile = PackfileVFS.OpenFile($"//data/{packfileName}/ns_base.str2_pc/{subzoneName}.ctmesh_pc") ??
@@ -169,88 +190,7 @@ public class TerrainImporter
             string stitchPieceName = subzoneFile.StitchPieceNames2[stitchIndex];
             LoadRock(packfileName, stitchInstance, stitchPieceName, territory, createdObjects);
         }
-
-        //Load subzone textures
-        int terrainTextureIndex = 0;
-        int numTerrainTextures = 0;
-        List<string> terrainMaterialNames = terrain.MaterialNames;
-        while (terrainTextureIndex < terrainMaterialNames.Count - 1 && numTerrainTextures < 4)
-        {
-            string current = terrainMaterialNames[terrainTextureIndex];
-            string next = terrainMaterialNames[terrainTextureIndex + 1];
-
-            //Ignored texture, skip. Likely used by game as a holdin when terrain has < 4 materials
-            if (current.Equals("misc-white.tga", StringComparison.OrdinalIgnoreCase))
-            {
-                terrainTextureIndex += 2; //Skip 2 since it's always followed by flat-normalmap.tga, which is also ignored
-                continue;
-            }
-
-            //These are ignored since we already load them by default
-            if (current.Contains("alpha00.tga", StringComparison.OrdinalIgnoreCase) || current.Contains("comb.tga", StringComparison.OrdinalIgnoreCase))
-            {
-                terrainTextureIndex++;
-                continue;
-            }
-
-            //If current is a normal texture try to find the matching diffuse texture
-            if (current.Contains("_n.tga", StringComparison.OrdinalIgnoreCase))
-            {
-                next = current;
-                current.Replace("_n", "_d");
-            }
-            else if (!current.Contains("_d.tga", StringComparison.OrdinalIgnoreCase) || !next.Contains("_n.tga", StringComparison.OrdinalIgnoreCase))
-            {
-                //Isn't a diffuse or normal texture. Ignore
-                terrainTextureIndex++;
-                continue;
-            }
-
-            ProjectTexture? texture0 = GetOrLoadTerrainTexture(current, createdObjects);
-            if (texture0 == null)
-            {
-                Log.Warning("Error loading texture {} for subzone {} of {}. Using default missing texture.", current, subzoneIndex, name);
-                continue;
-            }
-
-            ProjectTexture? texture1 = GetOrLoadTerrainTexture(next, createdObjects);
-            if (texture1 == null)
-            {
-                Log.Warning("Error loading texture {} for subzone {} of {}.", next, subzoneIndex, name);
-                continue;
-            }
-
-            switch (numTerrainTextures)
-            {
-                case 0:
-                    subzone.SplatMaterialTextures[0] = texture0;
-                    subzone.SplatMaterialTextures[1] = texture1;
-                    break;
-
-                case 1:
-                    subzone.SplatMaterialTextures[2] = texture0;
-                    subzone.SplatMaterialTextures[3] = texture1;
-                    break;
-
-                case 2:
-                    subzone.SplatMaterialTextures[4] = texture0;
-                    subzone.SplatMaterialTextures[5] = texture1;
-                    break;
-
-                case 3:
-                    subzone.SplatMaterialTextures[6] = texture0;
-                    subzone.SplatMaterialTextures[7] = texture1;
-                    break;
-
-                default:
-                    Log.Error("Terrain importer somehow got > 3 textures. This shouldn't be able to happen!");
-                    break;
-            }
-
-            numTerrainTextures++;
-            terrainTextureIndex += 2;
-        }
-
+        
         terrain.Subzones[subzoneIndex] = subzone;
     }
 

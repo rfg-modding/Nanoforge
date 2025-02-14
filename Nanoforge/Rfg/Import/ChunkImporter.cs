@@ -156,14 +156,14 @@ public class ChunkImporter
 
             if (result == null)
             {
-                Log.Error($"TerrainImporter.GetOrLoadTerrainTexture() failed to find '{tgaName}'");
+                Log.Error($"ChunkImporter.GetOrLoadTerrainTexture() failed to find '{tgaName}'");
             }
 
             return result;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"Failed to load terrain texture {tgaName}");
+            Log.Error(ex, $"Failed to load chunk texture {tgaName}");
             return null;
         }
     }

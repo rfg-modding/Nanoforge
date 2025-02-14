@@ -41,7 +41,6 @@ public static class TextureIndex
             if (IsIndexed(vppName))
                 return true;
 
-
             EntryBase? entry = PackfileVFS.GetEntry($"//data/{vppName}/"); //TODO: De-hardcode the data folder mount point
             if (entry == null)
             {
@@ -101,12 +100,9 @@ public static class TextureIndex
                 }
             }
 
-            if (index.Pegs.Count > 0)
+            lock (_indexLock)
             {
-                lock (_indexLock)
-                {
-                    _packfileIndices.Add(index);
-                }
+                _packfileIndices.Add(index);
             }
             
             Log.Information($"Done indexing textures in {directory.Name}!");
