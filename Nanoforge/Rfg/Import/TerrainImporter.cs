@@ -38,8 +38,14 @@ public class TerrainImporter
             Log.Information("Done importing primary terrain files.");
 
             //Index textures in this maps packfile + common file so they can be found
-            TextureIndex.IndexVpp(packfileName);
-            TextureIndex.IndexVpp("mp_common.vpp_pc"); //TODO: Do this based on precache file name instead of hardcoding it
+            if (!TextureIndex.IsIndexed(packfileName))
+            {
+                TextureIndex.IndexVpp(packfileName);
+            }
+            if (!TextureIndex.IsIndexed("mp_common.vpp_pc"))
+            {
+                TextureIndex.IndexVpp("mp_common.vpp_pc");
+            }
 
             //Load zone-wide textures
             {

@@ -255,20 +255,20 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
                     materialTextures.Add(textures);
                 }
             }
+            
+            //Chunks can have multiple materials. Each material can have multiple textures
+            List<Texture2D[]> texturesByMaterial = new();
+            foreach (List<Texture2D> textures in materialTextures)
+            {
+                Debug.Assert(textures.Count <= 10);
+                texturesByMaterial.Add(textures.ToArray()); //Currently we only use the diffuse textures for chunks
+            }
+            
+            Mesh mesh = new Mesh(context, RawMeshData, context.TransferCommandPool, context.TransferQueue);
+            float destroyableSpacing = 20.0f;
 
             if (ChunkFile.Destroyables.Count > 0)
             {
-                //Chunks can have multiple materials. Each material can have multiple textures
-                List<Texture2D[]> texturesByMaterial = new();
-                foreach (List<Texture2D> textures in materialTextures)
-                {
-                    Debug.Assert(textures.Count <= 10);
-                    texturesByMaterial.Add(textures.ToArray()); //Currently we only use the diffuse textures for chunks
-                }
-
-                Mesh mesh = new Mesh(context, RawMeshData, context.TransferCommandPool, context.TransferQueue);
-                float destroyableSpacing = 20.0f;
-
                 int destroyableIndex = 0;
                 foreach (Destroyable destroyable in ChunkFile.Destroyables)
                 {
@@ -283,7 +283,9 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
             {
                 //TODO: Add warning on scene or in inspector indicating that it has no destroyables and thus nothing will be drawn
                 //TODO: Maybe reuse that to show when exception happens during loading process. Currently it still says "waiting for scene to load..."
-                Log.Information("Opened chunk '{ChunkCpuFileName}' in viewer. It has no destroyables.", ChunkCpuFilePath);
+                Log.Warning("Opened chunk '{ChunkCpuFileName}' in viewer. It has no destroyables. Will be rendered as a simple mesh", ChunkCpuFilePath);
+
+                Scene.CreateRenderObject(ChunkFile.Config.VertexFormat.ToString(), Vector3.Zero, Matrix4x4.Identity, mesh, texturesByMaterial[0]);
             }
             
             Scene.Init(renderer.Context);

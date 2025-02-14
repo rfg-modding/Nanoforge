@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Nanoforge.Editor;
 using Nanoforge.FileSystem;
@@ -102,7 +103,38 @@ public class MapImporter
             
             //Import chunks
             status?.SetStatus("Importing chunks...");
-            //TODO: Port
+            foreach (Zone zone in map.Zones)
+            {
+                foreach (ZoneObject obj in zone.Objects)
+                {
+                    if (obj is not ObjectMover mover)
+                        continue;
+
+                    string chunkFilename = mover.ChunkName.Enabled ? mover.ChunkName.Value : "UnknownChunkName";
+                    chunkFilename = chunkFilename.Replace(".rfgchunk_pc", ".cchk_pc");
+                    string chunkName = Path.GetFileNameWithoutExtension(chunkFilename);
+                    
+                    //See if chunk was already imported
+                    Chunk? chunkSearch = map.Chunks.FirstOrDefault(chunk => chunk.Name == chunkName);
+                    if (chunkSearch is not null)
+                    {
+                        mover.ChunkData = chunkSearch;
+                        continue;
+                    }
+                    
+                    ChunkImporter chunkImporter = new();
+                    Chunk? chunk = chunkImporter.ImportChunk(map.PackfileName, map, zone, chunkName, createdObjects);
+                    if (chunk is not null)
+                    {
+                        mover.ChunkData = chunk;
+                        map.Chunks.Add(chunk);
+                    }
+                    else
+                    {
+                        Log.Warning($"Failed to import chunk mesh '{chunkName}' for zone object ({obj.UID}, {obj.Handle}, {obj.Num}) in {map.PackfileName}!");
+                    }
+                }
+            }
             status?.NextStep();
             
             //Cache the contents of the vpp_pc so they're preserved if the original vpp_pc is edited

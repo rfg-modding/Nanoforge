@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
+using Avalonia.Rendering;
+using Hexa.NET.DirectXTex;
 using Nanoforge.Editor;
 using Nanoforge.Render;
 using Nanoforge.Render.Resources;
+using RFGM.Formats.Materials;
+using RFGM.Formats.Meshes.Chunks;
 using RFGM.Formats.Meshes.Shared;
 using Serilog;
 
@@ -140,7 +145,6 @@ public class Territory : EditorObject
                 //TODO: Put road mesh loading logic here once road meshes are added
             }
             
-            //TODO: Load rocks
             foreach (Rock rock in Rocks)
             {
                 Texture2D? diffuse = LoadTexture(rock.DiffuseTexture, textureCache, renderer, scene);
@@ -161,8 +165,80 @@ public class Territory : EditorObject
 
                 scene.CreateRenderObject(rock.Mesh!.VertexFormat.ToString(), rock.Position, rock.Rotation, rockMesh, [diffuse]);
             }
-            
-            //TODO: Load chunks
+
+            foreach (ObjectMover mover in Zones.SelectMany(zone => zone.Objects).OfType<ObjectMover>())
+            {
+                if (mover.ChunkData is null )
+                {
+                    Log.Warning($"Mover ({mover.UID}, {mover.Handle}, {mover.Num}) does not have chunk data set. Could not load chunk mesh.");
+                    continue;
+                }
+                if (mover.ChunkData.Mesh is null)
+                {
+                    Log.Warning($"Mover ({mover.UID}, {mover.Handle}, {mover.Num}) does not have a chunk mesh set. Could not load chunk mesh.");
+                    continue;
+                }
+                if (mover.ChunkData.Destroyables.Count == 0)
+                {
+                    //RenderChunk only works with chunks with destroyables currently. So in this case we render the chunk as a normal mesh
+                    Log.Warning($"Mover ({mover.UID}, {mover.Handle}, {mover.Num}) has a chunk no destroyables. Rendering as simple render object.");
+                    LoadChunkAsSimpleMesh(mover, mover.ChunkData, renderer, scene, meshCache, textureCache);
+                    continue;                    
+                }
+                Chunk? chunk = mover.ChunkData;
+
+                int destroyableIndex = 0;
+                foreach (ObjectIdentifier identifier in mover.ChunkData.Identifiers)
+                {
+                    if (identifier.UniqueId == mover.DestroyableUID)
+                    {
+                        destroyableIndex = identifier.ObjectIndex;
+                        break;
+                    }
+                }
+                if (destroyableIndex < 0 || destroyableIndex >= chunk.Destroyables.Count)
+                {
+                    Log.Error($"Destroyable index {destroyableIndex} is out of range for {chunk.Name}. Can not load chunk mesh.");
+                    continue;
+                }
+                Destroyable destroyable = chunk.Destroyables[destroyableIndex];
+                
+                Mesh? mesh = LoadMesh(chunk.Mesh, meshCache, renderer, scene);
+                if (mesh is null)
+                {
+                    Log.Warning($"Failed to load mesh {chunk.Mesh.Name} for map {Name}");
+                    continue;
+                }
+                
+                List<Texture2D[]> materialTextures = new();
+                for (int materialIndex = 0; materialIndex < chunk.Materials.Count; materialIndex++)
+                {
+                    RfgMaterial material = chunk.Materials[materialIndex];
+                    List<ProjectTexture?> projectTextures = chunk.Textures[materialIndex];
+                    Texture2D[] renderTextures = new Texture2D[3];
+                    for (int textureIndex = 0; textureIndex < projectTextures.Count; textureIndex++)
+                    {
+                        Texture2D? renderTexture = null;
+                        var texture = projectTextures[textureIndex];
+                        if (texture is not null)
+                        {
+                            renderTexture = LoadTexture(texture, textureCache, renderer, scene);
+                        }
+
+                        renderTexture ??= textureIndex switch
+                        {
+                            1 => Texture2D.FlatNormalMap,
+                            _ => Texture2D.MissingTexture
+                        };
+                        
+                        renderTextures[textureIndex] = renderTexture;
+                    }
+                    
+                    materialTextures.Add(renderTextures);
+                }
+                
+                scene.CreateRenderChunk(chunk.Mesh.VertexFormat.ToString(), mover.Position, mover.Orient, mesh, materialTextures, destroyable);
+            }
             
             return true;
         }
@@ -171,6 +247,41 @@ public class Territory : EditorObject
             Log.Error(ex, "Error loading map from project files");
             return false;
         }
+    }
+
+    private void LoadChunkAsSimpleMesh(ObjectMover mover, Chunk chunk, Renderer renderer, Scene scene, Dictionary<ProjectMesh, Mesh> meshCache, Dictionary<ProjectTexture, Texture2D> textureCache)
+    {
+        RfgMaterial material = chunk.Materials[0];
+        List<ProjectTexture?> projectTextures = chunk.Textures[0];
+        
+        Texture2D[] renderTextures = new Texture2D[3];
+        for (int textureIndex = 0; textureIndex < projectTextures.Count; textureIndex++)
+        {
+            ProjectTexture? texture = projectTextures[textureIndex];
+            
+            Texture2D? renderTexture = null;
+            if (texture is not null)
+            {
+                renderTexture = LoadTexture(texture, textureCache, renderer, scene);
+            }
+
+            renderTexture ??= textureIndex switch
+            {
+                1 => Texture2D.FlatNormalMap,
+                _ => Texture2D.MissingTexture
+            };
+            
+            renderTextures[textureIndex] = renderTexture;            
+        }
+
+        Mesh? mesh = LoadMesh(chunk.Mesh, meshCache, renderer, scene);
+        if (mesh is null)
+        {
+            Log.Error($"Failed to load chunk mesh for {chunk.Name} in map {Name}");
+            return;
+        }
+
+        scene.CreateRenderObject(chunk.Mesh!.VertexFormat.ToString(), mover.Position, mover.Orient, mesh, renderTextures);
     }
 
     private Texture2D? LoadTexture(ProjectTexture? projectTexture, Dictionary<ProjectTexture, Texture2D> textureCache, Renderer renderer, Scene scene)
@@ -233,9 +344,4 @@ public class Territory : EditorObject
     }
     
     //TODO: Port the rest of this classes functions and fields
-}
-
-public class Chunk : EditorObject
-{
-    //TODO: Port
 }
