@@ -22,6 +22,7 @@ layout(location = 2) in vec4 inTangent;
 layout(location = 3) in ivec2 inTexCoord;
 layout(location = 4) in ivec2 inTexCoord2;
 layout(location = 5) in ivec2 inTexCoord3;
+layout(location = 6) in ivec2 inTexCoord4;
 
 layout(location = 0) out vec3 vertexWorldPos;
 layout(location = 1) out vec2 fragTexCoord;

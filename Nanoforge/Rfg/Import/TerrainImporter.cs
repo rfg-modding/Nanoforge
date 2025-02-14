@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Nanoforge.Editor;
 using Nanoforge.FileSystem;
 using RFGM.Formats.Meshes;
 using RFGM.Formats.Meshes.Shared;
+using RFGM.Formats.Meshes.Terrain;
 using RFGM.Formats.Peg;
 using RFGM.Formats.Peg.Models;
 using Serilog;
@@ -56,6 +58,12 @@ public class TerrainImporter
                 terrain.Splatmap = splatmap;
             }
 
+            //Load subzones (ctmesh_pc|gtmesh_pc files). These have the high lod terrain meshes and road meshes
+            for (int subzoneIndex = 0; subzoneIndex < 9; subzoneIndex++)
+            {
+                LoadSubzones(packfileName, name, territory, terrain, subzoneIndex, createdObjects);
+            }
+
             //TODO: Port code to load high lods meshes, rock meshes, road meshes, and their textures. This time split each into it's own function.
             //TODO: Start at line 96 of TerrainImporter.bf
 
@@ -94,6 +102,210 @@ public class TerrainImporter
             mesh.VertexBuffer = vertexBuffer;
             terrain.LowLodTerrainMeshes[i] = mesh;
             createdObjects.Add(mesh);
+        }
+
+        terrain.MaterialNames = terrainFile.TerrainMaterialNames;
+    }
+
+    private void LoadSubzones(string packfileName, string name, Territory territory, ZoneTerrain terrain, int subzoneIndex, List<EditorObject> createdObjects)
+    {
+        string subzoneName = $"{name}_{subzoneIndex}";
+        using Stream subzoneCpuFile = PackfileVFS.OpenFile($"//data/{packfileName}/ns_base.str2_pc/{subzoneName}.ctmesh_pc") ??
+                                      throw new Exception($"Failed to open ctmesh {subzoneIndex} in {packfileName}");
+        using Stream subzoneGpuFile = PackfileVFS.OpenFile($"//data/{packfileName}/ns_base.str2_pc/{subzoneName}.gtmesh_pc") ??
+                                      throw new Exception($"Failed to open gtmesh {subzoneIndex} in {packfileName}");
+
+        TerrainSubzoneFile subzoneFile = new(subzoneName);
+        subzoneFile.ReadHeader(subzoneCpuFile);
+
+        TerrainSubzone subzone = new TerrainSubzone { Name = subzoneName };
+        subzone.Position = subzoneFile.Data.Position;
+        createdObjects.Add(subzone);
+
+        //Load subzone high lod terrain mesh
+        {
+            MeshInstanceData terrainMesh = subzoneFile.ReadTerrainMeshData(subzoneGpuFile);
+            ProjectBuffer indexBuffer = NanoDB.CreateBuffer(terrainMesh.Indices, $"{name}_high_lod_{subzoneIndex}_indices") ??
+                                        throw new Exception($"Failed to create buffer for indices of subzone mesh {subzoneIndex}for {name}");
+            ProjectBuffer vertexBuffer = NanoDB.CreateBuffer(terrainMesh.Vertices, $"{name}_high_lod_{subzoneIndex}_vertices") ??
+                                         throw new Exception($"Failed to create buffer for vertices of subzone mesh {subzoneIndex} for {name}");
+            ProjectMesh mesh = new() { Name = $"{name}_high_lod_{subzoneIndex}_mesh" };
+            mesh.InitFromRfgMeshConfig(terrainMesh.Config);
+            mesh.IndexBuffer = indexBuffer;
+            mesh.VertexBuffer = vertexBuffer;
+            subzone.Mesh = mesh;
+            createdObjects.Add(mesh);
+        }
+
+        //Load stitch mesh
+        subzone.HasStitchMeshes = subzoneFile.HasStitchMesh;
+        if (subzoneFile.HasStitchMesh)
+        {
+            MeshInstanceData stitchMesh = subzoneFile.ReadStitchMeshData(subzoneGpuFile);
+            ProjectBuffer indexBuffer = NanoDB.CreateBuffer(stitchMesh.Indices, $"{name}_subzone{subzoneIndex}_stitch_indices") ??
+                                        throw new Exception($"Failed to create buffer for indices of subzone stitch mesh {subzoneIndex}for {name}");
+            ProjectBuffer vertexBuffer = NanoDB.CreateBuffer(stitchMesh.Vertices, $"{name}_subzone{subzoneIndex}_stitch_vertices") ??
+                                         throw new Exception($"Failed to create buffer for vertices of subzone stitch mesh {subzoneIndex} for {name}");
+            ProjectMesh mesh = new() { Name = $"{name}_subzone{subzoneIndex}_stitch_mesh" };
+            mesh.InitFromRfgMeshConfig(stitchMesh.Config);
+            mesh.IndexBuffer = indexBuffer;
+            mesh.VertexBuffer = vertexBuffer;
+            subzone.StitchMesh = mesh;
+            createdObjects.Add(mesh);
+        }
+
+        //TODO: Load road meshes here. Not implemented for now since MP/WC maps don't have them
+
+        //Load rock meshes
+        for (int stitchIndex = 0; stitchIndex < subzoneFile.StitchInstances.Count; stitchIndex++)
+        {
+            TerrainStitchInstance stitchInstance = subzoneFile.StitchInstances[stitchIndex];
+            string stitchPieceName = subzoneFile.StitchPieceNames2[stitchIndex];
+            LoadRock(packfileName, stitchInstance, stitchPieceName, territory, createdObjects);
+        }
+
+        //Load subzone textures
+        int terrainTextureIndex = 0;
+        int numTerrainTextures = 0;
+        List<string> terrainMaterialNames = terrain.MaterialNames;
+        while (terrainTextureIndex < terrainMaterialNames.Count - 1 && numTerrainTextures < 4)
+        {
+            string current = terrainMaterialNames[terrainTextureIndex];
+            string next = terrainMaterialNames[terrainTextureIndex + 1];
+
+            //Ignored texture, skip. Likely used by game as a holdin when terrain has < 4 materials
+            if (current.Equals("misc-white.tga", StringComparison.OrdinalIgnoreCase))
+            {
+                terrainTextureIndex += 2; //Skip 2 since it's always followed by flat-normalmap.tga, which is also ignored
+                continue;
+            }
+
+            //These are ignored since we already load them by default
+            if (current.Contains("alpha00.tga", StringComparison.OrdinalIgnoreCase) || current.Contains("comb.tga", StringComparison.OrdinalIgnoreCase))
+            {
+                terrainTextureIndex++;
+                continue;
+            }
+
+            //If current is a normal texture try to find the matching diffuse texture
+            if (current.Contains("_n.tga", StringComparison.OrdinalIgnoreCase))
+            {
+                next = current;
+                current.Replace("_n", "_d");
+            }
+            else if (!current.Contains("_d.tga", StringComparison.OrdinalIgnoreCase) || !next.Contains("_n.tga", StringComparison.OrdinalIgnoreCase))
+            {
+                //Isn't a diffuse or normal texture. Ignore
+                terrainTextureIndex++;
+                continue;
+            }
+
+            ProjectTexture? texture0 = GetOrLoadTerrainTexture(current, createdObjects);
+            if (texture0 == null)
+            {
+                Log.Warning("Error loading texture {} for subzone {} of {}. Using default missing texture.", current, subzoneIndex, name);
+                continue;
+            }
+
+            ProjectTexture? texture1 = GetOrLoadTerrainTexture(next, createdObjects);
+            if (texture1 == null)
+            {
+                Log.Warning("Error loading texture {} for subzone {} of {}.", next, subzoneIndex, name);
+                continue;
+            }
+
+            switch (numTerrainTextures)
+            {
+                case 0:
+                    subzone.SplatMaterialTextures[0] = texture0;
+                    subzone.SplatMaterialTextures[1] = texture1;
+                    break;
+
+                case 1:
+                    subzone.SplatMaterialTextures[2] = texture0;
+                    subzone.SplatMaterialTextures[3] = texture1;
+                    break;
+
+                case 2:
+                    subzone.SplatMaterialTextures[4] = texture0;
+                    subzone.SplatMaterialTextures[5] = texture1;
+                    break;
+
+                case 3:
+                    subzone.SplatMaterialTextures[6] = texture0;
+                    subzone.SplatMaterialTextures[7] = texture1;
+                    break;
+
+                default:
+                    Log.Error("Terrain importer somehow got > 3 textures. This shouldn't be able to happen!");
+                    break;
+            }
+
+            numTerrainTextures++;
+            terrainTextureIndex += 2;
+        }
+
+        terrain.Subzones[subzoneIndex] = subzone;
+    }
+
+    private void LoadRock(string packfileName, TerrainStitchInstance stitchInstance, string stitchPieceName, Territory territory, List<EditorObject> createdObjects)
+    {
+        try
+        {
+            if (stitchPieceName.Contains("_Road", StringComparison.OrdinalIgnoreCase))
+                return; //Skip road stitch instance. Road mesh data is stored in the terrain file and loaded separately
+
+            Rock? rockSearch = territory.Rocks.FirstOrDefault(rock => rock?.Name == stitchPieceName, null);
+            if (rockSearch != null && rockSearch.Mesh != null)
+            {
+                Rock cachedRock = rockSearch;
+                Rock cachedRockCopy = new Rock(stitchPieceName, stitchInstance.Position, stitchInstance.Rotation.ToMatrix4x4(), cachedRock.Mesh, cachedRock.DiffuseTexture);
+                createdObjects.Add(cachedRockCopy);
+                territory.Rocks.Add(cachedRockCopy);
+                return;
+            }
+
+            //First time loading the rock. Must load the rfg files and extract the meshes + textures
+            using Stream? rockCpuFile = PackfileVFS.OpenFile($"//data/{packfileName}/ns_base.str2_pc/{stitchPieceName}.cstch_pc");
+            using Stream? rockGpuFile = PackfileVFS.OpenFile($"//data/{packfileName}/ns_base.str2_pc/{stitchPieceName}.gstch_pc");
+            if (rockCpuFile is null || rockGpuFile is null)
+            {
+                Log.Error($"Failed to open rock files for {stitchPieceName} in {packfileName}. Skipping rock.");
+                return;
+            }
+
+            RockMeshFile rockFile = new RockMeshFile(stitchPieceName);
+            rockFile.ReadHeader(rockCpuFile);
+
+            MeshInstanceData meshData = rockFile.ReadData(rockGpuFile);
+            ProjectBuffer indexBuffer = NanoDB.CreateBuffer(meshData.Indices, $"{Path.GetFileNameWithoutExtension(packfileName)}_{stitchPieceName}_indices") ??
+                                        throw new Exception($"Failed to create buffer for indices of rock {stitchPieceName}");
+            ProjectBuffer vertexBuffer = NanoDB.CreateBuffer(meshData.Vertices, $"{Path.GetFileNameWithoutExtension(packfileName)}_{stitchPieceName}_vertices") ??
+                                         throw new Exception($"Failed to create buffer for vertices of rock {stitchPieceName}");
+            ProjectMesh mesh = new() { Name = $"{stitchPieceName}.cstch_pc" };
+            mesh.InitFromRfgMeshConfig(meshData.Config);
+            mesh.IndexBuffer = indexBuffer;
+            mesh.VertexBuffer = vertexBuffer;
+            createdObjects.Add(mesh);
+
+            //Load rock textures
+            ProjectTexture? diffuseTexture = null;
+            if (rockFile.TextureNames.Count >= 1)
+            {
+                diffuseTexture = GetOrLoadTerrainTexture(rockFile.TextureNames[0], createdObjects);
+            }
+            if (diffuseTexture == null)
+            {
+                Log.Warning($"Failed to load diffuse texture for {stitchPieceName}");
+            }
+
+            Rock rock = new Rock(stitchPieceName, stitchInstance.Position, stitchInstance.Rotation.ToMatrix4x4(), mesh, diffuseTexture);
+            createdObjects.Add(rock);
+            territory.Rocks.Add(rock);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, $"Error loading rock for {stitchPieceName} in {packfileName}.");
         }
     }
 

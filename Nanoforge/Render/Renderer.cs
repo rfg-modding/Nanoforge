@@ -50,7 +50,7 @@ public unsafe class Renderer
         CreateSyncObjects();
         
         //Load 1x1 white texture to use when the maximum number of textures aren't provided to a RenderObject
-        Texture2D.LoadDefaultTexture(Context, Context.CommandPool, Context.GraphicsQueue);
+        Texture2D.LoadDefaultTextures(Context, Context.CommandPool, Context.GraphicsQueue);
     }
 
     public void Shutdown()
@@ -223,6 +223,7 @@ public unsafe class Renderer
         {
             View = scene.Camera!.View,
             Projection = scene.Camera!.Projection,
+            CameraPosition = new Vector4(scene.Camera!.Position.X, scene.Camera!.Position.Y, scene.Camera!.Position.Z, 1.0f),
         };
 
         _perFrameUniformBuffers![currentImage].SetData(ref perFrame);

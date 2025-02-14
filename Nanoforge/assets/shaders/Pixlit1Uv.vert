@@ -4,6 +4,7 @@ layout(binding = 0) uniform UniformBufferObject
 {
     mat4 view;
     mat4 proj;
+    vec4 cameraPos;
 } ubo;
 
 //Note: Do not to exceed 128 bytes for this data. The spec requires 128 minimum. Can't guarantee that more will be available.
@@ -11,6 +12,7 @@ layout(binding = 0) uniform UniformBufferObject
 layout(push_constant) uniform ObjectPushConstants
 {
     mat4 model;
+    vec4 worldPos;
 } objectData;
 
 layout(location = 0) in vec3 inPosition;

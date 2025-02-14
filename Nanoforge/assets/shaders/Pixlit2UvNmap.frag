@@ -11,12 +11,21 @@ layout(location = 3) in vec4 fragNormal;
 
 layout(location = 0) out vec4 outColor;
 
+layout(binding = 0) uniform UniformBufferObject
+{
+    mat4 view;
+    mat4 proj;
+    vec4 cameraPos;
+} ubo;
+
+//Note: Do not to exceed 128 bytes for this data. The spec requires 128 minimum. Can't guarantee that more will be available.
+//      If more data is needed some other approach will have to be taken like having 1 UBO per RenderObject
 layout(push_constant) uniform ObjectPushConstants
 {
     mat4 model;
-//TODO: Move this into a per-frame UBO. 
-    vec4 cameraPos;
+    vec4 worldPos;
 } objectData;
+
 
 void main()
 {
@@ -38,7 +47,7 @@ void main()
     vec3 diffuse = amountLit * diffuseColor.xyz * sunlightColor * sunlightIntensity;
 
     //Specular highlights
-    vec3 viewDir = normalize(objectData.cameraPos.xyz - fragWorldPos);
+    vec3 viewDir = normalize(ubo.cameraPos.xyz - fragWorldPos);
     vec3 halfwayDir = normalize(lightDir + viewDir);
     vec3 reflectDir = reflect(-lightDir, normal.xyz);
     float highlightSize = 64.0f; //Smaller = bigger specular highlights

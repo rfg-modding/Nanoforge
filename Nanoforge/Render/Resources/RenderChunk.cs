@@ -49,7 +49,7 @@ public class RenderChunk : RenderObjectBase
             {
                 for (int i = textures.Length; i < maxTexturesPerMaterial; i++)
                 {
-                    textureArray[i] = Texture2D.DefaultTexture;
+                    textureArray[i] = Texture2D.MissingTexture;
                 }
             }
             
@@ -90,7 +90,7 @@ public class RenderChunk : RenderObjectBase
             PerObjectPushConstants pushConstants = new()
             {
                 Model = model,
-                CameraPosition = new Vector4(camera.Position.X, camera.Position.Y, camera.Position.Z, 1.0f),
+                WorldPosition = new Vector4(Position.X, Position.Y, Position.Z, 1.0f),
             };
         
             for (int subpieceIndex = dlod.FirstPiece; subpieceIndex < dlod.FirstPiece + dlod.MaxPieces; subpieceIndex++)

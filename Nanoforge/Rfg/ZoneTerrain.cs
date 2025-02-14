@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Numerics;
 using Nanoforge.Editor;
 
@@ -13,4 +14,5 @@ public class ZoneTerrain: EditorObject
     public ProjectTexture? Splatmap = null;
 
     public TerrainSubzone[] Subzones = new TerrainSubzone[9];
+    public List<string> MaterialNames = [];
 }

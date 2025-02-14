@@ -89,7 +89,7 @@ public class MaterialPipeline
             DescriptorCount = 1,
             DescriptorType = DescriptorType.UniformBuffer,
             PImmutableSamplers = null,
-            StageFlags = ShaderStageFlags.VertexBit,
+            StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
         });
 
         //Samplers for the maximum of 10 textures that can be bound to a RenderObject

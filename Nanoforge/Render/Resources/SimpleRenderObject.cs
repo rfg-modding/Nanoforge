@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using Nanoforge.Render.Materials;
 using Nanoforge.Render.Misc;
+using RFGM.Formats.Meshes.Shared;
 using Serilog;
 using Silk.NET.Vulkan;
 
@@ -36,7 +37,7 @@ public class SimpleRenderObject : RenderObjectBase
         {
             for (int i = textures.Length; i < 10; i++)
             {
-                Textures[i] = Texture2D.DefaultTexture;
+                Textures[i] = Texture2D.MissingTexture;
             }
         }
         Material = MaterialHelper.CreateMaterialInstance(materialName, Textures);
@@ -51,17 +52,25 @@ public class SimpleRenderObject : RenderObjectBase
         PerObjectPushConstants pushConstants = new()
         {
             Model = model,
-            CameraPosition = new Vector4(camera.Position.X, camera.Position.Y, camera.Position.Z, 1.0f),
+            WorldPosition = new Vector4(Position.X, Position.Y, Position.Z, 1.0f),
         };
-        
-        commands.Add(new RenderCommand()
+
+        foreach (SubmeshData submesh in Mesh.Config.Submeshes)
         {
-            MaterialInstance = Material,
-            Mesh = Mesh,
-            ObjectConstants = pushConstants,
-            IndexCount = Mesh.Config.NumIndices,
-            StartIndex = 0,
-        });
+            uint firstBlock = submesh.RenderBlocksOffset;
+            for (int j = 0; j < submesh.NumRenderBlocks; j++)
+            {
+                RenderBlock block = Mesh.Config.RenderBlocks[(int)(firstBlock + j)];
+                commands.Add(new RenderCommand()
+                {
+                    MaterialInstance = Material,
+                    Mesh = Mesh,
+                    ObjectConstants = pushConstants,
+                    IndexCount = block.NumIndices,
+                    StartIndex = block.StartIndex,
+                });
+            }
+        }
     }
 
     public override void Destroy()
