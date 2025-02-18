@@ -33,20 +33,25 @@ public unsafe class Renderer
     private Fence[]? _inFlightFences;
     private int _currentFrame = 0;
     public List<Scene> ActiveScenes = new();
+
+    //Create a GPU buffer for storing per object constants like their model matrix. Gets uploaded once per scene instead of updating push constants 1000s of times
+    //25000 is a reasonable cap with tons of headroom. mp_crescent is a large map and only has 4814. With the current size of PerObjectConstants it only takes up 1.4MB.
+    //Note that this number is equivalent to the number of RenderObjectBase instances. Since some types like RenderChunk can have many separate pieces with their own constants.
+    public const int MaxObjectsPerScene = 25000;
+    private VkBuffer[] _perObjectConstantsGPUBuffer; 
+    private ObjectConstantsWriter _objectConstantsWriter = new(MaxObjectsPerScene);
     
     public static readonly Format RenderTextureImageFormat = Format.B8G8R8A8Srgb;
     public static Format DepthTextureFormat { get; private set; }
 
     public Renderer(uint viewportWidth, uint viewportHeight)
     {
-        //The vulkan spec says that drivers must support push constants being at least 128 bytes. For the moment lets avoid going over that avoid GPU compatibility issues.
-        Debug.Assert(Unsafe.SizeOf<PerObjectPushConstants>() <= 128);
-        
         Context = new RenderContext();
         DepthTextureFormat = FindDepthFormat();
         CreateRenderPass();
         CreateUniformBuffers();
-        MaterialHelper.Init(Context, _renderPass, _perFrameUniformBuffers!);
+        CreatePerObjectConstantBuffers();
+        MaterialHelper.Init(Context, _renderPass, _perFrameUniformBuffers!, _perObjectConstantsGPUBuffer);
         CreateSyncObjects();
         
         //Load 1x1 white texture to use when the maximum number of textures aren't provided to a RenderObject
@@ -110,6 +115,11 @@ public unsafe class Renderer
             {
                 buffer.Destroy();
             }
+        }
+
+        foreach (VkBuffer buffer in _perObjectConstantsGPUBuffer)
+        {
+            buffer.Destroy();
         }
         
         Texture2D.DefaultTexture.Destroy();
@@ -216,7 +226,7 @@ public unsafe class Renderer
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
         }
     }
-
+    
     private void UpdatePerFrameUniformBuffer(Scene scene, uint currentImage)
     {
         PerFrameBuffer perFrame = new()
@@ -229,6 +239,29 @@ public unsafe class Renderer
         _perFrameUniformBuffers![currentImage].SetData(ref perFrame);
     }
 
+    [MemberNotNull(nameof(_perObjectConstantsGPUBuffer))]
+    private void CreatePerObjectConstantBuffers()
+    {
+        int bufferSize = MaxObjectsPerScene * Unsafe.SizeOf<PerObjectConstants>();
+        _perObjectConstantsGPUBuffer = new VkBuffer[MaxFramesInFlight];
+        for (int i = 0; i < MaxFramesInFlight; i++)
+        {
+            _perObjectConstantsGPUBuffer[i] = new VkBuffer(Context, (ulong)bufferSize, BufferUsageFlags.StorageBufferBit,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+        }
+    }
+
+    private unsafe void UpdatePerObjectConstantBuffers(uint currentImage)
+    {
+        fixed (PerObjectConstants* bufferPtr = _objectConstantsWriter.Constants)
+        {
+            int size = MaxObjectsPerScene * Unsafe.SizeOf<PerObjectConstants>();
+            Span<byte> data = new((byte*)bufferPtr, size);
+            _perObjectConstantsGPUBuffer![currentImage].SetData(data);
+        }
+    }
+
+    static int _frameCounter = 0;
     private void RecordCommands(Scene scene, uint index)
     {
         CommandBuffer commandBuffer = scene.CommandBuffers![index];
@@ -299,13 +332,18 @@ public unsafe class Renderer
         }
 
         UpdatePerFrameUniformBuffer(scene, index);
+
+        _objectConstantsWriter.Reset();
         
         List<RenderCommand> commands = new();
         foreach (RenderObjectBase renderObject in scene.RenderObjects)
         {
-            renderObject.WriteDrawCommands(commands, scene.Camera!);
+            renderObject.WriteDrawCommands(commands, scene.Camera!, _objectConstantsWriter);
         }
 
+        
+        UpdatePerObjectConstantBuffers(index);
+        
         var commandsByPipeline = commands.GroupBy(command => command.MaterialInstance.Pipeline).ToList();
         foreach (var pipelineGrouping in commandsByPipeline)
         {
@@ -326,9 +364,7 @@ public unsafe class Renderer
                     
                     foreach (RenderCommand command in materialGrouping)
                     {
-                        PerObjectPushConstants constants = command.ObjectConstants;
-                        Context.Vk.CmdPushConstants(commandBuffer, pipeline.Layout, ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit, 0, (uint)Unsafe.SizeOf<PerObjectPushConstants>(), &constants);
-                        Context.Vk.CmdDrawIndexed(commandBuffer, command.IndexCount, 1, command.StartIndex, 0, 0);
+                        Context.Vk.CmdDrawIndexed(commandBuffer, command.IndexCount, 1, command.StartIndex, 0, command.ObjectIndex);
                     }
 
                 }

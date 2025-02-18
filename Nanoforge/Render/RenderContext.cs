@@ -48,7 +48,7 @@ public unsafe class RenderContext : IDisposable
 
     private readonly string[] _deviceExtensions = new string[]
     {
-        
+        "VK_KHR_shader_draw_parameters"
     };
     
     public RenderContext()
@@ -159,7 +159,7 @@ public unsafe class RenderContext : IDisposable
         uniqueQueueFamilies = uniqueQueueFamilies.Distinct().ToArray();
 
         using var mem = GlobalMemory.Allocate(uniqueQueueFamilies.Length * sizeof(DeviceQueueCreateInfo));
-        var queueCreateInfos = (DeviceQueueCreateInfo*)Unsafe.AsPointer(ref mem.GetPinnableReference());
+        DeviceQueueCreateInfo* queueCreateInfos = (DeviceQueueCreateInfo*)Unsafe.AsPointer(ref mem.GetPinnableReference());
 
         float queuePriority = 1.0f;
         uint graphicsQueueIndex;

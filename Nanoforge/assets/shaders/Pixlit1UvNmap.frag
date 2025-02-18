@@ -1,4 +1,4 @@
-#version 450
+#version 460
 
 layout(binding = 1) uniform sampler2D diffuseSampler;
 layout(binding = 2) uniform sampler2D normalSampler;
@@ -17,15 +17,6 @@ layout(binding = 0) uniform UniformBufferObject
     mat4 proj;
     vec4 cameraPos;
 } ubo;
-
-//Note: Do not to exceed 128 bytes for this data. The spec requires 128 minimum. Can't guarantee that more will be available.
-//      If more data is needed some other approach will have to be taken like having 1 UBO per RenderObject
-layout(push_constant) uniform ObjectPushConstants
-{
-    mat4 model;
-    vec4 worldPos;
-} objectData;
-
 
 void main()
 {

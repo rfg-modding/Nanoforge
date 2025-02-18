@@ -65,7 +65,7 @@ public class RenderChunk : RenderObjectBase
         Debug.Assert(Materials.Count == TexturesByMaterial.Count);
     }
 
-    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera)
+    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera, ObjectConstantsWriter constants)
     {
         //Translation and rotation for the overall object
         Matrix4x4 objTranslation = Matrix4x4.CreateTranslation(Position);
@@ -87,11 +87,14 @@ public class RenderChunk : RenderObjectBase
             
             Matrix4x4 chunkTranslation = Matrix4x4.CreateTranslation(dlod.Pos);
             Matrix4x4 model = chunkRotation * chunkTranslation * objRotation * objTranslation;
-            PerObjectPushConstants pushConstants = new()
+            PerObjectConstants objectConstants = new()
             {
                 Model = model,
                 WorldPosition = new Vector4(Position.X, Position.Y, Position.Z, 1.0f),
             };
+            
+            uint objectIndex = constants.NumObjects;
+            constants.AddConstant(objectConstants);
         
             for (int subpieceIndex = dlod.FirstPiece; subpieceIndex < dlod.FirstPiece + dlod.MaxPieces; subpieceIndex++)
             {
@@ -106,9 +109,9 @@ public class RenderChunk : RenderObjectBase
                     {
                         MaterialInstance = material,
                         Mesh = Mesh,
-                        ObjectConstants = pushConstants,
                         IndexCount = block.NumIndices,
                         StartIndex = block.StartIndex,
+                        ObjectIndex = objectIndex,
                     });
                 }
             }

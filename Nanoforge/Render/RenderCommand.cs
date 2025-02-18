@@ -7,8 +7,8 @@ namespace Nanoforge.Render;
 public struct RenderCommand
 {
     public Mesh Mesh;
-    public PerObjectPushConstants ObjectConstants;
     public MaterialInstance MaterialInstance;
     public uint StartIndex;
     public uint IndexCount;
+    public uint ObjectIndex;
 }

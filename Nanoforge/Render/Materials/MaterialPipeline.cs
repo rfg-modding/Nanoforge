@@ -105,8 +105,18 @@ public class MaterialPipeline
                 StageFlags = ShaderStageFlags.FragmentBit,
             });
         }
+        
+        //Binding for the per object constants buffer
+        uint lastSamplerBinding = firstSamplerBinding + 9;
+        bindings.Add(new DescriptorSetLayoutBinding()
+        {
+            Binding = lastSamplerBinding + 1,
+            DescriptorCount = 1,
+            DescriptorType = DescriptorType.StorageBuffer,
+            PImmutableSamplers = null,
+            StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+        });
 
-        //DescriptorSetLayoutBinding[] bindingsArray = [uboLayoutBinding, samplerLayoutBinding];
         DescriptorSetLayoutBinding[] bindingsArray = bindings.ToArray();
 
         fixed (DescriptorSetLayoutBinding* bindingsPtr = bindingsArray)
@@ -232,7 +242,7 @@ public class MaterialPipeline
             {
                 StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
                 Offset = 0,
-                Size = (uint)Unsafe.SizeOf<PerObjectPushConstants>()
+                Size = (uint)Unsafe.SizeOf<PerObjectConstants>()
             };
             
             PipelineLayoutCreateInfo pipelineLayoutInfo = new()

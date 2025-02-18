@@ -19,9 +19,10 @@ public static class MaterialHelper
     //Note: At the moment there's just one render pass used by the renderer. The MaterialPipelines need it, so it gets passed here.
     private static RenderPass _renderPass;
     private static VkBuffer[]? _uniformBuffers;
+    private static VkBuffer[]? _perObjectConstantBuffers;
     private static DescriptorAllocator? _descriptorAllocator;
 
-    public static void Init(RenderContext context, RenderPass renderPass, VkBuffer[] uniformBuffers)
+    public static void Init(RenderContext context, RenderPass renderPass, VkBuffer[] uniformBuffers, VkBuffer[] perObjectConstantBuffers)
     {
         try
         {
@@ -33,11 +34,13 @@ public static class MaterialHelper
             _context = context;
             _renderPass = renderPass;
             _uniformBuffers = uniformBuffers;
+            _perObjectConstantBuffers = perObjectConstantBuffers;
 
             DescriptorAllocator.PoolSizeRatio[] poolSizeRatios =
             [
                 new() { Type = DescriptorType.UniformBuffer,        Ratio = 1.0f },
-                new() { Type = DescriptorType.CombinedImageSampler, Ratio = 1.0f },
+                new() { Type = DescriptorType.CombinedImageSampler, Ratio = 10.0f },
+                new() { Type = DescriptorType.StorageBuffer       , Ratio = 1.0f },
             ];
             _descriptorAllocator = new DescriptorAllocator(_context, 10, poolSizeRatios);
 
@@ -176,6 +179,14 @@ public static class MaterialHelper
                 Offset = 0,
                 Range = (ulong)Unsafe.SizeOf<PerFrameBuffer>(),
             };
+            
+            //Per object constant storage buffer
+            DescriptorBufferInfo perObjectConstantsBuffer = new()
+            {
+                Buffer = _perObjectConstantBuffers![i].VkHandle,
+                Offset = 0,
+                Range = _perObjectConstantBuffers![i].Size
+            };
 
             DescriptorImageInfo[] imageInfos = new DescriptorImageInfo[textures.Length];
             for (var j = 0; j < textures.Length; j++)
@@ -219,6 +230,19 @@ public static class MaterialHelper
                         PImageInfo = imageInfoPtr + j,
                     });
                 }
+                
+                //Per object constants buffer
+                uint lastSamplerBinding = firstSamplerBinding + (uint)textures.Length - 1;
+                descriptorWrites.Add(new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = descriptorSets[i],
+                    DstBinding = lastSamplerBinding + 1,
+                    DstArrayElement = 0,
+                    DescriptorType = DescriptorType.StorageBuffer,
+                    DescriptorCount = 1,
+                    PBufferInfo = &perObjectConstantsBuffer,
+                });
 
                 var descriptorWritesArray = descriptorWrites.ToArray();
                 fixed (WriteDescriptorSet* descriptorWritesPtr = descriptorWritesArray)

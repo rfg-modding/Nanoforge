@@ -43,17 +43,20 @@ public class SimpleRenderObject : RenderObjectBase
         Material = MaterialHelper.CreateMaterialInstance(materialName, Textures);
     }
     
-    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera)
+    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera, ObjectConstantsWriter constants)
     {
         Matrix4x4 translation = Matrix4x4.CreateTranslation(Position);
         Matrix4x4 rotation = Orient;
         Matrix4x4 scale = Matrix4x4.CreateScale(Scale);
         Matrix4x4 model = rotation * translation * scale;
-        PerObjectPushConstants pushConstants = new()
+        PerObjectConstants objectConstants = new()
         {
             Model = model,
             WorldPosition = new Vector4(Position.X, Position.Y, Position.Z, 1.0f),
         };
+
+        uint objectIndex = constants.NumObjects;
+        constants.AddConstant(objectConstants);
 
         foreach (SubmeshData submesh in Mesh.Config.Submeshes)
         {
@@ -65,9 +68,9 @@ public class SimpleRenderObject : RenderObjectBase
                 {
                     MaterialInstance = Material,
                     Mesh = Mesh,
-                    ObjectConstants = pushConstants,
                     IndexCount = block.NumIndices,
                     StartIndex = block.StartIndex,
+                    ObjectIndex = objectIndex,
                 });
             }
         }

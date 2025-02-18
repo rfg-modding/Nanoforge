@@ -1,4 +1,4 @@
-#version 450
+#version 460
 
 layout(binding = 0) uniform UniformBufferObject
 {
@@ -7,14 +7,16 @@ layout(binding = 0) uniform UniformBufferObject
     vec4 cameraPos;
 } ubo;
 
-//Note: Do not to exceed 128 bytes for this data. The spec requires 128 minimum. Can't guarantee that more will be available.
-//      If more data is needed some other approach will have to be taken like having 1 UBO per RenderObject
-layout(push_constant) uniform ObjectPushConstants
+struct ObjectData
 {
-    mat4 model;
-    vec4 worldPos;
-} objectData;
+    mat4 model;        
+    vec4 worldPos; 
+};
 
+layout(std140, binding = 11) readonly buffer ObjectBuffer
+{
+    ObjectData objects[];
+} objectBuffer;
 
 layout(location = 0) in ivec2 inPosition;
 layout(location = 1) in vec4 inNormal;
@@ -39,16 +41,27 @@ void main()
     posFinal.x = xz - xzUpper; //Difference between xz and the upper byte of xz
     posFinal.y = float(inPosition.x) / 64.0f; //Divide by 64 to scale y to [-512.0, 512.0]
     posFinal.z = xzUpperScaled;
-
+    //posFinal.y *= -1.0f;
+    //posFinal.y *= -1.0f;
+    //posFinal.z *= -1.0f;
+    //posFinal.x *= -1.0f;
+    //posFinal.x += 40.0f;
+    //posFinal.y += 40.0f;
+    //posFinal.z += 40.0f;
+    
     vertexZonePos = posFinal;
-    gl_Position = ubo.proj * ubo.view * objectData.model * vec4(posFinal, 1.0);
-
+    gl_Position = ubo.proj * ubo.view * objectBuffer.objects[gl_BaseInstance].model * vec4(posFinal, 1.0);
+    //gl_Position.z *= -1.0f;
+    //gl_Position.x = 1.0f - gl_Position.z;
+    //gl_Position.w *= -1.0f;
+    //gl_Position.z = (gl_Position.z + gl_Position.w) / 2.0;
+    
     //Note: We don't bother using the normal matrix here for this material since we don't ever rotate terrain
     vec3 normal = normalize(inNormal.xyz * 2.0f - 1.0f); //Adjust range from [0, 1] to [-1, 1]
     fragNormal = vec4(normal, 1.0f);
     
     //Calc texture UV relative to start of this map zone
-    vec3 posWorld = posFinal.xyz + objectData.worldPos.xyz;
+    vec3 posWorld = posFinal.xyz + objectBuffer.objects[gl_BaseInstance].worldPos.xyz;
     vertexWorldPos = posWorld;
     fragTexCoord = posWorld.xz / 511.0f;
 }
