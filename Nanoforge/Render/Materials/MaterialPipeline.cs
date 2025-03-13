@@ -32,8 +32,10 @@ public class MaterialPipeline
     private Shader? _fragmentShader;
     private string FragmentShaderPath => $"{BuildConfig.ShadersDirectory}{Name}.frag";
     private DateTime _fragmentShaderLastWriteTime;
+
+    private bool _disableFaceCulling;
     
-    public MaterialPipeline(RenderContext context, string name, RenderPass renderPass, VkPrimitiveTopology topology, uint stride, Span<VertexInputAttributeDescription> attributes)
+    public MaterialPipeline(RenderContext context, string name, RenderPass renderPass, VkPrimitiveTopology topology, uint stride, Span<VertexInputAttributeDescription> attributes, bool disableFaceCulling = false)
     {
         _context = context;
         Name = name;
@@ -43,6 +45,7 @@ public class MaterialPipeline
         _attributes = attributes.ToArray();
         _vertexShaderLastWriteTime = File.GetLastWriteTime(VertexShaderPath);
         _fragmentShaderLastWriteTime = File.GetLastWriteTime(FragmentShaderPath);
+        _disableFaceCulling = disableFaceCulling;
         
         Init();
         
@@ -164,7 +167,7 @@ public class MaterialPipeline
             PipelineInputAssemblyStateCreateInfo inputAssembly = new()
             {
                 SType = StructureType.PipelineInputAssemblyStateCreateInfo,
-                Topology = VkPrimitiveTopology.TriangleStrip,
+                Topology = _topology,
                 PrimitiveRestartEnable = false,
             };
 
@@ -197,7 +200,7 @@ public class MaterialPipeline
                 RasterizerDiscardEnable = false,
                 PolygonMode = PolygonMode.Fill,
                 LineWidth = 1,
-                CullMode = CullModeFlags.BackBit,
+                CullMode = _disableFaceCulling ? CullModeFlags.None : CullModeFlags.BackBit,
                 FrontFace = FrontFace.CounterClockwise,
                 DepthBiasEnable = false,
             };

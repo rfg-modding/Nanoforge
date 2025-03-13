@@ -44,8 +44,17 @@ public unsafe class Renderer
     public static readonly Format RenderTextureImageFormat = Format.B8G8R8A8Srgb;
     public static Format DepthTextureFormat { get; private set; }
 
-    public Renderer(uint viewportWidth, uint viewportHeight)
+    public unsafe Renderer(uint viewportWidth, uint viewportHeight)
     {
+        if (Unsafe.SizeOf<LineVertex>() != 20)
+        {
+            throw new Exception("SizeOf<LineVertex>() != 20. Uh oh.");
+        }
+        if (Unsafe.SizeOf<ColoredVertex>() != 16)
+        {
+            throw new Exception("SizeOf<ColoredVertex>() != 16. Uh oh.");
+        }
+        
         Context = new RenderContext();
         DepthTextureFormat = FindDepthFormat();
         CreateRenderPass();
@@ -370,6 +379,8 @@ public unsafe class Renderer
                 }
             }
         }
+        
+        scene.PrimitiveRenderer.RenderPrimitives(Context, commandBuffer, index);
 
         Context.Vk.CmdEndRenderPass(commandBuffer);
 

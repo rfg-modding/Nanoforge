@@ -115,6 +115,21 @@ public static class MaterialHelper
                     new VertexInputAttributeDescription { Binding = 0, Location = 6, Format = Format.R16G16Sint,      Offset = 32 }  //TexCoord3
                 ]
             );
+            CreateMaterial("Linelist", VkPrimitiveTopology.LineList, stride: 20,
+                attributes:
+                [
+                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R32G32B32A32Sfloat, Offset = 0  }, //Position and size
+                    new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm,      Offset = 16 }, //Color
+                ]
+            );
+            //TODO: See if there's a way to draw these without disabling face culling. Was having problems with some faces being hidden at some camera angles regardless of front face being CW or CCW
+            CreateMaterial("SolidTriList", VkPrimitiveTopology.TriangleList, stride: 16,
+                attributes:
+                [
+                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R32G32B32Sfloat, Offset = 0  }, //Position
+                    new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm,   Offset = 12 }, //Color
+                ],
+            disableFaceCulling: true);
 
             _initialized = true;
         }
@@ -125,16 +140,16 @@ public static class MaterialHelper
         }
     }
 
-    private static void CreateMaterial(string name, VkPrimitiveTopology topology, uint stride, Span<VertexInputAttributeDescription> attributes)
+    private static void CreateMaterial(string name, VkPrimitiveTopology topology, uint stride, Span<VertexInputAttributeDescription> attributes, bool disableFaceCulling = false)
     {
         if (_materials.ContainsKey(name))
             throw new Exception($"Material with name '{name}' already exists!");
 
-        MaterialPipeline materialPipeline = new(_context!, name, _renderPass, topology, stride, attributes);
+        MaterialPipeline materialPipeline = new(_context!, name, _renderPass, topology, stride, attributes, disableFaceCulling);
         _materials.Add(name, materialPipeline);
     }
 
-    private static MaterialPipeline? GetMaterialPipeline(string name)
+    public static MaterialPipeline? GetMaterialPipeline(string name)
     {
         foreach (var kv in _materials)
         {
@@ -147,12 +162,18 @@ public static class MaterialHelper
         return null;
     }
 
-    public static MaterialInstance CreateMaterialInstance(string name, Texture2D[] textures)
+    public static MaterialInstance CreateMaterialInstance(string name, Texture2D[]? textures = null)
     {
         MaterialPipeline? pipeline = GetMaterialPipeline(name);
         if (pipeline == null)
         {
             throw new Exception($"Material pipeline with name '{name}' does not exist!");
+        }
+
+        if (textures == null)
+        {
+            textures = new Texture2D[10];
+            Array.Fill(textures, Texture2D.DefaultTexture);
         }
 
         DescriptorSet[] descriptorSets = CreateDescriptorSets(textures, pipeline);

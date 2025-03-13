@@ -25,7 +25,8 @@ public class Scene
     private Texture2D? _depthTexture;
     public CommandBuffer[]? CommandBuffers;
     public int LastFrame = -1;
-
+    public PrimitiveRenderer PrimitiveRenderer = new();
+    
     public bool Destroyed { get; private set; } = false;
 
     private const uint DefaultViewportWidth = 1280;
@@ -39,6 +40,7 @@ public class Scene
         Camera = new(position: new Vector3(-2.5f, 3.0f, -2.5f), fovDegrees: 60.0f, new Vector2(DefaultViewportWidth, DefaultViewportHeight), nearPlane: 1.0f,
             farPlane: 10000000.0f);
         InitRenderTextures();
+        PrimitiveRenderer.Init(context);
     }
 
     public void Update(SceneFrameUpdateParams updateParams)
@@ -62,7 +64,7 @@ public class Scene
         RenderObjects.Add(renderObject);
         return renderObject;
     }
-    
+
     //TODO: Update to take EditorObject version of the ChunkFile/Destroyable
     public RenderChunk CreateRenderChunk(string materialName, Vector3 position, Matrix4x4 orient, Mesh mesh, List<Texture2D[]> texturesByMaterial, Destroyable destroyable)
     {
@@ -158,7 +160,7 @@ public class Scene
             MemoryPropertyFlags.DeviceLocalBit, ImageAspectFlags.DepthBit);
         _depthTexture.CreateImageView();
     }
-
+    
     private unsafe void CleanupRenderTextures()
     {
         _depthTexture!.Destroy();
@@ -177,7 +179,7 @@ public class Scene
         {
             texture.Destroy();
         }
-
+        
         _renderTextureBuffer!.Destroy();
         _context!.Vk.FreeCommandBuffers(_context.Device, _context.CommandPool, 1, _renderImageCopyCmdBuffer);
         _context.Vk.DestroyFence(_context.Device, _renderImageCopyFence, null);
@@ -225,11 +227,13 @@ public class Scene
             Log.Warning("Scene.Destroy() called on scene that was already destroyed!");
             return;
         }
-        
+
         foreach (RenderObjectBase renderObject in RenderObjects)
         {
             renderObject.Destroy();
         }
+
+        PrimitiveRenderer.Destroy();
         CleanupRenderTextures();
         Destroyed = true;
     }
