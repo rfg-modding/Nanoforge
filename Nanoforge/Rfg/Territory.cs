@@ -37,14 +37,13 @@ public class Territory : EditorObject
             //TODO: Maybe make a wrapper class for command pools / command buffers that knows which pool and queue it belongs to so less params need to get passed around.
             //TODO: Maybe even have a separate "ThreadRenderContext" that gets passed around
             Dictionary<ProjectMesh, Mesh> meshCache = new();
-            Dictionary<ProjectTexture, Texture2D> textureCache = new();
             
             //Load low lod terrain meshes
             foreach (Zone zone in Zones)
             {
                 ZoneTerrain terrain = zone.Terrain ?? throw new Exception("Zone.Terrain is null");
                 List<Texture2D> lowLodTextures = new List<Texture2D>();
-                Texture2D? combTexture = LoadTexture(terrain.CombTexture, textureCache, renderer, scene);
+                Texture2D? combTexture = LoadTexture(terrain.CombTexture, renderer, scene);
                 if (combTexture != null)
                 {
                     lowLodTextures.Add(combTexture);
@@ -55,7 +54,7 @@ public class Territory : EditorObject
                     Log.Warning("Failed to load comb texture for {}. Terrain may look wrong.", Name);
                 }
 
-                Texture2D? ovlTexture = LoadTexture(terrain.OvlTexture, textureCache, renderer, scene);
+                Texture2D? ovlTexture = LoadTexture(terrain.OvlTexture, renderer, scene);
                 if (ovlTexture != null)
                 {
                     lowLodTextures.Add(ovlTexture);
@@ -66,7 +65,7 @@ public class Territory : EditorObject
                     Log.Warning("Failed to load ovl texture for {}. Terrain may look wrong.", Name);
                 }
 
-                Texture2D? splatmap = LoadTexture(terrain.Splatmap, textureCache, renderer, scene);
+                Texture2D? splatmap = LoadTexture(terrain.Splatmap, renderer, scene);
                 if (splatmap != null)
                 {
                     lowLodTextures.Add(splatmap);
@@ -101,7 +100,7 @@ public class Territory : EditorObject
                     for (int textureIndex = 2; textureIndex < 10; textureIndex++)
                     {
                         ProjectTexture? projectTexture = terrain.SplatmapTextures[textureIndex - 2];
-                        Texture2D? texture = LoadTexture(projectTexture, textureCache, renderer, scene);
+                        Texture2D? texture = LoadTexture(projectTexture, renderer, scene);
                         if (texture != null)
                         {
                             subzoneTextures[textureIndex] = texture;
@@ -147,7 +146,7 @@ public class Territory : EditorObject
             
             foreach (Rock rock in Rocks)
             {
-                Texture2D? diffuse = LoadTexture(rock.DiffuseTexture, textureCache, renderer, scene);
+                Texture2D? diffuse = LoadTexture(rock.DiffuseTexture, renderer, scene);
                 if (diffuse is null)
                 {
                     diffuse = Texture2D.MissingTexture;
@@ -182,7 +181,7 @@ public class Territory : EditorObject
                 {
                     //RenderChunk only works with chunks with destroyables currently. So in this case we render the chunk as a normal mesh
                     Log.Warning($"Mover ({mover.UID}, {mover.Handle}, {mover.Num}) has a chunk no destroyables ({mover.ChunkData.Name}). Rendering as simple render object.");
-                    LoadChunkAsSimpleMesh(mover, mover.ChunkData, renderer, scene, meshCache, textureCache);
+                    LoadChunkAsSimpleMesh(mover, mover.ChunkData, renderer, scene, meshCache);
                     continue;                    
                 }
                 Chunk? chunk = mover.ChunkData;
@@ -222,7 +221,7 @@ public class Territory : EditorObject
                         var texture = projectTextures[textureIndex];
                         if (texture is not null)
                         {
-                            renderTexture = LoadTexture(texture, textureCache, renderer, scene);
+                            renderTexture = LoadTexture(texture, renderer, scene);
                         }
 
                         renderTexture ??= textureIndex switch
@@ -249,7 +248,7 @@ public class Territory : EditorObject
         }
     }
 
-    private void LoadChunkAsSimpleMesh(ObjectMover mover, Chunk chunk, Renderer renderer, Scene scene, Dictionary<ProjectMesh, Mesh> meshCache, Dictionary<ProjectTexture, Texture2D> textureCache)
+    private void LoadChunkAsSimpleMesh(ObjectMover mover, Chunk chunk, Renderer renderer, Scene scene, Dictionary<ProjectMesh, Mesh> meshCache)
     {
         RfgMaterial material = chunk.Materials[0];
         List<ProjectTexture?> projectTextures = chunk.Textures[0];
@@ -262,7 +261,7 @@ public class Territory : EditorObject
             Texture2D? renderTexture = null;
             if (texture is not null)
             {
-                renderTexture = LoadTexture(texture, textureCache, renderer, scene);
+                renderTexture = LoadTexture(texture, renderer, scene);
             }
 
             renderTexture ??= textureIndex switch
@@ -284,14 +283,12 @@ public class Territory : EditorObject
         scene.CreateRenderObject(chunk.Mesh!.VertexFormat.ToString(), mover.Position, mover.Orient, mesh, renderTextures);
     }
 
-    private Texture2D? LoadTexture(ProjectTexture? projectTexture, Dictionary<ProjectTexture, Texture2D> textureCache, Renderer renderer, Scene scene)
+    private Texture2D? LoadTexture(ProjectTexture? projectTexture, Renderer renderer, Scene scene)
     {
         try
         {
             if (projectTexture == null)
                 return null;
-            if (textureCache.ContainsKey(projectTexture))
-                return textureCache[projectTexture];
 
             Texture2D? texture = projectTexture.CreateRenderTexture(renderer, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue);
             if (texture == null)
@@ -300,7 +297,6 @@ public class Territory : EditorObject
                 return null;
             }
             
-            textureCache[projectTexture] = texture;
             return texture;
         }
         catch (Exception ex)

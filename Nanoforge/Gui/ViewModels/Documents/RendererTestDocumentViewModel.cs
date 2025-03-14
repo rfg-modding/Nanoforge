@@ -210,6 +210,12 @@ public partial class RendererTestDocumentViewModel : NanoforgeDocument
         List<LogicalTexture> textures = result.LogicalTextures.ToList();
         LogicalTexture logicalTexture = textures[logicalTextureIndex];
 
+        string tgaName = logicalTexture.Name;
+        if (TextureManager.GetTexture(tgaName) is { } cachedTexture)
+        {
+            return cachedTexture;
+        }
+
         using var memoryStream = new MemoryStream();
         logicalTexture.Data.CopyTo(memoryStream);
         byte[] pixels = memoryStream.ToArray();
@@ -233,6 +239,7 @@ public partial class RendererTestDocumentViewModel : NanoforgeDocument
         texture.SetPixels(pixels, context.TransferCommandPool, context.TransferQueue);
         texture.CreateTextureSampler();
         texture.CreateImageView();
+        TextureManager.NewTexture(tgaName, texture);
 
         return texture;
     }

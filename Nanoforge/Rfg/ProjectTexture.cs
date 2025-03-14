@@ -57,6 +57,10 @@ public class ProjectTexture : EditorObject
     {
         if (Data == null)
             return null;
+        if (TextureManager.GetTexture(Name) is { } cachedTexture)
+        {
+            return cachedTexture;
+        }
 
         byte[] pixels = Data.Load();
         Texture2D texture = new(renderer.Context, (uint)Width, (uint)Height, (uint)NumMipLevels, Format, ImageTiling.Optimal,
@@ -66,6 +70,7 @@ public class ProjectTexture : EditorObject
         texture.SetPixels(pixels, pool, queue);
         texture.CreateTextureSampler();
         texture.CreateImageView();
+        TextureManager.NewTexture(Name, texture);
         
         return texture;
     }

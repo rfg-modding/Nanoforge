@@ -81,11 +81,7 @@ public class SimpleRenderObject : RenderObjectBase
         Mesh.Destroy();
         foreach (Texture2D texture in Textures)
         {
-            //TODO: Add reference counting system for renderer resources to avoid needing checks like this
-            if (texture != Texture2D.DefaultTexture && texture != Texture2D.MissingTexture && texture != Texture2D.FlatNormalMap)
-            {
-                texture.Destroy();
-            }
+            TextureManager.RemoveReference(texture);
         }
     }
 }

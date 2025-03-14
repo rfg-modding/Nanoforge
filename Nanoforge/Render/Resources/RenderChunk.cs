@@ -125,10 +125,7 @@ public class RenderChunk : RenderObjectBase
         {
             foreach (Texture2D texture in textures)
             {
-                if (texture != Texture2D.DefaultTexture && texture != Texture2D.MissingTexture && texture != Texture2D.FlatNormalMap)
-                {
-                    texture.Destroy();
-                }
+                TextureManager.RemoveReference(texture);
             }
         }
     }

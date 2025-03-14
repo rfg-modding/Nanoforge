@@ -235,6 +235,7 @@ public class Scene
 
         PrimitiveRenderer.Destroy();
         CleanupRenderTextures();
+        TextureManager.DestroyUnusedTextures();
         Destroyed = true;
     }
 }

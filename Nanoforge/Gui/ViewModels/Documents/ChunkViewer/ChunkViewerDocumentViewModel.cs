@@ -18,6 +18,7 @@ using Nanoforge.Render;
 using Nanoforge.Render.Resources;
 using Nanoforge.Rfg;
 using RFGM.Formats.Materials;
+using RFGM.Formats.Math;
 using RFGM.Formats.Meshes;
 using RFGM.Formats.Meshes.Chunks;
 using RFGM.Formats.Meshes.Shared;
@@ -339,6 +340,11 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
     {
         try
         {
+            if (TextureManager.GetTexture(tgaName) is { } cachedTexture)
+            {
+                return cachedTexture;
+            }
+            
             if (chunkFileEntry.Parent is not DirectoryEntry parent)
             {
                 Log.Error($"Passed chunk file entry with no parent directory into TryLoadTextureFromTgaName(). This should never happen. Chunks should always be in a vpp_pc or str2_pc.");
@@ -379,6 +385,7 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
                 texture.SetPixels(pixels, pool, queue);
                 texture.CreateTextureSampler();
                 texture.CreateImageView();
+                TextureManager.NewTexture(tgaName, texture);
 
                 return texture;
             }

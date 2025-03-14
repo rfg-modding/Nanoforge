@@ -118,6 +118,11 @@ public unsafe class Renderer
             scene.Destroy();
         }
 
+        if (TextureManager.Textures.Count > 0)
+        {
+            Log.Warning($"There are {TextureManager.Textures.Count} textures that haven't been destroyed.");
+        }
+        
         if (_perFrameUniformBuffers != null)
         {
             foreach (VkBuffer buffer in _perFrameUniformBuffers)
