@@ -1,4 +1,7 @@
 #version 460
+#include "Constants.glsl"
+
+layout(early_fragment_tests) in;
 
 layout(binding = 1) uniform sampler2D diffuseSampler;
 layout(binding = 2) uniform sampler2D normalSampler;
@@ -10,13 +13,6 @@ layout(location = 2) in vec4 fragTangent;
 layout(location = 3) in vec4 fragNormal;
 
 layout(location = 0) out vec4 outColor;
-
-layout(binding = 0) uniform UniformBufferObject
-{
-    mat4 view;
-    mat4 proj;
-    vec4 cameraPos;
-} ubo;
 
 void main()
 {

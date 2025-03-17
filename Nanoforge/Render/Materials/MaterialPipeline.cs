@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using Nanoforge.Render.Misc;
 using Nanoforge.Render.Resources;
+using Serilog;
 using Silk.NET.Core.Native;
 using Silk.NET.Shaderc;
 using Silk.NET.Vulkan;
@@ -27,11 +28,9 @@ public class MaterialPipeline
 
     private Shader? _vertexShader;
     private string VertexShaderPath => $"{BuildConfig.ShadersDirectory}{Name}.vert";
-    private DateTime _vertexShaderLastWriteTime;
     
     private Shader? _fragmentShader;
     private string FragmentShaderPath => $"{BuildConfig.ShadersDirectory}{Name}.frag";
-    private DateTime _fragmentShaderLastWriteTime;
 
     private bool _disableFaceCulling;
     
@@ -43,8 +42,6 @@ public class MaterialPipeline
         _renderPass = renderPass;
         _stride = stride;
         _attributes = attributes.ToArray();
-        _vertexShaderLastWriteTime = File.GetLastWriteTime(VertexShaderPath);
-        _fragmentShaderLastWriteTime = File.GetLastWriteTime(FragmentShaderPath);
         _disableFaceCulling = disableFaceCulling;
         
         Init();
@@ -293,19 +290,17 @@ public class MaterialPipeline
 
     public void ReloadEditedShaders()
     {
+        //TODO: Move shader change checks to function in Shader so it can check included files too
         DateTime vertexShaderWriteTime = File.GetLastWriteTime(VertexShaderPath);
         DateTime fragmentShaderWriteTime = File.GetLastWriteTime(FragmentShaderPath);
-        if (vertexShaderWriteTime != _vertexShaderLastWriteTime || fragmentShaderWriteTime != _fragmentShaderLastWriteTime)
+        //if (vertexShaderWriteTime != _vertexShaderLastWriteTime || fragmentShaderWriteTime != _fragmentShaderLastWriteTime)
+        if (_vertexShader is { SourceFilesEdited: true } || _fragmentShader is { SourceFilesEdited: true })    
         {
-            //TODO: Add NF logging
-            Console.WriteLine($"Reloading shaders for {Name}");
+            Log.Information($"Reloading shaders for {Name}");
             Thread.Sleep(250); //Wait a moment to make sure the shader isn't being saved by another process while we're loading it. Stupid fix, but it works.
             _context.Vk.QueueWaitIdle(_context.GraphicsQueue); //Wait for graphics queue so we know the pipeline isn't in use when we destroy it
             Destroy();
             Init();
-            
-            _vertexShaderLastWriteTime = vertexShaderWriteTime;
-            _fragmentShaderLastWriteTime = fragmentShaderWriteTime;
         }
     }
     

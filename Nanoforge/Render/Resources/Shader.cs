@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Serilog;
 using Silk.NET.Core.Native;
@@ -19,6 +23,17 @@ public class Shader
 
     public ShaderModule Module { get; private set; }
 
+    public const int MaxIncludeDepth = 10;
+
+    private List<(string path, DateTime writeTime)> _fileWriteTimes = new();
+    
+    public bool SourceFilesEdited
+    {
+        get
+        {
+            return _fileWriteTimes.Any(tuple => tuple.writeTime != File.GetLastWriteTime(tuple.path));
+        }
+    }
 
     public Shader(RenderContext context, string shaderFilePath, ShaderKind shaderKind, bool optimize = true, string entryPoint = "main")
     {
@@ -72,6 +87,9 @@ public class Shader
         CompilationResult* compilationResult = null;
         try
         {
+            _fileWriteTimes.Clear();
+            _fileWriteTimes.Add((shaderPath, File.GetLastWriteTime(shaderPath)));
+            
             string shaderText = File.ReadAllText(shaderPath);
             byte[] inputFileNameBytes = Encoding.ASCII.GetBytes(Path.GetFileName(shaderPath));
             byte[] entryPointNameBytes = Encoding.ASCII.GetBytes(entryPoint);
@@ -83,7 +101,12 @@ public class Shader
             {
                 shaderc.CompileOptionsSetOptimizationLevel(compileOptions, OptimizationLevel.Performance);
             }
-
+            
+            //Set functions for resolving #includes in shaders
+            var resolverFn = new PfnIncludeResolveFn(ShaderIncludeResolve);
+            var releaseFn = new PfnIncludeResultReleaseFn(ShaderIncludeResultRelease);
+            shaderc.CompileOptionsSetIncludeCallbacks(compileOptions, resolverFn, releaseFn, null);
+            
             fixed (byte* inputFileName = inputFileNameBytes)
             {
                 fixed (byte* entryPointName = entryPointNameBytes)
@@ -132,6 +155,49 @@ public class Shader
                 shaderc.Dispose();
             }
         }
+    }
+    
+    //This and ShaderIncludeReleaseResult() are equivalent to the virtual functions on shaderc::CompileOptions::IncluderInterface in the C++ shaderc API
+    private unsafe IncludeResult* ShaderIncludeResolve(void* interfacePtr, byte* requestedSourcePtr, int includeTypeInt, byte* requestingSourcePtr, UIntPtr includeDepthUintPtr)
+    {
+        string requestedSource = Marshal.PtrToStringAnsi((IntPtr)requestedSourcePtr) ?? throw new Exception("Failed to resolve requestedSource in shader include handler.");
+        ulong includeDepth = includeDepthUintPtr;
+        if (includeDepth > MaxIncludeDepth)
+        {
+            Log.Error($"Exceeded maximum include depth of {MaxIncludeDepth} while compiling shader '{Name}'.");
+            return null;
+        }
+        
+        string includeFullPath = $"{BuildConfig.ShadersDirectory}{requestedSource}";
+        if (requestedSource == Name || _fileWriteTimes.Any(tuple => tuple.path == includeFullPath))
+        {
+            Log.Error($"Circular include detected when compiling shader '{Name}'.");
+            return null;
+        }
+
+        if (!File.Exists(includeFullPath))
+        {
+            Log.Error($"Failed to find shader at include path '{requestedSource}'.");
+            return null;
+        }
+
+        IncludeResult* includeResult = (IncludeResult*)SilkMarshal.Allocate(Unsafe.SizeOf<IncludeResult>());
+        includeResult->SourceName = (byte*)SilkMarshal.StringToPtr(requestedSource);
+        includeResult->SourceNameLength = (uint)requestedSource.Length;
+
+        string includedFileContents = File.ReadAllText(includeFullPath);
+        includeResult->Content = (byte*)SilkMarshal.StringToPtr(includedFileContents);
+        includeResult->ContentLength = (uint)includedFileContents.Length;
+        
+        _fileWriteTimes.Add((includeFullPath, File.GetLastWriteTime(includeFullPath)));
+        return includeResult;
+    }
+
+    private unsafe void ShaderIncludeResultRelease(void* interfacePtr, IncludeResult* data)
+    {
+        SilkMarshal.Free((nint)data->SourceName);
+        SilkMarshal.Free((nint)data->Content);
+        SilkMarshal.Free((IntPtr)data);
     }
 
     private ShaderModule LoadAndCompileShaderFile(string shaderPath, string entryPoint, ShaderKind shaderKind, bool optimize = true)

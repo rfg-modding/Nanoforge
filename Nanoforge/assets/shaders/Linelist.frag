@@ -1,4 +1,5 @@
 #version 460
+#include "Constants.glsl"
 
 layout(location = 0) in float fragSize;
 layout(location = 1) in vec4 fragColor;

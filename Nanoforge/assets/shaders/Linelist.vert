@@ -1,11 +1,5 @@
 #version 460
-
-layout(binding = 0) uniform UniformBufferObject
-{
-    mat4 view;
-    mat4 proj;
-    vec4 cameraPos;
-} ubo;
+#include "Constants.glsl"
 
 layout(location = 0) in vec4 inPosAndSize;
 layout(location = 1) in vec4 inColor;

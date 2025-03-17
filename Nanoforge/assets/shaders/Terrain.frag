@@ -1,4 +1,5 @@
 #version 460
+#include "Constants.glsl"
 
 layout(binding = 1) uniform sampler2D sampler0;
 layout(binding = 2) uniform sampler2D sampler1;
@@ -17,13 +18,6 @@ layout(location = 2) in vec2 fragTexCoord;
 layout(location = 3) in vec4 fragNormal;
 
 layout(location = 0) out vec4 outColor;
-
-layout(binding = 0) uniform UniformBufferObject
-{
-    mat4 view;
-    mat4 proj;
-    vec4 cameraPos;
-} ubo;
 
 //TODO: Put the color space conversion functions in a different file once #include is supported in shaders
 #ifndef saturate

@@ -1,22 +1,5 @@
 #version 460
-
-layout(binding = 0) uniform UniformBufferObject
-{
-    mat4 view;
-    mat4 proj;
-    vec4 cameraPos;
-} ubo;
-
-struct ObjectData
-{
-    mat4 model;        
-    vec4 worldPos; 
-};
-
-layout(std140, binding = 11) readonly buffer ObjectBuffer
-{
-    ObjectData objects[];
-} objectBuffer;
+#include "Constants.glsl"
 
 layout(location = 0) in ivec2 inPosition;
 layout(location = 1) in vec4 inNormal;

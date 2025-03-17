@@ -1,4 +1,5 @@
 #version 460
+#include "Constants.glsl"
 
 layout(binding = 1) uniform sampler2D texSampler;
 layout(binding = 2) uniform sampler2D texSampler2;
