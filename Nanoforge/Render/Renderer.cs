@@ -165,7 +165,7 @@ public unsafe class Renderer
 
         AttachmentDescription depthAttachment = new()
         {
-            Format = FindDepthFormat(),
+            Format = DepthTextureFormat,
             Samples = SampleCountFlags.Count1Bit,
             LoadOp = AttachmentLoadOp.Clear,
             StoreOp = AttachmentStoreOp.DontCare,

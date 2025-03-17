@@ -79,7 +79,7 @@ public class ChunkImporter
                         ProjectTexture? texture = GetOrLoadChunkTexture(textureName, createdObjects);
                         if (texture == null)
                         {
-                            Log.Warning($"Failed to import texture {textureName} for {chunkName} material {material.Name}");
+                            Log.Warning($"Failed to import texture {textureName} for '{chunkName}', material '{material.ShaderName}'");
                             textures.Add(null);
                         }
                         else
