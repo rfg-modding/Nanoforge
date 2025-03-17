@@ -57,7 +57,7 @@ public class ProjectTexture : EditorObject
     {
         if (Data == null)
             return null;
-        if (TextureManager.GetTexture(Name) is { } cachedTexture)
+        if (TextureManager.GetTexture(Data.Name) is { } cachedTexture)
         {
             return cachedTexture;
         }
@@ -70,7 +70,7 @@ public class ProjectTexture : EditorObject
         texture.SetPixels(pixels, pool, queue);
         texture.CreateTextureSampler();
         texture.CreateImageView();
-        TextureManager.NewTexture(Name, texture);
+        TextureManager.NewTexture(Data.Name, texture);
         
         return texture;
     }
