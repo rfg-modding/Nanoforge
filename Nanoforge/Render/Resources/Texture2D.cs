@@ -300,10 +300,15 @@ public unsafe class Texture2D : VkMemory
         Vk.CmdCopyImageToBuffer(cmd, _textureImage, _currentLayout, buffer, 1, copyRegion);
     }
 
-    public static Texture2D? FromFile(RenderContext context, CommandPool pool, Queue queue, string path)
+    public static Texture2D? FromFile(RenderContext context, CommandPool pool, Queue queue, string path, bool neverDestroy = false)
     {
         try
         {
+            if (TextureManager.GetTexture(path) is { } cachedTexture)
+            {
+                return cachedTexture;
+            }
+            
             using var img = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(path);
             ulong imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
             uint mipLevels = 1;//(uint)(Math.Floor(Math.Log2(Math.Max(img.Width, img.Height))) + 1);
@@ -321,6 +326,7 @@ public unsafe class Texture2D : VkMemory
             texture.SetPixels(pixelData, pool, queue);
             texture.CreateTextureSampler();
             texture.CreateImageView();
+            TextureManager.NewTexture(path, texture, neverDestroy);
 
             return texture;
         }
@@ -333,8 +339,15 @@ public unsafe class Texture2D : VkMemory
 
     public static void LoadDefaultTextures(RenderContext context, CommandPool pool, Queue queue)
     {
-        DefaultTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/White.png") ?? throw new Exception("Failed to load default Texture2D");
-        MissingTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/Missing.png") ?? throw new Exception("Failed to load missing Texture2D");
-        FlatNormalMap = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/FlatNormalMap.png") ?? throw new Exception("Failed to load missing Texture2D");
+        DefaultTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/White.png", neverDestroy: true) ?? throw new Exception("Failed to load default Texture2D");
+        MissingTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/Missing.png", neverDestroy: true) ?? throw new Exception("Failed to load missing Texture2D");
+        FlatNormalMap = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/FlatNormalMap.png", neverDestroy: true) ?? throw new Exception("Failed to load missing Texture2D");
+    }
+
+    public static void CleanupDefaultTextures()
+    {
+        DefaultTexture.Destroy();
+        MissingTexture.Destroy();
+        FlatNormalMap.Destroy();
     }
 }

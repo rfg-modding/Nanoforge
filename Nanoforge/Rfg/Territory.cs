@@ -54,16 +54,16 @@ public class Territory : EditorObject
                     Log.Warning("Failed to load comb texture for {}. Terrain may look wrong.", Name);
                 }
 
-                Texture2D? ovlTexture = LoadTexture(terrain.OvlTexture, renderer, scene);
-                if (ovlTexture != null)
-                {
-                    lowLodTextures.Add(ovlTexture);
-                }
-                else
-                {
-                    ovlTexture = Texture2D.MissingTexture;
-                    Log.Warning("Failed to load ovl texture for {}. Terrain may look wrong.", Name);
-                }
+                // Texture2D? ovlTexture = LoadTexture(terrain.OvlTexture, renderer, scene);
+                // if (ovlTexture != null)
+                // {
+                //     lowLodTextures.Add(ovlTexture);
+                // }
+                // else
+                // {
+                //     ovlTexture = Texture2D.MissingTexture;
+                //     Log.Warning("Failed to load ovl texture for {}. Terrain may look wrong.", Name);
+                // }
 
                 Texture2D? splatmap = LoadTexture(terrain.Splatmap, renderer, scene);
                 if (splatmap != null)

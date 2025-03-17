@@ -118,7 +118,7 @@ public unsafe class Renderer
             scene.Destroy();
         }
 
-        if (TextureManager.Textures.Count > 0)
+        if (TextureManager.Textures.Count(texture => !texture.NeverDestroy) > 0)
         {
             Log.Warning($"There are {TextureManager.Textures.Count} textures that haven't been destroyed.");
         }
@@ -135,9 +135,8 @@ public unsafe class Renderer
         {
             buffer.Destroy();
         }
-        
-        Texture2D.DefaultTexture.Destroy();
 
+        Texture2D.CleanupDefaultTextures();
         Context.Vk.DestroyRenderPass(Context.Device, Context.PrimaryRenderPass, null);
         MaterialHelper.Destroy();
 

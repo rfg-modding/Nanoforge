@@ -8,17 +8,21 @@ namespace Nanoforge.Render;
 //Tracks all textures used by the renderer and their reference count
 public static class TextureManager
 {
+    public const int MaxTextures = 8192;
+    
     public class TextureMetadata
     {
         public string Name;
         public readonly Texture2D Texture;
         public int ReferenceCount;
+        public bool NeverDestroy { get; private set; }
 
-        public TextureMetadata(string name, Texture2D texture)
+        public TextureMetadata(string name, Texture2D texture, bool neverDestroy = false)
         {
             Name = name;
             Texture = texture;
             ReferenceCount = 0;
+            NeverDestroy = neverDestroy;
         }
     }
 
@@ -29,9 +33,18 @@ public static class TextureManager
         return Textures.Any(t => t.Name == textureName);
     }
 
-    public static void NewTexture(string textureName, Texture2D texture)
+    public static void NewTexture(string textureName, Texture2D texture, bool neverDestroy = false)
     {
-        var metadata = new TextureMetadata(textureName, texture)
+        if (Textures.Count == MaxTextures)
+        {
+            throw new Exception($"Exceeded maximum texture count of {MaxTextures}.");
+        }
+        if (Textures.Any(textureMetadata => textureMetadata.Name == textureName))
+        {
+            return;
+        }
+        
+        var metadata = new TextureMetadata(textureName, texture, neverDestroy)
         {
             ReferenceCount = 1,
         };
@@ -56,7 +69,7 @@ public static class TextureManager
             return;
         
         metadata.ReferenceCount = Math.Clamp(--metadata.ReferenceCount, 0, int.MaxValue);
-        if (metadata.ReferenceCount == 0)
+        if (metadata is { ReferenceCount: 0, NeverDestroy: false })
         {
             metadata.Texture.Destroy();
             Textures.Remove(metadata);
@@ -65,7 +78,7 @@ public static class TextureManager
 
     public static void DestroyUnusedTextures()
     {
-        foreach (TextureMetadata metadata in Textures.Where(metadata => metadata.ReferenceCount == 0).ToArray())
+        foreach (TextureMetadata metadata in Textures.Where(metadata => metadata is { ReferenceCount: 0, NeverDestroy: false }).ToArray())
         {
             Textures.Remove(metadata);
             metadata.Texture.Destroy();
