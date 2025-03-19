@@ -7,7 +7,7 @@ namespace Nanoforge.Render;
 public struct RenderCommand
 {
     public Mesh Mesh;
-    public MaterialInstance MaterialInstance;
+    public MaterialPipeline Pipeline;
     public uint StartIndex;
     public uint IndexCount;
     public uint ObjectIndex;

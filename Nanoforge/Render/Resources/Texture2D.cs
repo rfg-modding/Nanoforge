@@ -19,16 +19,18 @@ public unsafe class Texture2D : VkMemory
 
     private Image _textureImage;
     private ImageView _textureImageView;
-    private Sampler _textureSampler;
     private ImageLayout _currentLayout;
     
     public Extent3D ImageSize => new(_width, _height, 1);
     
     public Image Handle => _textureImage;
     public ImageView ImageViewHandle => _textureImageView;
-    public Sampler SamplerHandle => _textureSampler;
+    public static Sampler DefaultSampler;
 
     public bool Destroyed { get; private set; } = false;
+
+    //Index in the global texture array. Must call TextureManager.NewTexture() for it to be set
+    public int Index { get; set; } = -1;
 
     public static Texture2D DefaultTexture { get; private set; } = null!;
     public static Texture2D MissingTexture { get; private set; } = null!;
@@ -123,8 +125,6 @@ public unsafe class Texture2D : VkMemory
             region.ImageOffset = new Offset3D(0, 0, 0);
             region.ImageExtent = new Extent3D(Math.Max(mipWidth, 1), Math.Max(mipHeight, 1), 1);
             
-            //TODO: DO COPY
-
             ulong mipSizeBytes = _format switch
             {
                 Format.BC1RgbUnormBlock or Format.BC1RgbSrgbBlock => 8 * (mipWidth * mipHeight / (4 * 4)), //8 bytes per 4x4 pixel block,
@@ -248,9 +248,9 @@ public unsafe class Texture2D : VkMemory
         }
     }
     
-    public void CreateTextureSampler()
+    public static Sampler CreateTextureSampler(RenderContext context)
     {
-        Vk.GetPhysicalDeviceProperties(Context.PhysicalDevice, out PhysicalDeviceProperties properties);
+        context.Vk.GetPhysicalDeviceProperties(context.PhysicalDevice, out PhysicalDeviceProperties properties);
     
         SamplerCreateInfo samplerInfo = new()
         {
@@ -268,17 +268,17 @@ public unsafe class Texture2D : VkMemory
             CompareOp = CompareOp.Always,
             MipmapMode = SamplerMipmapMode.Linear,
             MinLod = 0,
-            MaxLod = _mipLevels,
+            MaxLod = Vk.LodClampNone,
             MipLodBias = 0,
         };
 
-        fixed (Sampler* samplerPtr = &_textureSampler)
+        Sampler sampler;
+        if (context.Vk.CreateSampler(context.Device, in samplerInfo, null, &sampler) != Result.Success)
         {
-            if (Vk.CreateSampler(Device, in samplerInfo, null, samplerPtr) != Result.Success)
-            {
-                throw new Exception("Failed to create Texture2D sampler");
-            }   
+            throw new Exception("Failed to create Texture2D sampler");
         }
+
+        return sampler;
     }
     
     public void Destroy()
@@ -286,7 +286,6 @@ public unsafe class Texture2D : VkMemory
         if (Destroyed)
             return;
         
-        Vk.DestroySampler(Device, _textureSampler, null);
         Vk.DestroyImageView(Device, _textureImageView, null);
         Vk.DestroyImage(Device, _textureImage, null);
         Vk.FreeMemory(Device, Memory, null);
@@ -324,7 +323,6 @@ public unsafe class Texture2D : VkMemory
                 ImageTiling.Optimal, ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit, MemoryPropertyFlags.DeviceLocalBit,
                 ImageAspectFlags.ColorBit);
             texture.SetPixels(pixelData, pool, queue);
-            texture.CreateTextureSampler();
             texture.CreateImageView();
             TextureManager.NewTexture(path, texture, neverDestroy);
 
@@ -337,17 +335,19 @@ public unsafe class Texture2D : VkMemory
         }
     }
 
-    public static void LoadDefaultTextures(RenderContext context, CommandPool pool, Queue queue)
+    public static void SetupGlobals(RenderContext context, CommandPool pool, Queue queue)
     {
         DefaultTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/White.png", neverDestroy: true) ?? throw new Exception("Failed to load default Texture2D");
         MissingTexture = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/Missing.png", neverDestroy: true) ?? throw new Exception("Failed to load missing Texture2D");
         FlatNormalMap = Texture2D.FromFile(context, pool, queue, $"{BuildConfig.AssetsDirectory}textures/FlatNormalMap.png", neverDestroy: true) ?? throw new Exception("Failed to load missing Texture2D");
+        DefaultSampler = CreateTextureSampler(context);
     }
 
-    public static void CleanupDefaultTextures()
+    public static void CleanupGlobals(RenderContext context)
     {
         DefaultTexture.Destroy();
         MissingTexture.Destroy();
         FlatNormalMap.Destroy();
+        context.Vk.DestroySampler(context.Device, DefaultSampler, null);
     }
 }

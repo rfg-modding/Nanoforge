@@ -17,16 +17,16 @@ public class RenderChunk : RenderObjectBase
 {
     public Mesh Mesh;
     public List<Texture2D[]> TexturesByMaterial = [];
-    public List<MaterialInstance> Materials = [];
+    public List<MaterialPipeline> Materials = [];
     
-    Destroyable _destroyable;
-    
+    public Destroyable Destroyable { get; private set; }
+
     public RenderChunk(Vector3 position, Matrix4x4 orient, Mesh mesh, List<Texture2D[]> texturesByMaterial, string materialName, Destroyable destroyable) : base(position, orient, Vector3.One)
     {
         Position = position;
         Orient = orient;
         Mesh = mesh;
-        _destroyable = destroyable;
+        Destroyable = destroyable;
 
         const int maxTexturesPerMaterial = 10;
         if (texturesByMaterial.Any(textures => textures.Length > maxTexturesPerMaterial))
@@ -58,14 +58,14 @@ public class RenderChunk : RenderObjectBase
         
         foreach (Texture2D[] materialTextures in TexturesByMaterial)
         {
-            MaterialInstance material = MaterialHelper.CreateMaterialInstance(materialName, materialTextures);
-            Materials.Add(material);
+            MaterialPipeline pipeline = MaterialHelper.GetMaterialPipeline(materialName) ?? throw new NullReferenceException($"Failed to get material pipeline: '{materialName}'");
+            Materials.Add(pipeline);
         }
         Debug.Assert(Materials.Count > 0);
         Debug.Assert(Materials.Count == TexturesByMaterial.Count);
     }
 
-    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera, ObjectConstantsWriter constants)
+    public override void WriteDrawCommands(List<RenderCommand> commands, Camera camera, GpuFrameDataWriter constants)
     {
         //Translation and rotation for the overall object
         Matrix4x4 objTranslation = Matrix4x4.CreateTranslation(Position);
@@ -74,8 +74,29 @@ public class RenderChunk : RenderObjectBase
         //TODO: Get scaling working
         //Matrix4x4 objScale = Matrix4x4.CreateScale(Scale);
         
+        //Setup GPU material data
+        List<(int gpuMaterialIndex, MaterialInstance material)> gpuMaterials = new();
+        foreach (Texture2D[] textures in TexturesByMaterial)
+        {
+            MaterialInstance materialInstance = new()
+            {
+                Texture0 = textures[0].Index,
+                Texture1 = textures[1].Index,
+                Texture2 = textures[2].Index,
+                Texture3 = textures[3].Index,
+                Texture4 = textures[4].Index,
+                Texture5 = textures[5].Index,
+                Texture6 = textures[6].Index,
+                Texture7 = textures[7].Index,
+                Texture8 = textures[8].Index,
+                Texture9 = textures[9].Index,
+            };
+            int gpuMaterialIndex = constants.AddMaterialInstance(materialInstance);
+            gpuMaterials.Add((gpuMaterialIndex, materialInstance));
+        }
+        
         //Render each chunk piece
-        foreach (Dlod dlod in _destroyable.Dlods)
+        foreach (Dlod dlod in Destroyable.Dlods)
         {
             Matrix4x4 chunkRotation = new Matrix4x4
             (
@@ -87,15 +108,12 @@ public class RenderChunk : RenderObjectBase
             
             Matrix4x4 chunkTranslation = Matrix4x4.CreateTranslation(dlod.Pos);
             Matrix4x4 model = chunkRotation * chunkTranslation * objRotation * objTranslation;
-            PerObjectConstants objectConstants = new()
+            PerObjectConstants baseObjectConstants = new()
             {
                 Model = model,
                 WorldPosition = new Vector4(Position.X, Position.Y, Position.Z, 1.0f),
             };
             
-            uint objectIndex = constants.NumObjects;
-            constants.AddConstant(objectConstants);
-        
             for (int subpieceIndex = dlod.FirstPiece; subpieceIndex < dlod.FirstPiece + dlod.MaxPieces; subpieceIndex++)
             {
                 ushort submeshIndex = _destroyable.SubpieceData[subpieceIndex].RenderSubpiece;
@@ -104,10 +122,18 @@ public class RenderChunk : RenderObjectBase
                 for (int j = 0; j < submesh.NumRenderBlocks; j++)
                 {
                     RenderBlock block = Mesh.Config.RenderBlocks[(int)(firstBlock + j)];
-                    MaterialInstance material = Materials[block.MaterialMapIndex];
+                    MaterialPipeline pipeline = Materials[block.MaterialMapIndex];
+                    
+                    int materialIndex = gpuMaterials[block.MaterialMapIndex].gpuMaterialIndex;
+                    PerObjectConstants perObjectConstants = baseObjectConstants with
+                    {
+                        MaterialIndex = materialIndex,
+                    };
+                    uint objectIndex = constants.AddObject(perObjectConstants);
+                    
                     commands.Add(new RenderCommand
                     {
-                        MaterialInstance = material,
+                        Pipeline = pipeline,
                         Mesh = Mesh,
                         IndexCount = block.NumIndices,
                         StartIndex = block.StartIndex,

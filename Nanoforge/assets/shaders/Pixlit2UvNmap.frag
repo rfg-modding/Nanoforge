@@ -3,14 +3,11 @@
 
 layout(early_fragment_tests) in;
 
-layout(binding = 1) uniform sampler2D diffuseSampler;
-layout(binding = 2) uniform sampler2D normalSampler;
-layout(binding = 3) uniform sampler2D specularSampler;
-
 layout(location = 0) in vec3 fragWorldPos;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec4 fragTangent;
 layout(location = 3) in vec4 fragNormal;
+layout(location = 4) flat in int fragObjectIndex;
 
 layout(location = 0) out vec4 outColor;
 
@@ -22,7 +19,8 @@ void main()
     vec3 sunlightColor = vec3(1.0f, 1.0f, 1.0f);
     float sunlightIntensity = 1.0f;
 
-    vec4 diffuseColor = texture(diffuseSampler, fragTexCoord);
+    MaterialInstance materialInstance = materialBuffer.materials[objectBuffer.objects[fragObjectIndex].MaterialIndex];
+    vec4 diffuseColor = texture(textures[materialInstance.Texture0], fragTexCoord);
 
     //TODO: Change to also use normal maps in addition to vertex normals when available. First need to fix or regenerate vertex tangents
     vec3 normal = fragNormal.xyz;
@@ -40,7 +38,7 @@ void main()
     float highlightSize = 64.0f; //Smaller = bigger specular highlights
     //float spec = pow(max(dot(viewDir, reflectDir), 0.0f), highlightSize);
     float spec = pow(max(dot(normal.xyz, halfwayDir), 0.0f), highlightSize);
-    vec4 specularStrength = texture(specularSampler, fragTexCoord);
+    vec4 specularStrength = texture(textures[materialInstance.Texture2], fragTexCoord);
     vec3 specular = spec * specularStrength.xyz;
 
     outColor = vec4(diffuse + specular, 1.0f);

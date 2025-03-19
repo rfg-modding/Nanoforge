@@ -12,12 +12,12 @@ namespace Nanoforge.Render;
 public class PrimitiveRenderer
 {
     //Linelist primitives
-    private MaterialInstance? _lineListMaterial = null;
+    private MaterialPipeline? _lineListMaterial = null;
     private List<LineVertex> _lineListVertices = new();
     private VkBuffer? _lineListVertexBuffer = null;
     
     //Solid flat shaded triangle primitives (e.g. solid bounding box)
-    private MaterialInstance? _triangleListMaterial = null;
+    private MaterialPipeline? _triangleListMaterial = null;
     private List<ColoredVertex> _triangleListVertices = new();
     private VkBuffer? _triangleListVertexBuffer = null;
 
@@ -42,8 +42,8 @@ public class PrimitiveRenderer
         _triangleListVertexBuffer = new VkBuffer(context, (ulong)Unsafe.SizeOf<ColoredVertex>() * initialPrimitiveVertices,
             BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit, MemoryPropertyFlags.DeviceLocalBit | MemoryPropertyFlags.HostVisibleBit, canGrow: true);
 
-        _lineListMaterial = MaterialHelper.CreateMaterialInstance("Linelist");
-        _triangleListMaterial = MaterialHelper.CreateMaterialInstance("SolidTriList");
+        _lineListMaterial = MaterialHelper.GetMaterialPipeline("Linelist");
+        _triangleListMaterial = MaterialHelper.GetMaterialPipeline("SolidTriList");
     }
 
     public void RenderPrimitives(RenderContext context, CommandBuffer commandBuffer, uint frameIndex)
@@ -57,10 +57,9 @@ public class PrimitiveRenderer
         _triangleListVertices.Clear();
     }
 
-    private unsafe void DrawVertices(RenderContext context, CommandBuffer commandBuffer, uint frameIndex, MaterialInstance material, VkBuffer vertexBuffer, uint numVertices)
+    private unsafe void DrawVertices(RenderContext context, CommandBuffer commandBuffer, uint frameIndex, MaterialPipeline pipeline, VkBuffer vertexBuffer, uint numVertices)
     {
-        material.Pipeline.Bind(commandBuffer);
-        material.Bind(context, commandBuffer, frameIndex);
+        pipeline.Bind(commandBuffer, (int)frameIndex);
         
         var vertexBuffers = new Buffer[] { vertexBuffer.VkHandle };
         var offsets = new ulong[] { 0 };

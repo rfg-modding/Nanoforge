@@ -14,7 +14,7 @@ public class SimpleRenderObject : RenderObjectBase
 {
     public Mesh Mesh;
     public Texture2D[] Textures = new Texture2D[10];
-    public MaterialInstance Material;
+    public MaterialPipeline Pipeline;
 
     public SimpleRenderObject(Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures, string materialName) : base(position, orient, Vector3.One)
     {
@@ -40,33 +40,49 @@ public class SimpleRenderObject : RenderObjectBase
                 Textures[i] = Texture2D.MissingTexture;
             }
         }
-        Material = MaterialHelper.CreateMaterialInstance(materialName, Textures);
+
+        Pipeline = MaterialHelper.GetMaterialPipeline(materialName) ?? throw new NullReferenceException($"Failed to get material pipeline: '{materialName}'");
     }
     
-    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera, ObjectConstantsWriter constants)
+    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera, GpuFrameDataWriter constants)
     {
         Matrix4x4 translation = Matrix4x4.CreateTranslation(Position);
         Matrix4x4 rotation = Orient;
         Matrix4x4 scale = Matrix4x4.CreateScale(Scale);
         Matrix4x4 model = rotation * translation * scale;
+
+        MaterialInstance materialInstance = new()
+        {
+            Texture0 = Textures[0].Index,
+            Texture1 = Textures[1].Index,
+            Texture2 = Textures[2].Index,
+            Texture3 = Textures[3].Index,
+            Texture4 = Textures[4].Index,
+            Texture5 = Textures[5].Index,
+            Texture6 = Textures[6].Index,
+            Texture7 = Textures[7].Index,
+            Texture8 = Textures[8].Index,
+            Texture9 = Textures[9].Index,
+        };
+        int materialIndex = constants.AddMaterialInstance(materialInstance);
+        
         PerObjectConstants objectConstants = new()
         {
             Model = model,
             WorldPosition = new Vector4(Position.X, Position.Y, Position.Z, 1.0f),
+            MaterialIndex = materialIndex,
         };
-
-        uint objectIndex = constants.NumObjects;
-        constants.AddConstant(objectConstants);
-
+        uint objectIndex = constants.AddObject(objectConstants);
+        
         foreach (SubmeshData submesh in Mesh.Config.Submeshes)
         {
             uint firstBlock = submesh.RenderBlocksOffset;
             for (int j = 0; j < submesh.NumRenderBlocks; j++)
             {
                 RenderBlock block = Mesh.Config.RenderBlocks[(int)(firstBlock + j)];
-                commands.Add(new RenderCommand()
+                commands.Add(new RenderCommand
                 {
-                    MaterialInstance = Material,
+                    Pipeline = this.Pipeline,
                     Mesh = Mesh,
                     IndexCount = block.NumIndices,
                     StartIndex = block.StartIndex,

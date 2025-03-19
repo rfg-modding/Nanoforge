@@ -8,6 +8,7 @@ layout(location = 0) out vec3 vertexZonePos;
 layout(location = 1) out vec3 vertexWorldPos;
 layout(location = 2) out vec2 fragTexCoord;
 layout(location = 3) out vec4 fragNormal;
+layout(location = 4) out int fragObjectIndex;
 
 void main()
 {
@@ -47,4 +48,6 @@ void main()
     vec3 posWorld = posFinal.xyz + objectBuffer.objects[gl_BaseInstance].worldPos.xyz;
     vertexWorldPos = posWorld;
     fragTexCoord = posWorld.xz / 511.0f;
+
+    fragObjectIndex = gl_BaseInstance;
 }

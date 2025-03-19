@@ -8,52 +8,76 @@ namespace Nanoforge.Render;
 //Tracks all textures used by the renderer and their reference count
 public static class TextureManager
 {
+    //Note: If you change this, also update the texture array size in Constants.glsl
     public const int MaxTextures = 8192;
     
-    public class TextureMetadata
+    public static bool DescriptorSetsNeedUpdate = false;
+    
+    public class TextureSlot
     {
-        public string Name;
-        public readonly Texture2D Texture;
-        public int ReferenceCount;
-        public bool NeverDestroy { get; private set; }
+        public string? TextureName;
+        public Texture2D? Texture;
+        public int ReferenceCount = 0;
+        public bool InUse { get; set; } = false;
+        public bool NeverDestroy { get; set; } = false;
+        public readonly int Index;
 
-        public TextureMetadata(string name, Texture2D texture, bool neverDestroy = false)
+        public TextureSlot(int index)
         {
-            Name = name;
-            Texture = texture;
-            ReferenceCount = 0;
-            NeverDestroy = neverDestroy;
+            Index = index;
         }
     }
 
-    public static List<TextureMetadata> Textures = new();
+    public static TextureSlot[] TextureSlots = new TextureSlot[MaxTextures];
 
+    static TextureManager()
+    {
+        for (var index = 0; index < TextureSlots.Length; index++)
+        {
+            TextureSlot slot = new(index)
+            {
+                InUse = false,
+                ReferenceCount = 0,
+                
+            };
+            TextureSlots[index] = slot;
+        }
+    }
+    
     public static bool IsTextureLoaded(string textureName)
     {
-        return Textures.Any(t => t.Name == textureName);
+        return TextureSlots.Any(t => t.TextureName == textureName);
     }
 
     public static void NewTexture(string textureName, Texture2D texture, bool neverDestroy = false)
     {
-        if (Textures.Count == MaxTextures)
+        TextureSlot? slot = GetNextOpenSlot();
+        if (slot == null)
         {
             throw new Exception($"Exceeded maximum texture count of {MaxTextures}.");
         }
-        if (Textures.Any(textureMetadata => textureMetadata.Name == textureName))
+        if (TextureSlots.Any(textureMetadata => textureMetadata.TextureName == textureName))
         {
             return;
         }
-        
-        var metadata = new TextureMetadata(textureName, texture, neverDestroy)
-        {
-            ReferenceCount = 1,
-        };
-        Textures.Add(metadata);
+
+        slot.TextureName = textureName;
+        slot.Texture = texture;
+        slot.ReferenceCount = 1;
+        slot.InUse = true;
+        slot.NeverDestroy = neverDestroy;
+        texture.Index = slot.Index;
+        DescriptorSetsNeedUpdate = true;
+    }
+
+    private static TextureSlot? GetNextOpenSlot()
+    {
+        return TextureSlots.FirstOrDefault(slot => !slot.InUse);
     }
 
     public static Texture2D? GetTexture(string textureName)
     {
-        TextureMetadata? metadata = Textures.FirstOrDefault(t => t.Name == textureName);
+        TextureSlot? metadata = TextureSlots.FirstOrDefault(slot => slot.TextureName == textureName && slot.InUse);
         if (metadata != null)
         {
             metadata.ReferenceCount++;
@@ -64,24 +88,31 @@ public static class TextureManager
 
     public static void RemoveReference(Texture2D texture)
     {
-        TextureMetadata? metadata = Textures.FirstOrDefault(t => t.Texture == texture);
-        if (metadata == null) 
+        TextureSlot? slot = TextureSlots.FirstOrDefault(slot => slot.Texture == texture && slot.InUse);
+        if (slot == null) 
             return;
         
-        metadata.ReferenceCount = Math.Clamp(--metadata.ReferenceCount, 0, int.MaxValue);
-        if (metadata is { ReferenceCount: 0, NeverDestroy: false })
+        slot.ReferenceCount = Math.Clamp(--slot.ReferenceCount, 0, int.MaxValue);
+        if (slot is { ReferenceCount: 0, NeverDestroy: false })
         {
-            metadata.Texture.Destroy();
-            Textures.Remove(metadata);
+            slot.Texture!.Destroy();
+            slot.Texture = null;
+            slot.InUse = false;
+            slot.TextureName = null;
+            DescriptorSetsNeedUpdate = true;
         }
     }
 
     public static void DestroyUnusedTextures()
     {
-        foreach (TextureMetadata metadata in Textures.Where(metadata => metadata is { ReferenceCount: 0, NeverDestroy: false }).ToArray())
+        foreach (TextureSlot slot in TextureSlots.Where(metadata => metadata is { ReferenceCount: 0, NeverDestroy: false, InUse: true, Texture: not null }).ToArray())
         {
-            Textures.Remove(metadata);
-            metadata.Texture.Destroy();
+            slot.Texture!.Destroy();
+            slot.Texture = null;
+            slot.InUse = false;
+            slot.TextureName = null;
+            slot.ReferenceCount = 0;
         }
+        DescriptorSetsNeedUpdate = true;
     }
 }

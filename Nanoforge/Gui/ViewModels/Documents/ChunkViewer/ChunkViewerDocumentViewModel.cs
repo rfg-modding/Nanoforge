@@ -273,7 +273,6 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
                 int destroyableIndex = 0;
                 foreach (Destroyable destroyable in ChunkFile.Destroyables)
                 {
-                    //TODO: Change to make RenderChunk for every destroyable
                     RenderChunk chunk = CreateRenderChunkFromDestroyable(context, mesh, destroyable, texturesByMaterial);
                     chunk.Position.X = destroyableIndex * destroyableSpacing;
                     RenderChunks.Add(chunk);
@@ -383,7 +382,6 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
                     MemoryPropertyFlags.DeviceLocalBit,
                     ImageAspectFlags.ColorBit);
                 texture.SetPixels(pixels, pool, queue);
-                texture.CreateTextureSampler();
                 texture.CreateImageView();
                 TextureManager.NewTexture(tgaName, texture);
 

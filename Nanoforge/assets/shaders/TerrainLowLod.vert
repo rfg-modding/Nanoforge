@@ -5,6 +5,7 @@ layout(location = 0) in ivec4 inPosition;
 
 layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out vec3 outZonePos;
+layout(location = 2) out int fragObjectIndex;
 
 void main()
 {
@@ -36,4 +37,6 @@ void main()
     fragTexCoord.y = ((posFloat.z + 255.5f) / 511.0f);
     fragTexCoord.x *= 0.9980; //Part of hack to fix terrain gaps. Must scale UVs since we're scaling the terrain size
     fragTexCoord.y *= 0.9980;
+
+    fragObjectIndex = gl_BaseInstance;
 }

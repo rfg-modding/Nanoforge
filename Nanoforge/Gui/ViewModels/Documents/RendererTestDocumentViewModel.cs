@@ -237,7 +237,6 @@ public partial class RendererTestDocumentViewModel : NanoforgeDocument
             MemoryPropertyFlags.DeviceLocalBit,
             ImageAspectFlags.ColorBit);
         texture.SetPixels(pixels, context.TransferCommandPool, context.TransferQueue);
-        texture.CreateTextureSampler();
         texture.CreateImageView();
         TextureManager.NewTexture(tgaName, texture);
 

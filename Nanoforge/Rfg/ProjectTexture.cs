@@ -68,7 +68,6 @@ public class ProjectTexture : EditorObject
             MemoryPropertyFlags.DeviceLocalBit,
             ImageAspectFlags.ColorBit);
         texture.SetPixels(pixels, pool, queue);
-        texture.CreateTextureSampler();
         texture.CreateImageView();
         TextureManager.NewTexture(Data.Name, texture);
         

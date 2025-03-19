@@ -11,6 +11,7 @@ layout(location = 0) out vec3 vertexWorldPos;
 layout(location = 1) out vec2 fragTexCoord;
 layout(location = 2) out vec4 fragTangent;
 layout(location = 3) out vec4 fragNormal;
+layout(location = 4) out int fragObjectIndex;
 
 void main()
 {
@@ -29,4 +30,6 @@ void main()
     vec3 normal = normalize(inNormal.xyz * 2.0f - 1.0f); //Adjust range from [0, 1] to [-1, 1]
     normal = normalize(normalMatrix * normal.xyz); //Rotate the normal
     fragNormal = vec4(normal, 1.0f);
+
+    fragObjectIndex = gl_BaseInstance;
 }

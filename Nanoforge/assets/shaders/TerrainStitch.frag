@@ -1,21 +1,11 @@
 #version 460
 #include "Constants.glsl"
 
-layout(binding = 1) uniform sampler2D sampler0;
-layout(binding = 2) uniform sampler2D sampler1;
-layout(binding = 3) uniform sampler2D sampler2;
-layout(binding = 4) uniform sampler2D sampler3;
-layout(binding = 5) uniform sampler2D sampler4;
-layout(binding = 6) uniform sampler2D sampler5;
-layout(binding = 7) uniform sampler2D sampler6;
-layout(binding = 8) uniform sampler2D sampler7;
-layout(binding = 9) uniform sampler2D sampler8;
-layout(binding = 10) uniform sampler2D sampler9;
-
 layout(location = 0) in vec3 vertexZonePos;
 layout(location = 1) in vec3 vertexWorldPos;
 layout(location = 2) in vec2 fragTexCoord;
 layout(location = 3) in vec4 fragNormal;
+layout(location = 4) flat in int fragObjectIndex;
 
 layout(location = 0) out vec4 outColor;
 
@@ -84,23 +74,22 @@ vec4 NormalToObjectSpace(vec3 normal, mat3 tangentSpace)
     return vec4(normalize(tangentSpace * normal), 1.0f);
 }
 
-vec4 TriplanarSample(sampler2D texSampler, vec3 blend, vec4 uvScaleTranslate)
+vec4 TriplanarSample(sampler2D tex, vec3 blend, vec4 uvScaleTranslate)
 {
     //Sample texture from 3 directions & blend the results
-    vec4 xaxis = texture(texSampler, vertexWorldPos.zy * uvScaleTranslate.xy + uvScaleTranslate.zw);
-    vec4 yaxis = texture(texSampler, vertexWorldPos.xz * uvScaleTranslate.xy + uvScaleTranslate.zw);
-    vec4 zaxis = texture(texSampler, vertexWorldPos.yx * uvScaleTranslate.xy + uvScaleTranslate.zw);
+    vec4 xaxis = texture(tex, vertexWorldPos.zy * uvScaleTranslate.xy + uvScaleTranslate.zw);
+    vec4 yaxis = texture(tex, vertexWorldPos.xz * uvScaleTranslate.xy + uvScaleTranslate.zw);
+    vec4 zaxis = texture(tex, vertexWorldPos.yx * uvScaleTranslate.xy + uvScaleTranslate.zw);
     vec4 finalTex = xaxis * blend.x + yaxis * blend.y + zaxis * blend.z;
     return finalTex;
 }
-
 //Per material scaling to reduce tiling
 vec4 material0ScaleTranslate = vec4(0.15f.xx, 0.25f.xx);
 vec4 material1ScaleTranslate = vec4(0.1f.xx, 0.0f.xx);
 vec4 material2ScaleTranslate = vec4(0.20f.xx, 0.3f.xx);
 vec4 material3ScaleTranslate = vec4(0.05f.xx, 0.0f.xx);
 
-vec4 CalcTerrainColorTriplanar(vec4 blendWeights)
+vec4 CalcTerrainColorTriplanar(vec4 blendWeights, MaterialInstance materialInstance)
 {
     //Calculate triplanar mapping blend
     vec3 tpmBlend = abs(fragNormal.xyz);
@@ -108,10 +97,10 @@ vec4 CalcTerrainColorTriplanar(vec4 blendWeights)
     tpmBlend /= (tpmBlend.x + tpmBlend.y + tpmBlend.z);
 
     //Sample textures using triplanar mapping
-    vec4 color0 = TriplanarSample(sampler2, tpmBlend, material0ScaleTranslate);
-    vec4 color1 = TriplanarSample(sampler4, tpmBlend, material1ScaleTranslate);
-    vec4 color2 = TriplanarSample(sampler6, tpmBlend, material2ScaleTranslate);
-    vec4 color3 = TriplanarSample(sampler8, tpmBlend, material3ScaleTranslate);
+    vec4 color0 = TriplanarSample(textures[materialInstance.Texture2], tpmBlend, material0ScaleTranslate);
+    vec4 color1 = TriplanarSample(textures[materialInstance.Texture4], tpmBlend, material1ScaleTranslate);
+    vec4 color2 = TriplanarSample(textures[materialInstance.Texture6], tpmBlend, material2ScaleTranslate);
+    vec4 color3 = TriplanarSample(textures[materialInstance.Texture8], tpmBlend, material3ScaleTranslate);
 
     //Calculate final diffuse color with blend weights
     vec4 finalColor = color0;
@@ -123,7 +112,7 @@ vec4 CalcTerrainColorTriplanar(vec4 blendWeights)
     return finalColor;
 }
 
-vec4 CalcTerrainNormalTriplanar(vec4 blendWeights)
+vec4 CalcTerrainNormalTriplanar(vec4 blendWeights, MaterialInstance materialInstance)
 {
     //Calculate triplanar mapping blend
     vec3 tpmBlend = abs(fragNormal.xyz);
@@ -131,10 +120,10 @@ vec4 CalcTerrainNormalTriplanar(vec4 blendWeights)
     tpmBlend /= (tpmBlend.x + tpmBlend.y + tpmBlend.z);
 
     //Sample textures using triplanar mapping
-    vec4 normal0 = normalize(TriplanarSample(sampler3, tpmBlend, material0ScaleTranslate) * 2.0 - 1.0);//Convert from range [0, 1] to [-1, 1]
-    vec4 normal1 = normalize(TriplanarSample(sampler5, tpmBlend, material1ScaleTranslate) * 2.0 - 1.0);
-    vec4 normal2 = normalize(TriplanarSample(sampler7, tpmBlend, material2ScaleTranslate) * 2.0 - 1.0);
-    vec4 normal3 = normalize(TriplanarSample(sampler9, tpmBlend, material3ScaleTranslate) * 2.0 - 1.0);
+    vec4 normal0 = normalize(TriplanarSample(textures[materialInstance.Texture3], tpmBlend, material0ScaleTranslate) * 2.0 - 1.0);//Convert from range [0, 1] to [-1, 1]
+    vec4 normal1 = normalize(TriplanarSample(textures[materialInstance.Texture5], tpmBlend, material1ScaleTranslate) * 2.0 - 1.0);
+    vec4 normal2 = normalize(TriplanarSample(textures[materialInstance.Texture7], tpmBlend, material2ScaleTranslate) * 2.0 - 1.0);
+    vec4 normal3 = normalize(TriplanarSample(textures[materialInstance.Texture9], tpmBlend, material3ScaleTranslate) * 2.0 - 1.0);
 
     //Convert normal maps to object space
     vec3 tangentPrime = vec3(1.0f, 0.0f, 0.0f);
@@ -163,17 +152,18 @@ void main()
     vec3 sunDirection = normalize(vec3(0.0f, 0.0f, 0.0f) - sunPos);
     vec3 sunlightColor = vec3(1.0f, 1.0f, 1.0f);
     float sunlightIntensity = 1.0f;
+    MaterialInstance materialInstance = materialBuffer.materials[objectBuffer.objects[fragObjectIndex].MaterialIndex];
 
     //Get weight of each texture from alpha00 texture and make sure they sum to 1.0
-    vec4 blendWeightsBase = texture(sampler0, fragTexCoord);
-    vec4 blendWeights = texture(sampler0, fragTexCoord);
+    vec4 blendWeightsBase = texture(textures[materialInstance.Texture0], fragTexCoord);
+    vec4 blendWeights = blendWeightsBase;
     blendWeights = normalize(max(blendWeights, 0.001));
     blendWeights /= (blendWeights.x + blendWeights.y + blendWeights.z + blendWeights.w);
 
     //Triplanar mapping used to fix stretched textures on steep faces
     //These functions also handle blending together the 4 texture using the splatmap (sampler0) for weights
-    vec4 finalColor = CalcTerrainColorTriplanar(blendWeights);
-    vec4 finalNormal = CalcTerrainNormalTriplanar(blendWeights);
+    vec4 finalColor = CalcTerrainColorTriplanar(blendWeights, materialInstance);
+    vec4 finalNormal = CalcTerrainNormalTriplanar(blendWeights, materialInstance);
 
     //The current approach results in very grey/colorless looking terrain. Saturate it a bit
     vec3 finalColorHsl = rgb2hsl(finalColor.xyz);

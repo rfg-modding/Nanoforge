@@ -1,18 +1,16 @@
 #version 460
 #include "Constants.glsl"
 
-layout(binding = 1) uniform sampler2D texSampler;
-layout(binding = 2) uniform sampler2D texSampler2;
-layout(binding = 3) uniform sampler2D texSampler3;
-
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 inZonePos;
+layout(location = 2) flat in int fragObjectIndex;
 
 layout(location = 0) out vec4 outColor;
 
 void main()
 {
-    outColor = texture(texSampler, fragTexCoord);
+    MaterialInstance materialInstance = materialBuffer.materials[objectBuffer.objects[fragObjectIndex].MaterialIndex];
+    outColor = texture(textures[materialInstance.Texture0], fragTexCoord);
 
     //Get terrain color from _comb texture and adjust it's brightness
     //float4 blendValues = Texture0.Sample(Sampler0, input.Uv);
@@ -47,15 +45,15 @@ void main()
         //outColor =  vec4(ambient + diffuse, 1.0f);
         //outColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
         
-        vec4 blendValues = texture(texSampler, fragTexCoord);
+        vec4 blendValues = texture(textures[materialInstance.Texture0], fragTexCoord);
         float gamma = 0.2f;
         vec4 terrainColor = vec4(pow(blendValues.x, 1.0f / gamma), pow(blendValues.y, 1.0f / gamma), pow(blendValues.z, 1.0f / gamma), 1.0f);
-        vec4 lighting = texture(texSampler2, fragTexCoord);
+        vec4 lighting = texture(textures[materialInstance.Texture1], fragTexCoord);
         outColor = terrainColor * lighting;
     }
     else
     {
         //If given invalid ShadeMode use elevation coloring (mode 0)
-        outColor =  vec4(elevationNormalized, elevationNormalized, elevationNormalized, 1.0f);
+        outColor = vec4(elevationNormalized, elevationNormalized, elevationNormalized, 1.0f);
     }
 }

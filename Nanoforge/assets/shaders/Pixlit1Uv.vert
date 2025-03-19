@@ -7,6 +7,7 @@ layout(location = 2) in ivec2 inTexCoord;
 
 layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out vec4 fragTangent;
+layout(location = 2) out int fragObjectIndex;
 
 void main()
 {
@@ -17,4 +18,6 @@ void main()
     vec3 tangent = normalize(inTangent.xyz * 2.0f - 1.0f); //Adjust range from [0, 1] to [-1, 1]
     tangent = normalize(normalMatrix * tangent.xyz); //Rotate the normal
     fragTangent = vec4(tangent, 1.0f);
+    
+    fragObjectIndex = gl_BaseInstance;
 }

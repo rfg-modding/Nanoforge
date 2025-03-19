@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -25,6 +26,8 @@ public class MaterialPipeline
     public DescriptorSetLayout DescriptorSetLayout;
     public PipelineLayout Layout;
     private Pipeline _graphicsPipeline;
+    
+    private DescriptorSet[]? _descriptorSets;
 
     private Shader? _vertexShader;
     private string VertexShaderPath => $"{BuildConfig.ShadersDirectory}{Name}.vert";
@@ -34,7 +37,14 @@ public class MaterialPipeline
 
     private bool _disableFaceCulling;
     
-    public MaterialPipeline(RenderContext context, string name, RenderPass renderPass, VkPrimitiveTopology topology, uint stride, Span<VertexInputAttributeDescription> attributes, bool disableFaceCulling = false)
+    private DescriptorAllocator? _descriptorAllocator;
+    
+    private VkBuffer[]? _uniformBuffers;
+    private VkBuffer[]? _perObjectConstantBuffers;
+    private VkBuffer[]? _materialInfoBuffers;
+    
+    public MaterialPipeline(RenderContext context, string name, RenderPass renderPass, VkPrimitiveTopology topology, uint stride, Span<VertexInputAttributeDescription> attributes, 
+        VkBuffer[] uniformBuffers, VkBuffer[] perObjectConstantBuffers, VkBuffer[] materialInfoBuffers, bool disableFaceCulling = false)
     {
         _context = context;
         Name = name;
@@ -42,6 +52,9 @@ public class MaterialPipeline
         _renderPass = renderPass;
         _stride = stride;
         _attributes = attributes.ToArray();
+        _uniformBuffers = uniformBuffers;
+        _perObjectConstantBuffers = perObjectConstantBuffers;
+        _materialInfoBuffers = materialInfoBuffers;
         _disableFaceCulling = disableFaceCulling;
         
         Init();
@@ -50,12 +63,22 @@ public class MaterialPipeline
         //TODO: Also check that the offsets of the attributes make sense and they don't overlap each other. That is not something that RFG meshes do afaik
         //TODO: Will need function to get size of vulkan formats in bytes. Just implement for the used formats. If format is not used just don't bother.
     }
-
+    
+    [MemberNotNull(nameof(_descriptorSets))]
     private void Init()
     {
+        DescriptorAllocator.PoolSizeRatio[] poolSizeRatios =
+        [
+            new() { Type = DescriptorType.UniformBuffer,        Ratio = 1.0f },
+            new() { Type = DescriptorType.CombinedImageSampler, Ratio = 10.0f },
+            new() { Type = DescriptorType.StorageBuffer       , Ratio = 1.0f },
+        ];
+        _descriptorAllocator = new DescriptorAllocator(_context, 10, poolSizeRatios);
+        
         CreateShaders();
         CreateDescriptorSetLayout();
         CreateGraphicsPipeline();
+        UpdateDescriptorSets();
     }
 
     private void CreateShaders()
@@ -91,30 +114,35 @@ public class MaterialPipeline
             PImmutableSamplers = null,
             StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
         });
-
-        //Samplers for the maximum of 10 textures that can be bound to a RenderObject
-        uint firstSamplerBinding = 1;
-        for (uint i = 0; i < 10; i++)
-        {
-            bindings.Add(new()
-            {
-                Binding = firstSamplerBinding + i,
-                DescriptorCount = 1,
-                DescriptorType = DescriptorType.CombinedImageSampler,
-                PImmutableSamplers = null,
-                StageFlags = ShaderStageFlags.FragmentBit,
-            });
-        }
         
         //Binding for the per object constants buffer
-        uint lastSamplerBinding = firstSamplerBinding + 9;
-        bindings.Add(new DescriptorSetLayoutBinding()
+        bindings.Add(new()
         {
-            Binding = lastSamplerBinding + 1,
+            Binding = 1,
             DescriptorCount = 1,
             DescriptorType = DescriptorType.StorageBuffer,
             PImmutableSamplers = null,
             StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+        });
+        
+        //Material info buffer
+        bindings.Add(new()
+        {
+            Binding = 2,
+            DescriptorCount = 1,
+            DescriptorType = DescriptorType.StorageBuffer,
+            PImmutableSamplers = null,
+            StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+        });
+
+        //Big texture array that holds all the textures used by shaders
+        bindings.Add(new()
+        {
+            Binding = 3,
+            DescriptorCount = TextureManager.MaxTextures,
+            DescriptorType = DescriptorType.CombinedImageSampler,
+            PImmutableSamplers = null,
+            StageFlags = ShaderStageFlags.FragmentBit,
         });
 
         DescriptorSetLayoutBinding[] bindingsArray = bindings.ToArray();
@@ -237,19 +265,10 @@ public class MaterialPipeline
             colorBlending.BlendConstants[1] = 0;
             colorBlending.BlendConstants[2] = 0;
             colorBlending.BlendConstants[3] = 0;
-
-            PushConstantRange pushConstantRange = new()
-            {
-                StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
-                Offset = 0,
-                Size = (uint)Unsafe.SizeOf<PerObjectConstants>()
-            };
             
             PipelineLayoutCreateInfo pipelineLayoutInfo = new()
             {
                 SType = StructureType.PipelineLayoutCreateInfo,
-                PPushConstantRanges = &pushConstantRange,
-                PushConstantRangeCount = 1,
                 SetLayoutCount = 1,
                 PSetLayouts = descriptorSetLayoutPtr
             };
@@ -287,13 +306,130 @@ public class MaterialPipeline
         SilkMarshal.Free((nint)vertShaderStageInfo.PName);
         SilkMarshal.Free((nint)fragShaderStageInfo.PName);
     }
+    
+    [MemberNotNull(nameof(_descriptorSets))]
+    public unsafe void UpdateDescriptorSets()
+    {
+        if (_descriptorSets is null)
+        {
+            var layouts = new DescriptorSetLayout[Renderer.MaxFramesInFlight];
+            Array.Fill(layouts, DescriptorSetLayout);
+            
+            DescriptorSet[] descriptorSets = new DescriptorSet[Renderer.MaxFramesInFlight];
+            for (int i = 0; i < descriptorSets.Length; i++)
+            {
+                descriptorSets[i] = _descriptorAllocator!.Allocate(layouts[i]);
+            }
+            _descriptorSets = descriptorSets;
+        }
+
+        for (int i = 0; i < Renderer.MaxFramesInFlight; i++)
+        {
+            //Per frame uniform buffer
+            DescriptorBufferInfo perFrameConstantsBuffer = new()
+            {
+                Buffer = _uniformBuffers![i].VkHandle,
+                Offset = 0,
+                Range = (ulong)Unsafe.SizeOf<PerFrameBuffer>(),
+            };
+            
+            //Per object constant storage buffer
+            DescriptorBufferInfo perObjectConstantsBuffer = new()
+            {
+                Buffer = _perObjectConstantBuffers![i].VkHandle,
+                Offset = 0,
+                Range = _perObjectConstantBuffers![i].Size
+            };
+            
+            //Material info buffer
+            DescriptorBufferInfo materialInfoBuffer = new()
+            {
+                Buffer = _materialInfoBuffers![i].VkHandle,
+                Offset = 0,
+                Range = _materialInfoBuffers![i].Size
+            };
+
+            DescriptorImageInfo[] imageInfos = new DescriptorImageInfo[TextureManager.MaxTextures];
+            for (var j = 0; j < TextureManager.TextureSlots.Length; j++)
+            {
+                Texture2D texture;
+                TextureManager.TextureSlot slot = TextureManager.TextureSlots[j];
+                if (slot.InUse)
+                    texture = slot.Texture!;
+                else
+                    texture = Texture2D.DefaultTexture;
+
+                imageInfos[j] = new DescriptorImageInfo
+                {
+                    ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
+                    ImageView = texture.ImageViewHandle,
+                    Sampler = Texture2D.DefaultSampler,
+                };
+            }
+
+            fixed (DescriptorImageInfo* imageInfosPtr = imageInfos)
+            {
+                List<WriteDescriptorSet> descriptorWrites = new();
+
+                //Per frame uniform buffer
+                descriptorWrites.Add(new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = _descriptorSets[i],
+                    DstBinding = 0,
+                    DstArrayElement = 0,
+                    DescriptorType = DescriptorType.UniformBuffer,
+                    DescriptorCount = 1,
+                    PBufferInfo = &perFrameConstantsBuffer,
+                });
+                
+                //Per object constants buffer
+                descriptorWrites.Add(new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = _descriptorSets[i],
+                    DstBinding = 1,
+                    DstArrayElement = 0,
+                    DescriptorType = DescriptorType.StorageBuffer,
+                    DescriptorCount = 1,
+                    PBufferInfo = &perObjectConstantsBuffer,
+                });
+                
+                //Material info buffer
+                descriptorWrites.Add(new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = _descriptorSets[i],
+                    DstBinding = 2,
+                    DstArrayElement = 0,
+                    DescriptorType = DescriptorType.StorageBuffer,
+                    DescriptorCount = 1,
+                    PBufferInfo = &materialInfoBuffer,
+                });
+                
+                //Big texture array                
+                descriptorWrites.Add(new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = _descriptorSets[i],
+                    DstBinding = 3,
+                    DstArrayElement = 0,
+                    DescriptorType = DescriptorType.CombinedImageSampler,
+                    DescriptorCount = TextureManager.MaxTextures,
+                    PImageInfo = imageInfosPtr,
+                });
+
+                var descriptorWritesArray = descriptorWrites.ToArray();
+                fixed (WriteDescriptorSet* descriptorWritesPtr = descriptorWritesArray)
+                {
+                    _context!.Vk.UpdateDescriptorSets(_context.Device, (uint)descriptorWritesArray.Length, descriptorWritesPtr, 0, null);
+                }
+            }
+        }
+    }
 
     public void ReloadEditedShaders()
     {
-        //TODO: Move shader change checks to function in Shader so it can check included files too
-        DateTime vertexShaderWriteTime = File.GetLastWriteTime(VertexShaderPath);
-        DateTime fragmentShaderWriteTime = File.GetLastWriteTime(FragmentShaderPath);
-        //if (vertexShaderWriteTime != _vertexShaderLastWriteTime || fragmentShaderWriteTime != _fragmentShaderLastWriteTime)
         if (_vertexShader is { SourceFilesEdited: true } || _fragmentShader is { SourceFilesEdited: true })    
         {
             Log.Information($"Reloading shaders for {Name}");
@@ -304,13 +440,21 @@ public class MaterialPipeline
         }
     }
     
-    public void Bind(CommandBuffer commandBuffer)
+    public unsafe void Bind(CommandBuffer commandBuffer, int frameIndex)
     {
         _context.Vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, _graphicsPipeline);
+        _context.Vk.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, Layout, 0, 1, in _descriptorSets![frameIndex], 0, null);
     }
 
     public unsafe void Destroy()
     {
+        if (_descriptorAllocator != null)
+        {
+            _descriptorAllocator.Destroy();
+            _descriptorAllocator = null;
+        }
+        _descriptorSets = null;
+        
         _context.Vk.DestroyPipeline(_context.Device, _graphicsPipeline, null);
         _context.Vk.DestroyPipelineLayout(_context.Device, Layout, null);
         

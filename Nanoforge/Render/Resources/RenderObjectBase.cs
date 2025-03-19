@@ -16,7 +16,7 @@ public abstract class RenderObjectBase(Vector3 position, Matrix4x4 orient, Vecto
     public Matrix4x4 Orient = orient;
     public Vector3 Scale = scale;
 
-    public virtual unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera, ObjectConstantsWriter constants)
+    public virtual unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera, GpuFrameDataWriter constants)
     {
 
     }

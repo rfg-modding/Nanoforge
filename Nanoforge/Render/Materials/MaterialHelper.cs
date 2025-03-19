@@ -20,9 +20,9 @@ public static class MaterialHelper
     private static RenderPass _renderPass;
     private static VkBuffer[]? _uniformBuffers;
     private static VkBuffer[]? _perObjectConstantBuffers;
-    private static DescriptorAllocator? _descriptorAllocator;
+    private static VkBuffer[]? _materialInfoBuffers;
 
-    public static void Init(RenderContext context, RenderPass renderPass, VkBuffer[] uniformBuffers, VkBuffer[] perObjectConstantBuffers)
+    public static void Init(RenderContext context, RenderPass renderPass, VkBuffer[] uniformBuffers, VkBuffer[] perObjectConstantBuffers, VkBuffer[] materialInfoBuffers)
     {
         try
         {
@@ -35,14 +35,7 @@ public static class MaterialHelper
             _renderPass = renderPass;
             _uniformBuffers = uniformBuffers;
             _perObjectConstantBuffers = perObjectConstantBuffers;
-
-            DescriptorAllocator.PoolSizeRatio[] poolSizeRatios =
-            [
-                new() { Type = DescriptorType.UniformBuffer,        Ratio = 1.0f },
-                new() { Type = DescriptorType.CombinedImageSampler, Ratio = 10.0f },
-                new() { Type = DescriptorType.StorageBuffer       , Ratio = 1.0f },
-            ];
-            _descriptorAllocator = new DescriptorAllocator(_context, 10, poolSizeRatios);
+            _materialInfoBuffers = materialInfoBuffers;
 
             //TODO: Port the rest of the vertex formats and shaders from the Beeflang version of NF and DX11
             CreateMaterial("Terrain", VkPrimitiveTopology.TriangleStrip, stride: 8,
@@ -144,8 +137,10 @@ public static class MaterialHelper
     {
         if (_materials.ContainsKey(name))
             throw new Exception($"Material with name '{name}' already exists!");
+        if (_uniformBuffers is null || _perObjectConstantBuffers is null || _materialInfoBuffers is null)
+            throw new Exception("Required GPU buffers not passed to MaterialHelper!");
 
-        MaterialPipeline materialPipeline = new(_context!, name, _renderPass, topology, stride, attributes, disableFaceCulling);
+        MaterialPipeline materialPipeline = new(_context!, name, _renderPass, topology, stride, attributes, _uniformBuffers, _perObjectConstantBuffers, _materialInfoBuffers, disableFaceCulling);
         _materials.Add(name, materialPipeline);
     }
 
@@ -162,120 +157,6 @@ public static class MaterialHelper
         return null;
     }
 
-    public static MaterialInstance CreateMaterialInstance(string name, Texture2D[]? textures = null)
-    {
-        MaterialPipeline? pipeline = GetMaterialPipeline(name);
-        if (pipeline == null)
-        {
-            throw new Exception($"Material pipeline with name '{name}' does not exist!");
-        }
-
-        if (textures == null)
-        {
-            textures = new Texture2D[10];
-            Array.Fill(textures, Texture2D.DefaultTexture);
-        }
-
-        DescriptorSet[] descriptorSets = CreateDescriptorSets(textures, pipeline);
-        MaterialInstance material = new(pipeline, descriptorSets);
-        return material;
-    }
-
-    private static unsafe DescriptorSet[] CreateDescriptorSets(Texture2D[] textures, MaterialPipeline material)
-    {
-        var layouts = new DescriptorSetLayout[Renderer.MaxFramesInFlight];
-        Array.Fill(layouts, material.DescriptorSetLayout);
-
-        DescriptorSet[] descriptorSets = new DescriptorSet[Renderer.MaxFramesInFlight];
-        for (int i = 0; i < descriptorSets.Length; i++)
-        {
-            descriptorSets[i] = _descriptorAllocator!.Allocate(layouts[i]);
-        }
-
-        for (int i = 0; i < Renderer.MaxFramesInFlight; i++)
-        {
-            DescriptorBufferInfo bufferInfo = new()
-            {
-                Buffer = _uniformBuffers![i].VkHandle,
-                Offset = 0,
-                Range = (ulong)Unsafe.SizeOf<PerFrameBuffer>(),
-            };
-            
-            //Per object constant storage buffer
-            DescriptorBufferInfo perObjectConstantsBuffer = new()
-            {
-                Buffer = _perObjectConstantBuffers![i].VkHandle,
-                Offset = 0,
-                Range = _perObjectConstantBuffers![i].Size
-            };
-
-            DescriptorImageInfo[] imageInfos = new DescriptorImageInfo[textures.Length];
-            for (var j = 0; j < textures.Length; j++)
-            {
-                var texture = textures[j];
-                imageInfos[j] = new DescriptorImageInfo
-                {
-                    ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
-                    ImageView = texture.ImageViewHandle,
-                    Sampler = texture.SamplerHandle
-                };
-            }
-
-            fixed (DescriptorImageInfo* imageInfoPtr = imageInfos)
-            {
-                List<WriteDescriptorSet> descriptorWrites = new();
-
-                //Per frame uniform buffer
-                descriptorWrites.Add(new()
-                {
-                    SType = StructureType.WriteDescriptorSet,
-                    DstSet = descriptorSets[i],
-                    DstBinding = 0,
-                    DstArrayElement = 0,
-                    DescriptorType = DescriptorType.UniformBuffer,
-                    DescriptorCount = 1,
-                    PBufferInfo = &bufferInfo,
-                });
-
-                uint firstSamplerBinding = 1;
-                for (uint j = 0; j < textures.Length; j++)
-                {
-                    descriptorWrites.Add(new()
-                    {
-                        SType = StructureType.WriteDescriptorSet,
-                        DstSet = descriptorSets[i],
-                        DstBinding = firstSamplerBinding + j,
-                        DstArrayElement = 0,
-                        DescriptorType = DescriptorType.CombinedImageSampler,
-                        DescriptorCount = 1,
-                        PImageInfo = imageInfoPtr + j,
-                    });
-                }
-                
-                //Per object constants buffer
-                uint lastSamplerBinding = firstSamplerBinding + (uint)textures.Length - 1;
-                descriptorWrites.Add(new()
-                {
-                    SType = StructureType.WriteDescriptorSet,
-                    DstSet = descriptorSets[i],
-                    DstBinding = lastSamplerBinding + 1,
-                    DstArrayElement = 0,
-                    DescriptorType = DescriptorType.StorageBuffer,
-                    DescriptorCount = 1,
-                    PBufferInfo = &perObjectConstantsBuffer,
-                });
-
-                var descriptorWritesArray = descriptorWrites.ToArray();
-                fixed (WriteDescriptorSet* descriptorWritesPtr = descriptorWritesArray)
-                {
-                    _context!.Vk.UpdateDescriptorSets(_context.Device, (uint)descriptorWritesArray.Length, descriptorWritesPtr, 0, null);
-                }
-            }
-        }
-
-        return descriptorSets;
-    }
-
     public static void ReloadEditedShaders()
     {
         foreach (MaterialPipeline material in _materials.Values)
@@ -286,12 +167,20 @@ public static class MaterialHelper
 
     public static void Destroy()
     {
-        _descriptorAllocator!.Destroy();
         foreach (MaterialPipeline material in _materials.Values)
         {
             material.Destroy();
         }
 
         _materials.Clear();
+    }
+
+    public static void UpdateTextureArrayDescriptors()
+    {
+        foreach (MaterialPipeline pipeline in _materials.Values)
+        {
+            pipeline.UpdateDescriptorSets();
+            //pipeline.UpdateTextureArrayDescriptors();
+        }
     }
 }

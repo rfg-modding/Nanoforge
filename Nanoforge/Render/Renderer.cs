@@ -37,9 +37,11 @@ public unsafe class Renderer
     //Create a GPU buffer for storing per object constants like their model matrix. Gets uploaded once per scene instead of updating push constants 1000s of times
     //25000 is a reasonable cap with tons of headroom. mp_crescent is a large map and only has 4814. With the current size of PerObjectConstants it only takes up 1.4MB.
     //Note that this number is equivalent to the number of RenderObjectBase instances. Since some types like RenderChunk can have many separate pieces with their own constants.
-    public const int MaxObjectsPerScene = 25000;
+    public const int MaxObjectsPerScene = 100000;
+    public const int MaxMaterialInstances = 100000;
     private VkBuffer[] _perObjectConstantsGPUBuffer; 
-    private ObjectConstantsWriter _objectConstantsWriter = new(MaxObjectsPerScene);
+    private VkBuffer[] _materialInfoGPUBuffer; 
+    private GpuFrameDataWriter _gpuFrameDataWriter = new(MaxObjectsPerScene, MaxMaterialInstances);
     
     public static readonly Format RenderTextureImageFormat = Format.B8G8R8A8Srgb;
     public static Format DepthTextureFormat { get; private set; }
@@ -48,23 +50,37 @@ public unsafe class Renderer
     {
         if (Unsafe.SizeOf<LineVertex>() != 20)
         {
-            throw new Exception("SizeOf<LineVertex>() != 20. Uh oh.");
+            throw new Exception("SizeOf<LineVertex>() != 20. Required for shaders to work.");
         }
         if (Unsafe.SizeOf<ColoredVertex>() != 16)
         {
-            throw new Exception("SizeOf<ColoredVertex>() != 16. Uh oh.");
+            throw new Exception("SizeOf<ColoredVertex>() != 16. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<PerObjectConstants>() != 96)
+        {
+            throw new Exception("SizeOf<PerObjectConstants>() != 96. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<MaterialInstance>() != 48)
+        {
+            throw new Exception("SizeOf<MaterialInstance>() != 48. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<PerFrameBuffer>() != 144)
+        {
+            throw new Exception("SizeOf<PerFrameBuffer>() != 144. Required for shaders to work.");
         }
         
         Context = new RenderContext();
+        //Load global textures like 1x1 white texture & setup default texture sampler
+        Texture2D.SetupGlobals(Context, Context.CommandPool, Context.GraphicsQueue);
         DepthTextureFormat = FindDepthFormat();
         CreateRenderPass();
         CreateUniformBuffers();
         CreatePerObjectConstantBuffers();
-        MaterialHelper.Init(Context, _renderPass, _perFrameUniformBuffers!, _perObjectConstantsGPUBuffer);
+        CreateMaterialInfoBuffers();
+        MaterialHelper.Init(Context, _renderPass, _perFrameUniformBuffers!, _perObjectConstantsGPUBuffer, _materialInfoGPUBuffer);
         CreateSyncObjects();
         
-        //Load 1x1 white texture to use when the maximum number of textures aren't provided to a RenderObject
-        Texture2D.LoadDefaultTextures(Context, Context.CommandPool, Context.GraphicsQueue);
+        _primitiveRenderer.Init(Context);
     }
 
     public void Shutdown()
@@ -118,9 +134,10 @@ public unsafe class Renderer
             scene.Destroy();
         }
 
-        if (TextureManager.Textures.Count(texture => !texture.NeverDestroy) > 0)
+        int numRemainingTextures = TextureManager.TextureSlots.Count(slot => slot is { NeverDestroy: false, InUse: true });
+        if (numRemainingTextures > 0)
         {
-            Log.Warning($"There are {TextureManager.Textures.Count} textures that haven't been destroyed.");
+            Log.Warning($"There are {numRemainingTextures} textures that haven't been destroyed.");
         }
         
         if (_perFrameUniformBuffers != null)
@@ -136,7 +153,7 @@ public unsafe class Renderer
             buffer.Destroy();
         }
 
-        Texture2D.CleanupDefaultTextures();
+        Texture2D.CleanupGlobals(Context);
         Context.Vk.DestroyRenderPass(Context.Device, Context.PrimaryRenderPass, null);
         MaterialHelper.Destroy();
 
@@ -263,14 +280,36 @@ public unsafe class Renderer
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
         }
     }
-
-    private unsafe void UpdatePerObjectConstantBuffers(uint currentImage)
+    
+    [MemberNotNull(nameof(_materialInfoGPUBuffer))]
+    private void CreateMaterialInfoBuffers()
     {
-        fixed (PerObjectConstants* bufferPtr = _objectConstantsWriter.Constants)
+        int bufferSize = MaxMaterialInstances * Unsafe.SizeOf<MaterialInstance>();
+        _materialInfoGPUBuffer = new VkBuffer[MaxFramesInFlight];
+        for (int i = 0; i < MaxFramesInFlight; i++)
+        {
+            _materialInfoGPUBuffer[i] = new VkBuffer(Context, (ulong)bufferSize, BufferUsageFlags.StorageBufferBit,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+        }
+    }
+
+    private void UpdatePerObjectConstantBuffers(uint currentImage)
+    {
+        fixed (PerObjectConstants* bufferPtr = _gpuFrameDataWriter.Constants)
         {
             int size = MaxObjectsPerScene * Unsafe.SizeOf<PerObjectConstants>();
             Span<byte> data = new((byte*)bufferPtr, size);
             _perObjectConstantsGPUBuffer![currentImage].SetData(data);
+        }
+    }
+    
+    private void UpdateMaterialInfoBuffers(uint currentImage)
+    {
+        fixed (MaterialInstance* bufferPtr = _gpuFrameDataWriter.Materials)
+        {
+            int size = MaxMaterialInstances * Unsafe.SizeOf<MaterialInstance>();
+            Span<byte> data = new((byte*)bufferPtr, size);
+            _materialInfoGPUBuffer![currentImage].SetData(data);
         }
     }
 
@@ -346,40 +385,37 @@ public unsafe class Renderer
 
         UpdatePerFrameUniformBuffer(scene, index);
 
-        _objectConstantsWriter.Reset();
-        
+        if (TextureManager.DescriptorSetsNeedUpdate)
+        {
+            MaterialHelper.UpdateTextureArrayDescriptors();
+            TextureManager.DescriptorSetsNeedUpdate = false;
+        }
+
+        _gpuFrameDataWriter.Reset();
+
         List<RenderCommand> commands = new();
         foreach (RenderObjectBase renderObject in scene.RenderObjects)
         {
-            renderObject.WriteDrawCommands(commands, scene.Camera!, _objectConstantsWriter);
+            renderObject.WriteDrawCommands(commands, scene.Camera!, _gpuFrameDataWriter);
         }
-
         
         UpdatePerObjectConstantBuffers(index);
-        
-        var commandsByPipeline = commands.GroupBy(command => command.MaterialInstance.Pipeline).ToList();
+        UpdateMaterialInfoBuffers(index);
+        var commandsByPipeline = commands.GroupBy(command => command.Pipeline).ToList();
         foreach (var pipelineGrouping in commandsByPipeline)
         {
             MaterialPipeline pipeline = pipelineGrouping.Key;
-            pipeline.Bind(commandBuffer);
+            pipeline.Bind(commandBuffer, (int)index);
             
             var commandsByMesh = pipelineGrouping.ToList().GroupBy(command => command.Mesh).ToList();
             foreach (var meshGrouping in commandsByMesh)
             {
                 Mesh mesh = meshGrouping.Key;
                 mesh.Bind(Context, commandBuffer);
-                
-                var commandsByMaterial = meshGrouping.ToList().GroupBy(command => command.MaterialInstance).ToList();
-                foreach (var materialGrouping in commandsByMaterial)
-                {
-                    MaterialInstance material = materialGrouping.Key;
-                    material.Bind(Context, commandBuffer, index);
-                    
-                    foreach (RenderCommand command in materialGrouping)
-                    {
-                        Context.Vk.CmdDrawIndexed(commandBuffer, command.IndexCount, 1, command.StartIndex, 0, command.ObjectIndex);
-                    }
 
+                foreach (RenderCommand command in meshGrouping)
+                {
+                    Context.Vk.CmdDrawIndexed(commandBuffer, command.IndexCount, 1, command.StartIndex, 0, command.ObjectIndex);
                 }
             }
         }
