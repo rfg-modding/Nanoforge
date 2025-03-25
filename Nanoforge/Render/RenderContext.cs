@@ -161,7 +161,8 @@ public unsafe class RenderContext : IDisposable
         using var mem = GlobalMemory.Allocate(uniqueQueueFamilies.Length * sizeof(DeviceQueueCreateInfo));
         DeviceQueueCreateInfo* queueCreateInfos = (DeviceQueueCreateInfo*)Unsafe.AsPointer(ref mem.GetPinnableReference());
 
-        float queuePriority = 1.0f;
+        float* queuePriority = (float*)SilkMarshal.Allocate(sizeof(float));
+        *queuePriority = 1.0f;
         uint graphicsQueueIndex;
         uint trafficsQueueIndex;
         if (uniqueQueueFamilies.Length == 1)
@@ -174,7 +175,7 @@ public unsafe class RenderContext : IDisposable
                 SType = StructureType.DeviceQueueCreateInfo,
                 QueueFamilyIndex = uniqueQueueFamilies[0],
                 QueueCount = 2,
-                PQueuePriorities = &queuePriority
+                PQueuePriorities = queuePriority,
             };
         }
         else if (uniqueQueueFamilies.Length >= 2)
@@ -189,7 +190,7 @@ public unsafe class RenderContext : IDisposable
                     SType = StructureType.DeviceQueueCreateInfo,
                     QueueFamilyIndex = uniqueQueueFamilies[i],
                     QueueCount = 1,
-                    PQueuePriorities = &queuePriority
+                    PQueuePriorities = queuePriority,
                 };
             }
         }
@@ -229,6 +230,8 @@ public unsafe class RenderContext : IDisposable
         {
             throw new Exception("failed to create logical device!");
         }
+
+        SilkMarshal.Free((IntPtr)queuePriority);
 
         Vk.GetDeviceQueue(Device, queueFamilyIndices.GraphicsFamily!.Value, graphicsQueueIndex, out GraphicsQueue);
         Vk.GetDeviceQueue(Device, queueFamilyIndices.TransferFamily!.Value, trafficsQueueIndex, out TransferQueue);
