@@ -6,6 +6,7 @@ using Avalonia.Rendering;
 using Hexa.NET.DirectXTex;
 using Nanoforge.Editor;
 using Nanoforge.Render;
+using Nanoforge.Render.Misc;
 using Nanoforge.Render.Resources;
 using RFGM.Formats.Materials;
 using RFGM.Formats.Meshes.Chunks;
@@ -125,7 +126,7 @@ public class Territory : EditorObject
                         Log.Error($"Failed to load high lod terrain mesh for subzone {i} of {zone.Name}");
                         continue;
                     }
-                    scene.CreateRenderObject("Terrain", subzone.Position, Matrix4x4.Identity, highLodMesh, subzoneTextures);
+                    scene.CreateRenderObject(subzone.Position, Matrix4x4.Identity, highLodMesh, subzoneTextures, MaterialType.HighLodTerrain);
 
                     //Load stitch mesh
                     if (subzone.HasStitchMeshes)
@@ -137,7 +138,7 @@ public class Territory : EditorObject
                             continue;
                         }
                         
-                        scene.CreateRenderObject("TerrainStitch", subzone.Position, Matrix4x4.Identity, stitchMesh, subzoneTextures);
+                        scene.CreateRenderObject(subzone.Position, Matrix4x4.Identity, stitchMesh, subzoneTextures, MaterialType.HighLodTerrain);
                     }
                 }
                 
@@ -162,7 +163,7 @@ public class Territory : EditorObject
                     continue;
                 }
 
-                scene.CreateRenderObject(rock.Mesh!.VertexFormat.ToString(), rock.Position, rock.Rotation, rockMesh, [diffuse]);
+                scene.CreateRenderObject(rock.Position, rock.Rotation, rockMesh, [diffuse]);
             }
 
             foreach (ObjectMover mover in Zones.SelectMany(zone => zone.Objects).OfType<ObjectMover>())
@@ -236,7 +237,7 @@ public class Territory : EditorObject
                     materialTextures.Add(renderTextures);
                 }
                 
-                scene.CreateRenderChunk(chunk.Mesh.VertexFormat.ToString(), mover.Position, mover.Orient, mesh, materialTextures, destroyable);
+                scene.CreateRenderChunk(mover.Position, mover.Orient, mesh, materialTextures, destroyable);
             }
             
             return true;
@@ -280,7 +281,7 @@ public class Territory : EditorObject
             return;
         }
 
-        scene.CreateRenderObject(chunk.Mesh!.VertexFormat.ToString(), mover.Position, mover.Orient, mesh, renderTextures);
+        scene.CreateRenderObject(mover.Position, mover.Orient, mesh, renderTextures);
     }
 
     private Texture2D? LoadTexture(ProjectTexture? projectTexture, Renderer renderer, Scene scene)
@@ -317,18 +318,12 @@ public class Territory : EditorObject
 
             byte[] vertices = projectMesh.VertexBuffer?.Load() ?? throw new Exception("Failed to load vertex buffer");
             byte[] indices = projectMesh.IndexBuffer?.Load() ?? throw new Exception("Failed to load index buffer");
+
+            MeshConverter meshConverter = new();
+            RenderMeshData convertedMeshData = meshConverter.Convert(vertices, indices, projectMesh.NumVertices, projectMesh.NumIndices, projectMesh.IndexSize, 
+                projectMesh.VertexFormat, projectMesh.VertexStride, projectMesh.Submeshes, projectMesh.RenderBlocks);
             
-            //TODO: TEMPORARY CHANGE - DO NOT COMMIT - MUST EDIT ALL CODE TO PASS ProjectMesh TO RENDERER ONCE CHUNK VIEWER IS WORKING WELL
-            MeshInstanceData meshInstance = new MeshInstanceData(new MeshConfig()
-            {
-                NumVertices = projectMesh.NumVertices,
-                NumIndices = projectMesh.NumIndices,
-                IndexSize = projectMesh.IndexSize,
-                Submeshes = projectMesh.Submeshes,
-                RenderBlocks = projectMesh.RenderBlocks,
-            }, vertices, indices);
-            
-            Mesh mesh = new(renderer.Context, meshInstance, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue);
+            Mesh mesh = new(renderer.Context, convertedMeshData, renderer.Context.TransferCommandPool, renderer.Context.TransferQueue);
             meshCache[projectMesh] = mesh;
             return mesh;
         }

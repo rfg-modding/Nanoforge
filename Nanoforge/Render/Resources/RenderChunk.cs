@@ -1,15 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.CompilerServices;
-using Nanoforge.Render.Materials;
 using Nanoforge.Render.Misc;
 using RFGM.Formats.Meshes.Chunks;
 using RFGM.Formats.Meshes.Shared;
 using Serilog;
-using Silk.NET.Vulkan;
 
 namespace Nanoforge.Render.Resources;
 
@@ -17,11 +13,10 @@ public class RenderChunk : RenderObjectBase
 {
     public Mesh Mesh;
     public List<Texture2D[]> TexturesByMaterial = [];
-    public List<MaterialPipeline> Materials = [];
     
     public Destroyable Destroyable { get; private set; }
 
-    public RenderChunk(Vector3 position, Matrix4x4 orient, Mesh mesh, List<Texture2D[]> texturesByMaterial, string materialName, Destroyable destroyable) : base(position, orient, Vector3.One)
+    public RenderChunk(Vector3 position, Matrix4x4 orient, Mesh mesh, List<Texture2D[]> texturesByMaterial, Destroyable destroyable) : base(position, orient, Vector3.One)
     {
         Position = position;
         Orient = orient;
@@ -55,14 +50,6 @@ public class RenderChunk : RenderObjectBase
             
             TexturesByMaterial.Add(textureArray);
         }
-        
-        foreach (Texture2D[] materialTextures in TexturesByMaterial)
-        {
-            MaterialPipeline pipeline = MaterialHelper.GetMaterialPipeline(materialName) ?? throw new NullReferenceException($"Failed to get material pipeline: '{materialName}'");
-            Materials.Add(pipeline);
-        }
-        Debug.Assert(Materials.Count > 0);
-        Debug.Assert(Materials.Count == TexturesByMaterial.Count);
     }
 
     public override void WriteDrawCommands(List<RenderCommand> commands, Camera camera, GpuFrameDataWriter constants)
@@ -90,6 +77,7 @@ public class RenderChunk : RenderObjectBase
                 Texture7 = textures[7].Index,
                 Texture8 = textures[8].Index,
                 Texture9 = textures[9].Index,
+                Type = MaterialType.Default,
             };
             int gpuMaterialIndex = constants.AddMaterialInstance(materialInstance);
             gpuMaterials.Add((gpuMaterialIndex, materialInstance));
@@ -116,13 +104,12 @@ public class RenderChunk : RenderObjectBase
             
             for (int subpieceIndex = dlod.FirstPiece; subpieceIndex < dlod.FirstPiece + dlod.MaxPieces; subpieceIndex++)
             {
-                ushort submeshIndex = _destroyable.SubpieceData[subpieceIndex].RenderSubpiece;
-                SubmeshData submesh = Mesh.Config.Submeshes[submeshIndex];
+                ushort submeshIndex = Destroyable.SubpieceData[subpieceIndex].RenderSubpiece;
+                SubmeshData submesh = Mesh.Submeshes[submeshIndex];
                 uint firstBlock = submesh.RenderBlocksOffset;
                 for (int j = 0; j < submesh.NumRenderBlocks; j++)
                 {
-                    RenderBlock block = Mesh.Config.RenderBlocks[(int)(firstBlock + j)];
-                    MaterialPipeline pipeline = Materials[block.MaterialMapIndex];
+                    RenderBlock block = Mesh.RenderBlocks[(int)(firstBlock + j)];
                     
                     int materialIndex = gpuMaterials[block.MaterialMapIndex].gpuMaterialIndex;
                     PerObjectConstants perObjectConstants = baseObjectConstants with
@@ -133,7 +120,6 @@ public class RenderChunk : RenderObjectBase
                     
                     commands.Add(new RenderCommand
                     {
-                        Pipeline = pipeline,
                         Mesh = Mesh,
                         IndexCount = block.NumIndices,
                         StartIndex = block.StartIndex,

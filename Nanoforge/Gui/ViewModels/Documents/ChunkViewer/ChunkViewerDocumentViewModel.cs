@@ -56,6 +56,8 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
 
     [ObservableProperty]
     private MeshInstanceData? _rawMeshData;
+    
+    private RenderMeshData? _convertedMeshData;
 
     [ObservableProperty]
     private ObservableCollection<RenderChunk> _renderChunks = new();
@@ -265,7 +267,10 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
                 texturesByMaterial.Add(textures.ToArray()); //Currently we only use the diffuse textures for chunks
             }
             
-            Mesh mesh = new Mesh(context, RawMeshData, context.TransferCommandPool, context.TransferQueue);
+            MeshConverter meshConverter = new();
+            _convertedMeshData = meshConverter.Convert(RawMeshData);
+            
+            Mesh mesh = new Mesh(context, _convertedMeshData, context.TransferCommandPool, context.TransferQueue);
             float destroyableSpacing = 20.0f;
 
             if (ChunkFile.Destroyables.Count > 0)
@@ -285,7 +290,7 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
                 //TODO: Maybe reuse that to show when exception happens during loading process. Currently it still says "waiting for scene to load..."
                 Log.Warning("Opened chunk '{ChunkCpuFileName}' in viewer. It has no destroyables. Will be rendered as a simple mesh", ChunkCpuFilePath);
 
-                Scene.CreateRenderObject(ChunkFile.Config.VertexFormat.ToString(), Vector3.Zero, Matrix4x4.Identity, mesh, texturesByMaterial[0]);
+                Scene.CreateRenderObject(Vector3.Zero, Matrix4x4.Identity, mesh, texturesByMaterial[0]);
             }
             
             Scene.Init(renderer.Context);
@@ -331,7 +336,7 @@ public partial class ChunkViewerDocumentViewModel : NanoforgeDocument
 
     private RenderChunk CreateRenderChunkFromDestroyable(RenderContext context, Mesh mesh, Destroyable destroyable, List<Texture2D[]> texturesByMaterial)
     {
-        RenderChunk chunk = Scene.CreateRenderChunk(mesh.Config.VertexFormat.ToString(), Vector3.Zero, Matrix4x4.Identity, mesh, texturesByMaterial, destroyable);
+        RenderChunk chunk = Scene.CreateRenderChunk(Vector3.Zero, Matrix4x4.Identity, mesh, texturesByMaterial, destroyable);
         return chunk;
     }
 

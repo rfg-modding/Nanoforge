@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Nanoforge.Render.Misc;
 using Nanoforge.Render.Resources;
 using RFGM.Formats.Meshes.Chunks;
 using Serilog;
@@ -58,17 +59,17 @@ public class Scene
         InitRenderTextures();
     }
 
-    public SimpleRenderObject CreateRenderObject(string materialName, Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures)
+    public SimpleRenderObject CreateRenderObject(Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures, MaterialType materialType = MaterialType.Default)
     {
-        SimpleRenderObject renderObject = new(position, orient, mesh, textures, materialName);
+        SimpleRenderObject renderObject = new(position, orient, mesh, textures, materialType);
         RenderObjects.Add(renderObject);
         return renderObject;
     }
 
     //TODO: Update to take EditorObject version of the ChunkFile/Destroyable
-    public RenderChunk CreateRenderChunk(string materialName, Vector3 position, Matrix4x4 orient, Mesh mesh, List<Texture2D[]> texturesByMaterial, Destroyable destroyable)
+    public RenderChunk CreateRenderChunk(Vector3 position, Matrix4x4 orient, Mesh mesh, List<Texture2D[]> texturesByMaterial, Destroyable destroyable)
     {
-        RenderChunk chunk = new(position, orient, mesh, texturesByMaterial, materialName, destroyable);
+        RenderChunk chunk = new(position, orient, mesh, texturesByMaterial, destroyable);
         RenderObjects.Add(chunk);
         return chunk;
     }

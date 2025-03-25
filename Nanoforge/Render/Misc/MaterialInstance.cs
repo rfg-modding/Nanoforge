@@ -27,7 +27,7 @@ public struct MaterialInstance
     public int Texture9;
     
     [FieldOffset(40)]
-    private int _padding0;
+    public MaterialType Type;
     [FieldOffset(44)]
     private int _padding1;
 }

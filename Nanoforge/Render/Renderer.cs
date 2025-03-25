@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Nanoforge.Render.Materials;
 using Nanoforge.Render.Misc;
 using Nanoforge.Render.Resources;
+using Nanoforge.Render.VertexFormats;
+using Nanoforge.Render.VertexFormats.Rfg;
+using Serilog;
 using Silk.NET.Vulkan;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
@@ -37,7 +40,7 @@ public unsafe class Renderer
     //Create a GPU buffer for storing per object constants like their model matrix. Gets uploaded once per scene instead of updating push constants 1000s of times
     //25000 is a reasonable cap with tons of headroom. mp_crescent is a large map and only has 4814. With the current size of PerObjectConstants it only takes up 1.4MB.
     //Note that this number is equivalent to the number of RenderObjectBase instances. Since some types like RenderChunk can have many separate pieces with their own constants.
-    public const int MaxObjectsPerScene = 100000;
+    public const int MaxObjectsPerScene = 150000;
     public const int MaxMaterialInstances = 100000;
     private VkBuffer[] _perObjectConstantsGPUBuffer; 
     private VkBuffer[] _materialInfoGPUBuffer; 
@@ -46,6 +49,8 @@ public unsafe class Renderer
     public static readonly Format RenderTextureImageFormat = Format.B8G8R8A8Srgb;
     public static Format DepthTextureFormat { get; private set; }
 
+    private List<RenderCommand> _commands = new();
+    
     public unsafe Renderer(uint viewportWidth, uint viewportHeight)
     {
         if (Unsafe.SizeOf<LineVertex>() != 20)
@@ -68,6 +73,42 @@ public unsafe class Renderer
         {
             throw new Exception("SizeOf<PerFrameBuffer>() != 144. Required for shaders to work.");
         }
+        if (Unsafe.SizeOf<UnifiedVertex>() != 24)
+        {
+            throw new Exception("SizeOf<UnifiedVertex>() != 24. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<HighLodTerrainVertex>() != 8)
+        {
+            throw new Exception("SizeOf<HighLodTerrainVertex>() != 8. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<LowLodTerrainVertex>() != 8)
+        {
+            throw new Exception("SizeOf<LowLodTerrainVertex>() != 8. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<PixlitVertex>() != 16)
+        {
+            throw new Exception("SizeOf<PixlitVertex>() != 16. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<Pixlit1UvVertex>() != 20)
+        {
+            throw new Exception("SizeOf<Pixlit1UvVertex>() != 20. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<Pixlit1UvNmapVertex>() != 24)
+        {
+            throw new Exception("SizeOf<Pixlit1UvNmapVertex>() != 24. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<Pixlit2UvNmapVertex>() != 28)
+        {
+            throw new Exception("SizeOf<Pixlit2UvNmapVertex>() != 28. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<Pixlit3UvNmapVertex>() != 32)
+        {
+            throw new Exception("SizeOf<Pixlit3UvNmapVertex>() != 32. Required for shaders to work.");
+        }
+        if (Unsafe.SizeOf<Pixlit4UvNmapVertex>() != 36)
+        {
+            throw new Exception("SizeOf<Pixlit4UvNmapVertex>() != 36. Required for shaders to work.");
+        }
         
         Context = new RenderContext();
         //Load global textures like 1x1 white texture & setup default texture sampler
@@ -79,8 +120,6 @@ public unsafe class Renderer
         CreateMaterialInfoBuffers();
         MaterialHelper.Init(Context, _renderPass, _perFrameUniformBuffers!, _perObjectConstantsGPUBuffer, _materialInfoGPUBuffer);
         CreateSyncObjects();
-        
-        _primitiveRenderer.Init(Context);
     }
 
     public void Shutdown()
@@ -313,9 +352,9 @@ public unsafe class Renderer
         }
     }
 
-    static int _frameCounter = 0;
     private void RecordCommands(Scene scene, uint index)
     {
+        _commands.Clear();
         CommandBuffer commandBuffer = scene.CommandBuffers![index];
 
         CommandBufferBeginInfo beginInfo = new()
@@ -392,31 +431,25 @@ public unsafe class Renderer
         }
 
         _gpuFrameDataWriter.Reset();
-
-        List<RenderCommand> commands = new();
+        
         foreach (RenderObjectBase renderObject in scene.RenderObjects)
         {
-            renderObject.WriteDrawCommands(commands, scene.Camera!, _gpuFrameDataWriter);
+            renderObject.WriteDrawCommands(_commands, scene.Camera!, _gpuFrameDataWriter);
         }
         
         UpdatePerObjectConstantBuffers(index);
         UpdateMaterialInfoBuffers(index);
-        var commandsByPipeline = commands.GroupBy(command => command.Pipeline).ToList();
-        foreach (var pipelineGrouping in commandsByPipeline)
+        
+        MaterialPipeline unifiedPipeline = MaterialHelper.GetMaterialPipeline("UnifiedMaterial") ?? throw new NullReferenceException("Failed to get unified material pipeline!");
+        unifiedPipeline.Bind(commandBuffer, (int)index);
+        foreach (IGrouping<Mesh, RenderCommand> meshGrouping in _commands.GroupBy(command => command.Mesh))
         {
-            MaterialPipeline pipeline = pipelineGrouping.Key;
-            pipeline.Bind(commandBuffer, (int)index);
-            
-            var commandsByMesh = pipelineGrouping.ToList().GroupBy(command => command.Mesh).ToList();
-            foreach (var meshGrouping in commandsByMesh)
-            {
-                Mesh mesh = meshGrouping.Key;
-                mesh.Bind(Context, commandBuffer);
+            Mesh mesh = meshGrouping.Key;
+            mesh.Bind(Context, commandBuffer);
 
-                foreach (RenderCommand command in meshGrouping)
-                {
-                    Context.Vk.CmdDrawIndexed(commandBuffer, command.IndexCount, 1, command.StartIndex, 0, command.ObjectIndex);
-                }
+            foreach (RenderCommand command in meshGrouping)
+            {
+                Context.Vk.CmdDrawIndexed(commandBuffer, command.IndexCount, 1, command.StartIndex, 0, command.ObjectIndex);
             }
         }
         

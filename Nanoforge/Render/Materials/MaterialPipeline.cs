@@ -70,7 +70,7 @@ public class MaterialPipeline
         DescriptorAllocator.PoolSizeRatio[] poolSizeRatios =
         [
             new() { Type = DescriptorType.UniformBuffer,        Ratio = 1.0f },
-            new() { Type = DescriptorType.CombinedImageSampler, Ratio = 10.0f },
+            new() { Type = DescriptorType.CombinedImageSampler, Ratio = 8192.0f },
             new() { Type = DescriptorType.StorageBuffer       , Ratio = 1.0f },
         ];
         _descriptorAllocator = new DescriptorAllocator(_context, 10, poolSizeRatios);

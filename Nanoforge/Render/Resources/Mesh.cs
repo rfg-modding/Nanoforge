@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using RFGM.Formats.Meshes.Shared;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
@@ -17,33 +18,31 @@ public class Mesh
 
     public bool Destroyed { get; private set; } = false;
 
-    //TODO: Try to finally fix this BS
-    //Bit of a hack used to render chunk meshes
-    public static ushort[] SubmeshOverrideIndices = new ushort[256];
-
-    public MeshConfig Config { get; }
+    public readonly List<SubmeshData> Submeshes;
+    public readonly List<RenderBlock> RenderBlocks;
+    public readonly uint NumVertices;
+    public readonly uint NumIndices;
 
     //TODO: Update this to take a ProjectMesh as input instead of MeshInstanceData
     //Span<byte> vertices, Span<byte> indices, uint vertexCount, uint indexCount, uint indexSize
-    public Mesh(RenderContext context, MeshInstanceData meshInstance, CommandPool pool, Queue queue)
+    public Mesh(RenderContext context, RenderMeshData meshData, CommandPool pool, Queue queue)
     {
         _context = context;
-        Config = meshInstance.Config;
         
-        _vertexBuffer = new VkBuffer(_context, (ulong)meshInstance.Vertices.Length, BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit, MemoryPropertyFlags.DeviceLocalBit);
-        _context.StagingBuffer.SetData(meshInstance.Vertices);
-        _context.StagingBuffer.CopyTo(_vertexBuffer, (ulong)meshInstance.Vertices.Length, pool, queue);
+        Submeshes = meshData.Submeshes;
+        RenderBlocks = meshData.RenderBlocks;
+        NumVertices = meshData.NumVertices;
+        NumIndices = meshData.NumIndices;
         
-        _indexBuffer = new VkBuffer(_context, (ulong)meshInstance.Indices.Length, BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit, MemoryPropertyFlags.DeviceLocalBit);
-        _context.StagingBuffer.SetData(meshInstance.Indices);
-        _context.StagingBuffer.CopyTo(_indexBuffer, (ulong)meshInstance.Indices.Length, pool, queue);
+        _vertexBuffer = new VkBuffer(_context, (ulong)meshData.Vertices.Length, BufferUsageFlags.TransferDstBit | BufferUsageFlags.VertexBufferBit, MemoryPropertyFlags.DeviceLocalBit);
+        _context.StagingBuffer.SetData(meshData.Vertices);
+        _context.StagingBuffer.CopyTo(_vertexBuffer, (ulong)meshData.Vertices.Length, pool, queue);
+        
+        _indexBuffer = new VkBuffer(_context, (ulong)meshData.Indices.Length, BufferUsageFlags.TransferDstBit | BufferUsageFlags.IndexBufferBit, MemoryPropertyFlags.DeviceLocalBit);
+        _context.StagingBuffer.SetData(meshData.Indices);
+        _context.StagingBuffer.CopyTo(_indexBuffer, (ulong)meshData.Indices.Length, pool, queue);
 
-        _indexType = Config.IndexSize switch
-        {
-            2 => IndexType.Uint16,
-            4 => IndexType.Uint32,
-            _ => throw new Exception($"Mesh created with unsupported index size of {Config.IndexSize} bytes")
-        };
+        _indexType = meshData.IndexType;
     }
     
     public unsafe void Bind(RenderContext context, CommandBuffer commandBuffer)

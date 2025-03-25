@@ -30,6 +30,7 @@ struct MaterialInstance
     int Texture7;
     int Texture8;
     int Texture9;
+    int Type; //See the MaterialType enum in C# code
 };
 
 layout(std140, binding = 2) readonly buffer MaterialBuffer

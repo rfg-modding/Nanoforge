@@ -36,76 +36,14 @@ public static class MaterialHelper
             _uniformBuffers = uniformBuffers;
             _perObjectConstantBuffers = perObjectConstantBuffers;
             _materialInfoBuffers = materialInfoBuffers;
-
-            //TODO: Port the rest of the vertex formats and shaders from the Beeflang version of NF and DX11
-            CreateMaterial("Terrain", VkPrimitiveTopology.TriangleStrip, stride: 8,
-                attributes:
-                [
-                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R16G16Sint,      Offset = 0  }, //Position
-                    new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm,   Offset = 4 },  //Normal
-                ]
-            );
-            CreateMaterial("TerrainStitch", VkPrimitiveTopology.TriangleStrip, stride: 16,
-                attributes:
-                [
-                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R32G32B32Sfloat,  Offset = 0  },  //Position
-                    new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm,    Offset = 12 },  //Normal
-                ]
-            );
-            CreateMaterial("TerrainLowLod", VkPrimitiveTopology.TriangleStrip, stride: 8,
-                attributes:
-                [
-                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R16G16B16A16Sint, Offset = 0  }, //Position
-                ]
-            );
-            CreateMaterial("Pixlit1Uv", VkPrimitiveTopology.TriangleStrip, stride: 20,
-                attributes:
-                [
-                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R32G32B32Sfloat, Offset = 0  }, //Position
-                    new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm,   Offset = 12 }, //Normal
-                    new VertexInputAttributeDescription { Binding = 0, Location = 2, Format = Format.R16G16Sint,      Offset = 16 }  //TexCoord0
-                ]
-            );
-            CreateMaterial("Pixlit1UvNmap", VkPrimitiveTopology.TriangleStrip, stride: 24,
+            
+            CreateMaterial("UnifiedMaterial", VkPrimitiveTopology.TriangleStrip, stride: 24,
                 attributes:
                 [
                     new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R32G32B32Sfloat, Offset = 0 }, //Position
                     new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm, Offset = 12 }, //Normal
                     new VertexInputAttributeDescription { Binding = 0, Location = 2, Format = Format.R8G8B8A8Unorm, Offset = 16 }, //Tangent
                     new VertexInputAttributeDescription { Binding = 0, Location = 3, Format = Format.R16G16Sint, Offset = 20 } //TexCoord0
-                ]
-            );
-            CreateMaterial("Pixlit2UvNmap", VkPrimitiveTopology.TriangleStrip, stride: 28,
-                attributes:
-                [
-                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R32G32B32Sfloat, Offset = 0  }, //Position
-                    new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm,   Offset = 12 }, //Normal
-                    new VertexInputAttributeDescription { Binding = 0, Location = 2, Format = Format.R8G8B8A8Unorm,   Offset = 16 }, //Tangent
-                    new VertexInputAttributeDescription { Binding = 0, Location = 3, Format = Format.R16G16Sint,      Offset = 20 }, //TexCoord0
-                    new VertexInputAttributeDescription { Binding = 0, Location = 4, Format = Format.R16G16Sint,      Offset = 24 }  //TexCoord1
-                ]
-            );
-            CreateMaterial("Pixlit3UvNmap", VkPrimitiveTopology.TriangleStrip, stride: 32,
-                attributes:
-                [
-                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R32G32B32Sfloat, Offset = 0  }, //Position
-                    new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm,   Offset = 12 }, //Normal
-                    new VertexInputAttributeDescription { Binding = 0, Location = 2, Format = Format.R8G8B8A8Unorm,   Offset = 16 }, //Tangent
-                    new VertexInputAttributeDescription { Binding = 0, Location = 3, Format = Format.R16G16Sint,      Offset = 20 }, //TexCoord0
-                    new VertexInputAttributeDescription { Binding = 0, Location = 4, Format = Format.R16G16Sint,      Offset = 24 }, //TexCoord1
-                    new VertexInputAttributeDescription { Binding = 0, Location = 5, Format = Format.R16G16Sint,      Offset = 28 }  //TexCoord2
-                ]
-            );
-            CreateMaterial("Pixlit4UvNmap", VkPrimitiveTopology.TriangleStrip, stride: 36,
-                attributes:
-                [
-                    new VertexInputAttributeDescription { Binding = 0, Location = 0, Format = Format.R32G32B32Sfloat, Offset = 0  }, //Position
-                    new VertexInputAttributeDescription { Binding = 0, Location = 1, Format = Format.R8G8B8A8Unorm,   Offset = 12 }, //Normal
-                    new VertexInputAttributeDescription { Binding = 0, Location = 2, Format = Format.R8G8B8A8Unorm,   Offset = 16 }, //Tangent
-                    new VertexInputAttributeDescription { Binding = 0, Location = 3, Format = Format.R16G16Sint,      Offset = 20 }, //TexCoord0
-                    new VertexInputAttributeDescription { Binding = 0, Location = 4, Format = Format.R16G16Sint,      Offset = 24 }, //TexCoord1
-                    new VertexInputAttributeDescription { Binding = 0, Location = 5, Format = Format.R16G16Sint,      Offset = 28 }, //TexCoord2
-                    new VertexInputAttributeDescription { Binding = 0, Location = 6, Format = Format.R16G16Sint,      Offset = 32 }  //TexCoord3
                 ]
             );
             CreateMaterial("Linelist", VkPrimitiveTopology.LineList, stride: 20,

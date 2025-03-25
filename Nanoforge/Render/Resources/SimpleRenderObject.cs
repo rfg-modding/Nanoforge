@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.CompilerServices;
-using Nanoforge.Render.Materials;
 using Nanoforge.Render.Misc;
 using RFGM.Formats.Meshes.Shared;
 using Serilog;
-using Silk.NET.Vulkan;
 
 namespace Nanoforge.Render.Resources;
 
@@ -14,9 +11,9 @@ public class SimpleRenderObject : RenderObjectBase
 {
     public Mesh Mesh;
     public Texture2D[] Textures = new Texture2D[10];
-    public MaterialPipeline Pipeline;
+    public readonly MaterialType MaterialType;
 
-    public SimpleRenderObject(Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures, string materialName) : base(position, orient, Vector3.One)
+    public SimpleRenderObject(Vector3 position, Matrix4x4 orient, Mesh mesh, Texture2D[] textures, MaterialType materialType = MaterialType.Default) : base(position, orient, Vector3.One)
     {
         if (textures.Length > 10)
         {
@@ -41,10 +38,10 @@ public class SimpleRenderObject : RenderObjectBase
             }
         }
 
-        Pipeline = MaterialHelper.GetMaterialPipeline(materialName) ?? throw new NullReferenceException($"Failed to get material pipeline: '{materialName}'");
+        MaterialType = materialType;
     }
     
-    public override unsafe void WriteDrawCommands(List<RenderCommand> commands, Camera camera, GpuFrameDataWriter constants)
+    public override void WriteDrawCommands(List<RenderCommand> commands, Camera camera, GpuFrameDataWriter constants)
     {
         Matrix4x4 translation = Matrix4x4.CreateTranslation(Position);
         Matrix4x4 rotation = Orient;
@@ -63,6 +60,7 @@ public class SimpleRenderObject : RenderObjectBase
             Texture7 = Textures[7].Index,
             Texture8 = Textures[8].Index,
             Texture9 = Textures[9].Index,
+            Type = MaterialType,
         };
         int materialIndex = constants.AddMaterialInstance(materialInstance);
         
@@ -74,15 +72,14 @@ public class SimpleRenderObject : RenderObjectBase
         };
         uint objectIndex = constants.AddObject(objectConstants);
         
-        foreach (SubmeshData submesh in Mesh.Config.Submeshes)
+        foreach (SubmeshData submesh in Mesh.Submeshes)
         {
             uint firstBlock = submesh.RenderBlocksOffset;
             for (int j = 0; j < submesh.NumRenderBlocks; j++)
             {
-                RenderBlock block = Mesh.Config.RenderBlocks[(int)(firstBlock + j)];
+                RenderBlock block = Mesh.RenderBlocks[(int)(firstBlock + j)];
                 commands.Add(new RenderCommand
                 {
-                    Pipeline = this.Pipeline,
                     Mesh = Mesh,
                     IndexCount = block.NumIndices,
                     StartIndex = block.StartIndex,
