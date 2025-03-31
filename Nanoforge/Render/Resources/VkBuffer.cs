@@ -64,25 +64,25 @@ public unsafe class VkBuffer : VkMemory
         Vk.BindBufferMemory(Device, VkHandle, Memory, 0);
     }
 
-    public void SetData<T>(ref T data) where T : unmanaged
+    public void SetData<T>(ref T data, ulong offset = 0) where T : unmanaged
     {
         fixed (void* ptr = &data)
         {
             int sizeInBytes = Unsafe.SizeOf<T>();
-            SetData(new Span<byte>(ptr, sizeInBytes));
+            SetData(new Span<byte>(ptr, sizeInBytes), offset);
         }
     }
 
-    public void SetData<T>(Span<T> data) where T : unmanaged
+    public void SetData<T>(Span<T> data, ulong offset = 0) where T : unmanaged
     {
         fixed (void* ptr = data)
         {
             int sizeInBytes = Unsafe.SizeOf<T>() * data.Length;
-            SetData(new Span<byte>(ptr, sizeInBytes));
+            SetData(new Span<byte>(ptr, sizeInBytes), offset);
         }
     }
 
-    public void SetData(Span<byte> data)
+    public void SetData(Span<byte> data, ulong offset = 0)
     {
         if ((ulong)data.Length > Size)
         {
@@ -99,7 +99,9 @@ public unsafe class VkBuffer : VkMemory
         
         void* ptr = null;
         MapMemory(ref ptr);
-        data.CopyTo(new Span<byte>(ptr, data.Length));
+        byte* offsetPtr = (byte*)ptr;
+        offsetPtr += offset;
+        data.CopyTo(new Span<byte>(offsetPtr, data.Length));
         UnmapMemory();
     }
 

@@ -46,6 +46,10 @@ public unsafe class Renderer
     private VkBuffer[] _materialInfoGPUBuffer; 
     private GpuFrameDataWriter _gpuFrameDataWriter = new(MaxObjectsPerScene, MaxMaterialInstances);
     
+    public const int MaxCommands = 150_000;
+    private VkDrawIndexedIndirectCommand[] _cpuDrawCommandsBuffer;
+    private VkBuffer[] _drawCommandBuffer;
+    
     public static readonly Format RenderTextureImageFormat = Format.B8G8R8A8Srgb;
     public static Format DepthTextureFormat { get; private set; }
 
@@ -109,6 +113,10 @@ public unsafe class Renderer
         {
             throw new Exception("SizeOf<Pixlit4UvNmapVertex>() != 36. Required for shaders to work.");
         }
+        if (Unsafe.SizeOf<VkDrawIndexedIndirectCommand>() != 20)
+        {
+            throw new Exception("SizeOf<VkDrawIndexedIndirectCommand>() != 20. Required for shaders to work.");
+        }
         
         Context = new RenderContext();
         //Load global textures like 1x1 white texture & setup default texture sampler
@@ -118,6 +126,7 @@ public unsafe class Renderer
         CreateUniformBuffers();
         CreatePerObjectConstantBuffers();
         CreateMaterialInfoBuffers();
+        CreateDrawCommandBuffers();
         MaterialHelper.Init(Context, _renderPass, _perFrameUniformBuffers!, _perObjectConstantsGPUBuffer, _materialInfoGPUBuffer);
         CreateSyncObjects();
     }
@@ -331,6 +340,22 @@ public unsafe class Renderer
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
         }
     }
+    
+    [MemberNotNull(nameof(_drawCommandBuffer))]
+    [MemberNotNull(nameof(_cpuDrawCommandsBuffer))]
+    private void CreateDrawCommandBuffers()
+    {
+        _cpuDrawCommandsBuffer = new VkDrawIndexedIndirectCommand[MaxCommands];
+        
+        int bufferSize = MaxCommands * Unsafe.SizeOf<VkDrawIndexedIndirectCommand>();
+        _drawCommandBuffer = new VkBuffer[MaxFramesInFlight];
+        for (int i = 0; i < MaxFramesInFlight; i++)
+        {
+            _drawCommandBuffer[i] = new VkBuffer(Context, (ulong)bufferSize, 
+                BufferUsageFlags.TransferDstBit | BufferUsageFlags.StorageBufferBit | BufferUsageFlags.IndirectBufferBit,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+        }
+    }
 
     private void UpdatePerObjectConstantBuffers(uint currentImage)
     {
@@ -442,15 +467,33 @@ public unsafe class Renderer
         
         MaterialPipeline unifiedPipeline = MaterialHelper.GetMaterialPipeline("UnifiedMaterial") ?? throw new NullReferenceException("Failed to get unified material pipeline!");
         unifiedPipeline.Bind(commandBuffer, (int)index);
+        int totalNumCommands = 0;
         foreach (IGrouping<Mesh, RenderCommand> meshGrouping in _commands.GroupBy(command => command.Mesh))
         {
             Mesh mesh = meshGrouping.Key;
             mesh.Bind(Context, commandBuffer);
 
+            int batchFirstCommand = totalNumCommands;
+            int batchNumCommands = 0;
             foreach (RenderCommand command in meshGrouping)
             {
-                Context.Vk.CmdDrawIndexed(commandBuffer, command.IndexCount, 1, command.StartIndex, 0, command.ObjectIndex);
+                if (totalNumCommands >= MaxCommands)
+                    throw new Exception($"Exceeded max draw command count of {MaxCommands}. Please increase Renderer.MaxCommands and recompile Nanoforge to fix this.");
+                
+                _cpuDrawCommandsBuffer[totalNumCommands++] = new VkDrawIndexedIndirectCommand(command.IndexCount, 1, command.StartIndex, 0, command.ObjectIndex);
+                batchNumCommands++;
             }
+
+            ulong batchOffset = (ulong)batchFirstCommand * (ulong)Unsafe.SizeOf<VkDrawIndexedIndirectCommand>();
+            fixed (VkDrawIndexedIndirectCommand* commandsPtr = _cpuDrawCommandsBuffer)
+            {
+                var commandsSpan = new Span<VkDrawIndexedIndirectCommand>(commandsPtr + batchFirstCommand, batchNumCommands);
+                _drawCommandBuffer[index].SetData(commandsSpan, batchOffset);
+            }
+
+            uint drawCount = (uint)batchNumCommands;
+            uint drawCommandStride = (uint)Unsafe.SizeOf<VkDrawIndexedIndirectCommand>();
+            Context.Vk.CmdDrawIndexedIndirect(commandBuffer, _drawCommandBuffer[index].VkHandle, batchOffset, drawCount, drawCommandStride);
         }
         
         scene.PrimitiveRenderer.RenderPrimitives(Context, commandBuffer, index);

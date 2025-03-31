@@ -202,6 +202,7 @@ public unsafe class RenderContext : IDisposable
         PhysicalDeviceFeatures deviceFeatures = new()
         {
             SamplerAnisotropy = true,
+            MultiDrawIndirect = true,
         };
 
         DeviceCreateInfo deviceCreateInfo = new()
