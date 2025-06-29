@@ -7,6 +7,7 @@ PreprocessorMacros = ["BON_PROVIDE_ERROR_MESSAGE"]
 
 [Configs.Debug.Win64]
 BfSIMDSetting = "SSE4"
+AllocType = "CRT"
 
 [Configs.Release.Win64]
 Toolset = "Microsoft"

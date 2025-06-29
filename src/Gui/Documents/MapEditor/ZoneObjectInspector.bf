@@ -34,7 +34,7 @@ public struct RegisterInspectorAttribute : Attribute
 public static class BaseZoneObjectInspector : IZoneObjectInspector<ZoneObject>
 {
     private static append BitflagComboBox<ZoneObject.Flags> _flagsCombo = .("Flags",
-	    nameOverrides: new .(
+	    nameOverrides: new (ZoneObject.Flags, StringView)[](
 		    (.SpawnInAnarchy, "Spawn in Anarchy"),
 		    (.SpawnInTeamAnarchy, "Spawn in Team Anarchy"),
             (.SpawnInCTF, "Spawn in CTF"),
@@ -910,7 +910,7 @@ public static class ObjLightInspector : IZoneObjectInspector<ObjLight>
 public static class MultiMarkerInspector : IZoneObjectInspector<MultiMarker>
 {
     private static append EnumComboBox<MultiMarkerType> _markerTypeCombo = .("Marker Type",
-	    nameOverrides: new .(
+	    nameOverrides: new (MultiMarkerType, StringView)[](
             (.None, "None"),
 		    (.SiegeTarget, "Siege Target"),
 		    (.BackpackRack, "Backpack Rack"),
